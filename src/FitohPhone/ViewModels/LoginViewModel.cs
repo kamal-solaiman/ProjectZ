@@ -91,7 +91,7 @@ public sealed class LoginViewModel : ObservableObject
                 "تعذر الوصول إلى خادم SQL Server. تحقق من اسم الخادم في connectionsettings.json، وتشغيل خدمة SQL Server، وتفعيل TCP/IP، وفتح المنفذ في جدار الحماية.",
             4060 => "تعذر فتح قاعدة البيانات FitohPhone (خطأ 4060). تأكد من إنشاء القاعدة على هذا الخادم ومنح حساب الدخول صلاحية الوصول إليها.",
             18452 => "نوع المصادقة غير مفعّل على الخادم (خطأ 18452). راجع إعداد IntegratedSecurity أو فعّل Mixed Mode في SQL Server.",
-            18456 => "رفض خادم SQL تسجيل دخول حساب الاتصال (خطأ 18456). تحقق من صلاحيات حساب Windows في SQL Server أو بيانات UserId/Password.",
+            18456 => "رفض خادم SQL تسجيل دخول حساب الاتصال (خطأ 18456). نفّذ السكربت sql/04_SetupLanSqlAuth.sql في SSMS، ثم أعد تشغيل خدمة SQL Server لتفعيل Mixed Mode.",
             208 => "جدول المستخدمين (dbo.Users) غير موجود في قاعدة البيانات FitohPhone. نفّذ sql/01_CreateDatabase.sql ثم sql/02_SeedAdmin.sql في SSMS.",
             229 => "حساب الاتصال لا يملك صلاحية القراءة (SELECT) على جدول dbo.Users (خطأ 229).",
             -2 or 258 => "انتهت مهلة الاتصال بقاعدة البيانات. تحقق من استجابة الخادم والشبكة وجدار الحماية.",
