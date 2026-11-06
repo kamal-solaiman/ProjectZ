@@ -38,16 +38,15 @@
 
         <!-- Login card -->
         <Border Grid.Row="1"
-                Margin="28,24,28,0"
+                Margin="28,24,28,12"
                 Padding="26,10,26,22"
                 Background="{StaticResource CardBrush}"
-                CornerRadius="18"
-                VerticalAlignment="Top">
+                CornerRadius="18">
             <Border.Effect>
                 <DropShadowEffect BlurRadius="18" ShadowDepth="2" Opacity="0.18" Color="#334155"/>
             </Border.Effect>
 
-            <StackPanel>
+            <StackPanel VerticalAlignment="Center">
                 <TextBlock Text="تسجيل الدخول"
                            FontSize="20" FontWeight="SemiBold"
                            Foreground="{StaticResource TextPrimaryBrush}"
