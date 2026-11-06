@@ -64,8 +64,8 @@
                           HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     <TextBox x:Name="UsernameTextBox"
                              Style="{StaticResource RoundedInput}"
-                             Foreground="{StaticResource TextPrimaryBrush}"
-                             CaretBrush="{StaticResource PrimaryBrush}"
+                             Foreground="#FF1E293B"
+                             CaretBrush="#FF1F6FEB"
                              Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
                 </Grid>
 
@@ -79,7 +79,9 @@
                           Stretch="Uniform"
                           HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     <PasswordBox x:Name="PasswordBox"
-                                 Style="{StaticResource RoundedPasswordBox}"/>
+                                 Style="{StaticResource RoundedPasswordBox}"
+                                 Foreground="#FF1E293B"
+                                 CaretBrush="#FF1F6FEB"/>
                 </Grid>
 
                 <!-- Error message -->
