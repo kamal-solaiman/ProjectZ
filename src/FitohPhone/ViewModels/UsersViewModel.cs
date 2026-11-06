@@ -24,6 +24,7 @@ public sealed class UsersViewModel : ObservableObject
     public AsyncCommand LoadCommand { get; }
     public AsyncCommand SavePermissionsCommand { get; }
 
+    public ObservableCollection<UserSession> Users { get; } = new();
     public ObservableCollection<UserRole> Roles { get; } = new();
     public ObservableCollection<UserPermission> Permissions { get; } = new();
 
@@ -42,11 +43,17 @@ public sealed class UsersViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            Users.Clear();
             Roles.Clear();
             Permissions.Clear();
+
+            foreach (var u in await _userRepo.GetAllUsersAsync(System.Threading.CancellationToken.None))
+                Users.Add(u);
             foreach (var r in await _roleRepo.GetAllAsync(System.Threading.CancellationToken.None))
                 Roles.Add(r);
-            // الإذن يُحمل لمستخدم محدد عند اختياره
+
+            TotalUsers = Users.Count;
+            ActiveUsers = Users.Count; // جميع المستخدمين نشطين في هذه المرحلة
         }
         finally { IsBusy = false; }
     }
