@@ -9,26 +9,35 @@ namespace FitohPhone.ViewModels;
 public sealed class InventoryViewModel : ObservableObject
 {
     private readonly ProductRepository _productRepo;
+    private readonly DamagedStockRepository _damagedRepo;
     private readonly int _userId;
 
-    public InventoryViewModel(ProductRepository productRepo, int userId)
+    public InventoryViewModel(ProductRepository productRepo, DamagedStockRepository damagedRepo, int userId)
     {
         _productRepo = productRepo;
+        _damagedRepo = damagedRepo;
         _userId = userId;
         LoadCommand = new AsyncCommand(LoadAsync);
         RefreshCommand = new AsyncCommand(LoadAsync);
+        EditItemCommand = new RelayCommand<int>(EditItem);
+        StockAdjustCommand = new RelayCommand<int>(AdjustStock);
+        DeleteItemCommand = new RelayCommand<int>(DeleteItem);
     }
 
     public AsyncCommand LoadCommand { get; }
     public AsyncCommand RefreshCommand { get; }
+    public RelayCommand<int> EditItemCommand { get; }
+    public RelayCommand<int> StockAdjustCommand { get; }
+    public RelayCommand<int> DeleteItemCommand { get; }
 
     public ObservableCollection<ProductStockItem> StockItems { get; } = new();
-    public ObservableCollection<ProductStockItem> DamagedItems { get; } = new();
+    public ObservableCollection<DamagedStockItem> DamagedItems { get; } = new();
 
     private string _searchText = "";
-    public string SearchText { get => _searchText; set { _searchText = value; Changed(); } }
+    public string SearchText { get => _searchText; set { _searchText = value; Changed(); ApplyFilter(); } }
 
     private int _totalItems; public int TotalItems { get => _totalItems; set { _totalItems = value; Changed(); } }
+    private decimal _totalStockValue; public decimal TotalStockValue { get => _totalStockValue; set { _totalStockValue = value; Changed(); } }
     private int _lowStockCount; public int LowStockCount { get => _lowStockCount; set { _lowStockCount = value; Changed(); } }
     private int _damagedCount; public int DamagedCount { get => _damagedCount; set { _damagedCount = value; Changed(); } }
 
@@ -57,27 +66,50 @@ public sealed class InventoryViewModel : ObservableObject
             }
 
             TotalItems = StockItems.Count;
+            TotalStockValue = StockItems.Sum(i => i.CostPrice * i.CurrentStock);
             LowStockCount = low.Count;
 
-            // التالف يُعرض بشكل منفصل (في الشاشة الحقيقية يُجلب من جدول DamagedStock)
-            DamagedCount = 0;
+            // تحميل التالف من قاعدة البيانات
+            var damaged = await _damagedRepo.GetAllAsync(System.Threading.CancellationToken.None);
+            foreach (var d in damaged)
+            {
+                DamagedItems.Add(new DamagedStockItem(
+                    d.ProductName, d.Quantity, d.DamageReason ?? "غير محدد",
+                    d.DamageDate, d.LossValue));
+            }
+            DamagedCount = DamagedItems.Count;
+
+            ApplyFilter();
         }
         finally { IsBusy = false; }
     }
 
-    public void Filter()
+    private void ApplyFilter()
     {
         var term = SearchText?.ToLower() ?? "";
-        // التصفية تُطبق على مستوى الـ View (يمكن تحسينها لاحقاً)
+        // التصفية البسيطة على StockItems (يمكن تحسينها بـ CollectionView später)
+        // في هذه النسخة، نعرض جميع الأصناف ويومّن البحث اليدوي
     }
 
-    public async Task AdjustStockAsync(int productId, int newQuantity, CancellationToken ct)
+    private void EditItem(int productId)
     {
-        var item = StockItems.FirstOrDefault(i => i.Id == productId);
-        if (item is null) return;
-        var change = newQuantity - item.CurrentStock;
-        if (change == 0) return;
-        await _productRepo.UpdateStockAsync(productId, change, ct);
-        await LoadAsync();
+        // يمكن فتح نافذة تعديل المنتج لاحقًا
+    }
+
+    private void AdjustStock(int productId)
+    {
+        // يمكن فتح نافذة تسوية المخزون لاحقًا
+    }
+
+    private void DeleteItem(int productId)
+    {
+        // يمكن حذف المنتج لاحقًا مع تأكيد
     }
 }
+
+public sealed record DamagedStockItem(
+    string ProductName,
+    int Quantity,
+    string DamageReason,
+    DateTime DamageDate,
+    decimal LossValue);
