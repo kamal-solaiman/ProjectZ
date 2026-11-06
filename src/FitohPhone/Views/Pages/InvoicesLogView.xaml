@@ -1,6 +1,10 @@
 <UserControl x:Class="FitohPhone.Views.Pages.InvoicesLogView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/microsoft-com/controls/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="1200">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
@@ -45,7 +49,7 @@
           <ComboBoxItem Content="هذا الشهر"/>
           <ComboBoxItem Content="كل الفترات"/>
         </ComboBox>
-        <Button Grid.Column="8" Content="تحديث السجل" Padding="18,9"/>
+        <Button Grid.Column="8" Content="تحديث السجل" Padding="18,9" Click="Refresh_Click"/>
       </Grid>
     </Border>
 
@@ -76,98 +80,42 @@
             </Grid>
           </Border>
 
-          <Border Style="{StaticResource TableRowBorder}">
-            <Grid VerticalAlignment="Center">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="105"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="130"/>
-                <ColumnDefinition Width="1.4*"/>
-                <ColumnDefinition Width="115"/>
-                <ColumnDefinition Width="105"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="270"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" Text="INV-1041" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="1" Text="بيع POS" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="2" Text="اليوم 08:15 م" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="3" Text="أحمد طارق — 01065432198" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="4" Text="دفع مختلط" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="5" Text="8,000 ج.م" FontWeight="Bold" VerticalAlignment="Center"/>
-              <Border Grid.Column="6" Background="{DynamicResource SuccessSoftBrush}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <TextBlock Text="مكتملة" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
-              </Border>
-              <StackPanel Grid.Column="7" Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="عرض" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="طباعة" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="مرتجع" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
-              </StackPanel>
-            </Grid>
-          </Border>
-
-          <Border Style="{StaticResource TableRowAltBorder}">
-            <Grid VerticalAlignment="Center">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="105"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="130"/>
-                <ColumnDefinition Width="1.4*"/>
-                <ColumnDefinition Width="115"/>
-                <ColumnDefinition Width="105"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="270"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" Text="PUR-0419" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="1" Text="مشتريات" Foreground="{DynamicResource InfoBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="2" Text="اليوم 05:40 م" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="3" Text="شركة النور لتجارة الهواتف" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="4" Text="أجزاء + آجل" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="5" Text="25,000 ج.م" FontWeight="Bold" VerticalAlignment="Center"/>
-              <Border Grid.Column="6" Background="{DynamicResource WarningSoftBrush}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <TextBlock Text="متبقي 2000" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
-              </Border>
-              <StackPanel Grid.Column="7" Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="عرض" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="طباعة" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="سداد" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
-              </StackPanel>
-            </Grid>
-          </Border>
-
-          <Border Style="{StaticResource TableRowBorder}">
-            <Grid VerticalAlignment="Center">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="105"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="130"/>
-                <ColumnDefinition Width="1.4*"/>
-                <ColumnDefinition Width="115"/>
-                <ColumnDefinition Width="105"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="270"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" Text="INV-1038" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="1" Text="بيع جملة" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="2" Text="اليوم 02:10 م" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="3" Text="محل الهدى فون — 01011223344" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="4" Text="إنستاباي" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="5" Text="4,650 ج.م" FontWeight="Bold" VerticalAlignment="Center"/>
-              <Border Grid.Column="6" Background="{DynamicResource InfoSoftBrush}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <TextBlock Text="معدّلة" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource InfoBrush}"/>
-              </Border>
-              <StackPanel Grid.Column="7" Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="عرض" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="طباعة" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="مرتجع" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
-                <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
-              </StackPanel>
-            </Grid>
-          </Border>
+          <ItemsControl ItemsSource="{Binding Invoices}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource TableRowBorder}">
+                  <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="105"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="130"/>
+                      <ColumnDefinition Width="1.4*"/>
+                      <ColumnDefinition Width="115"/>
+                      <ColumnDefinition Width="105"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="270"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding InvoiceNumber}" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="بيع POS" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding InvoiceDate, StringFormat={}{0:yyyy/MM/dd HH:mm}}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="3" Text="{Binding CustomerName}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="4" Text="{Binding PaymentStatus}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="5" Text="{Binding GrandTotal, StringFormat={}{0:N0} ج.م}" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Border Grid.Column="6" Background="{Binding PaymentStatus, Converter={x:Null}, TargetNullValue={StaticResource SuccessSoftBrush}}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding PaymentStatus}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                    </Border>
+                    <StackPanel Grid.Column="7" Orientation="Horizontal" HorizontalAlignment="Center">
+                      <Button Content="عرض" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0" Tag="{Binding Id}" Click="ViewInvoice_Click"/>
+                      <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0" Tag="{Binding Id}" Click="EditInvoice_Click"/>
+                      <Button Content="طباعة" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0" Tag="{Binding Id}" Click="PrintInvoice_Click"/>
+                      <Button Content="مرتجع" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0" Tag="{Binding Id}" Click="ReturnInvoice_Click"/>
+                      <Button Content="إلغاء" Style="{StaticResource SmallDangerButton}" Tag="{Binding Id}" Click="CancelInvoice_Click"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
       </ScrollViewer>
     </Border>
@@ -181,19 +129,15 @@
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <StackPanel Grid.Column="0">
-          <TextBlock Text="مشتملات الفاتورة المحددة (INV-1041) — الكاشير: admin" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8"/>
-          <Border Style="{StaticResource TableRowBorder}">
-            <TextBlock Text="1× Samsung Galaxy A15 128GB (قطاعي: 7,200 ج)  |  1× شاحن Samsung 25W (مميز: 550 ج)  |  2× جراب سيليكون (جملة: 250 ج)"/>
-          </Border>
+          <TextBlock Text="مشتملات الفاتورة المحددة" Style="{StaticResource SectionTitleText}" Margin="0,0,0,8"/>
+          <TextBlock Text="{Binding SelectedInvoiceItems, TargetNullValue=اختر فاتورة من القائمة أعلاه لعرض مشتملاتها}" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
           <TextBlock Text="سجل التعديلات: لا توجد تعديلات أو مرتجعات سابقة على هذه الفاتورة." Style="{StaticResource MutedText}" Margin="0,8,0,0"/>
         </StackPanel>
 
         <Border Grid.Column="2" Style="{StaticResource ElevatedCard}">
           <StackPanel>
             <TextBlock Text="تفصيل الدفع المسجّل بالفاتورة" FontWeight="Bold" Margin="0,0,0,6"/>
-            <TextBlock Text="• نقدي بالخزينة: 3,000 ج.م" Margin="0,2"/>
-            <TextBlock Text="• فودافون كاش (01012345678): 2,000 ج.م" Margin="0,2"/>
-            <TextBlock Text="• إنستاباي (01100032165): 3,000 ج.م" Margin="0,2"/>
+            <TextBlock Text="{Binding SelectedInvoicePayments, TargetNullValue=اختر فاتورة لعرض تفاصيل الدفع}" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
       </Grid>
