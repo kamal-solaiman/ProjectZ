@@ -39,14 +39,14 @@
                 <TextBlock FontSize="11" Style="{StaticResource MutedText}">
                   <Run Text="{Binding DailyUsed, StringFormat={}{0:N0}}"/>
                   <Run Text=" / "/>
-                  <Run Text="{Binding DailyLimit, StringFormat='{0:N0}'}"/>
+                  <Run Text="{Binding DailyLimit, StringFormat={}{0:N0}}"/>
                   <Run Text=" ج (يومي)"/>
                 </TextBlock>
                 <ProgressBar Value="{Binding DailyUsed, ConverterParameter=100}" Maximum="{Binding DailyLimit}" Margin="0,4,0,6"/>
                 <TextBlock FontSize="11" Style="{StaticResource MutedText}">
                   <Run Text="{Binding MonthlyUsed, StringFormat={}{0:N0}}"/>
                   <Run Text=" / "/>
-                  <Run Text="{Binding MonthlyLimit, StringFormat='{0:N0}'}"/>
+                  <Run Text="{Binding MonthlyLimit, StringFormat={}{0:N0}}"/>
                   <Run Text=" ج (شهري)"/>
                 </TextBlock>
                 <ProgressBar Value="{Binding MonthlyUsed, ConverterParameter=100}" Maximum="{Binding MonthlyLimit}" Margin="0,4,0,0"/>
