@@ -3,6 +3,7 @@ using System.Windows.Input;
 using FitohPhone.Data;
 using FitohPhone.Helpers;
 using FitohPhone.Models;
+using FitohPhone.Services;
 
 namespace FitohPhone.ViewModels;
 
