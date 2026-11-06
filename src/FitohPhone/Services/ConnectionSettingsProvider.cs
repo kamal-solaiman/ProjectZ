@@ -56,10 +56,10 @@ public sealed class ConnectionSettingsProvider
                 "مهلة الاتصال (ConnectTimeoutSeconds) في connectionsettings.json يجب أن تكون بين 1 و60 ثانية.");
         }
 
-        if (!settings.IntegratedSecurity && string.IsNullOrWhiteSpace(settings.UserId))
+        if (!settings.IntegratedSecurity && (string.IsNullOrWhiteSpace(settings.UserId) || string.IsNullOrWhiteSpace(settings.Password)))
         {
             throw new ConnectionConfigurationException(
-                "عند ضبط IntegratedSecurity على false يجب تحديد اسم مستخدم SQL (UserId) وكلمة المرور في connectionsettings.json.");
+                "عند ضبط IntegratedSecurity على false يجب تحديد اسم مستخدم SQL (UserId) وكلمة المرور (Password) في connectionsettings.json.");
         }
 
         try

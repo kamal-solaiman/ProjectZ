@@ -13,6 +13,7 @@
 - `sql/01_CreateDatabase.sql`: القاعدة والجدول الوحيد `dbo.Users`.
 - `sql/02_SeedAdmin.sql`: إضافة admin دون إعادة تعيين حساب موجود.
 - `sql/03_VerifyEnvironment.sql`: استعلامات التحقق فقط.
+- `sql/04_SetupLanSqlAuth.sql`: تفعيل Mixed Mode وإنشاء حساب اتصال الشبكة `FitohPhoneClient` بصلاحية `SELECT` فقط.
 - `src/FitohPhone/connectionsettings.json`: إعدادات خارجية؛ يلزم استبدال عنوان الخادم.
 - [تجهيز الجهاز الرئيسي](docs/SERVER.md) · [العملاء وتغيير الخادم والنشر](docs/CLIENTS.md).
 - `.github/workflows/windows-build.yml`: بناء Windows واختبارات hashing ونشر artifact؛ لا يحل محل اختبار SQL/WPF الفعلي.
