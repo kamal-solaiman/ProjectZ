@@ -83,7 +83,7 @@ public sealed class DashboardViewModel : ObservableObject
             TotalProfit = stats.TotalProfit;
             NetAmount = stats.NetAmount;
             RepairsInProgress = stats.RepairsInProgress;
-            RepairsReady = stats.RepairsReady;
+            RepairsReady = stats.RepairsReadyForDelivery;
             LowStockCount = stats.LowStockCount;
             CashBalance = stats.CashBalance;
             VodafoneBalance1 = stats.VodafoneCashBalance1;

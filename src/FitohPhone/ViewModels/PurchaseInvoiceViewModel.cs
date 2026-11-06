@@ -89,8 +89,11 @@ public sealed class PurchaseInvoiceViewModel : ObservableObject
         var existing = Lines.FirstOrDefault(l => l.ProductId == product.Id);
         if (existing != null)
         {
-            existing.Quantity += quantity;
-            existing.LineTotal = existing.Quantity * existing.UnitCost;
+            var updatedLine = new PurchaseLine(
+                existing.Id, existing.ProductId, existing.Barcode, existing.Name,
+                existing.Quantity + quantity, existing.UnitCost, (existing.Quantity + quantity) * existing.UnitCost);
+            Lines.Remove(existing);
+            Lines.Add(updatedLine);
         }
         else
         {
@@ -133,7 +136,7 @@ public sealed class PurchaseInvoiceViewModel : ObservableObject
                 0, InvoiceNumber, DateTime.Now, SelectedSupplierId.Value, SelectedSupplierName ?? "",
                 _userId, "المستخدم", InvoiceTotal, InvoiceTotal, totalPaid, credit,
                 totalPaid >= InvoiceTotal ? "مدفوع" : (totalPaid > 0 ? "جزئي" : "آجل"),
-                null, false, null, null, DateTime.Now,
+                null, false, null, DateTime.Now,
                 Lines.Select(l => new PurchaseInvoiceItem(
                     0, 0, l.ProductId, l.Barcode, l.Name, l.Quantity, l.UnitCost, l.LineTotal)).ToList(),
                 new List<PurchaseInvoicePayment>

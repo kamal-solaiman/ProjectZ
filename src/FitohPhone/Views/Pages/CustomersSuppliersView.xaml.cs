@@ -137,8 +137,8 @@ public partial class CustomersSuppliersView : UserControl
         if (sender is Border { DataContext: Supplier supplier })
         {
             // يمكن عرض تفاصيل المورد في اللوحة اليمنى مستقبلاً
-            SelectedSupplierName = supplier.Name;
-            SelectedSupplierPhone = supplier.Phone;
+            _vm.SelectedSupplierName = supplier.Name;
+            _vm.SelectedSupplierPhone = supplier.Phone;
         }
     }
 }

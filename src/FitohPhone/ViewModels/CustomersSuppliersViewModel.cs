@@ -36,10 +36,10 @@ public sealed class CustomersSuppliersViewModel : ObservableObject
     public string? SelectedCustomerPhone { get => _selectedCustomerPhone; private set { _selectedCustomerPhone = value; Changed(); } }
 
     private string? _selectedSupplierName;
-    public string? SelectedSupplierName { get => _selectedSupplierName; private set { _selectedSupplierName = value; Changed(); } }
+    public string? SelectedSupplierName { get => _selectedSupplierName; set { _selectedSupplierName = value; Changed(); } }
 
     private string? _selectedSupplierPhone;
-    public string? SelectedSupplierPhone { get => _selectedSupplierPhone; private set { _selectedSupplierPhone = value; Changed(); } }
+    public string? SelectedSupplierPhone { get => _selectedSupplierPhone; set { _selectedSupplierPhone = value; Changed(); } }
 
     private decimal _selectedCustomerTotal;
     public decimal SelectedCustomerTotal { get => _selectedCustomerTotal; private set { _selectedCustomerTotal = value; Changed(); } }

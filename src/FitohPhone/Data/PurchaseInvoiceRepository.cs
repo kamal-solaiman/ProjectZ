@@ -57,7 +57,7 @@ public sealed class PurchaseInvoiceRepository(ConnectionSettingsProvider setting
     {
         await using var conn = new SqlConnection(settings.GetConnectionString());
         await conn.OpenAsync(ct);
-        await using var tx = await conn.BeginTransactionAsync(ct);
+        SqlTransaction tx = await conn.BeginTransactionAsync(ct);
         try
         {
             await using var cmd = new SqlCommand(

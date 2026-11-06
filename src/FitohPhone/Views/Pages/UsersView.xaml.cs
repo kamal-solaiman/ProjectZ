@@ -110,7 +110,7 @@ public partial class UsersView : UserControl
         }
     }
 
-    private void SavePermissions_Click(object sender, RoutedEventArgs e)
+    private async void SavePermissions_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.SelectedUserId <= 0)
         {
@@ -124,7 +124,7 @@ public partial class UsersView : UserControl
             var ok = _vm.SavePermissionsCommand.CanExecute(null);
             if (ok)
             {
-                var saved = _vm.SavePermissionsCommand.ExecuteAsync(null).Result;
+                var saved = await _vm.SavePermissionsCommand.ExecuteAsync(null);
                 if (saved)
                 {
                     MessageBox.Show("تم حفظ واعتماد صلاحيات المستخدم بنجاح.", "نجاح", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -139,25 +139,21 @@ public partial class UsersView : UserControl
 
     private void SelectAllPermissions_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var p in _vm.Permissions)
-        {
-            p.CanView = true;
-            p.CanAdd = true;
-            p.CanEdit = true;
-            p.CanDelete = true;
-            p.CanPrint = true;
-        }
+        var updated = _vm.Permissions.Select(p => new FitohPhone.Models.UserPermission(
+            p.Id, p.UserId, p.Module, p.ModuleNameAr,
+            true, true, true, true, true,
+            p.IsActive, p.CreatedAt)).ToList();
+        _vm.Permissions.Clear();
+        foreach (var perm in updated) _vm.Permissions.Add(perm);
     }
 
     private void SelectNonePermissions_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var p in _vm.Permissions)
-        {
-            p.CanView = false;
-            p.CanAdd = false;
-            p.CanEdit = false;
-            p.CanDelete = false;
-            p.CanPrint = false;
-        }
+        var updated = _vm.Permissions.Select(p => new FitohPhone.Models.UserPermission(
+            p.Id, p.UserId, p.Module, p.ModuleNameAr,
+            false, false, false, false, false,
+            p.IsActive, p.CreatedAt)).ToList();
+        _vm.Permissions.Clear();
+        foreach (var perm in updated) _vm.Permissions.Add(perm);
     }
 }

@@ -50,7 +50,7 @@ public partial class PhoneRepairsView : UserControl
         dialog.ShowDialog();
     }
 
-    private void SaveRepair_Click(object sender, RoutedEventArgs e)
+    private async void SaveRepair_Click(object sender, RoutedEventArgs e)
     {
         // التحقق من صحة البيانات الإجبارية
         if (string.IsNullOrWhiteSpace(CustomerPhoneBox.Text) ||
@@ -69,7 +69,7 @@ public partial class PhoneRepairsView : UserControl
 
         var paid = decimal.TryParse(PaidAmountBox.Text, out var p) ? p : 0;
 
-        var repair = new FitohPhone.Models.PhoneRepair(
+        var repair = new FitOhPhone.Models.PhoneRepair(
             0,
             RepairNumberBlock.Text,
             0, // CustomerId سيُحدد لاحقًا من قبل المستودع
@@ -103,7 +103,7 @@ public partial class PhoneRepairsView : UserControl
             null // Items
         );
 
-        var id = _vm.AddRepairAsync(repair, System.Threading.CancellationToken.None).Result;
+        var id = await _vm.AddRepairAsync(repair, System.Threading.CancellationToken.None);
         if (id > 0)
         {
             MessageBox.Show($"تم حفظ الاستلام برقم إيصال: {RepairNumberBlock.Text}\nتم إنشاء باركود الجهاز.", "تم الحفظ", MessageBoxButton.OK, MessageBoxImage.Information);

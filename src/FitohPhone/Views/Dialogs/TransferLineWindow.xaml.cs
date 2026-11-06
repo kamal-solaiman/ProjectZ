@@ -14,6 +14,11 @@ public partial class TransferLineWindow : Window
         _repo = app.TransferRepo;
     }
 
+    public TransferLineWindow(FitohPhone.Models.TransferLine line) : this()
+    {
+        // يمكن تعبئة الحقول بالقيم الموجودة إذا لزم الأمر تعديل خط موجود
+    }
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
         try

@@ -33,12 +33,12 @@ public partial class AddProductView : UserControl
         MessageBox.Show($"الباركود المGenerated: {barcode}\nيمكن نسخها ولصقها في حقل الباركود.", "توليد باركود", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    private void SaveProduct_Click(object sender, RoutedEventArgs e)
+    private async void SaveProduct_Click(object sender, RoutedEventArgs e)
     {
         var ok = _vm.SaveCommand.CanExecute(null);
         if (ok)
         {
-            var saved = _vm.SaveCommand.ExecuteAsync(null).Result;
+            var saved = await _vm.SaveCommand.ExecuteAsync(null);
             if (saved)
             {
                 MessageBox.Show("تم حفظ وتسجيل الصنف الجديد بنجاح في قاعدة البيانات.", "حفظ الصنف", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -50,12 +50,12 @@ public partial class AddProductView : UserControl
         }
     }
 
-    private void SaveAndPrintBarcode_Click(object sender, RoutedEventArgs e)
+    private async void SaveAndPrintBarcode_Click(object sender, RoutedEventArgs e)
     {
         var ok = _vm.SaveCommand.CanExecute(null);
         if (ok)
         {
-            var saved = _vm.SaveCommand.ExecuteAsync(null).Result;
+            var saved = await _vm.SaveCommand.ExecuteAsync(null);
             if (saved)
             {
                 MessageBox.Show("تم حفظ الصنف وطباعة باركود المنتج بنجاح.", "حفظ وطباعة", MessageBoxButton.OK, MessageBoxImage.Information);
