@@ -27,6 +27,13 @@ public sealed class InvoicesLogViewModel : ObservableObject
     private decimal _totalPaid; public decimal TotalPaid { get => _totalPaid; set { _totalPaid = value; Changed(); } }
     private decimal _totalRemaining; public decimal TotalRemaining { get => _totalRemaining; set { _totalRemaining = value; Changed(); } }
 
+    // تفاصيل الفاتورة المختارة للعرض في اللوحة السفلية
+    private string? _selectedInvoiceItems;
+    public string? SelectedInvoiceItems { get => _selectedInvoiceItems; private set { _selectedInvoiceItems = value; Changed(); } }
+
+    private string? _selectedInvoicePayments;
+    public string? SelectedInvoicePayments { get => _selectedInvoicePayments; private set { _selectedInvoicePayments = value; Changed(); } }
+
     private bool _busy;
     public bool IsBusy { get => _busy; private set { _busy = value; Changed(); Changed(nameof(IsIdle)); } }
     public bool IsIdle => !IsBusy;
@@ -51,5 +58,17 @@ public sealed class InvoicesLogViewModel : ObservableObject
     public async Task<bool> CancelInvoiceAsync(int invoiceId, CancellationToken ct)
     {
         return await _invoiceRepo.CancelAsync(invoiceId, _userId, ct);
+    }
+
+    /// <summary>
+    /// تحميل تفاصيل الفاتورة المختارة للعرض في اللوحة السفلية
+    /// </summary>
+    public async Task LoadInvoiceDetailsAsync(int invoiceId)
+    {
+        var invoice = await _invoiceRepo.GetByIdAsync(invoiceId, System.Threading.CancellationToken.None);
+        if (invoice is null) return;
+
+        SelectedInvoiceItems = string.Join(" | ", invoice.Items.Select(i => $"{i.Quantity}× {i.ProductName} ({i.PriceTierUsed}: {i.UnitPrice:N0} ج)"));
+        SelectedInvoicePayments = string.Join(" | ", invoice.Payments.Select(p => $"{p.PaymentMethodAr}: {p.Amount:N0} ج"));
     }
 }
