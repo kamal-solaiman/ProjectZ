@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FitohPhone")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2ab41aeb2c92b9ddedb5f807ee88b3be9c19dca2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4e0468b12354870ed027e2a5c407c0a4a76739b0")]
 [assembly: System.Reflection.AssemblyProductAttribute("FitohPhone")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FitohPhone")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
