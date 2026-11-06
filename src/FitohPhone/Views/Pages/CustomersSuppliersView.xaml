@@ -1,0 +1,333 @@
+<UserControl x:Class="FitohPhone.Views.Pages.CustomersSuppliersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- شريط الأزرار العلوي -->
+    <Border Style="{StaticResource GlassCard}" Padding="14,10" Margin="0,0,0,12">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="1.4*"/>
+          <ColumnDefinition Width="10"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <TextBox Grid.Column="0" Tag="ابحث عن عميل أو تاجر بالاسم، رقم الهاتف، أو الكود..."/>
+        <Button Grid.Column="2" Content="+ إضافة عميل جديد" Click="OpenAddCustomer_Click"/>
+        <Button Grid.Column="4" Content="+ إضافة مورد / تاجر" Style="{StaticResource SecondaryButton}" Click="OpenAddSupplier_Click"/>
+        <Button Grid.Column="6" Content="طباعة كشف حساب شامل" Style="{StaticResource SecondaryButton}"/>
+      </Grid>
+    </Border>
+
+    <!-- التبويبات الرئيسية: العملاء / الموردين + الملف التفصيلي الكامل -->
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="1.15*"/>
+        <ColumnDefinition Width="14"/>
+        <ColumnDefinition Width="1.45*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- قائمة العملاء والموردين مع التحكم الكامل -->
+      <TabControl Grid.Column="0" Style="{StaticResource SubTabControl}">
+        <TabItem Header="قائمة العملاء (1,284)" Style="{StaticResource SubTabItem}">
+          <Border Style="{StaticResource GlassCard}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel>
+                <Border Style="{StaticResource TableHeaderBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="1.5*"/>
+                      <ColumnDefinition Width="85"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="155"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="العميل والهاتف" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="الشريحة" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="2" Text="الرصيد" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="3" Text="تحكم" FontWeight="Bold" HorizontalAlignment="Center"/>
+                  </Grid>
+                </Border>
+
+                <Border Style="{StaticResource TableRowBorder}">
+                  <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="1.5*"/>
+                      <ColumnDefinition Width="85"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="155"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                      <TextBlock Text="أحمد طارق محمود" FontWeight="Bold"/>
+                      <TextBlock Text="01065432198" Style="{StaticResource MutedText}" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="مميز" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="عليه 450 ج" Foreground="{DynamicResource WarningBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                      <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                      <Button Content="تحصيل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                      <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+
+                <Border Style="{StaticResource TableRowAltBorder}">
+                  <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="1.5*"/>
+                      <ColumnDefinition Width="85"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="155"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                      <TextBlock Text="محل الهدى فون" FontWeight="Bold"/>
+                      <TextBlock Text="01011223344" Style="{StaticResource MutedText}" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="جملة" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="0.00 ج" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                      <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                      <Button Content="تحصيل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                      <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+
+                <Border Style="{StaticResource TableRowBorder}">
+                  <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="1.5*"/>
+                      <ColumnDefinition Width="85"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="155"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                      <TextBlock Text="سارة حسن علي" FontWeight="Bold"/>
+                      <TextBlock Text="01229988776" Style="{StaticResource MutedText}" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="قطاعي" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="0.00 ج" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                      <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                      <Button Content="تحصيل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                      <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+        </TabItem>
+
+        <TabItem Header="قائمة الموردين والتجار (38)" Style="{StaticResource SubTabItem}">
+          <Border Style="{StaticResource GlassCard}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel>
+                <Border Style="{StaticResource TableHeaderBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="1.5*"/>
+                      <ColumnDefinition Width="105"/>
+                      <ColumnDefinition Width="165"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="اسم التاجر / الشركة" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="مستحق له" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="2" Text="تحكم" FontWeight="Bold" HorizontalAlignment="Center"/>
+                  </Grid>
+                </Border>
+                <Border Style="{StaticResource TableRowBorder}">
+                  <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="1.5*"/>
+                      <ColumnDefinition Width="105"/>
+                      <ColumnDefinition Width="165"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                      <TextBlock Text="شركة النور لتجارة الهواتف" FontWeight="Bold"/>
+                      <TextBlock Text="01005544332 — القاهرة" Style="{StaticResource MutedText}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="له 6,500 ج" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                      <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                      <Button Content="سداد دفعة" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                      <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+        </TabItem>
+      </TabControl>
+
+      <!-- ملف وتقارير العميل / المورد الكاملة (فواتير + أجهزة صيانة + تحويلات + مرتجعات) -->
+      <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <!-- ملخص العميل المحدد -->
+          <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="التقرير الشامل للعميل: أحمد طارق محمود" FontSize="17" FontWeight="Bold"/>
+                <TextBlock Text="هاتف: 01065432198  •  شريحة: سعر مميز  •  العنوان: كفر الشيخ - شارع النبوي المهندس" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" HorizontalAlignment="Left">
+                <TextBlock Text="إجمالي التعاملات: 24,600 ج.م" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                <TextBlock Text="الرصيد المتبقي عليه: 450 ج.م" FontSize="12" Foreground="{DynamicResource WarningBrush}" FontWeight="SemiBold"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <!-- تبويبات تقارير العميل الشاملة -->
+          <TabControl Grid.Row="2" Style="{StaticResource SubTabControl}">
+            <TabItem Header="الفواتير (8)" Style="{StaticResource SubTabItem}">
+              <StackPanel>
+                <Border Style="{StaticResource TableHeaderBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="1.4*"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="الفاتورة" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="التاريخ" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="2" Text="البيان" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="3" Text="القيمة" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="4" Text="السداد" FontWeight="Bold"/>
+                  </Grid>
+                </Border>
+                <Border Style="{StaticResource TableRowBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="1.4*"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="INV-1041" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="1" Text="2026/11/06"/>
+                    <TextBlock Grid.Column="2" Text="Samsung A15 + شاحن + جراب"/>
+                    <TextBlock Grid.Column="3" Text="8,000 ج" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="4" Text="مختلط"/>
+                  </Grid>
+                </Border>
+                <Border Style="{StaticResource TableRowAltBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="1.4*"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="INV-0984" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="1" Text="2026/10/19"/>
+                    <TextBlock Grid.Column="2" Text="سماعة AirPods + باور بانك"/>
+                    <TextBlock Grid.Column="3" Text="1,650 ج" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="4" Text="آجل جزئي"/>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="أجهزة الصيانة (3)" Style="{StaticResource SubTabItem}">
+              <StackPanel>
+                <Border Style="{StaticResource TableHeaderBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="105"/>
+                      <ColumnDefinition Width="1.4*"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="الإيصال" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="التاريخ" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="2" Text="الجهاز وما تم إجراؤه" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="3" Text="التكلفة" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="4" Text="الحالة" FontWeight="Bold"/>
+                  </Grid>
+                </Border>
+                <Border Style="{StaticResource TableRowBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="105"/>
+                      <ColumnDefinition Width="1.4*"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="REP-0842" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="1" Text="2026/11/06"/>
+                    <TextBlock Grid.Column="2" Text="iPhone 13 Pro — تغيير شاشة"/>
+                    <TextBlock Grid.Column="3" Text="4,200 ج"/>
+                    <TextBlock Grid.Column="4" Text="قيد الصيانة" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold"/>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="التحويلات المالية (5)" Style="{StaticResource SubTabItem}">
+              <StackPanel>
+                <Border Style="{StaticResource TableHeaderBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="1.3*"/>
+                      <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="التاريخ" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="المحفظة" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="2" Text="تفاصيل العملية" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="3" Text="المبلغ" FontWeight="Bold"/>
+                  </Grid>
+                </Border>
+                <Border Style="{StaticResource TableRowBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="1.3*"/>
+                      <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="2026/11/04"/>
+                    <TextBlock Grid.Column="1" Text="فودافون كاش"/>
+                    <TextBlock Grid.Column="2" Text="تحويل صادر من 01012345678 إلى 01065432198"/>
+                    <TextBlock Grid.Column="3" Text="2,500 ج" FontWeight="Bold"/>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="كشف الحساب والمرتجعات" Style="{StaticResource SubTabItem}">
+              <StackPanel>
+                <Border Style="{StaticResource ElevatedCard}">
+                  <TextBlock Text="إجمالي المسحوبات: 24,600 ج.م  |  إجمالي المسدد: 23,475 ج.م  |  إجمالي المرتجعات: 675 ج.م  |  الرصيد الحالي عليه: 450 ج.م" FontWeight="SemiBold"/>
+                </Border>
+              </StackPanel>
+            </TabItem>
+          </TabControl>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

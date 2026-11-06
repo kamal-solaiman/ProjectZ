@@ -1,0 +1,84 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- 4. Aurora UI – الشفق القطبي -->
+  <CornerRadius x:Key="CardCornerRadius">20</CornerRadius>
+  <CornerRadius x:Key="ControlCornerRadius">12</CornerRadius>
+
+  <LinearGradientBrush x:Key="WindowCanvasBrush" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#04151F" Offset="0.0"/>
+    <GradientStop Color="#0A2239" Offset="0.48"/>
+    <GradientStop Color="#1B133A" Offset="1.0"/>
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="AmbientOrb1Brush" Color="#4810B981"/>
+  <SolidColorBrush x:Key="AmbientOrb2Brush" Color="#4406B6D4"/>
+  <SolidColorBrush x:Key="AmbientOrb3Brush" Color="#448B5CF6"/>
+
+  <LinearGradientBrush x:Key="SidebarBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#CC071E2B" Offset="0"/>
+    <GradientStop Color="#B8101633" Offset="1"/>
+  </LinearGradientBrush>
+  <SolidColorBrush x:Key="SidebarBorderBrush" Color="#442DD4BF"/>
+  <SolidColorBrush x:Key="SidebarForegroundBrush" Color="#ECFEFF"/>
+  <SolidColorBrush x:Key="SidebarMutedForegroundBrush" Color="#6EE7B7"/>
+  <SolidColorBrush x:Key="TopBarBackgroundBrush" Color="#C4081D2B"/>
+
+  <LinearGradientBrush x:Key="CardBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#C40C2736" Offset="0"/>
+    <GradientStop Color="#AA141A3B" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="CardElevatedBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#DA103547" Offset="0"/>
+    <GradientStop Color="#C21B224C" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="CardBorderBrush" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#7734D399" Offset="0.0"/>
+    <GradientStop Color="#5522D3EE" Offset="0.5"/>
+    <GradientStop Color="#44A78BFA" Offset="1.0"/>
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="InputBackgroundBrush" Color="#CC071925"/>
+  <SolidColorBrush x:Key="InputBorderBrush" Color="#442DD4BF"/>
+  <SolidColorBrush x:Key="InputFocusBorderBrush" Color="#34D399"/>
+
+  <SolidColorBrush x:Key="NavItemHoverBrush" Color="#282DD4BF"/>
+  <LinearGradientBrush x:Key="NavItemSelectedBrush" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Color="#059669" Offset="0"/>
+    <GradientStop Color="#0891B2" Offset="0.6"/>
+    <GradientStop Color="#7C3AED" Offset="1"/>
+  </LinearGradientBrush>
+  <SolidColorBrush x:Key="NavItemSelectedBorderBrush" Color="#6EE7B7"/>
+  <SolidColorBrush x:Key="NavItemSelectedForegroundBrush" Color="#FFFFFF"/>
+
+  <SolidColorBrush x:Key="TableHeaderBackgroundBrush" Color="#990F2E3F"/>
+  <SolidColorBrush x:Key="TableRowBackgroundBrush" Color="#77081E2B"/>
+  <SolidColorBrush x:Key="TableRowAltBackgroundBrush" Color="#9910253A"/>
+  <SolidColorBrush x:Key="TableRowHoverBrush" Color="#3310B981"/>
+  <SolidColorBrush x:Key="DividerBrush" Color="#332DD4BF"/>
+
+  <SolidColorBrush x:Key="TextPrimaryBrush" Color="#ECFEFF"/>
+  <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A7F3D0"/>
+  <SolidColorBrush x:Key="TextMutedBrush" Color="#94A3B8"/>
+  <SolidColorBrush x:Key="OnAccentForegroundBrush" Color="#FFFFFF"/>
+
+  <LinearGradientBrush x:Key="AccentBrush" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Color="#10B981" Offset="0"/>
+    <GradientStop Color="#06B6D4" Offset="1"/>
+  </LinearGradientBrush>
+  <SolidColorBrush x:Key="Accent" Color="#10B981"/>
+  <SolidColorBrush x:Key="AccentSecondaryBrush" Color="#A78BFA"/>
+  <SolidColorBrush x:Key="AccentSoftBrush" Color="#3010B981"/>
+
+  <SolidColorBrush x:Key="SuccessBrush" Color="#34D399"/>
+  <SolidColorBrush x:Key="SuccessSoftBrush" Color="#3010B981"/>
+  <SolidColorBrush x:Key="WarningBrush" Color="#FBBF24"/>
+  <SolidColorBrush x:Key="WarningSoftBrush" Color="#30F59E0B"/>
+  <SolidColorBrush x:Key="DangerBrush" Color="#FB7185"/>
+  <SolidColorBrush x:Key="DangerSoftBrush" Color="#30F43F5E"/>
+  <SolidColorBrush x:Key="InfoBrush" Color="#22D3EE"/>
+  <SolidColorBrush x:Key="InfoSoftBrush" Color="#3006B6D4"/>
+  <SolidColorBrush x:Key="VodafoneBrush" Color="#FCA5A5"/>
+  <SolidColorBrush x:Key="VodafoneSoftBrush" Color="#30EF4444"/>
+  <SolidColorBrush x:Key="InstaPayBrush" Color="#D8B4FE"/>
+  <SolidColorBrush x:Key="InstaPaySoftBrush" Color="#30A855F7"/>
+</ResourceDictionary>

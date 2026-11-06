@@ -1,0 +1,246 @@
+<UserControl x:Class="FitohPhone.Views.Pages.PurchaseInvoiceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="1.65*"/>
+      <ColumnDefinition Width="14"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- القسم الأيمن: بيانات التاجر + إدراج الأصناف المسجلة + جدول الفاتورة -->
+    <Border Grid.Column="0" Style="{StaticResource GlassCard}">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- بيانات التاجر وفاتورة المورد -->
+        <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="1.5*"/>
+              <ColumnDefinition Width="8"/>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="12"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="12"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock Text="اسم التاجر / المورد *" Style="{StaticResource FieldLabelText}"/>
+              <ComboBox SelectedIndex="0">
+                <ComboBoxItem Content="شركة النور لتجارة الهواتف — (رصيد له: 4,500 ج)"/>
+                <ComboBoxItem Content="الهدى للإكسسوارات وقطع الغيار — (رصيد: 0 ج)"/>
+                <ComboBoxItem Content="مؤسسة الدلتا للتوريدات"/>
+              </ComboBox>
+            </StackPanel>
+            <Button Grid.Column="2" Content="+ تاجر جديد" VerticalAlignment="Bottom" Click="OpenAddSupplier_Click"/>
+            <StackPanel Grid.Column="4">
+              <TextBlock Text="رقم فاتورة التاجر" Style="{StaticResource FieldLabelText}"/>
+              <TextBox Text="SUP-2026-419" FlowDirection="LeftToRight"/>
+            </StackPanel>
+            <StackPanel Grid.Column="6">
+              <TextBlock Text="تاريخ الفاتورة" Style="{StaticResource FieldLabelText}"/>
+              <TextBox Text="2026/11/06" FlowDirection="LeftToRight"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <!-- اختيار صنف مسجل بالفعل وإدخال الكمية وسعر الشراء -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1.8*"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="85"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="110"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0">
+            <TextBlock Text="البحث في الأصناف المسجلة بالفعل (باركود أو اسم)" Style="{StaticResource FieldLabelText}"/>
+            <TextBox Tag="امسح الباركود أو اختر منتجًا مسجلًا لإضافته لفاتورة الشراء..."/>
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="الكمية" Style="{StaticResource FieldLabelText}"/>
+            <TextBox Text="10" FlowDirection="LeftToRight"/>
+          </StackPanel>
+          <StackPanel Grid.Column="4">
+            <TextBlock Text="سعر الشراء" Style="{StaticResource FieldLabelText}"/>
+            <TextBox Text="340" FlowDirection="LeftToRight"/>
+          </StackPanel>
+          <Button Grid.Column="6" Content="+ إضافة للفاتورة" VerticalAlignment="Bottom" Padding="16,10"/>
+        </Grid>
+
+        <!-- جدول أصناف فاتورة الشراء -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <Border Style="{StaticResource TableHeaderBorder}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.8*"/>
+                  <ColumnDefinition Width="80"/>
+                  <ColumnDefinition Width="85"/>
+                  <ColumnDefinition Width="100"/>
+                  <ColumnDefinition Width="110"/>
+                  <ColumnDefinition Width="65"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="المنتج المسجل" FontWeight="Bold"/>
+                <TextBlock Grid.Column="1" Text="رصيد سابق" FontWeight="Bold"/>
+                <TextBlock Grid.Column="2" Text="كمية الشراء" FontWeight="Bold"/>
+                <TextBlock Grid.Column="3" Text="سعر الشراء" FontWeight="Bold"/>
+                <TextBlock Grid.Column="4" Text="إجمالي السطر" FontWeight="Bold"/>
+                <TextBlock Grid.Column="5" Text="حذف" FontWeight="Bold" HorizontalAlignment="Center"/>
+              </Grid>
+            </Border>
+
+            <Border Style="{StaticResource TableRowBorder}">
+              <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.8*"/>
+                  <ColumnDefinition Width="80"/>
+                  <ColumnDefinition Width="85"/>
+                  <ColumnDefinition Width="100"/>
+                  <ColumnDefinition Width="110"/>
+                  <ColumnDefinition Width="65"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="شاحن Anker 20W PD Type-C أصلي" FontWeight="SemiBold"/>
+                  <TextBlock Text="باركود: 848061059120" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="1" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="2" Text="20" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+                <TextBox Grid.Column="3" Text="340" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+                <TextBlock Grid.Column="4" Text="6,800 ج.م" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="5" Content="✕" Style="{StaticResource SmallDangerButton}" HorizontalAlignment="Center"/>
+              </Grid>
+            </Border>
+
+            <Border Style="{StaticResource TableRowAltBorder}">
+              <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.8*"/>
+                  <ColumnDefinition Width="80"/>
+                  <ColumnDefinition Width="85"/>
+                  <ColumnDefinition Width="100"/>
+                  <ColumnDefinition Width="110"/>
+                  <ColumnDefinition Width="65"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="اسكرينة سيراميك ماتي iPhone 15" FontWeight="SemiBold"/>
+                  <TextBlock Text="باركود: 622998877110" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="0" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="2" Text="50" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+                <TextBox Grid.Column="3" Text="24" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+                <TextBlock Grid.Column="4" Text="1,200 ج.م" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="5" Content="✕" Style="{StaticResource SmallDangerButton}" HorizontalAlignment="Center"/>
+              </Grid>
+            </Border>
+
+            <Border Style="{StaticResource TableRowBorder}">
+              <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.8*"/>
+                  <ColumnDefinition Width="80"/>
+                  <ColumnDefinition Width="85"/>
+                  <ColumnDefinition Width="100"/>
+                  <ColumnDefinition Width="110"/>
+                  <ColumnDefinition Width="65"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="هاتف Redmi Note 13 256GB" FontWeight="SemiBold"/>
+                  <TextBlock Text="باركود: 694181275432" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="2" VerticalAlignment="Center"/>
+                <TextBox Grid.Column="2" Text="2" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+                <TextBox Grid.Column="3" Text="8500" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+                <TextBlock Grid.Column="4" Text="17,000 ج.م" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="5" Content="✕" Style="{StaticResource SmallDangerButton}" HorizontalAlignment="Center"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <!-- القسم الأيسر: الدفع أجزاء (نقدي - فودافون كاش - انستاباي - آجل) -->
+    <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <TextBlock Text="سداد فاتورة الشراء (دفع مقسّم / أجزاء)" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12"/>
+
+          <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,14">
+            <StackPanel>
+              <TextBlock Text="توزيع المبالغ المسددة للتاجر" FontWeight="Bold" Margin="0,0,0,10"/>
+
+              <TextBlock Text="1) مدفوع نقدًا من الخزينة (ج.م)" Style="{StaticResource FieldLabelText}"/>
+              <TextBox Text="10000" FlowDirection="LeftToRight" Margin="0,0,0,10"/>
+
+              <TextBlock Text="2) مدفوع فودافون كاش + الخط المسحوب منه" Style="{StaticResource FieldLabelText}"/>
+              <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="0.9*"/>
+                  <ColumnDefinition Width="8"/>
+                  <ColumnDefinition Width="1.2*"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" Text="5000" FlowDirection="LeftToRight"/>
+                <ComboBox Grid.Column="2" SelectedIndex="1">
+                  <ComboBoxItem Content="01012345678 (متاح 3000)"/>
+                  <ComboBoxItem Content="01098765432 (متاح 5000)"/>
+                </ComboBox>
+              </Grid>
+
+              <TextBlock Text="3) مدفوع إنستاباي (InstaPay) + الحساب" Style="{StaticResource FieldLabelText}"/>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="0.9*"/>
+                  <ColumnDefinition Width="8"/>
+                  <ColumnDefinition Width="1.2*"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" Text="8000" FlowDirection="LeftToRight"/>
+                <ComboBox Grid.Column="2" SelectedIndex="0">
+                  <ComboBoxItem Content="01100032165 (متاح 10000)"/>
+                  <ComboBoxItem Content="012985411111 (متاح 1000)"/>
+                </ComboBox>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,14">
+            <StackPanel>
+              <Grid Margin="0,0,0,6">
+                <TextBlock Text="إجمالي قيمة المشتريات:" Style="{StaticResource MutedText}"/>
+                <TextBlock Text="25,000.00 ج.م" FontWeight="Bold" HorizontalAlignment="Left"/>
+              </Grid>
+              <Grid Margin="0,0,0,8">
+                <TextBlock Text="خصم التاجر على الفاتورة:" VerticalAlignment="Center" Style="{StaticResource MutedText}"/>
+                <TextBox Text="0" Width="95" HorizontalAlignment="Left" FlowDirection="LeftToRight" Padding="8,4"/>
+              </Grid>
+              <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,4,0,8"/>
+              <Grid Margin="0,0,0,6">
+                <TextBlock Text="إجمالي المدفوع الآن (أجزاء):" Style="{StaticResource MutedText}"/>
+                <TextBlock Text="23,000.00 ج.م" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Left"/>
+              </Grid>
+              <Grid>
+                <TextBlock Text="المتبقي آجل لحساب التاجر:" FontWeight="SemiBold"/>
+                <TextBlock Text="2,000.00 ج.م" FontWeight="Bold" FontSize="17" Foreground="{DynamicResource WarningBrush}" HorizontalAlignment="Left"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <StackPanel Margin="0,0,0,12">
+            <TextBlock Text="ملاحظات التوريد" Style="{StaticResource FieldLabelText}"/>
+            <TextBox Height="54" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Tag="تفاصيل الشحن أو رقم إيصال التحويل للتاجر..."/>
+          </StackPanel>
+
+          <Button Content="اعتماد فاتورة الشراء وإضافة الكميات للمخزون" Style="{StaticResource SuccessButton}" Padding="16,13" Margin="0,0,0,8"/>
+          <Button Content="حفظ كمسودة" Style="{StaticResource SecondaryButton}"/>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

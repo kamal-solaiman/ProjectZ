@@ -1,0 +1,284 @@
+<UserControl x:Class="FitohPhone.Views.Pages.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4,0,4,18">
+    <StackPanel>
+
+      <!-- 1. قسم اختيار وتغيير الـ Theme (8 ثيمات كاملة بمعاينة حية فورية) -->
+      <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16">
+        <StackPanel>
+          <Grid Margin="0,0,0,12">
+            <StackPanel>
+              <TextBlock Text="مظهر النظام وتغيير الـ Theme (تطبيق فوري حي)" Style="{StaticResource SectionTitleText}"/>
+              <TextBlock Text="اختر أي تصميم من الثيمات الثمانية التالية لمعاينته وتطبيقه فورًا على جميع نوافذ البرنامج" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
+            </StackPanel>
+          </Grid>
+
+          <UniformGrid Columns="4">
+            <!-- 1. Glassmorphism -->
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,10,10" Padding="14">
+              <StackPanel>
+                <Border Height="42" CornerRadius="10" Margin="0,0,0,10">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#DBEAFE" Offset="0"/>
+                      <GradientStop Color="#0284C7" Offset="0.6"/>
+                      <GradientStop Color="#0D9488" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <TextBlock Text="1. Glassmorphism" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Text="الزجاج الشفاف" Style="{StaticResource MutedText}" Margin="0,2,0,10"/>
+                <Button Content="تطبيق الثيم" Tag="Glassmorphism" Click="ApplyThemeButton_Click" Padding="10,7"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 2. Liquid Glass -->
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,10,10" Padding="14">
+              <StackPanel>
+                <Border Height="42" CornerRadius="10" Margin="0,0,0,10">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#CFFAFE" Offset="0"/>
+                      <GradientStop Color="#6366F1" Offset="0.55"/>
+                      <GradientStop Color="#F5D0FE" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <TextBlock Text="2. Liquid Glass" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Text="الزجاج السائل" Style="{StaticResource MutedText}" Margin="0,2,0,10"/>
+                <Button Content="تطبيق الثيم" Tag="LiquidGlass" Click="ApplyThemeButton_Click" Padding="10,7"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 3. Dark Glass -->
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,10,10" Padding="14">
+              <StackPanel>
+                <Border Height="42" CornerRadius="10" Margin="0,0,0,10">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#060B16" Offset="0"/>
+                      <GradientStop Color="#1E293B" Offset="0.6"/>
+                      <GradientStop Color="#0EA5E9" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <TextBlock Text="3. Dark Glass" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Text="الزجاج الداكن" Style="{StaticResource MutedText}" Margin="0,2,0,10"/>
+                <Button Content="تطبيق الثيم" Tag="DarkGlass" Click="ApplyThemeButton_Click" Padding="10,7"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 4. Aurora UI -->
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,10" Padding="14">
+              <StackPanel>
+                <Border Height="42" CornerRadius="10" Margin="0,0,0,10">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#04151F" Offset="0"/>
+                      <GradientStop Color="#10B981" Offset="0.5"/>
+                      <GradientStop Color="#8B5CF6" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <TextBlock Text="4. Aurora UI" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Text="الشفق القطبي" Style="{StaticResource MutedText}" Margin="0,2,0,10"/>
+                <Button Content="تطبيق الثيم" Tag="Aurora" Click="ApplyThemeButton_Click" Padding="10,7"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 5. Holographic UI -->
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,10,0" Padding="14">
+              <StackPanel>
+                <Border Height="42" CornerRadius="10" Margin="0,0,0,10">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#EC4899" Offset="0"/>
+                      <GradientStop Color="#8B5CF6" Offset="0.5"/>
+                      <GradientStop Color="#22D3EE" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <TextBlock Text="5. Holographic UI" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Text="التصميم الهولوجرافي" Style="{StaticResource MutedText}" Margin="0,2,0,10"/>
+                <Button Content="تطبيق الثيم" Tag="Holographic" Click="ApplyThemeButton_Click" Padding="10,7"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 6. FUI / HUD -->
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,10,0" Padding="14">
+              <StackPanel>
+                <Border Height="42" CornerRadius="4" BorderBrush="#00F0FF" BorderThickness="1" Margin="0,0,0,10">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#020810" Offset="0"/>
+                      <GradientStop Color="#062138" Offset="0.65"/>
+                      <GradientStop Color="#00F0FF" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <TextBlock Text="6. FUI / HUD" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Text="واجهات الخيال العلمي" Style="{StaticResource MutedText}" Margin="0,2,0,10"/>
+                <Button Content="تطبيق الثيم" Tag="FuiHud" Click="ApplyThemeButton_Click" Padding="10,7"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 7. Chrome / Liquid Metal -->
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,10,0" Padding="14">
+              <StackPanel>
+                <Border Height="42" CornerRadius="10" Margin="0,0,0,10">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#F8FAFC" Offset="0"/>
+                      <GradientStop Color="#64748B" Offset="0.5"/>
+                      <GradientStop Color="#1E293B" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <TextBlock Text="7. Chrome / Liquid Metal" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Text="المعدن السائل والكروم" Style="{StaticResource MutedText}" Margin="0,2,0,10"/>
+                <Button Content="تطبيق الثيم" Tag="ChromeMetal" Click="ApplyThemeButton_Click" Padding="10,7"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 8. Fluent Design -->
+            <Border Style="{StaticResource ElevatedCard}" Padding="14">
+              <StackPanel>
+                <Border Height="42" CornerRadius="8" Margin="0,0,0,10">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#F3F4F6" Offset="0"/>
+                      <GradientStop Color="#0078D4" Offset="0.65"/>
+                      <GradientStop Color="#0067C0" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <TextBlock Text="8. Fluent Design" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Text="تصميم Microsoft" Style="{StaticResource MutedText}" Margin="0,2,0,10"/>
+                <Button Content="تطبيق الثيم" Tag="Fluent" Click="ApplyThemeButton_Click" Padding="10,7"/>
+              </StackPanel>
+            </Border>
+          </UniformGrid>
+        </StackPanel>
+      </Border>
+
+      <!-- 2. بيانات المحل وإعدادات الطباعة والفواتير القابلة للتخصيص لكل محل -->
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="1.25*"/>
+          <ColumnDefinition Width="14"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <TextBlock Text="بيانات المحل والهوية التجارية (قابلة للتعديل لكل محل)" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14"/>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="اسم المحل بالعربية *" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="فيتوح فون للهواتف والصيانة"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="اسم المحل بالإنجليزية (للفواتير والباركود)" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="FitohPhone Store" FlowDirection="LeftToRight"/>
+              </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="رقم الهاتف الرئيسي *" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="01012345678" FlowDirection="LeftToRight"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="رقم هاتف الصيانة / واتساب" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="01098765432" FlowDirection="LeftToRight"/>
+              </StackPanel>
+              <StackPanel Grid.Column="4">
+                <TextBlock Text="العملة الافتراضية" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="ج.م (EGP)"/>
+              </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.5*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="عنوان المحل التفصيلي (يظهر أعلى الفاتورة)" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="كفر الشيخ - الشارع الرئيسي بجوار السنترال"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="رقم السجل التجاري / الضريبي" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Tag="اختياري..."/>
+              </StackPanel>
+            </Grid>
+
+            <StackPanel Margin="0,0,0,12">
+              <TextBlock Text="شروط وسياسة الاستبدال والاسترجاع أسفل فاتورة البيع" Style="{StaticResource FieldLabelText}"/>
+              <TextBox Height="52" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"
+                       Text="البضاعة المباعة تُرد أو تُستبدل خلال 14 يومًا بحالتها الأصلية وبالفاتورة. الإكسسوارات المفتوحة لا تُرد إلا لعيوب الصناعة."/>
+            </StackPanel>
+
+            <StackPanel>
+              <TextBlock Text="شروط وملاحظات إيصال استلام أجهزة الصيانة" Style="{StaticResource FieldLabelText}"/>
+              <TextBox Height="52" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"
+                       Text="الجهاز يُسلَّم بموجب هذا الإيصال فقط. المحل غير مسؤول عن الأجهزة التي يمر على موعد استلامها 30 يومًا أو الأجهزة الفاصلة باور."/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- إعدادات الطابعات والباركود والنسخ الاحتياطي -->
+        <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <TextBlock Text="إعدادات الطابعات والنظام" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14"/>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
+              <StackPanel>
+                <TextBlock Text="شعار المحل (Logo)" FontWeight="Bold" Margin="0,0,0,8"/>
+                <Grid>
+                  <TextBlock Text="يُطبع أعلى الفاتورة الحرارية وواجهة البرنامج" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                  <Button Content="اختيار صورة شعار..." Style="{StaticResource SmallActionButton}" HorizontalAlignment="Left"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <TextBlock Text="طابعة فواتير الكاشير الحرارية" Style="{StaticResource FieldLabelText}"/>
+            <ComboBox SelectedIndex="0" Margin="0,0,0,10">
+              <ComboBoxItem Content="Xprinter XP-80C (80mm Thermal)"/>
+              <ComboBoxItem Content="طابعة حرارية 58mm"/>
+              <ComboBoxItem Content="Microsoft Print to PDF"/>
+            </ComboBox>
+
+            <TextBlock Text="طابعة ملصقات باركود المنتجات والصيانة" Style="{StaticResource FieldLabelText}"/>
+            <ComboBox SelectedIndex="0" Margin="0,0,0,12">
+              <ComboBoxItem Content="Xprinter XP-235B Barcode (38x25mm)"/>
+              <ComboBoxItem Content="Zebra ZD220 Label Printer"/>
+            </ComboBox>
+
+            <CheckBox Content="طباعة الفاتورة تلقائيًا فور إتمام عملية البيع" IsChecked="True"/>
+            <CheckBox Content="إصدار تنبيه عند وصول رصيد خط التحويل إلى 85% من الـ Limit" IsChecked="True"/>
+            <CheckBox Content="إظهار تنبيه نواقص المخزون عند فتح البرنامج" IsChecked="True" Margin="0,4,0,14"/>
+
+            <Button Content="حفظ جميع إعدادات المحل والبرنامج" Style="{StaticResource SuccessButton}" Padding="16,12" Margin="0,0,0,8"/>
+            <Button Content="أخذ نسخة احتياطية من قاعدة البيانات الآن" Style="{StaticResource SecondaryButton}"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

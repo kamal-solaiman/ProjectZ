@@ -1,0 +1,224 @@
+<UserControl x:Class="FitohPhone.Views.Pages.UsersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="1.15*"/>
+      <ColumnDefinition Width="14"/>
+      <ColumnDefinition Width="1.35*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- القسم الأيمن: قائمة المستخدمين + نموذج إضافة وتعديل المستخدم -->
+    <Border Grid.Column="0" Style="{StaticResource GlassCard}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <TextBlock Text="إدارة حسابات المستخدمين" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12"/>
+
+          <!-- نموذج إضافة / تعديل مستخدم -->
+          <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,14">
+            <StackPanel>
+              <TextBlock Text="إضافة / تعديل بيانات مستخدم" FontWeight="Bold" Margin="0,0,0,10"/>
+              <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="10"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="الاسم المعروض *" Style="{StaticResource FieldLabelText}"/>
+                  <TextBox Tag="مثال: محمد علي (كاشير)"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="اسم الدخول (Username) *" Style="{StaticResource FieldLabelText}"/>
+                  <TextBox FlowDirection="LeftToRight" Tag="cashier1"/>
+                </StackPanel>
+              </Grid>
+
+              <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="10"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="كلمة المرور *" Style="{StaticResource FieldLabelText}"/>
+                  <PasswordBox FlowDirection="LeftToRight"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="الدور الوظيفي المبدئي" Style="{StaticResource FieldLabelText}"/>
+                  <ComboBox SelectedIndex="1">
+                    <ComboBoxItem Content="مدير النظام (صلاحيات كاملة)"/>
+                    <ComboBoxItem Content="كاشير ومبيعات"/>
+                    <ComboBoxItem Content="مهندس / فني صيانة"/>
+                    <ComboBoxItem Content="أمين مخزن ومشتريات"/>
+                  </ComboBox>
+                </StackPanel>
+              </Grid>
+
+              <CheckBox Content="الحساب نشط ومسموح له بتسجيل الدخول" IsChecked="True" Margin="0,0,0,10"/>
+
+              <WrapPanel>
+                <Button Content="+ إضافة مستخدم جديد" Margin="0,0,8,6"/>
+                <Button Content="حفظ التعديلات" Style="{StaticResource SecondaryButton}" Margin="0,0,8,6"/>
+                <Button Content="حذف المستخدم" Style="{StaticResource DangerButton}" Margin="0,0,0,6"/>
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- جدول المستخدمين المسجلين -->
+          <Border Style="{StaticResource TableHeaderBorder}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.4*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="75"/>
+                <ColumnDefinition Width="125"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="الاسم / اسم الدخول" FontWeight="Bold"/>
+              <TextBlock Grid.Column="1" Text="الدور" FontWeight="Bold"/>
+              <TextBlock Grid.Column="2" Text="الحالة" FontWeight="Bold"/>
+              <TextBlock Grid.Column="3" Text="تحكم" FontWeight="Bold" HorizontalAlignment="Center"/>
+            </Grid>
+          </Border>
+
+          <Border Style="{StaticResource TableRowBorder}">
+            <Grid VerticalAlignment="Center">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.4*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="75"/>
+                <ColumnDefinition Width="125"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="System Administrator" FontWeight="Bold"/>
+                <TextBlock Text="admin" Style="{StaticResource MutedText}" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+              </StackPanel>
+              <TextBlock Grid.Column="1" Text="مدير النظام" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="2" Text="نشط" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" VerticalAlignment="Center"/>
+              <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                <Button Content="صلاحيات" Style="{StaticResource SmallActionButton}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <Border Style="{StaticResource TableRowAltBorder}">
+            <Grid VerticalAlignment="Center">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.4*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="75"/>
+                <ColumnDefinition Width="125"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="كريم محمود" FontWeight="Bold"/>
+                <TextBlock Text="karim_pos" Style="{StaticResource MutedText}" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+              </StackPanel>
+              <TextBlock Grid.Column="1" Text="كاشير مبيعات" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="2" Text="نشط" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" VerticalAlignment="Center"/>
+              <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <Border Style="{StaticResource TableRowBorder}">
+            <Grid VerticalAlignment="Center">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.4*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="75"/>
+                <ColumnDefinition Width="125"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="م. مصطفى سامي" FontWeight="Bold"/>
+                <TextBlock Text="mostafa_fix" Style="{StaticResource MutedText}" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+              </StackPanel>
+              <TextBlock Grid.Column="1" Text="فني صيانة" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="2" Text="نشط" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" VerticalAlignment="Center"/>
+              <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="تعديل" Style="{StaticResource SmallActionButton}" Margin="0,0,5,0"/>
+                <Button Content="حذف" Style="{StaticResource SmallDangerButton}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <!-- القسم الأيسر: مصفوفة الصلاحيات التفصيلية للمستخدم المحدد -->
+    <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <Grid Margin="0,0,0,12">
+            <TextBlock Text="تعديل صلاحيات المستخدم المحدد (karim_pos)" Style="{StaticResource SectionTitleText}" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+              <Button Content="تحديد الكل" Style="{StaticResource SmallActionButton}" Margin="0,0,6,0"/>
+              <Button Content="إلغاء الكل" Style="{StaticResource SmallActionButton}"/>
+            </StackPanel>
+          </Grid>
+
+          <UniformGrid Columns="2">
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,8,10">
+              <StackPanel>
+                <TextBlock Text="القائمة الرئيسية والمالية" FontWeight="Bold" Margin="0,0,0,6"/>
+                <CheckBox Content="عرض لوحة القائمة الرئيسية" IsChecked="True"/>
+                <CheckBox Content="إظهار إجمالي الأرباح والصافي اليومي" IsChecked="False"/>
+                <CheckBox Content="إظهار أرصدة الخزينة والمحافظ" IsChecked="True"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,10">
+              <StackPanel>
+                <TextBlock Text="نقطة البيع POS والفواتير" FontWeight="Bold" Margin="0,0,0,6"/>
+                <CheckBox Content="فتح نقطة البيع وإصدار فواتير" IsChecked="True"/>
+                <CheckBox Content="تغيير نوع السعر (جملة / مميز / قطاعي)" IsChecked="True"/>
+                <CheckBox Content="منح خصم مباشر على الفاتورة" IsChecked="False"/>
+                <CheckBox Content="حذف أو تعديل فاتورة سابقة من السجل" IsChecked="False"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,8,10">
+              <StackPanel>
+                <TextBlock Text="المنتجات والمخزون والمشتريات" FontWeight="Bold" Margin="0,0,0,6"/>
+                <CheckBox Content="إضافة منتجات جديدة وتسعيرها" IsChecked="True"/>
+                <CheckBox Content="تعديل أو حذف الأصناف وتسوية المخزون" IsChecked="False"/>
+                <CheckBox Content="التحكم في مخزون الهالك" IsChecked="False"/>
+                <CheckBox Content="تسجيل فواتير شراء من التجار" IsChecked="False"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,10">
+              <StackPanel>
+                <TextBlock Text="المرتجع والتحويلات والصيانة" FontWeight="Bold" Margin="0,0,0,6"/>
+                <CheckBox Content="إجراء مرتجع واستبدال بضاعة" IsChecked="True"/>
+                <CheckBox Content="تنفيذ تحويلات فودافون كاش وإنستاباي" IsChecked="True"/>
+                <CheckBox Content="إضافة/تعديل خطوط المحافظ والـ Limits" IsChecked="False"/>
+                <CheckBox Content="استلام وتسليم أجهزة صيانة الهواتف" IsChecked="True"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,8,10">
+              <StackPanel>
+                <TextBlock Text="العملاء والموردين" FontWeight="Bold" Margin="0,0,0,6"/>
+                <CheckBox Content="إضافة وتعديل بيانات العملاء" IsChecked="True"/>
+                <CheckBox Content="عرض تقارير وكشوف حساب الموردين" IsChecked="False"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,10">
+              <StackPanel>
+                <TextBlock Text="إدارة النظام والإعدادات" FontWeight="Bold" Margin="0,0,0,6"/>
+                <CheckBox Content="إدارة المستخدمين وتعديل الصلاحيات" IsChecked="False"/>
+                <CheckBox Content="تعديل بيانات المحل وإعدادات البرنامج" IsChecked="False"/>
+              </StackPanel>
+            </Border>
+          </UniformGrid>
+
+          <Button Content="حفظ واعتماد صلاحيات المستخدم" Style="{StaticResource SuccessButton}" Padding="18,12" Margin="0,6,0,0"/>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>
