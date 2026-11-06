@@ -1,6 +1,10 @@
 <UserControl x:Class="FitohPhone.Views.Pages.PhoneRepairsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/microsoft-com/controls/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="1200">
   <TabControl Style="{StaticResource SubTabControl}">
 
     <!-- التبويب 1: استلام جهاز من العميل وطباعة باركود -->
@@ -27,16 +31,12 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                   <TextBlock Text="اسم العميل *" Style="{StaticResource FieldLabelText}"/>
-                  <ComboBox SelectedIndex="0">
-                    <ComboBoxItem Content="أحمد طارق محمود — 01065432198"/>
-                    <ComboBoxItem Content="سارة حسن علي — 01229988776"/>
-                    <ComboBoxItem Content="محمود عادل — 01122334455"/>
-                  </ComboBox>
+                  <ComboBox x:Name="CustomerCombo" SelectedIndex="0"/>
                 </StackPanel>
                 <Button Grid.Column="2" Content="+ عميل جديد" VerticalAlignment="Bottom" Click="OpenAddCustomer_Click"/>
                 <StackPanel Grid.Column="4">
                   <TextBlock Text="رقم هاتف التواصل *" Style="{StaticResource FieldLabelText}"/>
-                  <TextBox Text="01065432198" FlowDirection="LeftToRight"/>
+                  <TextBox x:Name="CustomerPhoneBox" FlowDirection="LeftToRight" Tag="010XXXXXXXX"/>
                 </StackPanel>
               </Grid>
 
@@ -50,7 +50,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                   <TextBlock Text="ماركة الهاتف *" Style="{StaticResource FieldLabelText}"/>
-                  <ComboBox SelectedIndex="0">
+                  <ComboBox x:Name="BrandCombo" SelectedIndex="0">
                     <ComboBoxItem Content="Apple iPhone"/>
                     <ComboBoxItem Content="Samsung"/>
                     <ComboBoxItem Content="Xiaomi / Redmi"/>
@@ -60,11 +60,11 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                   <TextBlock Text="موديل الجهاز *" Style="{StaticResource FieldLabelText}"/>
-                  <TextBox Text="iPhone 13 Pro 256GB"/>
+                  <TextBox x:Name="ModelBox" Tag="موديل الجهاز..."/>
                 </StackPanel>
                 <StackPanel Grid.Column="4">
                   <TextBlock Text="اللون" Style="{StaticResource FieldLabelText}"/>
-                  <TextBox Text="أزرق سييرا"/>
+                  <TextBox x:Name="ColorBox" Tag="لون الجهاز..."/>
                 </StackPanel>
               </Grid>
 
@@ -78,15 +78,15 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                   <TextBlock Text="رقم السيريال / IMEI" Style="{StaticResource FieldLabelText}"/>
-                  <TextBox Text="356789112345678" FlowDirection="LeftToRight"/>
+                  <TextBox x:Name="ImeiBox" FlowDirection="LeftToRight" Tag="رقم IMEI..."/>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                   <TextBlock Text="رمز القفل / الباسورد للفحص" Style="{StaticResource FieldLabelText}"/>
-                  <TextBox Text="258000" FlowDirection="LeftToRight"/>
+                  <TextBox x:Name="PasswordBox" FlowDirection="LeftToRight" Tag="رمز القفل..."/>
                 </StackPanel>
                 <StackPanel Grid.Column="4">
                   <TextBlock Text="الفني المستلم" Style="{StaticResource FieldLabelText}"/>
-                  <ComboBox SelectedIndex="0">
+                  <ComboBox x:Name="TechnicianCombo" SelectedIndex="0">
                     <ComboBoxItem Content="م. مصطفى (هاردوير)"/>
                     <ComboBoxItem Content="م. كريم (سوفت وشاشات)"/>
                   </ComboBox>
@@ -95,7 +95,7 @@
 
               <StackPanel Margin="0,0,0,12">
                 <TextBlock Text="وصف العطل وشكوى العميل *" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Height="58" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Text="كسر في الشاشة الأمامية مع خطوط خضراء، والعميل يطلب فحص صحة البطارية والسماعة العلوية."/>
+                <TextBox x:Name="ProblemBox" Height="58" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Tag="وصف العطل..."/>
               </StackPanel>
 
               <Grid>
@@ -106,11 +106,11 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                   <TextBlock Text="الحالة الظاهرية عند الاستلام" Style="{StaticResource FieldLabelText}"/>
-                  <TextBox Text="خدش بسيط في الإطار السفلي - الظهر سليم"/>
+                  <TextBox x:Name="ConditionBox" Tag="الحالة الظاهرية..."/>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                   <TextBlock Text="الملحقات المستلمة مع الهاتف" Style="{StaticResource FieldLabelText}"/>
-                  <TextBox Text="جراب فقط (بدون شريحة وبدون كرتونة)"/>
+                  <TextBox x:Name="AccessoriesBox" Tag="الملحقات..."/>
                 </StackPanel>
               </Grid>
             </StackPanel>
@@ -123,12 +123,12 @@
               <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
                 <StackPanel>
                   <TextBlock Text="رقم إيصال / باركود الصيانة التلقائي" Style="{StaticResource MutedText}"/>
-                  <TextBlock Text="REP-2026-0842" FontFamily="Consolas" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" FlowDirection="LeftToRight" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                  <TextBlock x:Name="RepairNumberBlock" FontFamily="Consolas" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" FlowDirection="LeftToRight" HorizontalAlignment="Right" Margin="0,4,0,0"/>
                 </StackPanel>
               </Border>
 
               <TextBlock Text="التكلفة التقديرية المبدئية (ج.م)" Style="{StaticResource FieldLabelText}"/>
-              <TextBox Text="4200" FlowDirection="LeftToRight" Margin="0,0,0,10"/>
+              <TextBox x:Name="TotalCostBox" FlowDirection="LeftToRight" Tag="التكلفة الإجمالية..." Margin="0,0,0,10"/>
 
               <Grid Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
@@ -138,11 +138,11 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                   <TextBlock Text="العربون المدفوع" Style="{StaticResource FieldLabelText}"/>
-                  <TextBox Text="1000" FlowDirection="LeftToRight"/>
+                  <TextBox x:Name="PaidAmountBox" FlowDirection="LeftToRight" Tag="مبلغ العربون..."/>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                   <TextBlock Text="طريقة دفع العربون" Style="{StaticResource FieldLabelText}"/>
-                  <ComboBox SelectedIndex="0">
+                  <ComboBox x:Name="PaymentMethodCombo" SelectedIndex="0">
                     <ComboBoxItem Content="نقدي"/>
                     <ComboBoxItem Content="فودافون كاش"/>
                     <ComboBoxItem Content="إنستاباي"/>
@@ -151,9 +151,9 @@
               </Grid>
 
               <TextBlock Text="موعد التسليم المتوقع" Style="{StaticResource FieldLabelText}"/>
-              <TextBox Text="2026/11/07 — 07:00 م" Margin="0,0,0,14"/>
+              <TextBox x:Name="EstimatedDeliveryBox" Tag="تاريخ التسليم المتوقع..." Margin="0,0,0,14"/>
 
-              <Button Content="حفظ الاستلام وطباعة باركود الجهاز" Style="{StaticResource SuccessButton}" Padding="16,13" Margin="0,0,0,8" Click="OpenBarcodePreview_Click"/>
+              <Button Content="حفظ الاستلام وطباعة باركود الجهاز" Style="{StaticResource SuccessButton}" Padding="16,13" Margin="0,0,0,8" Click="SaveRepair_Click"/>
               <Button Content="معاينة ملصق الباركود وإيصال الاستلام" Style="{StaticResource SecondaryButton}" Click="OpenBarcodePreview_Click"/>
             </StackPanel>
           </Border>
@@ -201,37 +201,41 @@
               </Grid>
             </Border>
 
-            <Border Style="{StaticResource TableRowBorder}">
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="85"/>
-                  <ColumnDefinition Width="1.4*"/>
-                  <ColumnDefinition Width="105"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="REP-0842" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
-                <StackPanel Grid.Column="1">
-                  <TextBlock Text="iPhone 13 Pro — أحمد طارق" FontWeight="SemiBold"/>
-                  <TextBlock Text="01065432198" Style="{StaticResource MutedText}"/>
-                </StackPanel>
-                <TextBlock Grid.Column="2" Text="قيد الصيانة" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold"/>
-              </Grid>
-            </Border>
-
-            <Border Style="{StaticResource TableRowAltBorder}">
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="85"/>
-                  <ColumnDefinition Width="1.4*"/>
-                  <ColumnDefinition Width="105"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="REP-0839" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
-                <StackPanel Grid.Column="1">
-                  <TextBlock Text="Samsung A54 — محمود عادل" FontWeight="SemiBold"/>
-                  <TextBlock Text="01122334455" Style="{StaticResource MutedText}"/>
-                </StackPanel>
-                <TextBlock Grid.Column="2" Text="جاهز للتسليم" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold"/>
-              </Grid>
-            </Border>
+            <ItemsControl ItemsSource="{Binding Repairs}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Style="{StaticResource TableRowBorder}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="85"/>
+                        <ColumnDefinition Width="1.4*"/>
+                        <ColumnDefinition Width="105"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0" Text="{Binding RepairNumber}" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="{Binding DeviceModel}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding CustomerPhone}" Style="{StaticResource MutedText}"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding Status}" FontWeight="Bold">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                            <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding Status}" Value="جاهز للتسليم">
+                                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+                              </DataTrigger>
+                              <DataTrigger Binding="{Binding Status}" Value="تم التسليم">
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
         </Border>
 
@@ -240,8 +244,8 @@
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel>
               <Grid Margin="0,0,0,12">
-                <TextBlock Text="تقرير الصيانة والتكاليف والتسليم — REP-0842" Style="{StaticResource SectionTitleText}" VerticalAlignment="Center"/>
-                <ComboBox SelectedIndex="2" Width="175" HorizontalAlignment="Left">
+                <TextBlock x:Name="RepairDetailsTitle" Text="تقرير الصيانة والتكاليف والتسليم" Style="{StaticResource SectionTitleText}" VerticalAlignment="Center"/>
+                <ComboBox x:Name="StatusCombo" SelectedIndex="0" Width="175" HorizontalAlignment="Left" Margin="0,4,0,0">
                   <ComboBoxItem Content="قيد الفحص"/>
                   <ComboBoxItem Content="قيد الصيانة"/>
                   <ComboBoxItem Content="جاهز للتسليم للعميل"/>
@@ -251,8 +255,7 @@
               </Grid>
 
               <TextBlock Text="ما تم إجراؤه في الصيانة وقطع الغيار المركّبة *" Style="{StaticResource FieldLabelText}"/>
-              <TextBox Height="66" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Margin="0,0,0,12"
-                       Text="تم فك الجهاز وتركيب شاشة أصلية خلع وكالة مع نقل شريحة True Tone بنجاح، وتنظيف السماعة العلوية وتغيير لاصق الحماية المقاوم للأتربة."/>
+              <TextBox x:Name="DiagnosisBox" Height="66" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Margin="0,0,0,12" Tag="تشخيص العطل وما تم إجراؤه..."/>
 
               <!-- حساب التكاليف: قطع الغيار + مصنعية الصيانة -->
               <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
@@ -268,21 +271,21 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                       <TextBlock Text="تكلفة قطع الغيار (ج.م)" Style="{StaticResource FieldLabelText}"/>
-                      <TextBox Text="3100" FlowDirection="LeftToRight"/>
+                      <TextBox x:Name="PartsCostBox" FlowDirection="LeftToRight" Tag="0"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2">
                       <TextBlock Text="أجر / مصنعية الصيانة" Style="{StaticResource FieldLabelText}"/>
-                      <TextBox Text="1100" FlowDirection="LeftToRight"/>
+                      <TextBox x:Name="LaborCostBox" FlowDirection="LeftToRight" Tag="0"/>
                     </StackPanel>
                     <StackPanel Grid.Column="4">
                       <TextBlock Text="إجمالي الفاتورة للعميل" Style="{StaticResource FieldLabelText}"/>
-                      <TextBox Text="4200" FlowDirection="LeftToRight" FontWeight="Bold"/>
+                      <TextBox x:Name="TotalCostDisplayBox" FlowDirection="LeftToRight" FontWeight="Bold" IsReadOnly="True"/>
                     </StackPanel>
                   </Grid>
 
                   <Grid>
-                    <TextBlock Text="العربون المسدد مسبقًا: 1,000 ج.م  •  صافي ربح الصيانة: 1,100 ج.م" Style="{StaticResource MutedText}"/>
-                    <TextBlock Text="المتبقي للتحصيل عند التسليم: 3,200 ج.م" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Left"/>
+                    <TextBlock x:Name="PaymentSummaryBlock" Style="{StaticResource MutedText}"/>
+                    <TextBlock x:Name="RemainingBlock" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Left"/>
                   </Grid>
                 </StackPanel>
               </Border>
@@ -295,7 +298,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                   <TextBlock Text="طريقة تحصيل المبلغ المتبقي" Style="{StaticResource FieldLabelText}"/>
-                  <ComboBox SelectedIndex="0">
+                  <ComboBox x:Name="SettlementMethodCombo" SelectedIndex="0">
                     <ComboBoxItem Content="نقدي بالخزينة"/>
                     <ComboBoxItem Content="فودافون كاش (01012345678)"/>
                     <ComboBoxItem Content="إنستاباي (01100032165)"/>
@@ -304,7 +307,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                   <TextBlock Text="ضمان الصيانة الممنوح للعميل" Style="{StaticResource FieldLabelText}"/>
-                  <ComboBox SelectedIndex="1">
+                  <ComboBox x:Name="WarrantyCombo" SelectedIndex="1">
                     <ComboBoxItem Content="بدون ضمان (سوفت / سوائل)"/>
                     <ComboBoxItem Content="ضمان شهر على القطعة المستبدلة"/>
                     <ComboBoxItem Content="ضمان 3 أشهر"/>
@@ -318,8 +321,8 @@
                   <ColumnDefinition Width="10"/>
                   <ColumnDefinition Width="1.3*"/>
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="حفظ تحديثات الصيانة" Style="{StaticResource SecondaryButton}" Padding="14,12"/>
-                <Button Grid.Column="2" Content="تأكيد تسليم الجهاز للعميل وطباعة الفاتورة" Style="{StaticResource SuccessButton}" Padding="14,12"/>
+                <Button Grid.Column="0" Content="حفظ تحديثات الصيانة" Style="{StaticResource SecondaryButton}" Padding="14,12" Click="SaveRepairUpdate_Click"/>
+                <Button Grid.Column="2" Content="تأكيد تسليم الجهاز للعميل وطباعة الفاتورة" Style="{StaticResource SuccessButton}" Padding="14,12" Click="MarkDelivered_Click"/>
               </Grid>
             </StackPanel>
           </ScrollViewer>
@@ -327,7 +330,7 @@
       </Grid>
     </TabItem>
 
-    <!-- التبويب 3: عرض بيانات كل عميل كاملة بتواريخ الصيانات -->
+    <!-- التبويب 3: أرشيف صيانات العملاء الكامل بالتواريخ -->
     <TabItem Header="3. أرشيف صيانات العملاء الكامل بالتواريخ" Style="{StaticResource SubTabItem}">
       <Border Style="{StaticResource GlassCard}">
         <StackPanel>
@@ -337,12 +340,12 @@
               <ColumnDefinition Width="10"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBox Grid.Column="0" Text="أحمد طارق محمود — 01065432198" Tag="ابحث باسم العميل أو رقم هاتفه أو IMEI لعرض تاريخ صياناته بالكامل..."/>
-            <Button Grid.Column="2" Content="عرض سجل صيانات العميل"/>
+            <TextBox Grid.Column="0" Tag="ابحث باسم العميل أو رقم هاتفه أو IMEI لعرض تاريخ صياناته بالكامل..."/>
+            <Button Grid.Column="2" Content="عرض سجل صيانات العم일" Click="SearchCustomerRepairs_Click"/>
           </Grid>
 
           <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
-            <TextBlock Text="العميل: أحمد طارق محمود  |  موبايل: 01065432198  |  إجمالي الأجهزة المصانة: 3 أجهزة  |  إجمالي مدفوعات الصيانة: 6,150 ج.م" FontWeight="SemiBold"/>
+            <TextBlock x:Name="CustomerSummaryBlock" FontWeight="SemiBold"/>
           </Border>
 
           <Border Style="{StaticResource TableHeaderBorder}">
@@ -366,68 +369,32 @@
             </Grid>
           </Border>
 
-          <Border Style="{StaticResource TableRowBorder}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="110"/>
-                <ColumnDefinition Width="110"/>
-                <ColumnDefinition Width="130"/>
-                <ColumnDefinition Width="1.6*"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="95"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" Text="REP-0842" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
-              <TextBlock Grid.Column="1" Text="2026/11/06"/>
-              <TextBlock Grid.Column="2" Text="قيد التسليم"/>
-              <TextBlock Grid.Column="3" Text="iPhone 13 Pro"/>
-              <TextBlock Grid.Column="4" Text="تغيير شاشة أصلية + تنظيف سماعة"/>
-              <TextBlock Grid.Column="5" Text="3,100 ج"/>
-              <TextBlock Grid.Column="6" Text="4,200 ج" FontWeight="Bold"/>
-            </Grid>
-          </Border>
-
-          <Border Style="{StaticResource TableRowAltBorder}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="110"/>
-                <ColumnDefinition Width="110"/>
-                <ColumnDefinition Width="130"/>
-                <ColumnDefinition Width="1.6*"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="95"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" Text="REP-0611" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
-              <TextBlock Grid.Column="1" Text="2026/08/14"/>
-              <TextBlock Grid.Column="2" Text="2026/08/15"/>
-              <TextBlock Grid.Column="3" Text="iPhone 13 Pro"/>
-              <TextBlock Grid.Column="4" Text="تغيير بطارية أصلية 100% وبرمجة"/>
-              <TextBlock Grid.Column="5" Text="950 ج"/>
-              <TextBlock Grid.Column="6" Text="1,450 ج" FontWeight="Bold"/>
-            </Grid>
-          </Border>
-
-          <Border Style="{StaticResource TableRowBorder}">
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="110"/>
-                <ColumnDefinition Width="110"/>
-                <ColumnDefinition Width="130"/>
-                <ColumnDefinition Width="1.6*"/>
-                <ColumnDefinition Width="95"/>
-                <ColumnDefinition Width="95"/>
-              </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" Text="REP-0390" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
-              <TextBlock Grid.Column="1" Text="2026/05/02"/>
-              <TextBlock Grid.Column="2" Text="2026/05/02"/>
-              <TextBlock Grid.Column="3" Text="Samsung A32"/>
-              <TextBlock Grid.Column="4" Text="تغيير فلاتة شحن أصلية"/>
-              <TextBlock Grid.Column="5" Text="250 ج"/>
-              <TextBlock Grid.Column="6" Text="500 ج" FontWeight="Bold"/>
-            </Grid>
-          </Border>
+          <ItemsControl ItemsSource="{Binding Repairs}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource TableRowBorder}">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="110"/>
+                      <ColumnDefinition Width="130"/>
+                      <ColumnDefinition Width="1.6*"/>
+                      <ColumnDefinition Width="95"/>
+                      <ColumnDefinition Width="95"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding RepairNumber}" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="1" Text="{Binding ReceivedDate, StringFormat={}{0:yyyy/MM/dd}}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding ActualDeliveryDate, StringFormat={}{0:yyyy/MM/dd}, TargetNullValue=قيد التنفيذ}"/>
+                    <TextBlock Grid.Column="3" Text="{Binding CustomerPhone}"/>
+                    <TextBlock Grid.Column="4" Text="{Binding ProblemDescription}"/>
+                    <TextBlock Grid.Column="5" Text="{Binding PartsCost, StringFormat={}{0:N0} ج}"/>
+                    <TextBlock Grid.Column="6" Text="{Binding TotalCost, StringFormat={}{0:N0} ج}" FontWeight="Bold"/>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
       </Border>
     </TabItem>
