@@ -37,7 +37,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="اسم التاجر / الشركة الموردة *" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Tag="مثال: شركة النور لتجارة الهواتف والإكسسوارات"/>
+                <TextBox x:Name="NameInput" Tag="مثال: شركة النور لتجارة الهواتف والإكسسوارات"/>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="تصنيف التوريد" Style="{StaticResource FieldLabelText}"/>
@@ -58,11 +58,11 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="اسم المندوب المسؤول" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Tag="اسم المندوب..."/>
+                <TextBox x:Name="ContactPersonInput" Tag="اسم المندوب..."/>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="رقم هاتف التاجر / المندوب *" Style="{StaticResource FieldLabelText}"/>
-                <TextBox FlowDirection="LeftToRight" Tag="010XXXXXXXX"/>
+                <TextBox x:Name="PhoneInput" FlowDirection="LeftToRight" Tag="010XXXXXXXX"/>
               </StackPanel>
             </Grid>
 
@@ -74,11 +74,11 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="رقم فودافون كاش للتاجر" Style="{StaticResource FieldLabelText}"/>
-                <TextBox FlowDirection="LeftToRight" Tag="010XXXXXXXX"/>
+                <TextBox x:Name="VodafonePhoneInput" FlowDirection="LeftToRight" Tag="010XXXXXXXX"/>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="حساب إنستاباي (InstaPay) للتاجر" Style="{StaticResource FieldLabelText}"/>
-                <TextBox FlowDirection="LeftToRight" Tag="011XXXXXXXX / username@instapay"/>
+                <TextBox x:Name="InstaPayInput" FlowDirection="LeftToRight" Tag="011XXXXXXXX / username@instapay"/>
               </StackPanel>
             </Grid>
 
@@ -90,11 +90,11 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="عنوان المقر / المخزن" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Tag="مثال: القاهرة - شارع عبد العزيز"/>
+                <TextBox x:Name="AddressInput" Tag="مثال: القاهرة - شارع عبد العزيز"/>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="الرصيد الافتتاحي للتاجر (له)" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="0.00" FlowDirection="LeftToRight"/>
+                <TextBox x:Name="BalanceInput" Text="0.00" FlowDirection="LeftToRight"/>
               </StackPanel>
             </Grid>
 
@@ -113,7 +113,7 @@
           </Grid.ColumnDefinitions>
           <TextBlock Text="* نافذة تصميم جاهزة للربط البرمجي" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
           <Button Grid.Column="1" Content="إلغاء" Style="{StaticResource SecondaryButton}" Margin="0,0,10,0" MinWidth="100" Click="CloseWindow_Click"/>
-          <Button Grid.Column="2" Content="حفظ بيانات التاجر" MinWidth="160" Click="CloseWindow_Click"/>
+          <Button Grid.Column="2" Content="حفظ بيانات التاجر" MinWidth="160" Click="Save_Click"/>
         </Grid>
       </Grid>
     </Border>

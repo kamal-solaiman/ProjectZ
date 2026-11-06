@@ -37,14 +37,14 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="نوع الخدمة / المحفظة *" Style="{StaticResource FieldLabelText}"/>
-                <ComboBox SelectedIndex="0">
-                  <ComboBoxItem Content="فودافون كاش (Vodafone Cash)"/>
-                  <ComboBoxItem Content="إنستاباي (InstaPay)"/>
+                <ComboBox x:Name="ProviderCombo" SelectedIndex="0">
+                  <ComboBoxItem Content="فودافون كاش (Vodafone Cash)" Tag="VodafoneCash"/>
+                  <ComboBoxItem Content="إنستاباي (InstaPay)" Tag="InstaPay"/>
                 </ComboBox>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="رقم الخط / الحساب *" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="01012345678" FlowDirection="LeftToRight"/>
+                <TextBox x:Name="PhoneInput" Text="01012345678" FlowDirection="LeftToRight"/>
               </StackPanel>
             </Grid>
 
@@ -56,11 +56,11 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="اسم مالك الخط / التسمية التوضيحية" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="خط المحل الرئيسي رقم 1"/>
+                <TextBox x:Name="OwnerNameInput" Text="خط المحل الرئيسي رقم 1"/>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="الرصيد الحالي بالمحفظة (ج.م)" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="3000" FlowDirection="LeftToRight"/>
+                <TextBox x:Name="BalanceInput" Text="3000" FlowDirection="LeftToRight"/>
               </StackPanel>
             </Grid>
 
@@ -75,11 +75,11 @@
                   </Grid.ColumnDefinitions>
                   <StackPanel Grid.Column="0">
                     <TextBlock Text="الحد الأقصى اليومي (Daily Limit ج.م) *" Style="{StaticResource FieldLabelText}"/>
-                    <TextBox Text="60000" FlowDirection="LeftToRight"/>
+                    <TextBox x:Name="DailyLimitInput" Text="60000" FlowDirection="LeftToRight"/>
                   </StackPanel>
                   <StackPanel Grid.Column="2">
                     <TextBlock Text="الحد الأقصى الشهري (Monthly Limit ج.م) *" Style="{StaticResource FieldLabelText}"/>
-                    <TextBox Text="200000" FlowDirection="LeftToRight"/>
+                    <TextBox x:Name="MonthlyLimitInput" Text="200000" FlowDirection="LeftToRight"/>
                   </StackPanel>
                 </Grid>
 
@@ -118,7 +118,7 @@
           </Grid.ColumnDefinitions>
           <TextBlock Text="* يتم تحديث حساب الليمت اليومي والشهري تلقائيًا عند البرمجة" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
           <Button Grid.Column="1" Content="إلغاء" Style="{StaticResource SecondaryButton}" Margin="0,0,10,0" MinWidth="95" Click="CloseWindow_Click"/>
-          <Button Grid.Column="2" Content="حفظ الرقم والحدود" MinWidth="160" Click="CloseWindow_Click"/>
+          <Button Grid.Column="2" Content="حفظ الرقم والحدود" MinWidth="160" Click="Save_Click"/>
         </Grid>
       </Grid>
     </Border>
