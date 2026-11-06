@@ -1,0 +1,10 @@
+{
+  "Server": "SERVER_NAME\\SQLEXPRESS",
+  "Database": "FitohPhone",
+  "IntegratedSecurity": true,
+  "UserId": "",
+  "Password": "",
+  "Encrypt": true,
+  "TrustServerCertificate": false,
+  "ConnectTimeoutSeconds": 8
+}
