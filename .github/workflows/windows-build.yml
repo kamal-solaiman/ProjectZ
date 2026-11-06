@@ -2,7 +2,7 @@ name: Windows build and publish
 on:
   workflow_dispatch:
   push:
-    branches: [arena/c4a64a44-projectz]
+    branches: [main, 'arena/**']
   pull_request:
 permissions:
   contents: read

@@ -5,6 +5,6 @@
   "UserId": "",
   "Password": "",
   "Encrypt": true,
-  "TrustServerCertificate": false,
-  "ConnectTimeoutSeconds": 8
+  "TrustServerCertificate": true,
+  "ConnectTimeoutSeconds": 15
 }
