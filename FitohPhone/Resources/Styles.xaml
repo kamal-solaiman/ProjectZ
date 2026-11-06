@@ -41,6 +41,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
+                            TextElement.Foreground="{TemplateBinding Foreground}"
                             CornerRadius="10">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
@@ -74,7 +75,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            Foreground="{TemplateBinding Foreground}"
+                            TextElement.Foreground="{TemplateBinding Foreground}"
                             CornerRadius="10">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
