@@ -23,32 +23,34 @@ public sealed class PurchaseInvoiceViewModel : ObservableObject
         AddItemCommand = new RelayCommand(AddItem);
         RemoveItemCommand = new RelayCommand<int>(RemoveItem);
         SaveCommand = new AsyncCommand(SaveAsync);
+        LoadCommand = new AsyncCommand(LoadAsync);
     }
 
     public RelayCommand AddItemCommand { get; }
     public RelayCommand<int> RemoveItemCommand { get; }
     public AsyncCommand SaveCommand { get; }
+    public AsyncCommand LoadCommand { get; }
 
+    public ObservableCollection<Supplier> Suppliers { get; } = new();
+    public ObservableCollection<Product> Products { get; } = new();
     public ObservableCollection<PurchaseLine> Lines { get; } = new();
 
     private int? _selectedSupplierId;
-    public int? SelectedSupplierId { get => _selectedSupplierId; set { _selectedSupplierId = value; Changed(); } }
-    public string? SupplierName { get; set; }
+    public int? SelectedSupplierId { get => _selectedSupplierId; set { _selectedSupplierId = value; Changed(); Changed(nameof(SelectedSupplierName)); } }
+    public string? SelectedSupplierName => SelectedSupplierId.HasValue ? Suppliers.FirstOrDefault(s => s.Id == _selectedSupplierId)?.Name : null;
 
     private string _invoiceNumber = "";
     public string InvoiceNumber { get => _invoiceNumber; set { _invoiceNumber = value; Changed(); } }
 
-    private string _cashPayment = "";
-    public string CashPayment { get => _cashPayment; set { _cashPayment = value; Changed(); } }
-    private string _vodafonePayment = "";
-    public string VodafonePayment { get => _vodafonePayment; set { _vodafonePayment = value; Changed(); } }
-    private string _instaPayPayment = "";
-    public string InstaPayPayment { get => _instaPayPayment; set { _instaPayPayment = value; Changed(); } }
-
-    private decimal _creditRemaining; public decimal CreditRemaining { get => _creditRemaining; set { _creditRemaining = value; Changed(); } }
+    private decimal _cashPayment;
+    public decimal CashPayment { get => _cashPayment; set { _cashPayment = value; Changed(); Changed(nameof(TotalPaid)); Changed(nameof(Remaining)); } }
+    private decimal _vodafonePayment;
+    public decimal VodafonePayment { get => _vodafonePayment; set { _vodafonePayment = value; Changed(); Changed(nameof(TotalPaid)); Changed(nameof(Remaining)); } }
+    private decimal _instaPayPayment;
+    public decimal InstaPayPayment { get => _instaPayPayment; set { _instaPayPayment = value; Changed(); Changed(nameof(TotalPaid)); Changed(nameof(Remaining)); } }
 
     public decimal InvoiceTotal => Lines.Sum(l => l.LineTotal);
-    public decimal TotalPaid => ParseDecimal(CashPayment) + ParseDecimal(VodafonePayment) + ParseDecimal(InstaPayPayment);
+    public decimal TotalPaid => CashPayment + VodafonePayment + InstaPayPayment;
     public decimal Remaining => Math.Max(0, InvoiceTotal - TotalPaid);
 
     private bool _busy;
@@ -58,11 +60,45 @@ public sealed class PurchaseInvoiceViewModel : ObservableObject
     private string _error = "";
     public string Error { get => _error; private set { _error = value; Changed(); } }
 
-    private static decimal ParseDecimal(string? s) => decimal.TryParse(s, out var v) ? v : 0;
+    private async Task LoadAsync()
+    {
+        IsBusy = true;
+        try
+        {
+            Suppliers.Clear();
+            Products.Clear();
+
+            foreach (var s in await _supplierRepo.GetAllAsync(System.Threading.CancellationToken.None))
+                Suppliers.Add(s);
+
+            foreach (var p in await _productRepo.GetAllAsync(System.Threading.CancellationToken.None))
+                Products.Add(p);
+
+            InvoiceNumber = $"SUP-{DateTime.Now:yyyyMMddHHmmss}";
+        }
+        finally { IsBusy = false; }
+    }
 
     private void AddItem()
     {
-        // يُضاف من خلال اختيار منتج من القائمة في الشاشة
+        // يتم استدعاؤه من خلال اختيار منتج من القائمة في الشاشة
+    }
+
+    public void AddProductToLine(Product product, int quantity, decimal unitCost)
+    {
+        var existing = Lines.FirstOrDefault(l => l.ProductId == product.Id);
+        if (existing != null)
+        {
+            existing.Quantity += quantity;
+            existing.LineTotal = existing.Quantity * existing.UnitCost;
+        }
+        else
+        {
+            Lines.Add(new PurchaseLine(
+                0, product.Id, product.Barcode, product.NameAr, quantity, unitCost, quantity * unitCost));
+        }
+        Changed(nameof(InvoiceTotal));
+        Changed(nameof(Remaining));
     }
 
     private void RemoveItem(int lineId)
@@ -90,14 +126,11 @@ public sealed class PurchaseInvoiceViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var paidCash = ParseDecimal(CashPayment);
-            var paidVoda = ParseDecimal(VodafonePayment);
-            var paidInsta = ParseDecimal(InstaPayPayment);
-            var totalPaid = paidCash + paidVoda + paidInsta;
+            var totalPaid = CashPayment + VodafonePayment + InstaPayPayment;
             var credit = Math.Max(0, InvoiceTotal - totalPaid);
 
             var invoice = new PurchaseInvoice(
-                0, InvoiceNumber, DateTime.Now, SelectedSupplierId.Value, SupplierName ?? "",
+                0, InvoiceNumber, DateTime.Now, SelectedSupplierId.Value, SelectedSupplierName ?? "",
                 _userId, "المستخدم", InvoiceTotal, InvoiceTotal, totalPaid, credit,
                 totalPaid >= InvoiceTotal ? "مدفوع" : (totalPaid > 0 ? "جزئي" : "آجل"),
                 null, false, null, null, DateTime.Now,
@@ -105,13 +138,22 @@ public sealed class PurchaseInvoiceViewModel : ObservableObject
                     0, 0, l.ProductId, l.Barcode, l.Name, l.Quantity, l.UnitCost, l.LineTotal)).ToList(),
                 new List<PurchaseInvoicePayment>
                 {
-                    new(0, 0, "Cash", "نقدي", paidCash, DateTime.Now),
-                    new(0, 0, "VodafoneCash", "فودافون كاش", paidVoda, DateTime.Now),
-                    new(0, 0, "InstaPay", "إنستاباي", paidInsta, DateTime.Now),
+                    new(0, 0, "Cash", "نقدي", CashPayment, DateTime.Now),
+                    new(0, 0, "VodafoneCash", "فودافون كاش", VodafonePayment, DateTime.Now),
+                    new(0, 0, "InstaPay", "إنستاباي", InstaPayPayment, DateTime.Now),
                 }.Where(p => p.Amount > 0).ToList());
 
             var id = await _invoiceRepo.CreateAsync(invoice, System.Threading.CancellationToken.None);
-            // نجاح
+
+            // نجاح - يمكن مسح الفاتورة
+            Lines.Clear();
+            CashPayment = 0;
+            VodafonePayment = 0;
+            InstaPayPayment = 0;
+            InvoiceNumber = $"SUP-{DateTime.Now:yyyyMMddHHmmss}";
+            Changed(nameof(InvoiceTotal));
+            Changed(nameof(TotalPaid));
+            Changed(nameof(Remaining));
         }
         catch (Exception ex)
         {
