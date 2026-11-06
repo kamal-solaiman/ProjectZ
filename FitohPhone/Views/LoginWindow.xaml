@@ -64,6 +64,8 @@
                           HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     <TextBox x:Name="UsernameTextBox"
                              Style="{StaticResource RoundedInput}"
+                             Foreground="{StaticResource TextPrimaryBrush}"
+                             CaretBrush="{StaticResource PrimaryBrush}"
                              Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
                 </Grid>
 
