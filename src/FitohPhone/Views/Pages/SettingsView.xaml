@@ -1,6 +1,10 @@
 <UserControl x:Class="FitohPhone.Views.Pages.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/microsoft-com/controls/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="1200">
   <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4,0,4,18">
     <StackPanel>
 
@@ -182,11 +186,11 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="اسم المحل بالعربية *" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="فيتوح فون للهواتف والصيانة"/>
+                <TextBox Text="{Binding ShopNameAr, UpdateSourceTrigger=PropertyChanged}" Tag="اسم المحل بالعربية..."/>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="اسم المحل بالإنجليزية (للفواتير والباركود)" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="FitohPhone Store" FlowDirection="LeftToRight"/>
+                <TextBox Text="{Binding ShopNameEn, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" Tag="اسم المحل بالإنجليزية..."/>
               </StackPanel>
             </Grid>
 
@@ -200,15 +204,15 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="رقم الهاتف الرئيسي *" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="01012345678" FlowDirection="LeftToRight"/>
+                <TextBox Text="{Binding Phone1, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" Tag="010XXXXXXXX"/>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="رقم هاتف الصيانة / واتساب" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="01098765432" FlowDirection="LeftToRight"/>
+                <TextBox Text="{Binding WhatsApp, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" Tag="رقم واتساب..."/>
               </StackPanel>
               <StackPanel Grid.Column="4">
                 <TextBlock Text="العملة الافتراضية" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="ج.م (EGP)"/>
+                <TextBox Text="{Binding DefaultCurrency, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" Tag="ج.م (EGP)..."/>
               </StackPanel>
             </Grid>
 
@@ -220,24 +224,40 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="عنوان المحل التفصيلي (يظهر أعلى الفاتورة)" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Text="كفر الشيخ - الشارع الرئيسي بجوار السنترال"/>
+                <TextBox Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}" Tag="عنوان المحل..."/>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="رقم السجل التجاري / الضريبي" Style="{StaticResource FieldLabelText}"/>
-                <TextBox Tag="اختياري..."/>
+                <TextBox Text="{Binding TaxNumber, UpdateSourceTrigger=PropertyChanged}" Tag="اختياري..."/>
+              </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="رقم الهاتف الثاني" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="{Binding Phone2, UpdateSourceTrigger=PropertyChanged}" FlowDirection="LeftToRight" Tag="هاتف بديل..."/>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="السجل التجاري" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="{Binding CommercialReg, UpdateSourceTrigger=PropertyChanged}" Tag="رقم السجل..."/>
               </StackPanel>
             </Grid>
 
             <StackPanel Margin="0,0,0,12">
               <TextBlock Text="شروط وسياسة الاستبدال والاسترجاع أسفل فاتورة البيع" Style="{StaticResource FieldLabelText}"/>
               <TextBox Height="52" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"
-                       Text="البضاعة المباعة تُرد أو تُستبدل خلال 14 يومًا بحالتها الأصلية وبالفاتورة. الإكسسوارات المفتوحة لا تُرد إلا لعيوب الصناعة."/>
+                       Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}" Tag="شروط الاسترجاع..."/>
             </StackPanel>
 
             <StackPanel>
               <TextBlock Text="شروط وملاحظات إيصال استلام أجهزة الصيانة" Style="{StaticResource FieldLabelText}"/>
               <TextBox Height="52" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top"
-                       Text="الجهاز يُسلَّم بموجب هذا الإيصال فقط. المحل غير مسؤول عن الأجهزة التي يمر على موعد استلامها 30 يومًا أو الأجهزة الفاصلة باور."/>
+                       Tag="شروط استلام أجهزة الصيانة..."/>
             </StackPanel>
           </StackPanel>
         </Border>
@@ -258,27 +278,32 @@
             </Border>
 
             <TextBlock Text="طابعة فواتير الكاشير الحرارية" Style="{StaticResource FieldLabelText}"/>
-            <ComboBox SelectedIndex="0" Margin="0,0,0,10">
+            <ComboBox x:Name="ThermalPrinterCombo" Text="{Binding ThermalPrinter, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Margin="0,0,0,10">
               <ComboBoxItem Content="Xprinter XP-80C (80mm Thermal)"/>
               <ComboBoxItem Content="طابعة حرارية 58mm"/>
               <ComboBoxItem Content="Microsoft Print to PDF"/>
             </ComboBox>
 
             <TextBlock Text="طابعة ملصقات باركود المنتجات والصيانة" Style="{StaticResource FieldLabelText}"/>
-            <ComboBox SelectedIndex="0" Margin="0,0,0,12">
+            <ComboBox x:Name="BarcodePrinterCombo" Text="{Binding BarcodePrinter, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Margin="0,0,0,12">
               <ComboBoxItem Content="Xprinter XP-235B Barcode (38x25mm)"/>
               <ComboBoxItem Content="Zebra ZD220 Label Printer"/>
             </ComboBox>
 
-            <CheckBox Content="طباعة الفاتورة تلقائيًا فور إتمام عملية البيع" IsChecked="True"/>
-            <CheckBox Content="إصدار تنبيه عند وصول رصيد خط التحويل إلى 85% من الـ Limit" IsChecked="True"/>
-            <CheckBox Content="إظهار تنبيه نواقص المخزون عند فتح البرنامج" IsChecked="True" Margin="0,4,0,14"/>
+            <CheckBox Content="طباعة الفاتورة تلقائيًا فور إتمام عملية البيع" IsChecked="{Binding AutoPrintInvoice, UpdateSourceTrigger=PropertyChanged}"/>
+            <CheckBox Content="إصدار تنبيه عند وصول رصيد خط التحويل إلى 85% من الـ Limit" IsChecked="{Binding TransferLimitWarning, UpdateSourceTrigger=PropertyChanged}"/>
+            <CheckBox Content="إظهار تنبيه نواقص المخزون عند فتح البرنامج" IsChecked="{Binding LowStockAlert, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,14"/>
 
-            <Button Content="حفظ جميع إعدادات المحل والبرنامج" Style="{StaticResource SuccessButton}" Padding="16,12" Margin="0,0,0,8"/>
+            <Button Content="حفظ جميع إعدادات المحل والبرنامج" Style="{StaticResource SuccessButton}" Padding="16,12" Margin="0,0,0,8" Click="SaveSettings_Click"/>
             <Button Content="أخذ نسخة احتياطية من قاعدة البيانات الآن" Style="{StaticResource SecondaryButton}"/>
+
+            <!-- عرض الرسائل والأخطاء -->
+            <TextBlock Text="{Binding Message, TargetNullValue=}" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            <TextBlock Text="{Binding Error, TargetNullValue=}" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"/>
           </StackPanel>
         </Border>
       </Grid>
+
     </StackPanel>
   </ScrollViewer>
 </UserControl>
