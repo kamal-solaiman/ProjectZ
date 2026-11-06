@@ -1,0 +1,13 @@
+Cannot assign void to an implicitly-typed variable
+Cannot assign void to an implicitly-typed variable
+Cannot assign void to an implicitly-typed variable
+Cannot assign void to an implicitly-typed variable
+Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
+Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
+Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
+Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
+Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
+The type or namespace name 'Customer' could not be found (are you missing a using directive or an assembly reference?)
+The type or namespace name 'FitOhPhone' could not be found (are you missing a using directive or an assembly reference?)
+The type or namespace name 'Product' could not be found (are you missing a using directive or an assembly reference?)
+The type or namespace name 'Supplier' could not be found (are you missing a using directive or an assembly reference?)
