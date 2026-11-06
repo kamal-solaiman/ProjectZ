@@ -28,6 +28,7 @@ public sealed class AddProductViewModel : ObservableObject
 
     public ObservableCollection<ProductCategory> Categories { get; } = new();
     public ObservableCollection<ProductBrand> Brands { get; } = new();
+    public ObservableCollection<Product> Products { get; } = new();
 
     private string _barcode = "";
     public string Barcode { get => _barcode; set { _barcode = value; Changed(); } }
@@ -85,10 +86,13 @@ public sealed class AddProductViewModel : ObservableObject
         {
             Categories.Clear();
             Brands.Clear();
+            Products.Clear();
             foreach (var c in await _categoryRepo.GetAllAsync(System.Threading.CancellationToken.None))
                 Categories.Add(c);
             foreach (var b in await _brandRepo.GetAllAsync(System.Threading.CancellationToken.None))
                 Brands.Add(b);
+            foreach (var p in await _productRepo.GetAllAsync(System.Threading.CancellationToken.None))
+                Products.Add(p);
         }
         finally { IsBusy = false; }
     }
@@ -116,6 +120,10 @@ public sealed class AddProductViewModel : ObservableObject
                 CostPrice, PriceWholesale, PriceSpecial, PriceRetail, MinStock,
                 CurrentStock, Unit, WarrantyMonths, IsActive, DateTime.Now, null);
             var id = await _productRepo.AddAsync(product, System.Threading.CancellationToken.None);
+            // إضافة المنتج المضاف حديثًا إلى قائمة العرض
+            var newProduct = await _productRepo.GetByIdAsync(id, System.Threading.CancellationToken.None);
+            if (newProduct is not null)
+                Products.Insert(0, newProduct);
             // نجاح - يمكن مسح الحقول
             Barcode = ""; NameAr = ""; NameEn = null; CategoryId = null; BrandId = null;
             CostPrice = 0; PriceWholesale = 0; PriceSpecial = 0; PriceRetail = 0;
