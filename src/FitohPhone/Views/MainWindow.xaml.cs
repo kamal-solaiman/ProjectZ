@@ -6,7 +6,7 @@ namespace FitohPhone.Views;
 
 public partial class MainWindow : Window
 {
-    private bool syncingTheme;
+    private bool _syncingTheme;
 
     public MainWindow()
     {
@@ -17,7 +17,7 @@ public partial class MainWindow : Window
 
     private void QuickThemeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (syncingTheme || !IsLoaded) return;
+        if (_syncingTheme || !IsLoaded) return;
         if (sender is ComboBox { SelectedItem: ComboBoxItem { Tag: string themeKey } })
         {
             ThemeManager.ApplyTheme(themeKey);
@@ -29,7 +29,7 @@ public partial class MainWindow : Window
         if (Template is null) return;
         if (ShellNavTabs.Template?.FindName("QuickThemeSelector", ShellNavTabs) is ComboBox selector)
         {
-            syncingTheme = true;
+            _syncingTheme = true;
             foreach (var item in selector.Items)
             {
                 if (item is ComboBoxItem { Tag: string tag } && tag == themeKey)
@@ -38,7 +38,7 @@ public partial class MainWindow : Window
                     break;
                 }
             }
-            syncingTheme = false;
+            _syncingTheme = false;
         }
     }
 }
