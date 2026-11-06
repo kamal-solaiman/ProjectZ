@@ -9,6 +9,8 @@ namespace FitohPhone.ViewModels;
 public sealed class DashboardViewModel : ObservableObject
 {
     private readonly DashboardRepository _repo;
+    private readonly ProductRepository _productRepo;
+    private readonly PhoneRepairRepository _repairRepo;
     private readonly ConnectionSettingsProvider _settings;
     private int _userId;
 
@@ -45,12 +47,20 @@ public sealed class DashboardViewModel : ObservableObject
     private decimal _instaPayBalance1; public decimal InstaPayBalance1 { get => _instaPayBalance1; set { _instaPayBalance1 = value; Changed(); } }
     private decimal _instaPayBalance2; public decimal InstaPayBalance2 { get => _instaPayBalance2; set { _instaPayBalance2 = value; Changed(); } }
 
+    public decimal VodafoneTotalBalance => VodafoneBalance1 + VodafoneBalance2;
+    public decimal InstaPayTotalBalance => InstaPayBalance1 + InstaPayBalance2;
+
     // الإحصائيات
     private int _totalCustomers; public int TotalCustomers { get => _totalCustomers; set { _totalCustomers = value; Changed(); } }
     private int _totalProducts; public int TotalProducts { get => _totalProducts; set { _totalProducts = value; Changed(); } }
     private int _totalInvoices; public int TotalInvoices { get => _totalInvoices; set { _totalInvoices = value; Changed(); } }
 
-    private bool _busy; public bool IsBusy { get => _busy; private set { _busy = value; Changed(); Changed(nameof(IsIdle)); } }
+    // قوائم قابلة للربط مع واجهة المستخدم
+    public ObservableCollection<RepairDashboardItem> ActiveRepairs { get; } = new();
+    public ObservableCollection<LowStockDashboardItem> LowStockItems { get; } = new();
+
+    private bool _busy;
+    public bool IsBusy { get => _busy; private set { _busy = value; Changed(); Changed(nameof(IsIdle)); } }
     public bool IsIdle => !IsBusy;
 
     public string VodafoneLabel1 => "01012345678";
@@ -82,7 +92,47 @@ public sealed class DashboardViewModel : ObservableObject
             TotalCustomers = stats.TotalCustomers;
             TotalProducts = stats.TotalProducts;
             TotalInvoices = stats.TotalInvoices;
+
+            // جلب الأجهزة النشطة للصيانة
+            var repairs = await _repairRepo.GetAllAsync(System.Threading.CancellationToken.None);
+            ActiveRepairs.Clear();
+            foreach (var r in repairs.Where(r => r.Status == "قيد الصيانة" || r.Status == "جاهز للتسليم").Take(8))
+            {
+                ActiveRepairs.Add(new RepairDashboardItem(
+                    r.RepairNumber,
+                    r.CustomerName,
+                    r.ProblemDescription,
+                    r.Status,
+                    r.Status == "قيد الصيانة" ? "#FFF3CD" : "#D4EDDA",
+                    r.Status == "قيد الصيانة" ? "#856404" : "#155724"
+                ));
+            }
+
+            // جلب أصناف الناقص
+            var lowStock = await _productRepo.GetLowStockAsync(System.Threading.CancellationToken.None);
+            LowStockItems.Clear();
+            foreach (var item in lowStock)
+            {
+                LowStockItems.Add(new LowStockDashboardItem(
+                    item.NameAr,
+                    item.CurrentStock,
+                    item.MinStock
+                ));
+            }
         }
         finally { IsBusy = false; }
     }
 }
+
+public sealed record RepairDashboardItem(
+    string RepairNumber,
+    string CustomerName,
+    string ProblemDescription,
+    string StatusAr,
+    string StatusColor,
+    string StatusTextColor);
+
+public sealed record LowStockDashboardItem(
+    string NameAr,
+    int CurrentStock,
+    int MinStock);

@@ -10,6 +10,9 @@ public sealed class CustomersSuppliersViewModel : ObservableObject
 {
     private readonly CustomerRepository _customerRepo;
     private readonly SupplierRepository _supplierRepo;
+    private readonly SalesInvoiceRepository _invoiceRepo;
+    private readonly PhoneRepairRepository _repairRepo;
+    private readonly TransferRepository _transferRepo;
     private readonly int _userId;
 
     public CustomersSuppliersViewModel(CustomerRepository customerRepo, SupplierRepository supplierRepo, int userId)
@@ -24,6 +27,33 @@ public sealed class CustomersSuppliersViewModel : ObservableObject
 
     public ObservableCollection<Customer> Customers { get; } = new();
     public ObservableCollection<Supplier> Suppliers { get; } = new();
+
+    // تفاصيل العميل المحدد في لوحة اليمين
+    private string? _selectedCustomerName;
+    public string? SelectedCustomerName { get => _selectedCustomerName; private set { _selectedCustomerName = value; Changed(); } }
+
+    private string? _selectedCustomerPhone;
+    public string? SelectedCustomerPhone { get => _selectedCustomerPhone; private set { _selectedCustomerPhone = value; Changed(); } }
+
+    private string? _selectedSupplierName;
+    public string? SelectedSupplierName { get => _selectedSupplierName; private set { _selectedSupplierName = value; Changed(); } }
+
+    private string? _selectedSupplierPhone;
+    public string? SelectedSupplierPhone { get => _selectedSupplierPhone; private set { _selectedSupplierPhone = value; Changed(); } }
+
+    private decimal _selectedCustomerTotal;
+    public decimal SelectedCustomerTotal { get => _selectedCustomerTotal; private set { _selectedCustomerTotal = value; Changed(); } }
+
+    private decimal _selectedCustomerBalance;
+    public decimal SelectedCustomerBalance { get => _selectedCustomerBalance; private set { _selectedCustomerBalance = value; Changed(); } }
+
+    public string StatementSummary =>
+        $"إجمالي المسحوبات: {SelectedCustomerTotal:N0} ج.م  |  الرصيد الحالي: {SelectedCustomerBalance:N0} ج.م";
+
+    // مجموعات التقارير للعميل المحدد
+    public ObservableCollection<CustomerInvoiceItem> CustomerInvoices { get; } = new();
+    public ObservableCollection<CustomerRepairItem> CustomerRepairs { get; } = new();
+    public ObservableCollection<CustomerTransferItem> CustomerTransfers { get; } = new();
 
     private int _totalCustomers; public int TotalCustomers { get => _totalCustomers; set { _totalCustomers = value; Changed(); } }
     private int _totalSuppliers; public int TotalSuppliers { get => _totalSuppliers; set { _totalSuppliers = value; Changed(); } }
@@ -51,8 +81,60 @@ public sealed class CustomersSuppliersViewModel : ObservableObject
             TotalSuppliers = Suppliers.Count;
             TotalCustomerOutstanding = Customers.Sum(c => c.OutstandingBalance);
             TotalSupplierOutstanding = Suppliers.Sum(s => s.OutstandingBalance);
+
+            // إذا كان هناك عميل محدد سابقاً، تحميل بياناته
+            if (!string.IsNullOrEmpty(SelectedCustomerName))
+            {
+                await LoadCustomerDetailsAsync(SelectedCustomerName);
+            }
         }
         finally { IsBusy = false; }
+    }
+
+    /// <summary>
+    /// تحميل تفاصيل العميل المحدد في اللوحة اليمنى (فواتير، صيانات، تحويلات)
+    /// </summary>
+    public async Task LoadCustomerDetailsAsync(string customerName)
+    {
+        SelectedCustomerName = customerName;
+        var customer = Customers.FirstOrDefault(c => c.Name == customerName);
+        if (customer == null) return;
+
+        SelectedCustomerPhone = customer.Phone;
+        SelectedCustomerTotal = customer.TotalPurchases;
+        SelectedCustomerBalance = customer.OutstandingBalance;
+
+        // تحميل فواتير العميل
+        var allInvoices = await _invoiceRepo.GetListAsync(System.Threading.CancellationToken.None);
+        CustomerInvoices.Clear();
+        foreach (var inv in allInvoices.Where(i => i.CustomerName == customerName).Take(10))
+        {
+            CustomerInvoices.Add(new CustomerInvoiceItem(
+                inv.InvoiceNumber, inv.InvoiceDate, $"{inv.CustomerName} - فاتورة مبيعات",
+                inv.GrandTotal, inv.PaymentStatus));
+        }
+
+        // تحميل صيانات العميل
+        var allRepairs = await _repairRepo.GetAllAsync(System.Threading.CancellationToken.None);
+        CustomerRepairs.Clear();
+        foreach (var rep in allRepairs.Where(r => r.CustomerName == customerName).Take(10))
+        {
+            CustomerRepairs.Add(new CustomerRepairItem(
+                rep.RepairNumber, rep.ReceivedDate, $"{rep.DeviceModel} - {rep.ProblemDescription}",
+                rep.TotalCost, rep.Status));
+        }
+
+        // تحميل تحركات العميل من التحويلات
+        var allTransfers = await _transferRepo.GetTransactionsAsync(System.Threading.CancellationToken.None);
+        CustomerTransfers.Clear();
+        foreach (var tr in allTransfers.Where(t => t.UserName.Contains(customerName) || t.Notes?.Contains(customerName) == true).Take(10))
+        {
+            CustomerTransfers.Add(new CustomerTransferItem(
+                tr.TransferDate, tr.TransferTypeAr, $"{tr.FromPhoneNumber} → {tr.ToPhoneNumber}",
+                tr.Amount));
+        }
+
+        Changed(nameof(StatementSummary));
     }
 
     public async Task<int> AddCustomerAsync(string name, string phone, string? altPhone, string? address, string? city, string? email, CancellationToken ct)
@@ -87,3 +169,24 @@ public sealed class CustomersSuppliersViewModel : ObservableObject
         return await _supplierRepo.DeleteAsync(id, ct);
     }
 }
+
+// عناصر عرض للتفاصيل في اللوحة اليمنى
+public sealed record CustomerInvoiceItem(
+    string InvoiceNumber,
+    DateTime InvoiceDate,
+    string Description,
+    decimal Amount,
+    string PaymentStatus);
+
+public sealed record CustomerRepairItem(
+    string RepairNumber,
+    DateTime Date,
+    string Description,
+    decimal Cost,
+    string Status);
+
+public sealed record CustomerTransferItem(
+    DateTime Date,
+    string Provider,
+    string Description,
+    decimal Amount);
