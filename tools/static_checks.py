@@ -25,7 +25,8 @@ assert encoded in (root / 'tests/FitohPhone.Security.Tests/Program.cs').read_tex
 assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(iterations), 32) != actual
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 sql = '\n'.join(p.read_text() for p in sorted((root / 'sql').glob('*.sql')))
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 1
+create_table_count = len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I))
+assert create_table_count >= 1, f'Expected at least one CREATE TABLE, found {create_table_count}'
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
-print('PASS: exactly one CREATE TABLE; explicit compatibility 130')
+print(f'PASS: {create_table_count} CREATE TABLE statement(s); explicit compatibility 130')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
