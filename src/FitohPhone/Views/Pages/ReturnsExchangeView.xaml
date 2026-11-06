@@ -1,0 +1,234 @@
+<UserControl x:Class="FitohPhone.Views.Pages.ReturnsExchangeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4,0,4,18">
+    <StackPanel>
+
+      <!-- 1. شريط البحث المتعدد عن الفاتورة -->
+      <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+        <StackPanel>
+          <TextBlock Text="البحث عن الفاتورة لإجراء مرتجع أو استبدال" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10"/>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="1.1*"/>
+              <ColumnDefinition Width="10"/>
+              <ColumnDefinition Width="1.6*"/>
+              <ColumnDefinition Width="10"/>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="10"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox Grid.Column="0" SelectedIndex="0">
+              <ComboBoxItem Content="بحث برقم الفاتورة"/>
+              <ComboBoxItem Content="بحث باسم العميل"/>
+              <ComboBoxItem Content="بحث برقم الموبايل"/>
+              <ComboBoxItem Content="بحث بباركود المنتج"/>
+              <ComboBoxItem Content="فلتر بتاريخ اليوم"/>
+            </ComboBox>
+            <TextBox Grid.Column="2" Text="INV-1041" Tag="اكتب رقم الفاتورة، اسم العميل، أو رقم الهاتف..."/>
+            <ComboBox Grid.Column="4" SelectedIndex="0">
+              <ComboBoxItem Content="فواتير اليوم (2026/11/06)"/>
+              <ComboBoxItem Content="آخر 14 يومًا (فترة الضمان)"/>
+              <ComboBoxItem Content="كل التواريخ"/>
+            </ComboBox>
+            <Button Grid.Column="6" Content="بحث وإظهار الفاتورة كاملة" Padding="18,9"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- 2. إظهار الفاتورة بالكامل بكل مشتملاتها وتعديلاتها ومعلوماتها -->
+      <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+        <StackPanel>
+          <Grid Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="بيانات الفاتورة الأصلية الكاملة — فاتورة رقم #INV-1041" Style="{StaticResource SectionTitleText}"/>
+              <TextBlock Text="العميل: أحمد طارق محمود (01065432198)  •  التاريخ: 2026/11/06 - 08:15 م  •  البائع: System Administrator  •  السداد الأصلي: مختلط (نقدي 3000 + فودافون 2000 + إنستاباي 3000)" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <Border Grid.Column="1" Background="{DynamicResource InfoSoftBrush}" CornerRadius="8" Padding="12,6" VerticalAlignment="Center">
+              <TextBlock Text="سجل التعديلات السابقة: تم تعديل كمية الجراب بتاريخ 08:20 م" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource InfoBrush}"/>
+            </Border>
+          </Grid>
+
+          <!-- جدول مشتملات الفاتورة مع تحديد المرتجع وحالة الصنف (يعمل للمخزون السليم أم هالك) -->
+          <Border Style="{StaticResource TableHeaderBorder}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="42"/>
+                <ColumnDefinition Width="1.6*"/>
+                <ColumnDefinition Width="85"/>
+                <ColumnDefinition Width="90"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="1.1*"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="إرجاع" FontWeight="Bold"/>
+              <TextBlock Grid.Column="1" Text="الصنف المباع بالفاتورة" FontWeight="Bold"/>
+              <TextBlock Grid.Column="2" Text="كمية مباعة" FontWeight="Bold"/>
+              <TextBlock Grid.Column="3" Text="سعر البيع" FontWeight="Bold"/>
+              <TextBlock Grid.Column="4" Text="كمية المرتجع" FontWeight="Bold"/>
+              <TextBlock Grid.Column="5" Text="حالة البضاعة والمخزن المستلم *" FontWeight="Bold"/>
+              <TextBlock Grid.Column="6" Text="سبب الإرجاع / الفحص" FontWeight="Bold"/>
+            </Grid>
+          </Border>
+
+          <!-- بند 1 -->
+          <Border Style="{StaticResource TableRowBorder}">
+            <Grid VerticalAlignment="Center">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="42"/>
+                <ColumnDefinition Width="1.6*"/>
+                <ColumnDefinition Width="85"/>
+                <ColumnDefinition Width="90"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="1.1*"/>
+              </Grid.ColumnDefinitions>
+              <CheckBox Grid.Column="0" IsChecked="False" HorizontalAlignment="Center"/>
+              <StackPanel Grid.Column="1">
+                <TextBlock Text="Samsung Galaxy A15 128GB" FontWeight="SemiBold"/>
+                <TextBlock Text="سعر قطاعي • ضمان محلي" Style="{StaticResource MutedText}"/>
+              </StackPanel>
+              <TextBlock Grid.Column="2" Text="1" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="3" Text="7,200 ج" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="4" Text="0" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+              <ComboBox Grid.Column="5" SelectedIndex="0" Margin="0,0,8,0" Padding="8,5">
+                <ComboBoxItem Content="سليمة تعمل ← المخزون السليم"/>
+                <ComboBoxItem Content="هالكة / معيبة ← مخزون الهالك"/>
+              </ComboBox>
+              <TextBox Grid.Column="6" Tag="سبب الإرجاع..." Padding="8,5"/>
+            </Grid>
+          </Border>
+
+          <!-- بند 2 (محدد للإرجاع كهالك أو سليم) -->
+          <Border Style="{StaticResource TableRowAltBorder}">
+            <Grid VerticalAlignment="Center">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="42"/>
+                <ColumnDefinition Width="1.6*"/>
+                <ColumnDefinition Width="85"/>
+                <ColumnDefinition Width="90"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="1.1*"/>
+              </Grid.ColumnDefinitions>
+              <CheckBox Grid.Column="0" IsChecked="True" HorizontalAlignment="Center"/>
+              <StackPanel Grid.Column="1">
+                <TextBlock Text="شاحن Samsung 25W Super Fast أصلي" FontWeight="SemiBold"/>
+                <TextBlock Text="سعر مميز • 8806092123456" Style="{StaticResource MutedText}"/>
+              </StackPanel>
+              <TextBlock Grid.Column="2" Text="1" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="3" Text="550 ج" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="4" Text="1" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+              <ComboBox Grid.Column="5" SelectedIndex="1" Margin="0,0,8,0" Padding="8,5">
+                <ComboBoxItem Content="سليمة تعمل ← المخزون السليم"/>
+                <ComboBoxItem Content="هالكة / معيبة ← مخزون الهالك"/>
+              </ComboBox>
+              <TextBox Grid.Column="6" Text="الشاحن لا يشحن سريع — عيب صناعة" Padding="8,5"/>
+            </Grid>
+          </Border>
+
+          <!-- بند 3 (محدد للإرجاع كسليم) -->
+          <Border Style="{StaticResource TableRowBorder}">
+            <Grid VerticalAlignment="Center">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="42"/>
+                <ColumnDefinition Width="1.6*"/>
+                <ColumnDefinition Width="85"/>
+                <ColumnDefinition Width="90"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="1.1*"/>
+              </Grid.ColumnDefinitions>
+              <CheckBox Grid.Column="0" IsChecked="True" HorizontalAlignment="Center"/>
+              <StackPanel Grid.Column="1">
+                <TextBlock Text="جراب سيليكون + اسكرينة حماية 9H" FontWeight="SemiBold"/>
+                <TextBlock Text="سعر جملة • البرشام لم يُفتح" Style="{StaticResource MutedText}"/>
+              </StackPanel>
+              <TextBlock Grid.Column="2" Text="2" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="3" Text="125 ج" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="4" Text="1" FlowDirection="LeftToRight" Margin="0,0,8,0" Padding="8,5"/>
+              <ComboBox Grid.Column="5" SelectedIndex="0" Margin="0,0,8,0" Padding="8,5">
+                <ComboBoxItem Content="سليمة تعمل ← المخزون السليم"/>
+                <ComboBoxItem Content="هالكة / معيبة ← مخزون الهالك"/>
+              </ComboBox>
+              <TextBox Grid.Column="6" Text="رغبة العميل في الاستبدال بموديل آخر" Padding="8,5"/>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- 3. قسم الاستبدال بمنتجات بديلة + التسوية المالية -->
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="1.35*"/>
+          <ColumnDefinition Width="14"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+              <RadioButton Content="استبدال بمنتجات بديلة" IsChecked="True" FontWeight="Bold"/>
+              <RadioButton Content="مرتجع واسترداد نقدي/محفظة فقط"/>
+            </StackPanel>
+
+            <TextBlock Text="إضافة الأصناف البديلة المسلمة للعميل (في حالة الاستبدال)" Style="{StaticResource FieldLabelText}"/>
+            <Grid Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBox Grid.Column="0" Tag="امسح باركود الصنف البديل أو ابحث بالاسم..."/>
+              <Button Grid.Column="2" Content="+ إضافة بديل"/>
+            </Grid>
+
+            <Border Style="{StaticResource TableRowBorder}" CornerRadius="8">
+              <Grid>
+                <TextBlock Text="بديل: شاحن Anker 30W GaN أصلي (1 قطعة × 750 ج.م)"/>
+                <TextBlock Text="750.00 ج.م" FontWeight="Bold" HorizontalAlignment="Left"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <TextBlock Text="ملخص تسوية المرتجع والاستبدال" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10"/>
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
+              <StackPanel>
+                <Grid Margin="0,0,0,5">
+                  <TextBlock Text="إجمالي قيمة الأصناف المرتجعة:" Style="{StaticResource MutedText}"/>
+                  <TextBlock Text="675.00 ج.م" FontWeight="Bold" Foreground="{DynamicResource DangerBrush}" HorizontalAlignment="Left"/>
+                </Grid>
+                <Grid Margin="0,0,0,5">
+                  <TextBlock Text="إجمالي قيمة الأصناف البديلة:" Style="{StaticResource MutedText}"/>
+                  <TextBlock Text="750.00 ج.م" FontWeight="Bold" HorizontalAlignment="Left"/>
+                </Grid>
+                <Border Height="1" Background="{DynamicResource DividerBrush}" Margin="0,4,0,6"/>
+                <Grid>
+                  <TextBlock Text="صافي الفرق (مطلوب تحصيله من العميل):" FontWeight="Bold"/>
+                  <TextBlock Text="+75.00 ج.م" FontWeight="Bold" FontSize="18" Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Left"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <TextBlock Text="طريقة رد المبلغ أو تحصيل الفرق" Style="{StaticResource FieldLabelText}"/>
+            <ComboBox SelectedIndex="0" Margin="0,0,0,12">
+              <ComboBoxItem Content="نقدي بالخزينة"/>
+              <ComboBoxItem Content="فودافون كاش (01012345678)"/>
+              <ComboBoxItem Content="إنستاباي (01100032165)"/>
+              <ComboBoxItem Content="ترحيل لحساب العميل الآجل"/>
+            </ComboBox>
+
+            <Button Content="تأكيد العملية وتوجيه الأصناف للمخزون السليم / الهالك" Style="{StaticResource SuccessButton}" Padding="14,12"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

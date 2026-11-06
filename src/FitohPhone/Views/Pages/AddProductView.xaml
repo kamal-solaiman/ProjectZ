@@ -1,0 +1,260 @@
+<UserControl x:Class="FitohPhone.Views.Pages.AddProductView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4,0,4,18">
+    <StackPanel>
+      <Grid Margin="0,0,0,14">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="1.45*"/>
+          <ColumnDefinition Width="14"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- بطاقة بيانات الصنف والباركود -->
+        <Border Grid.Column="0" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <TextBlock Text="البيانات الأساسية للصنف والباركود" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14"/>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.6*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="اسم الصنف بالكامل *" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Tag="مثال: شاحن Anker 20W PowerPort III Type-C أصلي"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="التصنيف / القسم *" Style="{StaticResource FieldLabelText}"/>
+                <ComboBox SelectedIndex="1">
+                  <ComboBoxItem Content="هواتف ذكية"/>
+                  <ComboBoxItem Content="شواحن وكابلات"/>
+                  <ComboBoxItem Content="جرابات واسكرينات حماية"/>
+                  <ComboBoxItem Content="سماعات وساعات ذكية"/>
+                  <ComboBoxItem Content="بطاريات وباور بانك"/>
+                  <ComboBoxItem Content="قطع غيار صيانة داخلية"/>
+                </ComboBox>
+              </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="الماركة / الشركة المصنعة" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Tag="Samsung / Apple / Anker..."/>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="الموديل المتوافق / اللون" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Tag="مثال: iPhone 15 Pro Max - أسود"/>
+              </StackPanel>
+              <StackPanel Grid.Column="4">
+                <TextBlock Text="وحدة القياس" Style="{StaticResource FieldLabelText}"/>
+                <ComboBox SelectedIndex="0">
+                  <ComboBoxItem Content="قطعة"/>
+                  <ComboBoxItem Content="علبة / كرتونة"/>
+                  <ComboBoxItem Content="طقم كامل"/>
+                </ComboBox>
+              </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.3*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="الباركود الدولي أو الداخلي *" Style="{StaticResource FieldLabelText}"/>
+                <TextBox FlowDirection="LeftToRight" Tag="امسح الباركود أو ولّد باركود تلقائي..."/>
+              </StackPanel>
+              <Button Grid.Column="2" Content="توليد باركود تلقائي" Style="{StaticResource SecondaryButton}" VerticalAlignment="Bottom"/>
+              <StackPanel Grid.Column="4">
+                <TextBlock Text="كود الصنف المختصر (SKU)" Style="{StaticResource FieldLabelText}"/>
+                <TextBox FlowDirection="LeftToRight" Text="PRD-0866"/>
+              </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="المورد / التاجر الافتراضي" Style="{StaticResource FieldLabelText}"/>
+                <ComboBox SelectedIndex="0">
+                  <ComboBoxItem Content="شركة النور للإكسسوارات"/>
+                  <ComboBoxItem Content="الهدى لتجارة الهواتف"/>
+                  <ComboBoxItem Content="توريد حر / نقدي"/>
+                </ComboBox>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="موقع التخزين (الرف / الدرج)" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Tag="مثال: فاترينة 2 - رف B"/>
+              </StackPanel>
+              <StackPanel Grid.Column="4">
+                <TextBlock Text="فترة الضمان للعميل" Style="{StaticResource FieldLabelText}"/>
+                <ComboBox SelectedIndex="1">
+                  <ComboBoxItem Content="بدون ضمان"/>
+                  <ComboBoxItem Content="ضمان تجربة 14 يومًا"/>
+                  <ComboBoxItem Content="ضمان 6 أشهر"/>
+                  <ComboBoxItem Content="ضمان سنة (وكيل)"/>
+                </ComboBox>
+              </StackPanel>
+            </Grid>
+
+            <StackPanel Margin="0,6,0,0">
+              <TextBlock Text="وصف وملاحظات الصنف" Style="{StaticResource FieldLabelText}"/>
+              <TextBox Height="58" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Tag="مواصفات إضافية تظهر للكاشير عند البيع..."/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- بطاقة الأسعار الثلاثة والمخزون الافتتاحي -->
+        <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <TextBlock Text="سياسة الأسعار والرصيد الافتتاحي" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14"/>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
+              <StackPanel>
+                <TextBlock Text="1. تكلفة الشراء" FontWeight="Bold" Margin="0,0,0,8"/>
+                <TextBlock Text="سعر الشراء للقطعة (ج.م) *" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="340.00" FlowDirection="LeftToRight"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,12">
+              <StackPanel>
+                <TextBlock Text="2. شرائح أسعار البيع الثلاثة" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                <TextBlock Text="السعر القطاعي (الجمهور الافتراضي) *" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="480.00" FlowDirection="LeftToRight" Margin="0,0,0,10"/>
+
+                <TextBlock Text="السعر المميز (عملاء خاص / VIP) *" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="430.00" FlowDirection="LeftToRight" Margin="0,0,0,10"/>
+
+                <TextBlock Text="سعر الجملة (للتجار والمحلات) *" Style="{StaticResource FieldLabelText}"/>
+                <TextBox Text="390.00" FlowDirection="LeftToRight"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource ElevatedCard}" Margin="0,0,0,14">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="10"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="الكمية الافتتاحية" Style="{StaticResource FieldLabelText}"/>
+                  <TextBox Text="20" FlowDirection="LeftToRight"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="حد تنبيه النواقص" Style="{StaticResource FieldLabelText}"/>
+                  <TextBox Text="5" FlowDirection="LeftToRight"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <CheckBox Content="يتطلب إدخال سيريال / IMEI عند البيع (للهواتف)" Margin="0,0,0,12"/>
+
+            <Button Content="حفظ وتسجيل الصنف الجديد" Style="{StaticResource SuccessButton}" Padding="16,12" Margin="0,0,0,8"/>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Button Grid.Column="0" Content="حفظ + طباعة باركود" Style="{StaticResource SecondaryButton}"/>
+              <Button Grid.Column="2" Content="مسح الحقول" Style="{StaticResource SecondaryButton}"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- جدول آخر الأصناف المسجلة حديثًا -->
+      <Border Style="{StaticResource GlassCard}">
+        <StackPanel>
+          <TextBlock Text="آخر الأصناف المضافة حديثًا" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10"/>
+          <Border Style="{StaticResource TableHeaderBorder}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130"/>
+                <ColumnDefinition Width="1.8*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="80"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="الباركود" FontWeight="Bold"/>
+              <TextBlock Grid.Column="1" Text="اسم الصنف" FontWeight="Bold"/>
+              <TextBlock Grid.Column="2" Text="التصنيف" FontWeight="Bold"/>
+              <TextBlock Grid.Column="3" Text="سعر الشراء" FontWeight="Bold"/>
+              <TextBlock Grid.Column="4" Text="قطاعي" FontWeight="Bold"/>
+              <TextBlock Grid.Column="5" Text="مميز" FontWeight="Bold"/>
+              <TextBlock Grid.Column="6" Text="جملة" FontWeight="Bold"/>
+              <TextBlock Grid.Column="7" Text="الكمية" FontWeight="Bold"/>
+            </Grid>
+          </Border>
+          <Border Style="{StaticResource TableRowBorder}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130"/>
+                <ColumnDefinition Width="1.8*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="80"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="6223001458921" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="1" Text="Samsung Galaxy A15 128GB / 6GB"/>
+              <TextBlock Grid.Column="2" Text="هواتف ذكية"/>
+              <TextBlock Grid.Column="3" Text="6,650 ج"/>
+              <TextBlock Grid.Column="4" Text="7,200 ج" FontWeight="Bold"/>
+              <TextBlock Grid.Column="5" Text="7,000 ج"/>
+              <TextBlock Grid.Column="6" Text="6,850 ج"/>
+              <TextBlock Grid.Column="7" Text="6"/>
+            </Grid>
+          </Border>
+          <Border Style="{StaticResource TableRowAltBorder}" BorderThickness="0">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130"/>
+                <ColumnDefinition Width="1.8*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="95"/>
+                <ColumnDefinition Width="80"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="848061059120" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="1" Text="شاحن Anker 20W PowerPort III"/>
+              <TextBlock Grid.Column="2" Text="شواحن وكابلات"/>
+              <TextBlock Grid.Column="3" Text="340 ج"/>
+              <TextBlock Grid.Column="4" Text="480 ج" FontWeight="Bold"/>
+              <TextBlock Grid.Column="5" Text="430 ج"/>
+              <TextBlock Grid.Column="6" Text="390 ج"/>
+              <TextBlock Grid.Column="7" Text="20"/>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

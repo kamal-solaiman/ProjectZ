@@ -1,0 +1,454 @@
+<UserControl x:Class="FitohPhone.Views.Pages.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4,0,4,18">
+    <StackPanel>
+
+      <!-- 1. إيرادات اليوم (7 بطاقات) -->
+      <Grid Margin="0,0,0,10">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="إيرادات وخلاصة حركة اليوم" Style="{StaticResource SectionTitleText}"/>
+          <Border Background="{DynamicResource AccentSoftBrush}" CornerRadius="8" Padding="10,3" Margin="12,0,0,0" VerticalAlignment="Center">
+            <TextBlock Text="معاينة واجهة — سيتم ربط الحسابات برمجيًا لاحقًا" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+          </Border>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <ComboBox SelectedIndex="0" Width="160">
+            <ComboBoxItem Content="حركة اليوم الحالي"/>
+            <ComboBoxItem Content="أمس"/>
+            <ComboBoxItem Content="هذا الأسبوع"/>
+            <ComboBoxItem Content="هذا الشهر"/>
+          </ComboBox>
+        </StackPanel>
+      </Grid>
+
+      <UniformGrid Columns="4" Margin="0,0,0,12">
+        <!-- اجمالي دخل المبيعات -->
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,10,10">
+          <StackPanel>
+            <Grid>
+              <TextBlock Text="إجمالي دخل المبيعات" Style="{StaticResource MutedText}" FontWeight="SemiBold"/>
+              <TextBlock Text="&#xE7BF;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource InfoBrush}" HorizontalAlignment="Left" FontSize="16"/>
+            </Grid>
+            <TextBlock Text="28,450 ج.م" FontSize="23" FontWeight="Bold" Margin="0,8,0,4"/>
+            <TextBlock Text="34 فاتورة بيع اليوم" FontSize="11" Foreground="{DynamicResource InfoBrush}"/>
+          </StackPanel>
+        </Border>
+
+        <!-- اجمالي دخل الصيانة -->
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,10,10">
+          <StackPanel>
+            <Grid>
+              <TextBlock Text="إجمالي دخل الصيانة" Style="{StaticResource MutedText}" FontWeight="SemiBold"/>
+              <TextBlock Text="&#xE90F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource AccentSecondaryBrush}" HorizontalAlignment="Left" FontSize="16"/>
+            </Grid>
+            <TextBlock Text="6,800 ج.م" FontSize="23" FontWeight="Bold" Margin="0,8,0,4"/>
+            <TextBlock Text="9 أجهزة مسلّمة + عربون" FontSize="11" Foreground="{DynamicResource AccentSecondaryBrush}"/>
+          </StackPanel>
+        </Border>
+
+        <!-- اجمالي التحويلات -->
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,10,10">
+          <StackPanel>
+            <Grid>
+              <TextBlock Text="إجمالي التحويلات" Style="{StaticResource MutedText}" FontWeight="SemiBold"/>
+              <TextBlock Text="&#xE8AB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource InstaPayBrush}" HorizontalAlignment="Left" FontSize="16"/>
+            </Grid>
+            <TextBlock Text="42,300 ج.م" FontSize="23" FontWeight="Bold" Margin="0,8,0,4"/>
+            <TextBlock Text="عمولات التحويل: +485 ج.م" FontSize="11" Foreground="{DynamicResource InstaPayBrush}"/>
+          </StackPanel>
+        </Border>
+
+        <!-- اجمالي المصروفات -->
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,0,10">
+          <StackPanel>
+            <Grid>
+              <TextBlock Text="إجمالي المصروفات" Style="{StaticResource MutedText}" FontWeight="SemiBold"/>
+              <TextBlock Text="&#xE74A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource WarningBrush}" HorizontalAlignment="Left" FontSize="16"/>
+            </Grid>
+            <TextBlock Text="1,150 ج.م" FontSize="23" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}" Margin="0,8,0,4"/>
+            <TextBlock Text="كهرباء، شحن، ومستلزمات محل" FontSize="11" Style="{StaticResource MutedText}"/>
+          </StackPanel>
+        </Border>
+      </UniformGrid>
+
+      <Grid Margin="0,0,0,18">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="10"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="10"/>
+          <ColumnDefinition Width="1.45*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- اجمالي المرتجعات -->
+        <Border Grid.Column="0" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <Grid>
+              <TextBlock Text="إجمالي المرتجعات" Style="{StaticResource MutedText}" FontWeight="SemiBold"/>
+              <TextBlock Text="&#xE72B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource DangerBrush}" HorizontalAlignment="Left" FontSize="16"/>
+            </Grid>
+            <TextBlock Text="950 ج.م" FontSize="23" FontWeight="Bold" Foreground="{DynamicResource DangerBrush}" Margin="0,8,0,4"/>
+            <TextBlock Text="3 عمليات مرتجع / استبدال اليوم" FontSize="11" Style="{StaticResource MutedText}"/>
+          </StackPanel>
+        </Border>
+
+        <!-- اجمالي الارباح -->
+        <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <Grid>
+              <TextBlock Text="إجمالي الأرباح" Style="{StaticResource MutedText}" FontWeight="SemiBold"/>
+              <TextBlock Text="&#xE9D9;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Left" FontSize="16"/>
+            </Grid>
+            <TextBlock Text="7,920 ج.م" FontSize="23" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}" Margin="0,8,0,4"/>
+            <TextBlock Text="ربح المبيعات + الصيانة + العمولات" FontSize="11" Foreground="{DynamicResource SuccessBrush}"/>
+          </StackPanel>
+        </Border>
+
+        <!-- الصافي -->
+        <Border Grid.Column="4" Style="{StaticResource ElevatedCard}" BorderThickness="1.5">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="الصافي النهائي لليوم" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+              <TextBlock Text="33,150 ج.م" FontSize="28" FontWeight="Bold" Margin="0,6,0,4"/>
+              <TextBlock Text="صافي الربح بعد المصروفات والمرتجعات: 6,770 ج.م" FontSize="12" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold"/>
+            </StackPanel>
+            <Border Grid.Column="1" Width="54" Height="54" CornerRadius="16" Background="{DynamicResource SuccessSoftBrush}" VerticalAlignment="Center">
+              <TextBlock Text="&#xEC0A;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="24" Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <!-- 2. الأرصدة الحالية (نقدي - فودافون كاش - انستاباي) -->
+      <TextBlock Text="الأرصدة الحالية بالخزينة والمحافظ الإلكترونية" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10"/>
+      <Grid Margin="0,0,0,18">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="0.9*"/>
+          <ColumnDefinition Width="12"/>
+          <ColumnDefinition Width="1.25*"/>
+          <ColumnDefinition Width="12"/>
+          <ColumnDefinition Width="1.25*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- نقدي -->
+        <Border Grid.Column="0" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <Grid Margin="0,0,0,12">
+              <StackPanel Orientation="Horizontal">
+                <Border Width="36" Height="36" CornerRadius="10" Background="{DynamicResource SuccessSoftBrush}" Margin="0,0,10,0">
+                  <TextBlock Text="&#xE8C7;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="17"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="الرصيد النقدي (الكاش)" FontWeight="Bold" FontSize="15"/>
+                  <TextBlock Text="درج الكاشير والخزينة الرئيسية" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+            <Border Style="{StaticResource ElevatedCard}" Padding="14,12">
+              <StackPanel>
+                <TextBlock Text="النقدية المتاحة حاليًا" Style="{StaticResource MutedText}"/>
+                <TextBlock Text="19,500 ج.م" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}" Margin="0,4,0,0"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- فودافون كاش -->
+        <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <Grid Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal">
+                <Border Width="36" Height="36" CornerRadius="10" Background="{DynamicResource VodafoneSoftBrush}" Margin="0,0,10,0">
+                  <TextBlock Text="&#xE717;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource VodafoneBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="17"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="فودافون كاش (Vodafone Cash)" FontWeight="Bold" FontSize="15"/>
+                  <TextBlock Text="أرصدة خطوط المحفظة المسجلة" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+              </StackPanel>
+              <Border Grid.Column="1" Background="{DynamicResource VodafoneSoftBrush}" CornerRadius="8" Padding="10,4" VerticalAlignment="Center">
+                <TextBlock Text="الإجمالي: 8,000 ج" FontWeight="Bold" Foreground="{DynamicResource VodafoneBrush}" FontSize="12"/>
+              </Border>
+            </Grid>
+
+            <Border Style="{StaticResource TableRowBorder}" CornerRadius="8" Margin="0,0,0,6">
+              <Grid>
+                <TextBlock Text="01012345678" FlowDirection="LeftToRight" FontWeight="Bold" FontFamily="Consolas" FontSize="14" HorizontalAlignment="Right"/>
+                <TextBlock Text="3,000 ج" FontWeight="Bold" Foreground="{DynamicResource VodafoneBrush}" HorizontalAlignment="Left" FontSize="14"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowAltBorder}" CornerRadius="8" BorderThickness="0">
+              <Grid>
+                <TextBlock Text="01098765432" FlowDirection="LeftToRight" FontWeight="Bold" FontFamily="Consolas" FontSize="14" HorizontalAlignment="Right"/>
+                <TextBlock Text="5,000 ج" FontWeight="Bold" Foreground="{DynamicResource VodafoneBrush}" HorizontalAlignment="Left" FontSize="14"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- انستاباي -->
+        <Border Grid.Column="4" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <Grid Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal">
+                <Border Width="36" Height="36" CornerRadius="10" Background="{DynamicResource InstaPaySoftBrush}" Margin="0,0,10,0">
+                  <TextBlock Text="&#xE8AB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource InstaPayBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="17"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="إنستاباي (InstaPay)" FontWeight="Bold" FontSize="15"/>
+                  <TextBlock Text="أرصدة الحسابات البنكية المرتبطة" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+              </StackPanel>
+              <Border Grid.Column="1" Background="{DynamicResource InstaPaySoftBrush}" CornerRadius="8" Padding="10,4" VerticalAlignment="Center">
+                <TextBlock Text="الإجمالي: 11,000 ج" FontWeight="Bold" Foreground="{DynamicResource InstaPayBrush}" FontSize="12"/>
+              </Border>
+            </Grid>
+
+            <Border Style="{StaticResource TableRowBorder}" CornerRadius="8" Margin="0,0,0,6">
+              <Grid>
+                <TextBlock Text="01100032165" FlowDirection="LeftToRight" FontWeight="Bold" FontFamily="Consolas" FontSize="14" HorizontalAlignment="Right"/>
+                <TextBlock Text="10,000 ج" FontWeight="Bold" Foreground="{DynamicResource InstaPayBrush}" HorizontalAlignment="Left" FontSize="14"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowAltBorder}" CornerRadius="8" BorderThickness="0">
+              <Grid>
+                <TextBlock Text="012985411111" FlowDirection="LeftToRight" FontWeight="Bold" FontFamily="Consolas" FontSize="14" HorizontalAlignment="Right"/>
+                <TextBlock Text="1,000 ج" FontWeight="Bold" Foreground="{DynamicResource InstaPayBrush}" HorizontalAlignment="Left" FontSize="14"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- 3. أجهزة الصيانة + نواقص المخزون -->
+      <Grid Margin="0,0,0,18">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="1.2*"/>
+          <ColumnDefinition Width="12"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- أجهزة الصيانة: قيد الصيانة + جاهزة للتسليم -->
+        <Border Grid.Column="0" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <TextBlock Text="متابعة أجهزة الصيانة الحالية" Style="{StaticResource SectionTitleText}" Margin="0,0,0,12"/>
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Border Grid.Column="0" Style="{StaticResource ElevatedCard}">
+                <StackPanel>
+                  <TextBlock Text="أجهزة قيد الصيانة" FontWeight="SemiBold" Foreground="{DynamicResource WarningBrush}"/>
+                  <TextBlock Text="7 أجهزة" FontSize="24" FontWeight="Bold" Margin="0,4"/>
+                  <TextBlock Text="منها 2 بانتظار قطع غيار" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="2" Style="{StaticResource ElevatedCard}">
+                <StackPanel>
+                  <TextBlock Text="أجهزة جاهزة للتسليم" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
+                  <TextBlock Text="5 أجهزة" FontSize="24" FontWeight="Bold" Margin="0,4"/>
+                  <TextBlock Text="إجمالي مستحقاتها: 6,450 ج.م" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <Border Style="{StaticResource TableHeaderBorder}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="95"/>
+                  <ColumnDefinition Width="1.2*"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="110"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="الكود" FontWeight="Bold"/>
+                <TextBlock Grid.Column="1" Text="الجهاز والعميل" FontWeight="Bold"/>
+                <TextBlock Grid.Column="2" Text="العطل" FontWeight="Bold"/>
+                <TextBlock Grid.Column="3" Text="الحالة" FontWeight="Bold"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowBorder}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="95"/>
+                  <ColumnDefinition Width="1.2*"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="110"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="REP-0842" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="1" Text="iPhone 13 Pro — أحمد طارق"/>
+                <TextBlock Grid.Column="2" Text="تغيير شاشة أصلية"/>
+                <Border Grid.Column="3" Background="{DynamicResource WarningSoftBrush}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Right">
+                  <TextBlock Text="قيد الصيانة" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                </Border>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowAltBorder}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="95"/>
+                  <ColumnDefinition Width="1.2*"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="110"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="REP-0839" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="1" Text="Samsung A54 — محمود عادل"/>
+                <TextBlock Grid.Column="2" Text="سوكت شحن Type-C"/>
+                <Border Grid.Column="3" Background="{DynamicResource SuccessSoftBrush}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Right">
+                  <TextBlock Text="جاهز للتسليم" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                </Border>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowBorder}" BorderThickness="0">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="95"/>
+                  <ColumnDefinition Width="1.2*"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="110"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="REP-0836" FlowDirection="LeftToRight" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="1" Text="Redmi Note 13 — سارة حسن"/>
+                <TextBlock Grid.Column="2" Text="تغيير بطارية + تنظيف"/>
+                <Border Grid.Column="3" Background="{DynamicResource SuccessSoftBrush}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Right">
+                  <TextBlock Text="جاهز للتسليم" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                </Border>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- نواقص المخزون -->
+        <Border Grid.Column="2" Style="{StaticResource GlassCard}">
+          <StackPanel>
+            <Grid Margin="0,0,0,12">
+              <TextBlock Text="تنبيهات نواقص المخزون" Style="{StaticResource SectionTitleText}"/>
+              <Border Background="{DynamicResource DangerSoftBrush}" CornerRadius="8" Padding="10,3" HorizontalAlignment="Left">
+                <TextBlock Text="11 صنفًا بحاجة للطلب" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource DangerBrush}"/>
+              </Border>
+            </Grid>
+
+            <Border Style="{StaticResource TableHeaderBorder}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.6*"/>
+                  <ColumnDefinition Width="75"/>
+                  <ColumnDefinition Width="85"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="اسم الصنف" FontWeight="Bold"/>
+                <TextBlock Grid.Column="1" Text="المتبقي" FontWeight="Bold"/>
+                <TextBlock Grid.Column="2" Text="حد الطلب" FontWeight="Bold"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowBorder}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.6*"/>
+                  <ColumnDefinition Width="75"/>
+                  <ColumnDefinition Width="85"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="شاحن Anker 20W PD أصلي"/>
+                <TextBlock Grid.Column="1" Text="1 قطعة" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold"/>
+                <TextBlock Grid.Column="2" Text="10 قطع"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowAltBorder}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.6*"/>
+                  <ColumnDefinition Width="75"/>
+                  <ColumnDefinition Width="85"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="اسكرينة سيراميك iPhone 15"/>
+                <TextBlock Grid.Column="1" Text="0 نفد" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold"/>
+                <TextBlock Grid.Column="2" Text="25 قطعة"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowBorder}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.6*"/>
+                  <ColumnDefinition Width="75"/>
+                  <ColumnDefinition Width="85"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="كابل شحن Apple Type-C مجدول"/>
+                <TextBlock Grid.Column="1" Text="3 قطع" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold"/>
+                <TextBlock Grid.Column="2" Text="15 قطعة"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource TableRowAltBorder}" BorderThickness="0">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="1.6*"/>
+                  <ColumnDefinition Width="75"/>
+                  <ColumnDefinition Width="85"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="شاشة داخلية Samsung A15"/>
+                <TextBlock Grid.Column="1" Text="1 قطعة" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold"/>
+                <TextBlock Grid.Column="2" Text="5 قطع"/>
+              </Grid>
+            </Border>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- 4. إحصائيات النظام -->
+      <TextBlock Text="إحصائيات النظام العامة" Style="{StaticResource SectionTitleText}" Margin="0,0,0,10"/>
+      <UniformGrid Columns="3">
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,10,0">
+          <Grid>
+            <StackPanel>
+              <TextBlock Text="إجمالي عدد العملاء المسجلين" Style="{StaticResource MutedText}"/>
+              <TextBlock Text="1,284 عميل" FontSize="26" FontWeight="Bold" Margin="0,6,0,0"/>
+            </StackPanel>
+            <Border Width="46" Height="46" CornerRadius="14" Background="{DynamicResource InfoSoftBrush}" HorizontalAlignment="Left" VerticalAlignment="Center">
+              <TextBlock Text="&#xE716;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="{DynamicResource InfoBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </Grid>
+        </Border>
+
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,10,0">
+          <Grid>
+            <StackPanel>
+              <TextBlock Text="إجمالي الأصناف المسجلة بالمخزون" Style="{StaticResource MutedText}"/>
+              <TextBlock Text="865 صنفًا" FontSize="26" FontWeight="Bold" Margin="0,6,0,0"/>
+            </StackPanel>
+            <Border Width="46" Height="46" CornerRadius="14" Background="{DynamicResource AccentSoftBrush}" HorizontalAlignment="Left" VerticalAlignment="Center">
+              <TextBlock Text="&#xE7B8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </Grid>
+        </Border>
+
+        <Border Style="{StaticResource GlassCard}">
+          <Grid>
+            <StackPanel>
+              <TextBlock Text="إجمالي الفواتير المصدرة" Style="{StaticResource MutedText}"/>
+              <TextBlock Text="9,412 فاتورة" FontSize="26" FontWeight="Bold" Margin="0,6,0,0"/>
+            </StackPanel>
+            <Border Width="46" Height="46" CornerRadius="14" Background="{DynamicResource SuccessSoftBrush}" HorizontalAlignment="Left" VerticalAlignment="Center">
+              <TextBlock Text="&#xE8A1;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="20" Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </Grid>
+        </Border>
+      </UniformGrid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
