@@ -1,0 +1,25 @@
+# ===== Build output (never commit to GitHub) =====
+bin/
+obj/
+[Bb]uild/
+publish/
+[Pp]ublish/
+out/
+dist/
+
+# ===== Visual Studio =====
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# ===== ReSharper / Rider =====
+_ReSharper*/
+.ReSharper*/
+*.DotSettings.user
+
+# ===== OS files =====
+.DS_Store
+Thumbs.db
