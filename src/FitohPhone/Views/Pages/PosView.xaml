@@ -182,7 +182,7 @@
             </Grid>
             <TextBlock Text="{Binding SelectedCustomerName, StringFormat=العميل المحدد: {0}, TargetNullValue=عميل نقدي مباشر}"
                        Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
-            <TextBlock Text="{Binding SelectedCustomerPhone, StringFormat=الهاتف: {0}, TargetNullValue=}"
+            <TextBlock Text="{Binding SelectedCustomerPhone, StringFormat='الهاتف: {0}'}"
                        Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
 
             <!-- طرق الدفع المتعددة والمشتركة (نقدي + فودافون كاش + انستاباي معًا) -->

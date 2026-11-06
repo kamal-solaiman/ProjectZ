@@ -36,9 +36,19 @@
                 </Grid>
                 <TextBlock Text="{Binding PhoneNumber}" FontFamily="Consolas" FontSize="16" FontWeight="Bold" FlowDirection="LeftToRight" HorizontalAlignment="Right" Margin="0,8,0,2"/>
                 <TextBlock Text="{Binding CurrentBalance, StringFormat={}{0:N0} ج.م}" FontWeight="Bold" Foreground="{DynamicResource VodafoneBrush}" Margin="0,0,0,8"/>
-                <TextBlock Text="{Binding DailyUsed, StringFormat={}{0:N0}} / {Binding DailyLimit, StringFormat={0:N0}} ج (يومي)" FontSize="11" Style="{StaticResource MutedText}"/>
+                <TextBlock FontSize="11" Style="{StaticResource MutedText}">
+                  <Run Text="{Binding DailyUsed, StringFormat={}{0:N0}}"/>
+                  <Run Text=" / "/>
+                  <Run Text="{Binding DailyLimit, StringFormat={0:N0}}"/>
+                  <Run Text=" ج (يومي)"/>
+                </TextBlock>
                 <ProgressBar Value="{Binding DailyUsed, ConverterParameter=100}" Maximum="{Binding DailyLimit}" Margin="0,4,0,6"/>
-                <TextBlock Text="{Binding MonthlyUsed, StringFormat={}{0:N0}} / {Binding MonthlyLimit, StringFormat={0:N0}} ج (شهري)" FontSize="11" Style="{StaticResource MutedText}"/>
+                <TextBlock FontSize="11" Style="{StaticResource MutedText}">
+                  <Run Text="{Binding MonthlyUsed, StringFormat={}{0:N0}}"/>
+                  <Run Text=" / "/>
+                  <Run Text="{Binding MonthlyLimit, StringFormat={0:N0}}"/>
+                  <Run Text=" ج (شهري)"/>
+                </TextBlock>
                 <ProgressBar Value="{Binding MonthlyUsed, ConverterParameter=100}" Maximum="{Binding MonthlyLimit}" Margin="0,4,0,0"/>
               </StackPanel>
             </Border>

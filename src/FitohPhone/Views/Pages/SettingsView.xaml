@@ -298,8 +298,8 @@
             <Button Content="أخذ نسخة احتياطية من قاعدة البيانات الآن" Style="{StaticResource SecondaryButton}"/>
 
             <!-- عرض الرسائل والأخطاء -->
-            <TextBlock Text="{Binding Message, TargetNullValue=}" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"/>
-            <TextBlock Text="{Binding Error, TargetNullValue=}" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            <TextBlock Text="{Binding Message}" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"/>
           </StackPanel>
         </Border>
       </Grid>
