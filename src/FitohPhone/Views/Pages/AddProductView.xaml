@@ -117,7 +117,7 @@
             </Grid>
 
             <!-- عرض رسالة الخطأ أو النجاح -->
-            <TextBlock Text="{Binding Error, TargetNullValue=}" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"/>
           </StackPanel>
         </Border>
 
@@ -169,7 +169,7 @@
 
             <CheckBox Content="المنتج نشط ومتاح للبيع" IsChecked="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"/>
 
-            <TextBlock Text="{Binding Error, TargetNullValue=}" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,10"/>
+            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,10"/>
           </StackPanel>
         </Border>
       </Grid>
