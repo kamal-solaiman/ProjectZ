@@ -74,7 +74,7 @@ public sealed class AddProductViewModel : ObservableObject
     public bool IsActive { get => _isActive; set { _isActive = value; Changed(); } }
 
     private string _error = "";
-    public string Error { get => _error; private set { _error = value; Changed(); } }
+    public string Error { get => _error; set { _error = value; Changed(); } }
 
     private bool _busy;
     public bool IsBusy { get => _busy; private set { _busy = value; Changed(); Changed(nameof(IsIdle)); } }

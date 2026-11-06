@@ -75,7 +75,7 @@ public partial class TransfersView : UserControl
         // يمكن عرض رصيد الخط المحدد لاحقًا
     }
 
-    private void ExecuteTransfer_Click(object sender, RoutedEventArgs e)
+    private async void ExecuteTransfer_Click(object sender, RoutedEventArgs e)
     {
         // التحقق من صحة البيانات
         if (SourceLineCombo.SelectedItem is not ComboBoxItem selectedLine ||
@@ -115,7 +115,7 @@ public partial class TransfersView : UserControl
                 amount, commission, "Outbound", "إرسال صادر", "Pending", null,
                 App.SessionUserId, "", null, System.DateTime.Now);
 
-            var ok = _vm.CreateTransactionAsync(txn, System.Threading.CancellationToken.None).Result;
+            var ok = await _vm.CreateTransactionAsync(txn, System.Threading.CancellationToken.None);
             if (ok > 0)
             {
                 MessageBox.Show("تم تنفيذ التحويل وحفظه بنجاح.", "نجاح", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -137,14 +137,14 @@ public partial class TransfersView : UserControl
         }
     }
 
-    private void DeleteTransaction_Click(object sender, RoutedEventArgs e)
+    private async void DeleteTransaction_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: int txnId })
         {
             var result = MessageBox.Show($"هل تريد حذف عملية التحويل رقم: {txnId}؟", "تأكيد الحذف", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
             {
-                var ok = _vm.DeleteLineAsync(txnId, System.Threading.CancellationToken.None).Result;
+                var ok = await _vm.DeleteLineAsync(txnId, System.Threading.CancellationToken.None);
                 if (ok)
                 {
                     MessageBox.Show("تم حذف العملية.", "حذف", MessageBoxButton.OK, MessageBoxImage.Information);

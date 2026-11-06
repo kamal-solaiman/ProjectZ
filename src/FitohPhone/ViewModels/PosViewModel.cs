@@ -107,8 +107,11 @@ public sealed class PosViewModel : ObservableObject
         var existing = Lines.FirstOrDefault(l => l.ProductId == product.Id);
         if (existing != null)
         {
-            existing.Quantity++;
-            existing.LineTotal = existing.Quantity * existing.UnitPrice;
+            var updatedLine = new PosInvoiceLine(
+                existing.Id, existing.Barcode, existing.Name, existing.Quantity + 1, existing.UnitPrice, (existing.Quantity + 1) * existing.UnitPrice)
+            { ProductId = existing.ProductId };
+            Lines.Remove(existing);
+            Lines.Add(updatedLine);
         }
         else
         {
@@ -168,7 +171,7 @@ public sealed class PosViewModel : ObservableObject
                 _userId, "المستخدم", InvoiceTotal, 0, 0, InvoiceTotal,
                 PaymentTotal, Math.Max(0, InvoiceTotal - PaymentTotal),
                 PaymentTotal >= InvoiceTotal ? "مدفوع" : "جزئي", PriceTier, null,
-                false, null, null, DateTime.Now,
+                false, null, DateTime.Now,
                 Lines.Select(l => new SalesInvoiceItem(
                     0, 0, l.ProductId, l.Barcode, l.Name, l.Quantity, l.UnitPrice, 0, l.LineTotal, PriceTier)).ToList(),
                 new List<SalesInvoicePayment>
