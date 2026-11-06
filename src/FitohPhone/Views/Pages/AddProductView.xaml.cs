@@ -38,15 +38,8 @@ public partial class AddProductView : UserControl
         var ok = _vm.SaveCommand.CanExecute(null);
         if (ok)
         {
-            var saved = await _vm.SaveCommand.ExecuteAsync(null);
-            if (saved)
-            {
-                MessageBox.Show("تم حفظ وتسجيل الصنف الجديد بنجاح في قاعدة البيانات.", "حفظ الصنف", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show(_vm.Error, "فشل الحفظ", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            await _vm.SaveCommand.ExecuteAsync(null);
+            MessageBox.Show("تم حفظ وتسجيل الصنف الجديد بنجاح في قاعدة البيانات.", "حفظ الصنف", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
@@ -55,15 +48,8 @@ public partial class AddProductView : UserControl
         var ok = _vm.SaveCommand.CanExecute(null);
         if (ok)
         {
-            var saved = await _vm.SaveCommand.ExecuteAsync(null);
-            if (saved)
-            {
-                MessageBox.Show("تم حفظ الصنف وطباعة باركود المنتج بنجاح.", "حفظ وطباعة", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show(_vm.Error, "فشل الحفظ", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            await _vm.SaveCommand.ExecuteAsync(null);
+            MessageBox.Show("تم حفظ الصنف وطباعة باركود المنتج بنجاح.", "حفظ وطباعة", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
