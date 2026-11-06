@@ -25,14 +25,18 @@ public sealed class PosViewModel : ObservableObject
         RemoveItemCommand = new RelayCommand<int>(RemoveItem);
         SaveInvoiceCommand = new AsyncCommand(SaveInvoiceAsync);
         NewInvoiceCommand = new RelayCommand(NewInvoice);
+        LoadCommand = new AsyncCommand(LoadAsync);
     }
 
     public RelayCommand AddItemCommand { get; }
     public RelayCommand<int> RemoveItemCommand { get; }
     public AsyncCommand SaveInvoiceCommand { get; }
     public RelayCommand NewInvoiceCommand { get; }
+    public AsyncCommand LoadCommand { get; }
 
     public ObservableCollection<PosInvoiceLine> Lines { get; } = new();
+    public ObservableCollection<Product> Products { get; } = new();
+    public ObservableCollection<Customer> Customers { get; } = new();
 
     private string _barcodeInput = "";
     public string BarcodeInput { get => _barcodeInput; set { _barcodeInput = value; Changed(); } }
@@ -41,10 +45,11 @@ public sealed class PosViewModel : ObservableObject
     public int? SelectedCustomerId
     {
         get => _selectedCustomerId;
-        set { _selectedCustomerId = value; Changed(); Changed(nameof(HasCustomer)); }
+        set { _selectedCustomerId = value; Changed(); Changed(nameof(HasCustomer)); Changed(nameof(SelectedCustomerName)); Changed(nameof(SelectedCustomerPhone)); }
     }
-    public string? CustomerName { get; set; }
-    public string? CustomerPhone { get; set; }
+    public string? SelectedCustomerName => SelectedCustomerId.HasValue ? Customers.FirstOrDefault(c => c.Id == _selectedCustomerId)?.Name : null;
+    public string? SelectedCustomerPhone => SelectedCustomerId.HasValue ? Customers.FirstOrDefault(c => c.Id == _selectedCustomerId)?.Phone : null;
+
     public bool HasCustomer => SelectedCustomerId.HasValue;
 
     private string _priceTier = "قطاعي";
@@ -65,15 +70,40 @@ public sealed class PosViewModel : ObservableObject
     public string[] PriceTiers => ["قطاعي", "مميز", "جملة"];
     public string[] PaymentMethods => ["نقدي", "فودافون كاش", "إنستاباي"];
 
+    private async Task LoadAsync()
+    {
+        IsBusy = true;
+        try
+        {
+            Products.Clear();
+            Customers.Clear();
+
+            foreach (var p in await _productRepo.GetAllAsync(System.Threading.CancellationToken.None))
+                Products.Add(p);
+
+            foreach (var c in await _customerRepo.GetAllAsync(System.Threading.CancellationToken.None))
+                Customers.Add(c);
+        }
+        finally { IsBusy = false; }
+    }
+
     private void AddItem()
     {
         if (string.IsNullOrWhiteSpace(BarcodeInput)) return;
-        var product = _productRepo.GetByBarcodeAsync(BarcodeInput, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+
+        // البحث بالباركود أو بالاسم
+        var product = Products.FirstOrDefault(p => p.Barcode == BarcodeInput ||
+            p.NameAr.Contains(BarcodeInput, System.StringComparison.OrdinalIgnoreCase));
+
         if (product is null)
         {
-            // يمكن إضافة رسالة خطأ هنا
-            return;
+            // البحث غير المتزامن كاحتياطي
+            var task = _productRepo.GetByBarcodeAsync(BarcodeInput, System.Threading.CancellationToken.None);
+            product = task.GetAwaiter().GetResult();
         }
+
+        if (product is null) return;
+
         var existing = Lines.FirstOrDefault(l => l.ProductId == product.Id);
         if (existing != null)
         {
@@ -90,6 +120,7 @@ public sealed class PosViewModel : ObservableObject
             };
             Lines.Add(new PosInvoiceLine(product.Id, product.Barcode, product.NameAr, 1, price, price));
         }
+
         BarcodeInput = "";
         Changed(nameof(InvoiceTotal));
         Changed(nameof(RemainingToPay));
@@ -117,8 +148,6 @@ public sealed class PosViewModel : ObservableObject
     {
         Lines.Clear();
         SelectedCustomerId = null;
-        CustomerName = null;
-        CustomerPhone = null;
         PriceTier = "قطاعي";
         CashAmount = 0;
         VodafoneAmount = 0;
@@ -135,7 +164,7 @@ public sealed class PosViewModel : ObservableObject
         {
             var invoice = new SalesInvoice(
                 0, $"POS-{DateTime.Now:yyyyMMddHHmmss}", DateTime.Now,
-                SelectedCustomerId, CustomerName, CustomerPhone,
+                SelectedCustomerId, SelectedCustomerName, SelectedCustomerPhone,
                 _userId, "المستخدم", InvoiceTotal, 0, 0, InvoiceTotal,
                 PaymentTotal, Math.Max(0, InvoiceTotal - PaymentTotal),
                 PaymentTotal >= InvoiceTotal ? "مدفوع" : "جزئي", PriceTier, null,
