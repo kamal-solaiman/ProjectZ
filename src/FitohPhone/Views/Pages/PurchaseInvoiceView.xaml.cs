@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using FitohPhone.Models;
 using FitohPhone.ViewModels;
 
 namespace FitohPhone.Views.Pages;

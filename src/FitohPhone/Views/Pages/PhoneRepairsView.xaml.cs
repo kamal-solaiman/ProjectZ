@@ -69,7 +69,7 @@ public partial class PhoneRepairsView : UserControl
 
         var paid = decimal.TryParse(PaidAmountBox.Text, out var p) ? p : 0;
 
-        var repair = new FitOhPhone.Models.PhoneRepair(
+        var repair = new FitohPhone.Models.PhoneRepair(
             0,
             RepairNumberBlock.Text,
             0, // CustomerId سيُحدد لاحقًا من قبل المستودع

@@ -124,15 +124,8 @@ public partial class UsersView : UserControl
             var ok = _vm.SavePermissionsCommand.CanExecute(null);
             if (ok)
             {
-                var saved = await _vm.SavePermissionsCommand.ExecuteAsync(null);
-                if (saved)
-                {
-                    MessageBox.Show("تم حفظ واعتماد صلاحيات المستخدم بنجاح.", "نجاح", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show("فشل حفظ الصلاحيات.", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                await _vm.SavePermissionsCommand.ExecuteAsync(null);
+                MessageBox.Show("تم حفظ واعتماد صلاحيات المستخدم بنجاح.", "نجاح", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
     }
