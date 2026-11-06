@@ -1,0 +1,32 @@
+name: Windows build and publish
+on:
+  workflow_dispatch:
+  push:
+    branches: [arena/c4a64a44-projectz]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Security tests
+        run: dotnet run --project tests/FitohPhone.Security.Tests -c Release
+      - name: Build WPF
+        run: dotnet build FitohPhone.sln -c Release
+      - name: Publish self-contained x64
+        run: dotnet publish src/FitohPhone/FitohPhone.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o publish/win-x64
+      - name: Verify external configuration
+        shell: pwsh
+        run: |
+          if (!(Test-Path publish/win-x64/FitohPhone.exe)) { throw 'EXE missing' }
+          if (!(Test-Path publish/win-x64/connectionsettings.json)) { throw 'Settings missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FitohPhone-win-x64
+          path: publish/win-x64/
+          if-no-files-found: error
