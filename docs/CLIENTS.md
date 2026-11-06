@@ -16,18 +16,18 @@
 
 ```json
 {
-  "Server": "MAIN-PC\\SQLEXPRESS",
+  "Server": "DESKTOP-M1T0F31",
   "Database": "FitohPhone",
   "IntegratedSecurity": true,
   "UserId": "",
   "Password": "",
   "Encrypt": true,
-  "TrustServerCertificate": false,
-  "ConnectTimeoutSeconds": 8
+  "TrustServerCertificate": true,
+  "ConnectTimeoutSeconds": 15
 }
 ```
 
-في JSON تمثَّل الشرطة العكسية الواحدة بـ `\\`. اسم الخادم يمكن أن يكون اسم جهاز، IP، اسمًا مع instance، أو IP/اسمًا مع منفذ مفصول بفاصلة (ليس نقطتين): `192.168.1.10,1433`.
+في JSON تمثَّل الشرطة العكسية الواحدة بـ `\\` عند وجود Instance مسماة (مثل `MAIN-PC\\SQLEXPRESS`). اسم الخادم يمكن أن يكون اسم جهاز (للنسخة الافتراضية)، IP، اسمًا مع instance، أو IP/اسمًا مع منفذ مفصول بفاصلة (ليس نقطتين): `192.168.1.10,1433`.
 
 ## إعداد SQL Authentication
 
@@ -39,8 +39,8 @@
   "UserId": "FitohPhoneClient",
   "Password": "REPLACE_LOCALLY_WITH_REAL_SECRET",
   "Encrypt": true,
-  "TrustServerCertificate": false,
-  "ConnectTimeoutSeconds": 8
+  "TrustServerCertificate": true,
+  "ConnectTimeoutSeconds": 15
 }
 ```
 
