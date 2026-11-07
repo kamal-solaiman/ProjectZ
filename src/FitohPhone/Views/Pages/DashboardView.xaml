@@ -4,22 +4,23 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignHeight="700" d:DesignWidth="1200">
+             d:DesignHeight="700" d:DesignWidth="1200"
+             FlowDirection="RightToLeft">
   <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4,0,4,18">
     <StackPanel>
 
       <!-- شريط العنوان +فلترة الفترة الزمنية -->
-      <Grid Margin="0,0,0,10">
+      <Grid Margin="0,0,0,10" FlowDirection="RightToLeft">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" FlowDirection="RightToLeft">
           <TextBlock Text="إيرادات وخلاصة حركة اليوم" Style="{StaticResource SectionTitleText}"/>
           <Button Content="تجديد البيانات" Style="{StaticResource SmallActionButton}" Margin="12,0,0,0"
                   Click="Refresh_Click"/>
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal">
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" FlowDirection="LeftToRight">
           <ComboBox x:Name="PeriodCombo" SelectedIndex="0" Width="170">
             <ComboBoxItem Content="حركة اليوم الحالي"/>
             <ComboBoxItem Content="أمس"/>

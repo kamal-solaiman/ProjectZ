@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="FitohPhone | تسجيل الدخول"
         Width="980" Height="640" MinWidth="760" MinHeight="600"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        FlowDirection="RightToLeft">
   <Grid>
     <!-- Ambient Decorative Backdrop -->
     <Canvas IsHitTestVisible="False" ClipToBounds="True">
