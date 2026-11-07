@@ -35,14 +35,15 @@ public partial class SettingsView : UserControl
     {
         if (_vm.SaveCommand.CanExecute(null))
         {
-            var saved = await _vm.SaveCommand.ExecuteAsync(null);
-            if (saved)
+            await _vm.SaveCommand.ExecuteAsync(null);
+            if (_vm.SaveSucceeded)
             {
                 MessageBox.Show("تم حفظ إعدادات المحل والبرنامج بنجاح.", "حفظ الإعدادات", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
-                MessageBox.Show(_vm.Error, "فشل الحفظ", MessageBoxButton.OK, MessageBoxImage.Warning);
+                var error = string.IsNullOrWhiteSpace(_vm.Error) ? _vm.Message : _vm.Error;
+                MessageBox.Show(error, "فشل الحفظ", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }

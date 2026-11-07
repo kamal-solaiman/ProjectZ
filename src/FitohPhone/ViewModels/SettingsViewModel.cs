@@ -20,6 +20,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     public AsyncCommand LoadCommand { get; }
     public AsyncCommand SaveCommand { get; }
+    public bool SaveSucceeded { get; private set; }
 
     private string _shopNameAr = "";
     public string ShopNameAr { get => _shopNameAr; set { _shopNameAr = value; Changed(); } }
@@ -102,6 +103,7 @@ public sealed class SettingsViewModel : ObservableObject
     {
         Error = "";
         Message = "";
+        SaveSucceeded = false;
         if (string.IsNullOrWhiteSpace(ShopNameAr) || string.IsNullOrWhiteSpace(Phone1))
         {
             Error = "اسم المحل والهاتف الأساسي مطلوبان.";
@@ -117,6 +119,7 @@ public sealed class SettingsViewModel : ObservableObject
                 ThermalPrinter, BarcodePrinter, AutoPrintInvoice, LowStockAlert,
                 TransferLimitWarning, DateTime.Now, null);
             var ok = await _shopRepo.UpdateAsync(setting, System.Threading.CancellationToken.None);
+            SaveSucceeded = ok;
             Message = ok ? "تم حفظ إعدادات المحل بنجاح." : "فشل الحفظ.";
         }
         catch (Exception ex)

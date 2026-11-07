@@ -45,7 +45,7 @@ public sealed class UserRoleRepository(ConnectionSettingsProvider settings)
     {
         await using var conn = new SqlConnection(settings.GetConnectionString());
         await conn.OpenAsync(ct);
-        SqlTransaction tx = await conn.BeginTransactionAsync(ct);
+        SqlTransaction tx = (SqlTransaction)await conn.BeginTransactionAsync(ct);
         try
         {
             await using var del = new SqlCommand("DELETE FROM dbo.UserPermissions WHERE UserId=@UserId", conn, tx) { CommandTimeout = 15 };
