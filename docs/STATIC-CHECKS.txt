@@ -8,9 +8,11 @@ PASS XML: src/FitohPhone/Views/LoginWindow.xaml
 PASS XML: src/FitohPhone/Views/MainWindow.xaml
 PASS XML: src/FitohPhone/app.manifest
 PASS JSON: src/FitohPhone/connectionsettings.json
+PASS XML: tests/FitohPhone.Configuration.Tests/FitohPhone.Configuration.Tests.csproj
 PASS XML: tests/FitohPhone.Security.Tests/FitohPhone.Security.Tests.csproj
 PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector
 PASS: exactly one CREATE TABLE; explicit compatibility 130
 PASS: ShutdownMode=OnLastWindowClose; OnExplicitShutdown removed
 PASS: idempotent shutdown, late sign-in guard, token cleanup at exit, no zero-window swaps
+PASS: LAN settings resolve per computer name, merge over Default, legacy fallback, shared server target
 NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish

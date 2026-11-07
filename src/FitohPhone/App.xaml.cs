@@ -15,13 +15,15 @@ public partial class App : Application
     private readonly List<Window> liveWindows = new();
     private readonly List<CancellationTokenSource> loginLifetimes = new();
     private UserSession? session;
+    private ConnectionSettingsProvider settings = null!;
     private AuthenticationService service = null!;
     private bool isShuttingDown;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        service = new AuthenticationService(new UserRepository(new ConnectionSettingsProvider()));
+        settings = new ConnectionSettingsProvider();
+        service = new AuthenticationService(new UserRepository(settings));
         ShowLogin();
     }
 
@@ -33,7 +35,7 @@ public partial class App : Application
         loginLifetimes.Add(lifetime);
         var window = new LoginWindow();
         window.DataContext = new LoginViewModel(service, () => window.ReadPassword(), window.ClearPassword,
-            user => OpenMain(window, user), lifetime.Token);
+            user => OpenMain(window, user), lifetime.Token, settings);
         MainWindow = window;
         TrackWindow(window, () => Cancel(lifetime));
         window.Show();

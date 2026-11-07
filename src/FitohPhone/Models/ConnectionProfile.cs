@@ -1,6 +1,9 @@
 namespace FitohPhone.Models;
 
-public sealed class ConnectionSettings
+/// One connection target inside connectionsettings.json: either the shared
+/// "Default" section, or a per-machine override. Same keys as the original
+/// single-machine file, so existing deployments keep working.
+public sealed class ConnectionProfile
 {
     public string Server { get; set; } = "";
     public string Database { get; set; } = "FitohPhone";

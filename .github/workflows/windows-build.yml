@@ -16,6 +16,20 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Security tests
         run: dotnet run --project tests/FitohPhone.Security.Tests -c Release
+      - name: Multi-device connection settings tests
+        shell: pwsh
+        run: |
+          # Surface the failing check as a PR annotation; the raw log alone is hard
+          # to find when a single assertion fails.
+          $output = (dotnet run --project tests/FitohPhone.Configuration.Tests -c Release 2>&1 | Out-String)
+          $code = $LASTEXITCODE
+          Write-Output $output
+          if ($code -ne 0) {
+            $tail = (($output -split "`r?`n") | Where-Object { $_.Trim() } | Select-Object -Last 12) -join "`n"
+            $encoded = $tail.Replace('%', '%25').Replace("`r", '').Replace("`n", '%0A')
+            Write-Output "::error title=Configuration tests failed::$encoded"
+            exit 1
+          }
       - name: Build WPF
         run: dotnet build FitohPhone.sln -c Release
       - name: Publish self-contained x64
@@ -25,6 +39,11 @@ jobs:
         run: |
           if (!(Test-Path publish/win-x64/FitohPhone.exe)) { throw 'EXE missing' }
           if (!(Test-Path publish/win-x64/connectionsettings.json)) { throw 'Settings missing' }
+          # LAN template: every client folder must carry a section the app can resolve.
+          $json = Get-Content publish/win-x64/connectionsettings.json -Raw | ConvertFrom-Json
+          if (-not $json.Default) { throw 'connectionsettings.json has no Default section' }
+          if (-not $json.Default.Server) { throw 'Default.Server is empty' }
+          if (-not $json.Default.Database) { throw 'Default.Database is empty' }
       - uses: actions/upload-artifact@v4
         with:
           name: FitohPhone-win-x64

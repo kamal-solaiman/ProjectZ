@@ -47,4 +47,32 @@ assert re.search(r'ShowLogin\(\);\s*main\.Close\(\);', app_cs), \
     'logout swap must show the new window before closing the old one'
 assert 'lifetime.Dispose()' not in login_cs, 'token source must not be disposed inside Window.Closed'
 print('PASS: idempotent shutdown, late sign-in guard, token cleanup at exit, no zero-window swaps')
+# --- LAN multi-device: one settings file, many PCs ---
+settings = json.loads((root / 'src/FitohPhone/connectionsettings.json').read_text(encoding='utf-8'))
+assert 'Default' in settings and settings['Default'].get('Server'), 'Default.Server must be set for LAN clients'
+assert settings['Default'].get('Database') == 'FitohPhone'
+assert not str(settings['Default']['Server']).startswith(('.', '(local)')), 'clients must not default to localhost/LocalDB'
+assert isinstance(settings.get('Machines', {}), dict), 'Machines must be an object keyed by computer name'
+provider = (root / 'src/FitohPhone/Services/ConnectionSettingsProvider.cs').read_text(encoding='utf-8')
+assert 'Environment.MachineName' in provider, 'device identity must come from the Windows computer name'
+assert 'OrdinalIgnoreCase' in provider, 'machine-name lookup must be case-insensitive'
+assert 'ApplicationName = "FitohPhone"' in provider, 'session tracking relies on program_name=FitohPhone'
+assert 'Encrypt = settings.Encrypt' in provider and 'TrustServerCertificate' in provider
+assert 'legacy' in provider.lower(), 'old flat single-machine settings files must still load'
+assert 'Merge(sections.Shared, own)' in provider, 'a machine section must be layered over Default'
+login_vm = (root / 'src/FitohPhone/ViewModels/LoginViewModel.cs').read_text(encoding='utf-8')
+assert 'settings.GetProfile()' in login_vm, 'configuration errors must surface before the SQL attempt'
+assert 'ConnectionSummary' in login_vm, 'the resolved LAN target must be visible on the login window'
+describe = login_vm.split('private static string DescribeTarget', 1)[1]
+assert 'catch (Exception)' in describe, 'the diagnostic line must never crash the window'
+assert 'settings.GetProfile()' in login_vm.split('LoginCommand = new AsyncCommand', 1)[1], \
+    'configuration errors must be reported before the SQL attempt'
+assert 'catch (Exception)' in login_vm.split('DescribeTarget')[2], 'the diagnostic line must never crash the window'
+profile_model = (root / 'src/FitohPhone/Models/ConnectionProfile.cs').read_text(encoding='utf-8')
+assert 'class ConnectionProfile' in profile_model
+test_src = (root / 'tests/FitohPhone.Configuration.Tests/Program.cs').read_text(encoding='utf-8')
+assert 'inherits the shared SQL login' in test_src, 'the override-inheritance regression must stay covered'
+assert 'Encrypt": "yes' in test_src, 'a wrong JSON value type must stay covered'
+print('PASS: LAN settings resolve per computer name, merge over Default, legacy fallback, shared server target')
+
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
