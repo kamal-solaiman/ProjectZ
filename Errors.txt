@@ -1,13 +1,170 @@
-Cannot assign void to an implicitly-typed variable
-Cannot assign void to an implicitly-typed variable
-Cannot assign void to an implicitly-typed variable
-Cannot assign void to an implicitly-typed variable
-Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
-Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
-Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
-Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
-Cannot implicitly convert type 'System.Data.Common.DbTransaction' to 'Microsoft.Data.SqlClient.SqlTransaction'. An explicit conversion exists (are you missing a cast?)
-The type or namespace name 'Customer' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'FitOhPhone' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Product' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Supplier' could not be found (are you missing a using directive or an assembly reference?)
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\App.xaml.cs(5,7,5,26): warning CS0105: The using directive for 'FitohPhone.Services' appeared previously in this namespace
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\BrandRepository.cs(35,81,35,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(18,12,18,39): warning CS8618: Non-nullable field '_invoiceRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(18,12,18,39): warning CS8618: Non-nullable field '_repairRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(18,12,18,39): warning CS8618: Non-nullable field '_transferRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(22,66,22,80): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(26,68,26,84): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(27,78,27,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(28,78,28,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(29,78,29,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(30,76,30,89): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\DashboardViewModel.cs(18,12,18,30): warning CS8618: Non-nullable field '_productRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\DashboardViewModel.cs(18,12,18,30): warning CS8618: Non-nullable field '_repairRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CategoryRepository.cs(35,81,35,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(141,70,141,92): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(142,68,142,88): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(143,82,143,107): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(149,85,149,112): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(151,75,151,92): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(68,77,68,108): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(69,77,69,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(70,74,70,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(71,75,71,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(90,77,90,108): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(91,77,91,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(92,74,92,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(93,75,93,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(56,82,56,107): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(60,77,60,107): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(63,76,63,94): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(85,83,85,108): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(86,92,86,125): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(88,84,88,108): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(91,91,91,127): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(99,82,99,115): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(100,80,100,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(120,83,120,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(145,86,145,111): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(146,93,146,119): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(77,85,77,109): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(78,96,78,119): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Views\Pages\PhoneRepairsView.xaml.cs(103,13,103,17): warning CS8625: Cannot convert null literal to non-nullable reference type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(69,81,69,110): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(72,80,72,98): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(77,80,77,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(93,89,93,123): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(100,88,100,121): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(101,87,101,119): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PurchaseInvoiceRepository.cs(82,80,82,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(43,75,43,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(44,83,44,113): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(45,77,45,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(46,78,46,103): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(47,93,47,133): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(48,78,48,102): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(49,88,49,121): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(50,88,50,121): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(52,88,52,122): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(53,88,53,122): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PurchaseInvoiceRepository.cs(143,86,143,111): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SalesInvoiceRepository.cs(78,74,78,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SalesInvoiceRepository.cs(88,80,88,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SalesInvoiceRepository.cs(125,93,125,120): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(54,83,54,113): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(55,77,55,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(56,74,56,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(57,75,57,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SalesInvoiceRepository.cs(149,86,149,111): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(75,83,75,113): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(76,77,76,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(77,74,77,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(78,75,78,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(82,76,82,98): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(83,70,83,96): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(84,67,84,90): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(92,74,92,104): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(113,76,113,98): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(114,70,114,96): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(115,67,115,90): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(123,74,123,104): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\DashboardViewModel.cs(14,44,14,55): warning CS0649: Field 'DashboardViewModel._repairRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\DashboardViewModel.cs(13,40,13,52): warning CS0649: Field 'DashboardViewModel._productRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(14,44,14,55): warning CS0649: Field 'CustomersSuppliersViewModel._repairRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(15,41,15,54): warning CS0649: Field 'CustomersSuppliersViewModel._transferRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(13,45,13,57): warning CS0649: Field 'CustomersSuppliersViewModel._invoiceRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\App.xaml.cs(5,7,5,26): warning CS0105: The using directive for 'FitohPhone.Services' appeared previously in this namespace
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(22,66,22,80): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(26,68,26,84): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(27,78,27,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(28,78,28,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(29,78,29,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\AuditLogRepository.cs(30,76,30,89): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\BrandRepository.cs(35,81,35,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CategoryRepository.cs(35,81,35,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(68,77,68,108): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(69,77,69,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(70,74,70,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(71,75,71,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(90,77,90,108): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(91,77,91,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(92,74,92,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\CustomerRepository.cs(93,75,93,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(141,70,141,92): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(142,68,142,88): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(143,82,143,107): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(149,85,149,112): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\TransferRepository.cs(151,75,151,92): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(54,83,54,113): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(55,77,55,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(56,74,56,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(57,75,57,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(75,83,75,113): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(76,77,76,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(77,74,77,95): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SupplierRepository.cs(78,75,78,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Views\Pages\PhoneRepairsView.xaml.cs(103,13,103,17): warning CS8625: Cannot convert null literal to non-nullable reference type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(43,75,43,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(44,83,44,113): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(45,77,45,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(46,78,46,103): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(47,93,47,133): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(48,78,48,102): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(49,88,49,121): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(50,88,50,121): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(52,88,52,122): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ShopSettingsRepository.cs(53,88,53,122): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(18,12,18,39): warning CS8618: Non-nullable field '_invoiceRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(18,12,18,39): warning CS8618: Non-nullable field '_repairRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(18,12,18,39): warning CS8618: Non-nullable field '_transferRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(56,82,56,107): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(60,77,60,107): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(63,76,63,94): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(77,85,77,109): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\DamagedStockRepository.cs(78,96,78,119): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SalesInvoiceRepository.cs(78,74,78,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SalesInvoiceRepository.cs(88,80,88,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SalesInvoiceRepository.cs(125,93,125,120): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(85,83,85,108): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(86,92,86,125): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(88,84,88,108): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(91,91,91,127): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(99,82,99,115): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(100,80,100,100): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(120,83,120,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\SalesInvoiceRepository.cs(149,86,149,111): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(82,76,82,98): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(83,70,83,96): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(84,67,84,90): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(92,74,92,104): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(113,76,113,98): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(114,70,114,96): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(115,67,115,90): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ProductRepository.cs(123,74,123,104): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PurchaseInvoiceRepository.cs(82,80,82,101): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PurchaseInvoiceRepository.cs(143,86,143,111): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(145,86,145,111): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\PhoneRepairRepository.cs(146,93,146,119): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\DashboardViewModel.cs(18,12,18,30): warning CS8618: Non-nullable field '_productRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\DashboardViewModel.cs(18,12,18,30): warning CS8618: Non-nullable field '_repairRepo' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(69,81,69,110): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(72,80,72,98): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(77,80,77,97): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(93,89,93,123): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(100,88,100,121): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\Data\ReturnExchangeRepository.cs(101,87,101,119): warning CS8600: Converting null literal or possible null value to non-nullable type.
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(14,44,14,55): warning CS0649: Field 'CustomersSuppliersViewModel._repairRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\DashboardViewModel.cs(13,40,13,52): warning CS0649: Field 'DashboardViewModel._productRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\DashboardViewModel.cs(14,44,14,55): warning CS0649: Field 'DashboardViewModel._repairRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(13,45,13,57): warning CS0649: Field 'CustomersSuppliersViewModel._invoiceRepo' is never assigned to, and will always have its default value null
+1>C:\Users\Kemo\Desktop\ProjectZ\src\FitohPhone\ViewModels\CustomersSuppliersViewModel.cs(15,41,15,54): warning CS0649: Field 'CustomersSuppliersViewModel._transferRepo' is never assigned to, and will always have its default value null
