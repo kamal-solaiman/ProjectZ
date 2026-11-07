@@ -11,7 +11,9 @@ public partial class DashboardView : UserControl
     public DashboardView()
     {
         InitializeComponent();
-        _vm = (DashboardViewModel)DataContext;
+        var app = (App)System.Windows.Application.Current;
+        _vm = new DashboardViewModel(app.DashboardRepo, app.SettingsProvider, App.SessionUserId);
+        DataContext = _vm;
 
         // عند تحميل الصفحة، جلب البيانات الفعلية من قاعدة البيانات
         Loaded += async (_, _) =>
