@@ -1,9 +1,9 @@
 {
   "Server": "192.168.1.4",
   "Database": "FitohPhone",
-  "IntegratedSecurity": false,
-  "UserId": "FitohPhoneClient",
-  "Password": "Fitoh@LanClient#2026!",
+  "IntegratedSecurity": true,
+  "UserId": "",
+  "Password": "",
   "Encrypt": true,
   "TrustServerCertificate": true,
   "ConnectTimeoutSeconds": 15
