@@ -39,3 +39,32 @@ END;
 
 COMMIT TRANSACTION;
 GO
+
+-- منح صلاحيات SQL Server للمستخدم FitohPhoneClient على جميع الجداول
+IF EXISTS (SELECT * FROM sys.database_principals WHERE name = N'FitohPhoneClient')
+BEGIN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.Users TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.UserRoles TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.UserPermissions TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.ProductCategories TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.ProductBrands TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.Products TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.Customers TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.Suppliers TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.SalesInvoices TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.SalesInvoiceItems TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.SalesInvoicePayments TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.PurchaseInvoices TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.PurchaseInvoiceItems TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.PurchaseInvoicePayments TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.ReturnsExchanges TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.ReturnExchangeItems TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.PhoneRepairs TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.RepairItems TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.TransferLines TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.TransferTransactions TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.DamagedStock TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.ShopSettings TO [FitohPhoneClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.AuditLog TO [FitohPhoneClient];
+END;
+GO
