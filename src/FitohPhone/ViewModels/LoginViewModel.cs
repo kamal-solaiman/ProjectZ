@@ -90,6 +90,11 @@ public sealed class LoginViewModel : ObservableObject
         {
             return ex.Message;
         }
+        catch (Exception)
+        {
+            // The diagnostic line must never prevent the window from opening.
+            return "تعذر قراءة إعدادات الاتصال. راجع ملف connectionsettings.json بجوار البرنامج.";
+        }
     }
 
     private static string DescribeSqlError(SqlException ex)
