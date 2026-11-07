@@ -11,12 +11,21 @@
 
 ## 2. تمكين LAN
 
+> العملاء لا يتصلون قبل إتمام هذا القسم. للتفاصيل التشغيلية الكاملة لكل جهاز (نفس مجلد النشر، أقسام الإعدادات، إثبات الجلسات، واستكشاف الأعطال) اقرأ **[دليل الشبكة الداخلية](LAN-SETUP.md)**.
+
 1. من **SQL Server Configuration Manager**، تحت SQL Server Network Configuration، فعّل TCP/IP للـ instance المستخدمة.
 2. لضبط الاتصال: TCP/IP Properties → IP Addresses → IPAll، أفرغ TCP Dynamic Ports، وحدد TCP Port ثابتًا مثل `1433` (أو منفذًا متاحًا تختاره المؤسسة). راجع أيضًا عناوين IP المفعلة. أعد تشغيل خدمة instance.
-3. افتح في Windows Firewall **TCP للمنفذ المحدد فقط** ولعناوين شبكة LAN الموثوقة، لا الإنترنت.
+3. افتح في Windows Firewall **TCP للمنفذ المحدد فقط** ولعناوين شبكة LAN الموثوقة، لا الإنترنت:
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "FitohPhone SQL LAN" -Direction Inbound `
+     -Protocol TCP -LocalPort 1433 -Action Allow -Profile Private `
+     -RemoteAddress 192.168.1.0/24
+   ```
 4. يفضل عنوان ثابت أو DHCP reservation للخادم. استخدم `192.168.1.10,1433` أو `MAIN-PC,1433` للعملاء.
-5. عند استعمال `MAIN-PC\SQLEXPRESS` بدل منفذ صريح: يلزم حل اسم الجهاز وتشغيل SQL Server Browser وفتح UDP 1434 بالإضافة إلى منفذ SQL TCP. IP مع instance مدعوم أيضًا عند توفر Browser. المنفذ الثابت يتجنب الاعتماد عليه.
-6. اختبر من العميل: `Test-NetConnection 192.168.1.10 -Port 1433`. نجاح TCP وحده لا يثبت صلاحيات SQL أو TLS.
+5. عدد العملاء المتصلين في نفس الوقت غير محدود عمليًا في Express؛ القيود الفعلية هي الذاكرة (1 GB) وحجم القاعدة (10 GB)، وتحميل التطبيق هنا SELECT واحد خفيف لكل محاولة دخول.
+6. عند استعمال `MAIN-PC\SQLEXPRESS` بدل منفذ صريح: يلزم حل اسم الجهاز وتشغيل SQL Server Browser وفتح UDP 1434 بالإضافة إلى منفذ SQL TCP. IP مع instance مدعوم أيضًا عند توفر Browser. المنفذ الثابت يتجنب الاعتماد عليه.
+7. اختبر من كل عميل: `Test-NetConnection 192.168.1.10 -Port 1433`. نجاح TCP وحده لا يثبت صلاحيات SQL أو TLS؛ الإثبات بتسجيل دخول فعلي من كل جهاز ثم استعلام الجلسات في [دليل الشبكة الداخلية](LAN-SETUP.md).
 
 ## 3. هوية الاتصال وصلاحياتها
 
@@ -33,6 +42,8 @@ CREATE USER [DOMAIN\FitohPhoneUsers] FOR LOGIN [DOMAIN\FitohPhoneUsers];
 GRANT SELECT ON OBJECT::dbo.Users TO [DOMAIN\FitohPhoneUsers];
 GO
 ```
+
+يجب أن يستخدم كل عميل نفس identity الاتصال المسموح بها، وأن تكون هذه الصلاحية على الجدول نفسه في قاعدة `FitohPhone` الواحدة.
 
 **SQL Authentication** عند الحاجة: فعّل Mixed Mode من Server Properties → Security ثم أعد تشغيل الخدمة. أنشئ login مخصصًا بكلمة قوية وسياسة كلمات المرور، واربطه بـ user في FitohPhone وامنحه `SELECT` على dbo.Users فقط كما أعلاه. لا تستخدم `sa` أو db_owner، ولا تضع الحساب الإداري في ملف الإعدادات. توليد كلمة السر وإدخالها يتم محليًا لدى المسؤول؛ لا ترسلها في المحادثات أو Git.
 
