@@ -2,9 +2,10 @@
 
 > **نوع المستند:** Blueprint تقني ووظيفي رسمي — تحليل وتخطيط فقط (Analysis & Planning Only)
 > **الحالة:** مسودة معتمدة للتخطيط — **لم يُكتب أي كود تطبيقي، ولم يُعدّل أي ملف مصدر، ولم يُنفَّذ أي سكربت قاعدة بيانات**
-> **تاريخ الإصدار:** 2026-11-07
-> **الفرع:** `arena/2a3f5cb6-projectz` — **commit الأساس:** `8e964a9ff953fee794e911e7748d64740f3fc612`
-> **نطاق التدقيق:** شجرة العمل المُختبَرَة (working tree) عند commit الأساس أعلاه، مع توثيق انحراف `origin/main` اللاحق في B.11
+> **تاريخ الإصدار:** 2026-11-07 — **آخر مراجعة تحقق:** 2026-11-07 (`docs/ROADMAP_FINAL_VALIDATION.md`)
+> **الفرع الحالي:** `arena/3f5c2194-projectz` — **HEAD المُعاد التحقق عليه:** `cfd470cbe5b645066e8bbf52bb077240ee69a9e9`
+> **أساس التدقيق الأصلي:** `8e964a9ff953fee794e911e7748d64740f3fc612` (دمج PR #33) — ما زال سلفًا لـ HEAD لكنه **لم يعد أساس الفرع**
+> **نطاق التدقيق:** شجرة `HEAD` أعلاه (44 ملفًا متتبّعًا)؛ أرقام الأسطر في B.4/B.7 تعود للأساس الأصلي وقد تغيّرت مواضعها بعد PR #34 دون تغيير المنطق الموصوف. التصحيحات في B.13 وتقرير التحقق النهائي.
 > **اللغة:** عربية فنية؛ أسماء الكيانات والفئات وواجهات API والتقنيات تُترك بالإنجليزية كما هي في المصدر
 
 ---
@@ -56,11 +57,12 @@
 
 ## A.4 الحقيقة الحالية (ملخص التدقيق)
 
-المستودع عند commit الأساس **ليس نظام ERP**؛ هو تطبيق **WPF لتسجيل الدخول والخروج فقط** (40 ملفًا، جدول واحد `dbo.Users`)، باتصال `Microsoft.Data.SqlClient` **مباشر من كل عميل إلى SQL Server**، بلا API وبلا طبقة صلاحيات وبلا أي وحدة أعمال. نظام الدخول يعمل فعليًا (PBKDF2-SQL parameterized query-جلسة في الذاكرة) وهو **الأصل الوحيد القابل للبناء عليه**. التفاصيل والدلائل في القسم B.
+المستودع عند `HEAD` الحالي **ليس نظام ERP**؛ هو تطبيق **WPF لتسجيل الدخول والخروج فقط** (44 ملفًا متتبّعًا منها هذا المستند، جدول واحد `dbo.Users`)، باتصال `Microsoft.Data.SqlClient` **مباشر من كل عميل إلى SQL Server**، بلا API وبلا طبقة صلاحيات وبلا أي وحدة أعمال. نظام الدخول يعمل فعليًا (PBKDF2-SQL parameterized query-جلسة في الذاكرة) وهو **الأصل الوحيد القابل للبناء عليه**. التفاصيل والدلائل في القسم B وB.13.
 
 ## A.5 القرار المعماري الحاكم
 
-**الاحتفاظ بالتقنية**: C# / .NET 10 / WPF / XAML / SQL Server 2016 SP1 Express (compatibility 130) / `Microsoft.Data.SqlClient 6.1.3` / MVVM hand-written.
+**الاحتفاظ بالتقنية**: C# / .NET 10 / WPF / XAML / `Microsoft.Data.SqlClient 6.1.3` / MVVM hand-written / **مستوى توافق قاعدة البيانات `130`** (لا تغيير في المخطط ولا في كود الدخول).
+**تصحيح اعتمادية قاعدة البيانات (مراجعة 2026-11-07):** المستندات الحالية تستهدف SQL Server 2016 SP1 Express، لكن دعم SP1 انتهى في 2019-07-10 ودعم SQL Server 2016 الموسّع انتهى في 2026-07-14، ولا يشمل برنامج ESU طبعة Express؛ لذلك **لا يجوز اعتمادها كاعتمادية إنتاجية**. الهدف الإنتاجي: **SQL Server 2022 (أو 2025) مع الإبقاء على `COMPATIBILITY_LEVEL = 130`**، ثم رفع تدريجي مُختبر إلى `160`/`170`. هذا تغيير في نسخة المحرك المدعوم فقط، لا استبدال للتقنية ولا إعادة بناء للمخطط؛ التفاصيل في `TN-18`, `OD-ARC-09` و`docs/ROADMAP_FINAL_VALIDATION.md`.
 **الإضافة المبررة**: مشروع `FitohPhone.Api` (ASP.NET Core Web API) داخل `FitohPhone.sln` يُستضاف كـ Windows Service على الجهاز الرئيسي، ومشروع `FitohPhone.Shared` للعقود (DTO). هذه **إضافة طبقة ناقصة وليست استبدالًا**: التوصيل المباشر الحالي لا يلبي متطلب « Never allow desktop clients to bypass the backend » ولا يسمح بفرض الصلاحيات مركزيًا ولا بضبط التزامن ولا بإخفاء أسرار الاتصال. مسار الانتقال تدريجي (Strangler) موصوف في C.7.
 
 ## A.6 حجم الخطة
@@ -80,7 +82,7 @@
 
 ## B.1 منهج التدقيق والأدلة
 
-تمت مراجعة **كل ملف** في الشجرة (40 ملفًا متتبّعًا)، وقراءة المصدر سطرًا بسطر، ومراجعة `git log`، و`gh pr list`، و`git ls-remote`، و`gh run list`، و`FETCH_HEAD` لمقارنة `origin/main`. لا توجد افتراضات حول «مشروع فارغ» أو «مشروع ERP جاهز».
+تمت مراجعة **كل ملف** في الشجرة عند HEAD (**44 ملفًا متتبّعًا**؛ 43 دون هذا المستند، و39 عند أساس التدقيق الأصلي `8e964a9`)، وقراءة المصدر سطرًا بسطر، ومراجعة `git log`، و`gh pr list`، و`git ls-remote`، و`gh run list`، و`FETCH_HEAD` لمقارنة `origin/main`. لا توجد افتراضات حول «مشروع فارغ» أو «مشروع ERP جاهز».
 
 | الأداة / الأمر | الغرض |
 |---|---|
@@ -99,15 +101,15 @@
 | الإطار | `net10.0-windows` مع `UseWPF=true`, `OutputType=WinExe` | `src/FitohPhone/FitohPhone.csproj` |
 | SDK | `10.0.100` / `rollForward: latestFeature` | `global.json` |
 | تقنية الواجهة | WPF + XAML، MVVM يدوي بلا Framework خارجي | `Views/`, `ViewModels/`, `Helpers/ObservableObject.cs` |
-| قاعدة البيانات | SQL Server 2016 SP1 Express، `COMPATIBILITY_LEVEL = 130` | `sql/01_CreateDatabase.sql:9`, `docs/SERVER.md:3` |
+| قاعدة البيانات | المستندات تستهدف SQL Server 2016 SP1 Express مع `COMPATIBILITY_LEVEL = 130`؛ **الإصدار خارج الدعم إنتاجيًا** (`TN-18`) | `sql/01_CreateDatabase.sql:9`, `docs/SERVER.md:1-3`, `README.md:3` |
 | برنامج تشغيل DB | `Microsoft.Data.SqlClient` **6.1.3** (SqlConnection / SqlCommand / SqlDataReader / SqlParameter) | `FitohPhone.csproj`, `Data/UserRepository.cs` |
 | ORM / Migrations | **لا يوجد** (لا EF، لا Dapper، لا FluentMigrator، لا DbUp) | الشجرة كاملة |
 | Backend / API | **لا يوجد** (لا ASP.NET، لا Kestrel، لا Controllers، لا gRPC، لا WebSocket) | الشجرة كاملة، `README.md:3` |
 | المصادقة | PBKDF2-HMAC-SHA256 / 600,000 دورة / salt 16 بايت / hash 32 بايت / `FixedTimeEquals` | `Services/PasswordHasher.cs:10-34` |
-| الإعدادات | ملف JSON خارجي `connectionsettings.json` بجوار EXE، `CopyToOutputDirectory=Always` | `FitohPhone.csproj`, `Services/ConnectionSettingsProvider.cs:22` |
+| الإعدادات | ملف JSON خارجي `connectionsettings.json` بقسم `Default` + استثناءات `Machines` لكل جهاز، مع توافق رجعي للملف المسطّح؛ `ConnectionProfile.cs` | `src/FitohPhone/connectionsettings.json`, `Models/ConnectionProfile.cs`, `Services/ConnectionSettingsProvider.cs` |
 | CI | GitHub Actions `windows-2022`, .NET 10.x: security tests → build → publish self-contained win-x64 → artifact | `.github/workflows/windows-build.yml` |
-| الاختبارات | مشروع console واحد `tests/FitohPhone.Security.Tests` يربط `PasswordHasher.cs` فقط | `tests/*` |
-| فحوص بنيوية | `tools/static_checks.py`: XML/JSON parsability + تطابق hash البذرة + جدول واحد + مستوى 130 + ضبط الإغلاق | `tools/static_checks.py`, `docs/STATIC-CHECKS.txt` |
+| الاختبارات | مشروعان console: `FitohPhone.Security.Tests` (hashing) و`FitohPhone.Configuration.Tests` (أقسام `Default`/`Machines` والملف القديم) | `tests/*`, `docs/STATIC-CHECKS.txt` |
+| فحوص بنيوية | `tools/static_checks.py`: XML/JSON + تطابق hash البذرة + جدول واحد + مستوى 130 + ضبط الإغلاق + حل إعدادات LAN لكل جهاز | `tools/static_checks.py`, `docs/STATIC-CHECKS.txt` |
 | النشر | `dotnet publish` يدوي + نسخ مجلد `publish/win-x64`؛ لا MSI/MSIX/ClickOnce/Installer | `README.md:28-34`, `docs/CLIENTS.md:11` |
 
 ## B.3 بنية المشروع الفعلية
@@ -122,22 +124,23 @@ FitohPhone.sln                          # حل واحد: مشروع WPF + مشر
 │   └── 03_VerifyEnvironment.sql        # استعلامات تحقق للقراءة فقط
 ├── src/FitohPhone/
 │   ├── App.xaml / App.xaml.cs          # دورة حياة النوافذ + الإغلاق
-│   ├── Models/                         # ConnectionSettings.cs, UserSession.cs
+│   ├── Models/                         # ConnectionProfile.cs, UserSession.cs
 │   ├── Data/UserRepository.cs          # SELECT واحد parameterized
 │   ├── Services/                       # AuthenticationService, ConnectionSettingsProvider, PasswordHasher
 │   ├── ViewModels/                     # LoginViewModel, MainViewModel
 │   ├── Views/                          # LoginWindow.xaml(.cs), MainWindow.xaml(.cs)
-│   ├── Helpers/                        # AsyncCommand, RelayCommand, ObservableObject
+│   ├── Helpers/                        # AsyncCommand, RelayCommand, ObservableObject, BooleanToVisibilityConverter
 │   ├── Resources/Theme.xaml            # ResourceDictionary واحد (سمة واحدة فقط)
 │   ├── Properties/PublishProfiles/     # FolderProfile.pubxml, FolderProfile1.pubxml
 │   ├── connectionsettings.json
 │   └── app.manifest                    # asInvoker, supportedOS واحدة
-├── tests/FitohPhone.Security.Tests/    # اختبارات PasswordHasher فقط (غير WPF)
+├── tests/FitohPhone.Security.Tests/    # اختبارات PasswordHasher فقط
+├── tests/FitohPhone.Configuration.Tests/ # اختبارات إعدادات تعدد الأجهزة (PR #34)
 ├── tools/static_checks.py
-└── docs/                               # README, ACCEPTANCE, SERVER, CLIENTS, STATIC-CHECKS
+└── docs/                               # README, ACCEPTANCE, SERVER, CLIENTS, LAN-SETUP, STATIC-CHECKS, هذا المستند
 ```
 
-**عدد الملفات المتتبَّعة:** 40 ملفًا. **عدد جداول قاعدة البيانات:** 1. **عدد شاشات WPF:** 2 (Login + Main). **عدد نوافذ الحوار:** 0. **عدد نقاط API:** 0.
+**عدد الملفات المتتبَّعة عند HEAD:** 44 ملفًا (43 باستثناء هذا المستند). **عدد جداول قاعدة البيانات:** 1. **عدد شاشات WPF:** 2 (Login + Main). **عدد نوافذ الحوار:** 0. **عدد نقاط API:** 0.
 
 ## B.4 الميزات المنفذة فعليًا (بدليل مصدر)
 
@@ -169,9 +172,9 @@ FitohPhone.sln                          # حل واحد: مشروع WPF + مشر
 |---|---|---|
 | RTL | نمط `Window` يضبط `FlowDirection=RightToLeft` و`Language=ar-EG`، لكن حقول الإدخال تُعكس يدويًا `LeftToRight` | لا توجد إستراتيجية RTL شاملة للجداول والأرقام والتقارير والطباعة (`Theme.xaml:3`, `LoginWindow.xaml:9,11`) |
 | نظام السمات | `ResourceDictionary` واحد بقيم ثابتة (`Accent #147D92`) لأنواع `Window/TextBox/PasswordBox/Button` فقط | لا توجد سمة داكنة، ولا 8 سمات، ولا حفظ اختيار، ولا أنماط للجداول/الحوار/الإشعارات (`Theme.xaml`) |
-| إعدادات الاتصال | ملف خارجي واحد بقيم مسطّحة؛ `Server=192.168.1.4`, `IntegratedSecurity=true` | لا يوجد عنوان API، لا يوجد TLS موثوق (`TrustServerCertificate=true`)، لا إدارة أسرار (`connectionsettings.json`) |
-| اختبارات | 12 فحصًا لـ `PasswordHasher` فقط | لا اختبارات WPF، لا API، لا DB، لا تكامل، لا تزامن (`tests/Program.cs`) |
-| سجل القبول | 17 اختبارًا موثقًا | كلها «لم يُختبر»؛ لا توجد بيئة Windows/SQL فعلية (`docs/ACCEPTANCE.md`) |
+| إعدادات الاتصال | `Default` + `Machines`؛ `Server=192.168.1.46,1433`؛ `IntegratedSecurity=false`؛ `UserId=FitohPhoneClient`؛ **`Password` بنص صريح داخل Git** | لا يوجد عنوان API، لا TLS موثوق (`TrustServerCertificate=true`)، لا إدارة أسرار؛ `TN-01` أصبح خطرًا مؤكدًا لا احتماليًا |
+| اختبارات | مشروعان: hashing + إعدادات LAN | لا اختبارات WPF، لا API، لا DB، لا تكامل، لا تزامن (`tests/*`) |
+| سجل القبول | **21 اختبارًا** موثقًا (أُضيفت 18–21 بعد PR #34) | كلها «لم يُختبر»؛ لا توجد بيئة Windows/SQL فعلية (`docs/ACCEPTANCE.md`) |
 | النشر | profileـان: `FolderProfile.pubxml` self-contained و`FolderProfile1.pubxml` عادي غير self-contained | ازدواج بلا سياسة إصدار/تحديث؛ لا installer (`Properties/PublishProfiles/*`) |
 | دورة حياة النافذة | مُصلحة في PR #33 | لا تزال بلا `SessionEnding` ولا استعادة بعد crash ولا حالة offline |
 
@@ -240,7 +243,7 @@ sequenceDiagram
 | `dbo.Users` وأعمدته و`IsActive` | **يُحفظ ويُوسّع** بإضافة جداول `Roles`, `Permissions`, `UserRoles`, `RolePermissions` | لا حاجة لإعادة بناء؛ التوسّع additive فقط |
 | `UserRepository.FindAsync` parameterized SELECT | **يُحفظ كمنطق استعلام** وينتقل إلى طبقة Data داخل الـ API | حقن SQL ممنوع بالفعل؛ يُعاد استخدامه مع `PermissionRepository` |
 | `LoginWindow` / `LoginViewModel` / `AsyncCommand` / تشخيص أخطاء SQL | **يُحفظ كواجهة**؛ يتغيّر موفر البيانات فقط من SqlClient مباشر إلى `IAuthenticationApiClient` | «عدم إعادة التصميم بلا مبرر»؛ التغيير الوحيد المبرر هو إزالة الاتصال المباشر |
-| `ConnectionSettingsProvider` | **يُحوّل تدريجيًا** إلى `ApiClientSettingsProvider` (عنوان API + شهادة LAN) مع bcompat للملف القديم | العميل يجب ألا يحمل أسرار DB (`C.6`) |
+| `ConnectionSettingsProvider` | **يُحوّل تدريجيًا** إلى `ApiClientSettingsProvider` (عنوان API + شهادة LAN) مع توافق رجعي للملف القديم | العميل يجب ألا يحمل أسرار DB (`C.6`) |
 | جلسة `UserSession` في الذاكرة | **تُحفظ ثم تُستبدل بـ token/server session** في P04 فقط بعد موافقة القرار `OD-SEC-03` | الجلسة المحلية لا تصلح لتعدد المستخدمين والصلاحيات المركزية |
 
 ### B.7.3 تحسينات أمنية مطلوبة على الدخول (إضافة لا استبدال)
@@ -271,15 +274,15 @@ sequenceDiagram
 - `sql/02` يضيف `admin` بشرط عدم الوجود مع `UPDLOCK, HOLDLOCK`، ولا يعيد تعيين كلمة مرور موجودة.
 - `sql/03` استعلامات قراءة فقط للتحقق من الإصدار والمستوى والأعمدة والمستخدمين.
 - **لا توجد migrations / version table / seed framework**؛ السكربتات تُشغّل يدويًا من SSMS وتستخدم `GO` (غير قابلة للتنفيذ عبر `SqlCommand` — `docs/SERVER.md:7`).
-- قيود المنصة المستهدفة: SQL Server 2016 SP1 Express، حد قاعدة 10GB، ذاكرة 1GB، توافق 130 → تجنّب `STRING_AGG` و`TRIM` وبناء الجمل الأحدث؛ استخدم `FOR XML PATH` إن لزم.
+- قيود المنصة المستهدفة بعد التصحيح: محرك **SQL Server 2022/2025 مدعوم** مع `COMPATIBILITY_LEVEL = 130`؛ حد قاعدة 10GB في Express 2022 و50GB في Express 2025، ذاكرة ~1.4GB و4 أنوية. تُبقى صياغة T-SQL محافظة (خالية من `GO` في الترحيلات الآلية) ولا يُفترض توافر ميزات المحرك الأحدث قبل اختبار انحدار؛ رفع المستوى إلى 160/170 مرحلة منفصلة (`OD-ARC-09`).
 
 ### B.8.2 الاتصال الحالي
 
-| الخاصية | القيمة عند commit الأساس | المصدر |
+| الخاصية | القيمة عند `HEAD` الحالي | المصدر |
 |---|---|---|
-| `Server` | `192.168.1.4` | `src/FitohPhone/connectionsettings.json` |
+| `Server` | `192.168.1.46,1433` في `Default`؛ استثناء `MAIN-PC` يستخدم Windows Authentication | `src/FitohPhone/connectionsettings.json`, `docs/LAN-SETUP.md` |
 | `Database` | `FitohPhone` | نفسه |
-| `IntegratedSecurity` | `true` | نفسه |
+| `IntegratedSecurity` | `false` في `Default` (`UserId=FitohPhoneClient`, كلمة مرور نص صريح)؛ `true` في `MAIN-PC` | نفسه |
 | `Encrypt` / `TrustServerCertificate` | `true` / `true` | نفسه |
 | `ConnectTimeoutSeconds` | `15` (مسموح 1..60) | نفسه + `ConnectionSettingsProvider.cs:53` |
 | `ApplicationName` | `FitohPhone` | `ConnectionSettingsProvider.cs:75` |
@@ -300,13 +303,13 @@ sequenceDiagram
 | خدمة Windows | **لا يوجد**؛ البرنامج WinExe يعمل بجلسة مستخدم interactive |
 | تحديثات | نسخ مجلد publish يدويًا؛ لا version check ولا rollback (`docs/CLIENTS.md:11`) |
 | CI | بناء ناجح على Windows (آخر تشغيل main success)؛ ينتج artifact `FitohPhone-win-x64` |
-| حالة الاعتماد | `docs/ACCEPTANCE.md` صريح: لا Windows ولا SQL Server فعلي في بيئة التطوير؛ 17 اختبارًا كلها «لم يُختبر» |
+| حالة الاعتماد | `docs/ACCEPTANCE.md` صريح: لا Windows ولا SQL Server فعلي في بيئة التطوير؛ **21 اختبارًا** كلها «لم يُختبر» |
 
 ## B.10 الديون التقنية والمشاكل المعروفة
 
 | ID | المشكلة | الدليل | الخطورة | الأثر على الخطة |
 |---|---|---|---|---|
-| TN-01 | أسرار اتصال / كلمات مرور قد تُودَع في `connectionsettings.json` داخل Git؛ النسخة الأحدث على main تحتوي كلمة مرور SQL بنص صريح | `docs/CLIENTS.md:40-47` تحذير + `origin/main` بعد PR #34 | **حرجة** | P01/P19: نقل الأسرار للسيرفر وحده + تدويرها |
+| TN-01 | **مؤكد**: كلمة مرور حساب SQL مودعة بنص صريح في `connectionsettings.json` داخل Git عند HEAD، مع `TrustServerCertificate=true` | `src/FitohPhone/connectionsettings.json`, `docs/LAN-SETUP.md` | **حرجة** | P00/P01: تدوير السر فورًا ونقله للسيرفر وحده؛ منع إعادة إيداعه |
 | TN-02 | وصول مباشر من العملاء إلى SQL Server؛ العميل يقرأ `PasswordHash` ويستطيع تعديل سلوكه محليًا | `README.md:3`, `docs/SERVER.md:45-47` | **حرجة** | C.2/P01 إلزامي |
 | TN-03 | `TrustServerCertificate=true` مع شهادة ذاتية التوقيع → خطر MITM على LAN | `docs/SERVER.md:39-43` | عالية | P17/P18 تثبيت CA داخلي |
 | TN-04 | لا صلاحيات/أدوار/تدقيق: `IsActive` فقط | `sql/01:23` | عالية | P04 |
@@ -321,8 +324,10 @@ sequenceDiagram
 | TN-13 | تاريخ PRs #9–#31 (12 شاشة ERP + 24 جدولًا) **غير موجود في الشجرة الحالية** بعد rollback | `gh pr list`, `git ls-tree` | متوسطة | B.11 / P00: لا يُفترض وجوده، يُراجع كمرجع فقط |
 | TN-14 | `AsyncCommand` بـ `async void` بدون معالجة استثناء مركزية / structured logging | `Helpers/AsyncCommand.cs:8` | متوسطة | P01/P18 |
 | TN-15 | `MainWindow` الحالية نافذة ترحيب فقط بلا shell/sidebar/navigation | `MainWindow.xaml` | منخفضة | P02 |
-| TN-16 | قيود SQL Express (10GB/1GB RAM/4 cores) مع توقع نمو حركات مالية كثيفة | `docs/SERVER.md`, spec | متوسطة | E.6/P17 قرار `OD-ARC-09` |
-| TN-17 | انحراف `origin/main` عن commit الأساس (PR #34) → تعارض محتمل عند الدمج | `git ls-remote` | متوسطة | A/B.11/P00: rebase ومراجعة قبل أي تنفيذ |
+| TN-16 | قيود SQL Express على محرك مدعوم: 10GB لكل قاعدة في 2022 و50GB في 2025، ~1.4GB buffer pool و4 أنوية، بلا SQL Server Agent | `docs/SERVER.md:26`, `docs/LAN-SETUP.md` + توثيق إصدارات Microsoft | متوسطة | E.6/P17/P19: قرار `OD-ARC-09` وجدولة النسخ عبر Task Scheduler أو خدمة التطبيق |
+| TN-17 | **مُحسوم**: PR #34 وPR #35 مدمجان في `HEAD`/`origin/main`؛ لا يوجد انحراف بين الفرع و`main` | `git merge-base --is-ancestor 35f6043 HEAD` ⇒ YES، `git log --oneline -4` | منخفضة | P00: مراجعة إعدادات PR #34 المدمجة وأثرها الأمني فقط، لا دمج جديد |
+| TN-18 | اعتمادية الإنتاج موثّقة على SQL Server 2016 SP1 Express: دعم SP1 انتهى 2019-07-10، ودعم SQL Server 2016 الموسّع انتهى 2026-07-14، ولا ESU لطبعة Express | `README.md:3`, `docs/SERVER.md:1-3`, `docs/ACCEPTANCE.md:3` + Microsoft Lifecycle | **حرجة** | P00/P01/P03: اعتماد SQL Server 2022/2025 مع الإبقاء على مستوى التوافق 130، ورفع تدريجي مُختبر |
+| TN-19 | `docs/ACCEPTANCE.md` و`docs/SERVER.md` ما زالا يستهدفان SP1/13.0.4001.0، و21 اختبارًا كلها «لم يُختبر» | `docs/ACCEPTANCE.md:18-38`, `docs/SERVER.md:3` | عالية | P00/P18: تحديث أدلة القبول بعد اعتماد الإصدار المدعوم وتسجيل نتائج فعلية على Windows |
 
 ## B.11 تاريخ المستودع والانحراف عن الفرع
 
@@ -332,10 +337,11 @@ sequenceDiagram
 | PR #9 – #31 | **مرحلة ERP سابقة**: 12 شاشة + 4 حوارات + 8 سمات + «24 جدولًا عبر 12 وحدة» + ربط شاشات بالبيانات + إصلاحات بناء + RTL. هذه التغييرات **مدمجة تاريخيًا لكنها غير موجودة في الشجرة الحالية** (انظر أدناه) |
 | PR #32 | `Rollback: revert PR #8` — أعاد الإعدادات إلى Windows Authentication/نشر عادي |
 | PR #33 | إصلاح بقاء العملية بعد إغلاق النافذة (commit `1b23e61`) |
-| **commit الأساس** | `8e964a9` = دمج PR #33 → **الشجرة المُدقَّقة في هذا المستند** (40 ملفًا، جدول واحد) |
-| PR #34 (لاحق على `origin/main` = `35f6043`) | «تشغيل البرنامج على عدة أجهزة LAN»: `Default`/`Machines` في `connectionsettings.json`، `ConnectionProfile.cs`، شريط تشخيص، مشروع `FitohPhone.Configuration.Tests`، `docs/LAN-SETUP.md`. **معماريته صريحة: عميل ← LAN ← SQL Server مباشر، بلا وسيط ولا مزامنة** |
+| أساس التدقيق الأصلي | `8e964a9` = دمج PR #33 (39 ملفًا، جدول واحد)؛ ما زال سلفًا لـ HEAD لكنه ليس أساس الفرع الحالي |
+| PR #34 (`35f6043`) — **مدمج في HEAD** | «تشغيل البرنامج على عدة أجهزة LAN»: `Default`/`Machines`، `ConnectionProfile.cs`، شريط تشخيص، `FitohPhone.Configuration.Tests`، `docs/LAN-SETUP.md`. **معماريته صريحة: عميل ← LAN ← SQL Server مباشر، بلا وسيط ولا مزامنة** |
+| PR #35 (`cfd470c`) — **HEAD الحالي** | دمج هذا المستند في `main`؛ الفرع الحالي `arena/3f5c2194-projectz` متفرّع منه؛ 44 ملفًا متتبّعًا |
 
-> **ملاحظة تدقيق ملزمة:** هذا المستند مبني على **الشجرة المُختبَرَة عند `8e964a9`** لأنها أساس الفرع الحالي. PR #34 موثّق كعمل لاحق على `main` ويجب دمجه/مراجعته في P00 قبل بدء التنفيذ؛ وجوده **لا يغيّر** حقيقة أن البنية الحالية اتصال مباشر، بل يؤكدها صراحة. أي ملفات أو جداول من PR #9–#31 تُعامل كـ **مرجع تاريخي غير مُعتمد** ولا تُعتبر منفذة.
+> **ملاحظة تدقيق مُصحَّحة (2026-11-07):** أُعيد التدقيق على **`HEAD = cfd470c`**؛ PR #34 وPR #35 **مدمجان بالفعل** ولا يوجد انحراف بين الفرع و`origin/main` (`TN-17` مُحسوم). وجود PR #34 **لا يغيّر** حقيقة أن البنية الحالية اتصال مباشر، بل يؤكدها صراحة، ويضيف خطرًا أمنيًا مؤكدًا (`TN-01`). أي ملفات أو جداول من PR #9–#31 تُعامل كـ **مرجع تاريخي غير مُعتمد** ولا تُعتبر منفذة. التفصيل الكامل في B.13 و`docs/ROADMAP_FINAL_VALIDATION.md`.
 
 ## B.12 فجوات الامتثال لمتطلبات LAN (§3 من الطلب)
 
@@ -358,6 +364,29 @@ sequenceDiagram
 
 ---
 
+## B.13 إعادة التحقق على HEAD الحالي (2026-11-07) — حقائق مقابل افتراضات
+
+> هذا القسم **يُصحّح** ولا يُلغي B.1–B.12. كل ما يلي مُثبت بأوامر `git`/`gh` على `arena/3f5c2194-projectz` عند `cfd470c`. التقرير المستقل: `docs/ROADMAP_FINAL_VALIDATION.md`.
+
+| البند | الحقيقة المُتحقَّق منها عند HEAD | ما كان في التدقيق الأصلي | التصنيف |
+|---|---|---|---|
+| المستودع والحل | `kamal-solaiman/ProjectZ`، `FitohPhone.sln`، `src/FitohPhone/FitohPhone.csproj` | نفسه | حقيقة |
+| الفرع وcommit | `arena/3f5c2194-projectz` @ `cfd470c` | `arena/2a3f5cb6-projectz` @ `8e964a9` | تصحيح |
+| علاقة PR #34 / #35 | كلاهما سلف أو مدمج في HEAD؛ لا انحراف قائم مع `origin/main` | PR #34 لاحق ويجب دمجه | تصحيح |
+| عدد الملفات | 44 متتبّع (43 دون هذا المستند) | 39 عند الأساس، و40 في النص الأصلي | تصحيح |
+| ملفات أضافها PR #34 | `docs/LAN-SETUP.md`, `Models/ConnectionProfile.cs`, `Helpers/BooleanToVisibilityConverter.cs`, `tests/FitohPhone.Configuration.Tests/` | لم تكن موجودة | حقيقة |
+| إعدادات الاتصال | `Default` و`Machines`، `192.168.1.46,1433`، SQL Authentication، كلمة مرور نص صريح في Git | ملف مسطّح `192.168.1.4` وWindows Authentication | تصحيح وخطر مؤكد |
+| سجل القبول | 21 اختبارًا كلها «لم يُختبر» | 17 اختبارًا | تصحيح |
+| سلسلة الدخول | `LoginViewModel` ← `AuthenticationService.SignInAsync` ← `UserRepository.FindAsync` ← `PasswordHasher` ما زالت قائمة، مع `ConnectionSettingsProvider` الجديد | نفس السلسلة | حقيقة مُعاد التحقق منها |
+| API أو Flutter أو حل باسم MobileShop | **لا يوجد** في الشجرة، ولا في فروع `origin` الثلاثين، ولا في مستودعات المالك؛ الاسم «Mobile Shop» هو وصف نطاق العمل واسم ملف الخارطة فقط | لم يُفحص صراحةً | حقيقة نفي مُثبتة |
+| ERP تاريخي | PR #9–#31 كانت WPF/XAML وSQL وأُزيلت بـ PR #32؛ غير موجودة في HEAD | مرجع تاريخي غير معتمد | حقيقة |
+| قاعدة البيانات | المستندات تستهدف SQL Server 2016 SP1 Express بمستوى 130؛ **خارج الدعم** (`TN-18`) | اعتُبرت منصة مستهدفة | تصحيح |
+| بيئة التنفيذ | لا Windows ولا SQL Server فعلي؛ CI على windows-2022 للبناء فقط؛ لا اختبارات تشغيل مُنفّذة | نفسه | قيد قائم |
+
+**افتراضات لم تُثبت ولا تُقرأ كحقائق:** بقاء بيئة الإنتاج الفعلية على SP1؛ توافق `Microsoft.Data.SqlClient 6.1.3` مع SQL Server 2025 دون تحديث؛ أن `192.168.1.46` هو عنوان السيرفر الحقيقي؛ بقاء الحجم داخل حدود Express؛ أن المقصود بـ «Mobile Shop» هو هذا المستودع لا مستودع آخر لم يُزوّد به الفريق. تُحسم في P00 بقياس أو بتأكيد صاحب القرار، لا بالتخمين.
+
+---
+
 # القسم C — البنية النهائية الموصى بها
 
 ## C.1 المبادئ الحاكمة
@@ -374,11 +403,11 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    subgraph NOW["البنية الحالية (مُدقَّقة 8e964a9)"]
+    subgraph NOW["البنية الحالية (HEAD cfd470c)"]
         C1["FitohPhone.exe<br/>عميل 1<br/>connectionsettings.json<br/>SqlClient مباشر"]
         C2["FitohPhone.exe<br/>عميل 2<br/>SqlClient مباشر"]
         CN["FitohPhone.exe<br/>عميل N<br/>SqlClient مباشر"]
-        DB1[("SQL Server 2016 SP1 Express<br/>FitohPhone<br/>dbo.Users فقط")]
+        DB1[("SQL Server 2016 SP1 Express — خارج الدعم<br/>FitohPhone<br/>dbo.Users فقط")]
         C1 -->|"TDS 1433<br/>SELECT"| DB1
         C2 -->|"TDS 1433"| DB1
         CN -->|"TDS 1433"| DB1
@@ -398,7 +427,7 @@ flowchart TB
         BIZ["Domain Services<br/>POS, Inventory, Purchases,<br/>Returns, Repairs, Transfers, Ledger"]
         LOG["Structured Logging<br/>+ AuditLogs + Health"]
         BAK["Backup Job<br/>FULL/DIFF/LOG + restore drill"]
-        DB2[("SQL Server 2016 SP1 Express<br/>قاعدة واحدة مركزية<br/>~45 كيانًا")]
+        DB2[("SQL Server 2022 أو 2025 — compat 130<br/>قاعدة واحدة مركزية<br/>~45 كيانًا")]
         SVC --> AUTH
         SVC --> BIZ
         BIZ --> DB2
@@ -474,7 +503,7 @@ sequenceDiagram
 | رقم فاتورة مكرر | `InvoiceSequences` مع `UPDLOCK` + `SERIALIZABLE`، أو `SEQUENCE` مع توافق 130 بعد تحقق |
 | حركتان ماليتان غير متوازنتين | كل `FinancialTransaction` يُنتج `LedgerEntries` داخل معاملة واحدة مع CHECK على مجموع المدين/الدائن (القواعد نفسها `OD-FIN-*`) |
 | تعديل فاتورة مُرحّلة | منع `UPDATE`؛ إلغاء بعكس الحركات (reversal) + `AuditLogs` |
-| قراءات طويلة تحجب الكتابة | `READ_COMMITTED_SNAPSHOT` بعد تقييم أثره على Express (`OD-ARC-08`) |
+| قراءات طويلة تحجب الكتابة | `READ_COMMITTED_SNAPSHOT` مدعوم على مستوى القاعدة وليس مقصورًا على طبعة؛ يُقيّم أثره على `tempdb` والذاكرة المحدودة في Express (`OD-ARC-08`) |
 
 ## C.6 الشبكة، الإقلاع، النسخ، التحديثات، التهيئة
 
@@ -1052,7 +1081,7 @@ sequenceDiagram
 
 # القسم E — تصميم قاعدة البيانات المقترح (Proposed Database Architecture)
 
-> **تنبيه ملزم:** هذا **تصميم مقترح على الورق فقط**. لم يُنشأ أي جدول، ولم يُعدّل `dbo.Users`، ولم يُشغَّل أي سكربت. القائمة الواردة في طلب التحليل ليست نهائية (E.5 يضيف كيانات مكتشفة). كل التصاميم مقيدة بـ **SQL Server 2016 SP1 Express / compatibility 130 / حد 10GB**.
+> **تنبيه ملزم:** هذا **تصميم مقترح على الورق فقط**. لم يُنشأ أي جدول، ولم يُعدّل `dbo.Users`، ولم يُشغَّل أي سكربت. القائمة الواردة في طلب التحليل ليست نهائية (E.5 يضيف كيانات مكتشفة). كل التصاميم مقيدة بـ **مستوى توافق `130` على محرك SQL Server مدعوم (2022 أو 2025)**، مع حد 10GB لقاعدة Express 2022 و50GB لـ Express 2025؛ الإصدار 2016 SP1 موثّق كحالة قديمة **خارج الدعم** ولا يُعتمد إنتاجيًا (`TN-18`).
 
 ## E.1 المبادئ
 
@@ -1065,7 +1094,7 @@ sequenceDiagram
 | التزامن | `rowversion` على `Inventory`, `WalletAccounts`, `CustomerAccounts`, `SupplierAccounts`؛ أقفال `UPDLOCK, HOLDLOCK` داخل المعاملات |
 | Idempotency | `IdempotencyKeys(Key UNIQUE, OperationType, ResultPayload, CreatedAt)` عند كل أمر كتابة |
 | المفاتيح | `BIGINT IDENTITY` للجداول كثيرة الحركات؛ `UNIQUEIDENTIFIER` فقط لـ CorrelationId؛ `NVARCHAR` للنصوص العربية؛ `DECIMAL(18,2)` للمبالغ (قرار العملة `OD-FIN-21`) |
-| التوافق | تجنّب `STRING_AGG` و`TRIM` و`JSON` المدعومة بعد 2016؛ استخدم `FOR XML PATH` و`CONCAT`؛ كل استعلام مُعامل `SqlParameter` |
+| التوافق | الإبقاء على مستوى 130 لا يعني غياب كل ميزات المحرك الأحدث: `STRING_AGG` متاحة على محرك 2017+ بغض النظر عن المستوى، و`TRIM` تتطلب 140+، ودوال JSON أُدخلت في 2016 عند 130؛ تُبنى الترحيلات بصياغة محافظة خالية من `GO` ومُعامَلة بالكامل، ولا يُرفع المستوى إلى 160/170 إلا بعد اختبارات انحدار (`OD-ARC-09`) |
 
 ## E.2 فهرس الكيانات (Entity Catalog)
 
@@ -1279,9 +1308,9 @@ erDiagram
 1. **فهارس مركّبة ساخنة:** `(ProductId, CreatedAt)` على `InventoryMovements`؛ `(AccountRef, CreatedAt)` على `LedgerEntries`؛ `(CreatedAt, Status)` على `SalesInvoices`؛ `(RepairBarcode)` unique.
 2. **منع oversell:** `UPDATE Inventory SET QuantityAvailable = QuantityAvailable - @Qty WHERE ProductId=@P AND QuantityAvailable >= @Qty` داخل `UPDLOCK, HOLDLOCK`؛ `@@ROWCOUNT=0` ⇒ rollback ورسالة «الكمية غير متاحة». يُمنع أي `UPDATE` خارج `UnitOfWork`.
 3. **الاحتفاظ:** حركة مخزون/قيد مالي/تدقيق = append-only؛ أرشفة بعد فترة تقويمية يحددها `OD-DEP-05`؛ لا حذف فعلي للفواتير.
-4. **النسخ:** FULL يومي + DIFF + LOG بحسب `RPO/RPO` في `OD-DEP-03`؛ ملفات النسخ خارج جهاز السيرفر؛ اختبار استعادة فعلي موثّق في L.
-5. **حدود Express:** 10GB لكل قاعدة و1GB ذاكرة و4 أنوية؛ مراقبة حجم `InventoryMovements`/`LedgerEntries`/`AuditLogs`؛ التصوير الحجمي وضغط الفهارس ضمن P17، وقرار الترقية `OD-ARC-09`.
-6. **التوافق 130:** لا `STRING_AGG` ولا `DROP IF EXISTS` ولا `JSON_OBJECT`؛ السكربتات الحالية تستخدم `GO` وتُشغّل من SSMS، لذا يحتاج P03 أداة ترحيل تفصل الدفعات أو سكربتات خالية من `GO` (`TN-06`).
+4. **النسخ:** FULL يومي + DIFF + LOG بحسب `RPO/RTO` في `OD-DEP-03`؛ ملفات النسخ خارج جهاز السيرفر؛ اختبار استعادة فعلي موثّق في L. على Express لا يوجد SQL Server Agent، لذا تُنفّذ الجدولة عبر Windows Task Scheduler أو خدمة التطبيق نفسها.
+5. **حدود Express على محرك مدعوم:** 10GB لكل قاعدة في SQL Server 2022 Express و50GB في 2025 Express، مع ~1.4GB buffer pool و4 أنوية في الحالتين؛ مراقبة حجم `InventoryMovements`/`LedgerEntries`/`AuditLogs`؛ التصوير الحجمي وضغط الفهارس ضمن P17، وقرار الإصدار/الطبعة `OD-ARC-09`.
+6. **التوافق 130:** يُحتفظ به عند الانتقال إلى محرك 2022/2025 لأنه مستوى مدعوم عليهما؛ لا يُستخدم `JSON_OBJECT` ولا أي ميزة مشروطة بـ 160+ قبل رفع مُختبر؛ السكربتات الحالية تستخدم `GO` وتُشغّل من SSMS، لذا يحتاج P03 أداة ترحيل تفصل الدفعات أو سكربتات خالية من `GO` (`TN-06`).
 
 ---
 
@@ -1298,16 +1327,16 @@ erDiagram
 | 1 | رقم المرحلة والاسم | `P00` — تدقيق المشروع الحالي وتثبيت الأساس |
 | 2 | الهدف التجاري | تحديد نقطة البداية الحقيقية قبل أي استثمار، وحماية ميزة الدخول العاملة التي يعتمد عليها المستخدمون اليوم |
 | 3 | الهدف التقني | إنتاج سجل أدلة ملف:/سطر لكل ميزة، وحصر الديون، وتأسيس سجل القرارات المفتوحة وخطة بيئة اختبار Windows/SQL |
-| 4 | المهام التفصيلية | 1) حصر الـ 40 ملفًا وقراءتها 2) توثيق البنية الحالية عميل←SQL مباشر 3) توثيق سير الدخول بالكامل 4) جرد `dbo.Users` والسكربتات 5) جرد الحزم والـ CI والفحوص البنيوية 6) مراجعة تاريخ PRs #1–#34 والـ rollback وحالة `origin/main` 7) توثيق انحراف PR #34 وخطة الدمج 8) كتابة سجل `TN-*` و`OD-*` 9) تثبيت baseline للـ CI و`static_checks.py` 10) تأكيد عدم وجود ERP سابق في الشجرة الحالية |
+| 4 | المهام التفصيلية | 1) حصر الـ 44 ملفًا وقراءتها 2) توثيق البنية الحالية عميل←SQL مباشر 3) توثيق سير الدخول بالكامل 4) جرد `dbo.Users` والسكربتات 5) جرد الحزم والـ CI والفحوص البنيوية 6) مراجعة تاريخ PRs #1–#35 والـ rollback وحالة `origin/main` 7) تأكيد اندماج PR #34/#35 ومراجعة إعدادات LAN المدمجة 8) كتابة سجل `TN-*` و`OD-*` 9) تثبيت baseline للـ CI و`static_checks.py` 10) تأكيد عدم وجود ERP سابق في الشجرة الحالية |
 | 5 | الشاشات المطلوب تطويرها | **لا شاشات جديدة**؛ تُدرَس `LoginWindow` و`MainWindow` كما هما، وتُسجَّل قيودهما |
 | 6 | مكونات الـ Backend | **لا يوجد backend حاليًا**؛ يُوثّق `AuthenticationService`, `ConnectionSettingsProvider`, `UserRepository`, `PasswordHasher` كأصول قابلة للنقل |
 | 7 | كيانات / تغييرات DB | **صفر تغيير**؛ قراءة `dbo.Users` فقط؛ يُمنع أي DDL/DML |
 | 8 | الاعتماديات | لا شيء (مرحلة أولى)؛ تُقرأ وثيقة الطلب والـ acceptance الحالي |
 | 9 | متطلبات الأمان | لا أسرار في المستند؛ لا بيانات عملاء حقيقية؛ عدم لمس `connectionsettings.json`؛ توثيق `TN-01` دون إعادة نشر قيم سرية |
 | 10 | القواعد التجارية | تجميد سلوك الدخول الحالي؛ كل قاعدة غير محسومة تُسجّل `OD-*` ولا يُبتدع لها حكم؛ `Admin@123` يُعتبر دينًا لا يُصحّح هنا |
-| 11 | المخاطر التقنية | افتراض وجود شاشات ERP من PR #9–#31 (`TN-13`)؛ انحراف `origin/main` (`TN-17`)؛ غياب بيئة Windows/SQL يمنع التحقق الفعلي (`TN-10`) |
+| 11 | المخاطر التقنية | افتراض وجود شاشات ERP من PR #9–#31 (`TN-13`)؛ أسرار PR #34 المدمجة (`TN-01`)؛ اعتمادية SQL خارج الدعم (`TN-18`)؛ غياب بيئة Windows/SQL يمنع التحقق الفعلي (`TN-10`) |
 | 12 | سيناريوهات الاختبار | إعادة إنتاج الجرد بـ `git ls-tree`؛ تشغيل `python3 tools/static_checks.py`؛ تأكيد نجاح CI على Windows؛ smoke test للدخول على جهاز Windows عند توفره؛ مقارنة الشجرة بـ `FETCH_HEAD` |
-| 13 | معايير القبول | 1) كل ملف من الـ 40 مذكور بالاسم 2) كل ميزة «منفذة» بدليل `file:line` 3) صفر تعديل على ملفات المصدر 4) سجل `OD-*` و`TN-*` موجود 5) تقرير صريح بوجود/غياب ERP سابق |
+| 13 | معايير القبول | 1) كل ملف من الـ 44 مذكور بالاسم 2) كل ميزة «منفذة» بدليل `file:line` 3) صفر تعديل على ملفات المصدر 4) سجل `OD-*` و`TN-*` موجود 5) تقرير صريح بوجود/غياب ERP سابق |
 | 14 | المخرجات | القسم B من هذا المستند + سجل أدلة + سجل قرارات مفتوحة + سجل مخاطر أولي + خطة بيئة اختبار |
 | 15 | Definition of Done | اعتماد التدقيق من صاحب القرار، تطابق `git status` مع الأساس، CI أخضر، وعدم وجود افتراض غير موثق |
 
@@ -1317,15 +1346,15 @@ erDiagram
 |---|---|---|
 | 1 | رقم المرحلة والاسم | `P01` — المعمارية والأساس التقني (إضافة API داخل نفس الحل) |
 | 2 | الهدف التجاري | تمكين عدة أجهزة من العمل على قاعدة واحدة بوسيط مركزي دون تغيير تجربة المستخدم أو إيقاف الدخول |
-| 3 | الهدف التقني | إضافة `FitohPhone.Api`, `FitohPhone.Shared`, `FitohPhone.Infrastructure` إلى `FitohPhone.sln`؛ عقود DTO، ApiClient، معايير الكود، logging، أخطاء موحّدة، CorrelationId، Health، Idempotency، versioning، دمج PR #34 |
-| 4 | المهام التفصيلية | 1) إنشاء المشاريع الثلاثة وربطها بالحل 2) نقل `PasswordHasher` كما هو إلى Shared 3) تعريف `IApiClient`, `ApiError`, `PagedResult`, `PermissionNames` 4) `Program.cs` + Kestrel + WindowsServiceLifetime 5) Middleware: CorrelationId, ExceptionMapping, Idempotency, HostFiltering, RateLimiter 6) Serilog إلى ملف دوّار + Event Log 7) `/health/live` و`/health/ready` 8) `ApiVersion` handshake 9) نقل الأسرار إلى السيرفر وتدويرها 10) تحديث workflow لبناء المشاريع الجديدة 11) دمج/مراجعة `origin/main` (PR #34) وحسم تعارض `connectionsettings.json` 12) كتابة ADR لكل قرار معماري |
+| 3 | الهدف التقني | إضافة `FitohPhone.Api`, `FitohPhone.Shared`, `FitohPhone.Infrastructure` إلى `FitohPhone.sln`؛ عقود DTO، ApiClient، معايير الكود، logging، أخطاء موحّدة، CorrelationId، Health، Idempotency، versioning، اعتماد إصدار SQL Server مدعوم |
+| 4 | المهام التفصيلية | 1) إنشاء المشاريع الثلاثة وربطها بالحل 2) نقل `PasswordHasher` كما هو إلى Shared 3) تعريف `IApiClient`, `ApiError`, `PagedResult`, `PermissionNames` 4) `Program.cs` + Kestrel + WindowsServiceLifetime 5) Middleware: CorrelationId, ExceptionMapping, Idempotency, HostFiltering, RateLimiter 6) Serilog إلى ملف دوّار + Event Log 7) `/health/live` و`/health/ready` 8) `ApiVersion` handshake 9) نقل الأسرار إلى السيرفر وتدويرها 10) تحديث workflow لبناء المشاريع الجديدة 11) مراجعة إعدادات PR #34 المدمجة وتدوير السر النصي في `connectionsettings.json` دون إعادة إيداعه 12) كتابة ADR لكل قرار معماري |
 | 5 | الشاشات المطلوب تطويرها | `ConnectionTestView` (اختبار اتصال أولي)، `ServerStatusView`، وتعديل `App.xaml.cs` لتهيئة `ApiClient` فقط؛ **لا تغيير في `LoginWindow.xaml`** |
 | 6 | مكونات الـ Backend | `Program`, `AuthController` (هيكل), `CorrelationIdMiddleware`, `IdempotencyMiddleware`, `ExceptionMappingMiddleware`, `AuthorizationMiddleware` (هيكل), `UnitOfWork`, `RepositoryBase`, `HealthChecks`, `SecretStore`, `BackupService` (هيكل), `UpdateService` (هيكل) |
 | 7 | كيانات / تغييرات DB | `IdempotencyKeys`, `SchemaVersions`, `AppVersions` (جداول بنية تحتية فقط)؛ **لا مساس بـ `dbo.Users`** |
 | 8 | الاعتماديات | `P00` (التدقيق والقرارات)؛ قرار `OD-ARC-01` (منفذ HTTPS) و`OD-ARC-04` (ORM أم SqlClient) |
 | 9 | متطلبات الأمان | لا connection string ولا أسرار DB في العميل؛ TLS 1.2+؛ host filtering؛ rate limiting؛ تدوير سر `TN-01`؛ حساب خدمة SQL بأقل صلاحية؛ عدم كشف استثناءات للمستخدم |
 | 10 | القواعد التجارية | الـ API هو الكاتب الوحيد في DB؛ العميل لا يتجاوزه؛ كل طلب كتابة يحمل `Idempotency-Key`؛ رفض عميل بإصدار API غير متوافق |
-| 11 | المخاطر التقنية | كسر الدخول أثناء النقل؛ ازدواج مسار الوصول (مباشر + API) مؤقتًا؛ قيود Express؛ تعارض دمج PR #34؛ ثغرات التهيئة الافتراضية لـ Kestrel |
+| 11 | المخاطر التقنية | كسر الدخول أثناء النقل؛ ازدواج مسار الوصول (مباشر + API) مؤقتًا؛ قيود Express على محرك مدعوم؛ تسريب سر PR #34 المدمج؛ ثغرات التهيئة الافتراضية لـ Kestrel |
 | 12 | سيناريوهات الاختبار | بناء الحل كاملًا على windows-2022؛ تشغيل الخدمة محليًا؛ `/health` من جهاز ثانٍ؛ رفض طلب بلا `Idempotency-Key`؛ إعادة نفس المفتاح تُعيد نفس النتيجة؛ محاولة وصول عميل لـ SQL 1433 تفشل بعد إغلاق المنفذ؛ الدخول القديم ما زال يعمل |
 | 13 | معايير القبول | 1) `dotnet build FitohPhone.sln` أخضر 2) `/health/ready` يعيد 200 3) صفر أسرار في ملفات العميل 4) تسجيل الدخول الحالي ينجح دون تغيير واجهة 5) طلب مكرر لا يُنفّذ مرتين |
 | 14 | المخرجات | 3 مشاريع جديدة، ADRs، عقود API، قالب إعداد عميل بلا أسرار، CI محدّث، مخطط C.2 |
@@ -1358,18 +1387,18 @@ erDiagram
 | 1 | رقم المرحلة والاسم | `P03` — أساس قاعدة البيانات والترحيلات |
 | 2 | الهدف التجاري | حفظ كل العمليات التجارية والمالية تاريخيًا وباتساق، مع إمكانية الاستعادة بعد أي عطل |
 | 3 | الهدف التقني | إنشاء المخطط الموصوف في E، أداة ترحيل مُرقّمة، قيود/فهارس، تسلسل فواتير آمن، idempotency، وحدة معاملات، نسخ احتياطي قابل للاستعادة |
-| 4 | المهام التفصيلية | 1) `SchemaMigrationService` مع `SchemaVersions` 2) سكربتات خالية من `GO` قابلة للتنفيذ البرمجي أو تقسيم دفعات 3) إنشاء الجداول الـ 57 4) كل FK/CHECK/UNIQUE/default 5) `rowversion` على الجداول المتزامنة 6) الفهارس المركّبة 7) `InvoiceSequences` و`IdempotencyKeys` 8) بيانات مرجعية (فئات، أدوار، صلاحيات، حسابات نقدية) 9) `UnitOfWork` مع `BEGIN/COMMIT/ROLLBACK` 10) سكربتات rollback وبيانات اختبار 11) التحقق على SQL 2016 SP1 بمستوى 130 12) إستراتيجية FULL/DIFF/LOG |
+| 4 | المهام التفصيلية | 1) `SchemaMigrationService` مع `SchemaVersions` 2) سكربتات خالية من `GO` قابلة للتنفيذ البرمجي أو تقسيم دفعات 3) إنشاء الجداول الـ 57 4) كل FK/CHECK/UNIQUE/default 5) `rowversion` على الجداول المتزامنة 6) الفهارس المركّبة 7) `InvoiceSequences` و`IdempotencyKeys` 8) بيانات مرجعية (فئات، أدوار، صلاحيات، حسابات نقدية) 9) `UnitOfWork` مع `BEGIN/COMMIT/ROLLBACK` 10) سكربتات rollback وبيانات اختبار 11) التحقق على SQL Server 2022 أو 2025 فعلي بمستوى توافق 130 12) إستراتيجية FULL/DIFF/LOG |
 | 5 | الشاشات المطلوب تطويرها | لا شاشات مستخدم جديدة؛ شاشة إدارة `SchemaVersions` للمسؤول ضمن `SettingsView` لاحقًا |
 | 6 | مكونات الـ Backend | `SchemaMigrationService`, `RepositoryBase`, `UnitOfWork`, `ConcurrencyGuard`, `SchemaTests`, `BackupService`, `SeedService` |
 | 7 | كيانات / تغييرات DB | كامل E.2؛ `dbo.Users` يبقى كما هو مع أعمدة additive فقط بعد موافقة P04؛ `SchemaVersions`, `InvoiceSequences`, `IdempotencyKeys`, `StockReservations`, `NotificationEvents`, `BackupJobs`, `AppVersions` |
 | 8 | الاعتماديات | `P01`؛ `P00` (قرار `OD-ARC-04`, `OD-ARC-08`, `OD-ARC-09`, `OD-ARC-10`, `OD-ARC-11`) |
 | 9 | متطلبات الأمان | استعلامات مُعامَلة 100%؛ حساب خدمة واحد بأقل صلاحية؛ لا أسرار في السكربتات؛ تشفير ملفات النسخ؛ تدقيق تغيير المخطط |
 | 10 | القواعد التجارية | جداول الحركات append-only؛ منع الحذف الفعلي للفواتير؛ snapshot للأسعار؛ لا migration هدّام؛ كل ترحيل قابل للرجوع |
-| 11 | المخاطر التقنية | `GO` في السكربتات الحالية (`TN-06`)؛ حد 10GB لـ Express؛ تعارض `READ_COMMITTED_SNAPSHOT` مع Express؛ ترحيل فاشل يترك مخططًا جزئيًا |
+| 11 | المخاطر التقنية | `GO` في السكربتات الحالية (`TN-06`)؛ حد 10GB لـ Express 2022؛ أثر `READ_COMMITTED_SNAPSHOT` على `tempdb` لا تعارضه مع Express؛ ترحيل فاشل يترك مخططًا جزئيًا |
 | 12 | سيناريوهات الاختبار | إنشاء قاعدة نظيفة؛ إعادة تشغيل الترحيل مرتين بلا تغيير؛ اختبار كل CHECK (كمية سالبة، مبلغ سالب)؛ اختبار FK؛ قياس زمن الفهارس الساخنة؛ استعادة نسخة على instance ثانٍ؛ rollback ترحيل |
 | 13 | معايير القبول | 1) قاعدة نظيفة تحتوي كل الكيانات 2) إعادة التشغيل idempotent 3) `sql/03_VerifyEnvironment.sql` لا يزال يعمل 4) استعادة نسخة ناجحة موثّقة 5) صفر تعديل على بيانات `dbo.Users` القائمة |
 | 14 | المخرجات | سكربتات مرقّمة، data dictionary، ER diagrams، سكربتات rollback، تقرير اختبار استعادة |
-| 15 | Definition of Done | ترحيل مُعاد إنتاجه على SQL 2016 SP1 فعلي، اختبارات المخطط خضراء، نسخة استعادة مُثبتة، مراجعة DBA معتمدة |
+| 15 | Definition of Done | ترحيل مُعاد إنتاجه على SQL Server 2022 أو 2025 فعلي بمستوى 130، اختبارات المخطط خضراء، نسخة استعادة مُثبتة، مراجعة DBA معتمدة |
 
 ### PHASE 04 — Authentication and Authorization
 
@@ -1564,13 +1593,13 @@ erDiagram
 | 1 | رقم المرحلة والاسم | `P13` — الإدارة المالية: Cash، ديون، مصروفات، إيرادات، Ledger |
 | 2 | الهدف التجاري | أن تكون كل الأرصدة والتقارير المالية نتيجة حركات موثقة لا قيمًا قابلة للتحرير المستقل |
 | 3 | الهدف التقني | **مرحلة مخصصة لتعريف واعتماد كل القواعد المالية قبل كتابة أي معادلة**، ثم محرك ترحيل موحّد لكل الوحدات، وعكس، وإقفال، وتسوية |
-| 4 | المهام التفصيلية | 1) ورشة قرارات `OD-FIN-01 … OD-FIN-23` وتوثيقها مع صاحب العمل 2) `LedgerService` و`FinancialTransactions`/`LedgerEntries` 3) `PaymentAllocations` النهائية 4) `CustomerAccounts` و`SupplierAccounts` 5) `Expenses` وتصنيفها 6) `CashAccounts` 7) ربط كل وحدة (P05–P12) بـ `PostingService` 8) عكس القيود `ReversalOfId` 9) الإقفال اليومي/الشهري `OD-FIN-19` 10) الأرصدة الافتتاحية `OD-FIN-20` 11) منع الازدواج والتسوية 12) اختبارات حساب لكل قاعدة معتمدة |
+| 4 | المهام التفصيلية | 1) ورشة قرارات `OD-FIN-01 … OD-FIN-24` وتوثيقها مع صاحب العمل 2) `LedgerService` و`FinancialTransactions`/`LedgerEntries` 3) `PaymentAllocations` النهائية 4) `CustomerAccounts` و`SupplierAccounts` 5) `Expenses` وتصنيفها 6) `CashAccounts` 7) ربط كل وحدة (P05–P12) بـ `PostingService` 8) عكس القيود `ReversalOfId` 9) الإقفال اليومي/الشهري `OD-FIN-19` 10) الأرصدة الافتتاحية `OD-FIN-20` 11) منع الازدواج والتسوية 12) اختبارات حساب لكل قاعدة معتمدة |
 | 5 | الشاشات المطلوب تطويرها | `CashManagementView`, `CustomerDebtsView`, `SupplierDebtsView`, `ExpensesView`, `LedgerExplorerView`, `PeriodClosingView`, `FinancialRulesAdminView` (عرض القواعد المعتمدة) |
 | 6 | مكونات الـ Backend | `FinancialCalculationService`, `LedgerService`, `PostingService`, `TransactionBoundaryService`, `IdempotencyService`, `PeriodClosingService`, `BalanceReconciliationService` |
 | 7 | كيانات / تغييرات DB | `FinancialTransactions`, `LedgerEntries`, `CashAccounts`, `CustomerAccounts`, `SupplierAccounts`, `Expenses`, `ExpenseCategories`, `PaymentTransactions`, `PaymentAllocations`, `IdempotencyKeys`, `AuditLogs` |
 | 8 | الاعتماديات | `P03` (المعاملات), `P04`, و**عقود `PostingService` تُعرّف contract-first في P01 لتستخدمها P07/P08/P10/P11/P12 قبل اكتمال التنفيذ هنا** |
 | 9 | متطلبات الأمان | صلاحية `View profits` و`View financial reports`؛ كل تعديل رصيد بإذن وتدقيق؛ منع تعديل قيد مرحّل؛ فصل مهام الاعتماد عن الإدخال |
-| 10 | القواعد التجارية | **لا تُبتدع معادلة**: الإيراد `OD-FIN-01`، الربح وطريقة التكلفة `OD-FIN-02`، صافي النتيجة `OD-FIN-03`، المصروفات `OD-FIN-04`، الديون `OD-FIN-06/07`، الأرصدة `OD-FIN-09/10`، المردودات `OD-FIN-13`، العمولة `OD-FIN-15`، الهالك `OD-FIN-18`، العكس `OD-FIN-23`؛ كل معاملة بمعرّف ونوع ومبلغ ومصدر/وجهة وتاريخ ومستخدم ومرجع |
+| 10 | القواعد التجارية | **لا تُبتدع معادلة**: الإيراد `OD-FIN-01`، الربح وطريقة التكلفة `OD-FIN-02`، صافي النتيجة `OD-FIN-03`، المصروفات `OD-FIN-04`، الديون `OD-FIN-06/07`، الأرصدة `OD-FIN-09/10`، المردودات `OD-FIN-13`، العمولة `OD-FIN-15`، الهالك `OD-FIN-18`، العكس `OD-FIN-23`، ربحية الصيانة `OD-FIN-24`؛ كل معاملة بمعرّف ونوع ومبلغ ومصدر/وجهة وتاريخ ومستخدم ومرجع |
 | 11 | المخاطر التقنية | ترحيل مزدوج؛ قيد غير متوازن؛ اختلاف تقريب العملة؛ إقفال فترة أثناء عمليات جارية؛ بطء إعادة بناء الأرصدة |
 | 12 | سيناريوهات الاختبار | بيع ⇒ قيود متوازنة؛ شراء ⇒ دين مورد؛ دفع جزئي ⇒ تخفيض الدين؛ مرتجع ⇒ عكس؛ إعادة نفس Idempotency-Key ⇒ لا قيد ثانٍ؛ فشل في منتصف المعاملة ⇒ rollback كامل؛ إقفال يوم ⇒ منع كتابة retroactive |
 | 13 | معايير القبول | 1) كل معاملة مالية لها معرّف/نوع/مبلغ/طرفان/تاريخ/مستخدم/مرجع 2) ديون العملاء والموردين تعكس المبيعات/المشتريات والمدفوعات 3) لا رصيد قابل للتحرير المستقل 4) **منع الإرسال المكرر** 5) القوالب الخمسون للمؤشرات لا تُحسب قبل اعتماد القواعد |
@@ -1687,7 +1716,7 @@ erDiagram
 | 1 | رقم المرحلة والاسم | `P19` — حزم التثبيت والنشر الإنتاجي |
 | 2 | الهدف التجاري | تثبيت السيرفر مرة واحدة والعملاء بسرعة دون SQL Server على العميل، مع تحديثات ونسخ واستعادة موثقة |
 | 3 | الهدف التقني | Server installer وClient installer، تهيئة DB/migrations، Windows Service، Firewall، إدارة الإصدارات، تحديثات وrollback، نسخ مجدول، توثيق |
-| 4 | المهام التفصيلية | 1) Server MSI: API كخدمة + SQL Express إن لزم + تهيئة القاعدة + حساب الخدمة + الشهادة + مجلد النسخ + السجلات + Firewall 2) Client MSI/MSIX: WPF + التبعيات + `appsettings.client.json` بعنوان API فقط + اختبار اتصال أولي 3) إغلاق منفذ SQL للشبكة 4) `SchemaMigrationService` أثناء التثبيت 5) `AppVersions` ورفض التعارض 6) Update channel موقّع + rollback 7) Backup Job مجدول + نسخة خارج الجهاز + دليل استعادة 8) إقلاع/إيقاف آمن للخدمة 9) دليل السيرفر ودليل العميل ودليل الاستعادة 10) تدريب المستخدمين وتسليم كلمات المرور بأمان 11) خطة go-live وخطة رجوع |
+| 4 | المهام التفصيلية | 1) Server MSI: API كخدمة + SQL Server 2022/2025 مدعوم (ضمن الحزمة أم مثبت مسبقًا وفق `OD-DEP-04`) + تهيئة القاعدة + حساب الخدمة + الشهادة + مجلد النسخ + السجلات + Firewall 2) Client MSI/MSIX: WPF + التبعيات + `appsettings.client.json` بعنوان API فقط + اختبار اتصال أولي 3) إغلاق منفذ SQL للشبكة 4) `SchemaMigrationService` أثناء التثبيت 5) `AppVersions` ورفض التعارض 6) Update channel موقّع + rollback وفق `OD-DEP-02` 7) Backup Job مجدول + نسخة خارج الجهاز + دليل استعادة 8) إقلاع/إيقاف آمن للخدمة 9) دليل السيرفر ودليل العميل ودليل الاستعادة 10) تدريب المستخدمين وتسليم كلمات المرور بأمان 11) خطة go-live وخطة رجوع |
 | 5 | الشاشات المطلوب تطويرها | `ServerSetupWizard`, `ClientSetupWizard`, `ConnectionTestView`, `BackupSettingsView`, `UpdatePromptView`, `RestoreWizard` |
 | 6 | مكونات الـ Backend | `WindowsServiceHost`, `BackupService`, `UpdateService`, `RestoreService`, `SchemaMigrationService`, `HealthChecks` |
 | 7 | كيانات / تغييرات DB | `SchemaVersions`, `BackupJobs`, `AppVersions`, `ShopSettings`, كامل المخطط على بيئة الإنتاج |
@@ -1832,10 +1861,11 @@ flowchart LR
 | `OD-FIN-21` | التقريب والعملة والضريبة إن طُبّقت | محاسب | P13, P15, P16 |
 | `OD-FIN-22` | الاعتراف بدخل الصيانة: عند التسليم أم عند الدفع | محاسب | P12, P14 |
 | `OD-FIN-23` | سياسة عكس القيود وتصحيح الأخطاء ومن يعتمدها | محاسب | P09, P10, P13 |
+| `OD-FIN-24` | **ربحية الصيانة**: أي التكاليف تُحمّل على أمر الإصلاح (قطع الغيار بالتكلفة، أجرة العمل، عمولة الفني، إعادة العمل تحت الضمان، القطع التالفة)، وكيف تُدرج ضمن إجمالي أرباح M01 وM13؛ مرتبط بـ `OD-FIN-02` و`OD-FIN-22` | محاسب + صاحب العمل | P12, P13, P14 |
 | `OD-ARC-01` | منفذ HTTPS وشكل أسماء الأجهزة/الشهادات | مسؤول الشبكة | P01, P17 |
 | `OD-ARC-04` | هل يُضاف EF Core أم يبقى `Microsoft.Data.SqlClient` | مهندس معماري | P01, P03 |
-| `OD-ARC-08` | تفعيل `READ_COMMITTED_SNAPSHOT` على Express | DBA | P03, P17 |
-| `OD-ARC-09` | البقاء على SQL Express أم الترقية مع نمو البيانات | صاحب العمل | P17, P19 |
+| `OD-ARC-08` | تفعيل `READ_COMMITTED_SNAPSHOT` على المحرك المدعوم وتقييم أثره على `tempdb` وذاكرة Express (الخاصية مدعومة ولا تتعارض مع الطبعة) | DBA | P03, P17 |
+| `OD-ARC-09` | اختيار إصدار وطبعة SQL Server المدعومة (2022 أم 2025، Express أم Standard)، والإبقاء على مستوى 130 عند الانتقال، ثم جدولة رفع المستوى إلى 160/170 بعد اختبارات انحدار، وحدود النمو | صاحب العمل + DBA | P00, P01, P03, P17, P19 |
 | `OD-ARC-10` | هل يلزم تعدد المخازن `Warehouses` أم مخزن واحد | صاحب العمل | P03, P06 |
 | `OD-ARC-11` | تفعيل تتبع IMEI/الرقم التسلسلي ومدى إلزاميته | صاحب العمل | P03, P05, P12 |
 | `OD-SEC-01` | شهادة CA داخلية وسياسة تدويرها | مسؤول الشبكة | P04, P17 |
@@ -1844,12 +1874,14 @@ flowchart LR
 | `OD-DEP-01` | نمط التثبيت (MSI أم MSIX أم ClickOnce) | مسؤول النشر | P19 |
 | `OD-DEP-02` | آلية التحديث والرجوع للإصدار السابق | مسؤول النشر | P19 |
 | `OD-DEP-03` | RPO/RTO وجدول FULL/DIFF/LOG | صاحب العمل | P03, P19 |
-| `OD-DEP-04` | هل يُثبَّت SQL Express ضمن حزمة السيرفر أم يُفترض موجودًا | مسؤول النشر | P19 |
+| `OD-DEP-04` | هل يُثبَّت SQL Server 2022/2025 المدعوم ضمن حزمة السيرفر أم يُفترض مثبتًا ومُحدَّثًا مسبقًا | مسؤول النشر | P19 |
 | `OD-DEP-05` | سياسة الاحتفاظ/Archiving للحركات القديمة | محاسب + DBA | P03, P19 |
+
+> **تصحيح المراجعة النهائية:** أصبحت القرارات **38** بعد إضافة `OD-FIN-24` (ربحية الصيانة) التي كانت فجوة صريحة؛ `OD-ARC-09` وُسّع ليشمل اختيار الإصدار/الطبعة المدعومة ومسار رفع مستوى التوافق. نهاية دعم SQL Server 2016 **ليست قرارًا مفتوحًا** بل حقيقة خارجية موثّقة (`TN-18`)؛ المفتوح هو أي إصدار/طبعة تُعتمد ومتى يُرفع مستوى التوافق. لا تزال كل القواعد المالية دون معادلة مُبتدعة.
 
 ## H.4 قاعدة التنفيذ
 
-لا يُكتب أي كود حساب مالي قبل إغلاق `OD-FIN-01 … OD-FIN-23` وتوقيعها. خلال P07–P12 تُستخدم **واجهة `PostingService` بعقود ثابتة** دون قواعد نهائية، وتُبقى المؤشرات في M01 كعناصر عرض Placeholder صريحة. هذا هو «المرحلة المخصصة لتعريف وتنفيذ الحسابات» المطلوبة في M01.A وM13.
+لا يُكتب أي كود حساب مالي قبل إغلاق `OD-FIN-01 … OD-FIN-24` وتوقيعها. خلال P07–P12 تُستخدم **واجهة `PostingService` بعقود ثابتة** دون قواعد نهائية، وتُبقى المؤشرات في M01 كعناصر عرض Placeholder صريحة. هذا هو «المرحلة المخصصة لتعريف وتنفيذ الحسابات» المطلوبة في M01.A وM13.
 
 ---
 
@@ -2009,7 +2041,7 @@ flowchart TB
     subgraph MAINPC["الجهاز الرئيسي — Windows (Server role)"]
         direction TB
         SVC["FitohPhone.Api — Windows Service<br/>DelayedAutoStart + Recovery=restart"]
-        SQL[("SQL Server 2016 SP1 Express<br/>FitohPhone — localhost only")]
+        SQL[("SQL Server 2022 أو 2025 — compat 130<br/>FitohPhone — localhost only")]
         CA["شهادة CA داخلية + TLS"]
         BAK["Backup Job → مجلد محلي + نسخة خارج الجهاز"]
         LOG["Structured Logs + Audit + Event Log"]
@@ -2056,7 +2088,7 @@ flowchart TB
 
 ## J.3 تثبيت الجهاز الرئيسي (Server Installation)
 
-1. تثبيت/التحقق من SQL Server 2016 SP1 Express بمستوى توافق 130؛ تشغيل `sql/01`, `sql/02` ثم ترحيلات `SchemaVersions`.
+1. تثبيت/التحقق من **SQL Server 2022 أو 2025 المدعوم** بمستوى توافق 130؛ تشغيل `sql/01`, `sql/02` ثم ترحيلات `SchemaVersions`. لا يُثبّت SQL Server 2016 SP1 في بيئة إنتاج جديدة (`TN-18`).
 2. إنشاء حساب خدمة Windows مخصص وحساب SQL بأقل صلاحية (لا `sa` ولا `db_owner`)؛ الأسرار فيCredential Manager/DPAPI لا في Git (`TN-01`).
 3. تثبيت `FitohPhone.Api` كخدمة Windows: `sc create FitohPhoneApi binPath=... start= delayed-auto` + `sc failure ... actions= restart/...`.
 4. إصدار شهادة CA داخلية مطابقة لـ SAN اسم السيرفر، تثبيتها على السيرفر وكل عميل؛ ضبط Kestrel على HTTPS فقط.
@@ -2164,7 +2196,7 @@ sequenceDiagram
 | # | النوع | النطاق | الأدوات / البيئة | أمثلة اختبارات | معيار النجاح |
 |---|---|---|---|---|---|
 | 1 | Unit Testing | كل Domain Service و`PasswordHasher` وسياسات التسعير/الحدود | xUnit على `net10.0`، CI | PBKDF2 الحالي، رفض hash مخالف، حساب إجمالي سطر، رفض كمية سالبة | 100% من الخدمات الحرجة، CI أخضر |
-| 2 | Integration Testing | سير عمل كامل عبر UnitOfWork مع قاعدة اختبار | xUnit + SQL Server 2016 SP1 instance | بيع ⇒ مخزون + دفع + قيود + تدقيق في معاملة واحدة | صفر أثر جزئي عند الفشل |
+| 2 | Integration Testing | سير عمل كامل عبر UnitOfWork مع قاعدة اختبار | xUnit + SQL Server 2022 أو 2025 instance بمستوى 130 | بيع ⇒ مخزون + دفع + قيود + تدقيق في معاملة واحدة | صفر أثر جزئي عند الفشل |
 | 3 | API Testing | كل endpoint: عقد، Status codes، 401/403، Idempotency | `WebApplicationFactory`, Postman/REST collection | استدعاء مباشر بلا صلاحية ⇒ 403؛ مفتاح مكرر ⇒ نفس النتيجة | كل endpoint مُختبر بما فيه مسارات الرفض |
 | 4 | Database Testing | القيود، الفهارس، الترحيلات، الاستعادة | sqlcmd + سكربتات SchemaTests | إعادة ترحيل idempotent، CHECK كمية، FK، استعادة نسخة | ترحيل نظيف مُعاد إنتاجه واستعادة ناجحة |
 | 5 | UI Testing | الشاشات الحرجة، RTL، DPI، حالات التحميل/الفراغ/الخطأ | WPF UI Automation / FlaUI على Windows | الدخول، POS، مرتجع، صيانة، 8 سمات، DPI 200% | نفس السيناريو ينجح تحت كل السمات |
@@ -2199,7 +2231,7 @@ sequenceDiagram
 | `RISK-07` | أمني | `TrustServerCertificate=true` وشهادة ذاتية التوقيع (`TN-03`) | عالية | متوسط | MITM على LAN | CA داخلية + TLS + تدوير الشهادات | P17/P18 |
 | `RISK-08` | أمني | كلمة `Admin@123` افتراضية بلا شاشة تغيير (`TN-12`) | عالية | عالي | دخول غير مصرح | إلزام التغيير + سياسة + lockout + تدقيق | P04 |
 | `RISK-09` | وظيفي | كسر نظام الدخول أثناء النقل إلى API | عالية | متوسط | توقف كل العمل | الحفاظ على `PasswordHasher` و`LoginWindow`، Regression Guard في كل مرحلة | P01–P19 |
-| `RISK-10` | تقني | قيود SQL Server Express (10GB/1GB/4 cores) مع نمو الحركات | عالية | متوسط | بطء التقارير وامتلاء القاعدة | فهارس، أرشفة `OD-DEP-05`، مراقبة، قرار ترقية `OD-ARC-09` | P03/P17 |
+| `RISK-10` | تقني | قيود SQL Server Express على محرك مدعوم (10GB في 2022 و50GB في 2025، ~1.4GB/4 أنوية) مع نمو الحركات | عالية | متوسط | بطء التقارير وامتلاء القاعدة | فهارس، أرشفة `OD-DEP-05`، مراقبة، قرار الإصدار/الطبعة `OD-ARC-09` | P03/P17 |
 | `RISK-11` | تقني | `GO` في السكربتات الحالية يعيق أتمتة الترحيل (`TN-06`) | عالية | عالي | ترحيل فاشل أو جزئي | أداة ترحيل تفصل الدفعات + `SchemaVersions` + rollback | P03 |
 | `RISK-12` | تقني | Deadlocks عند ذروة التزامن | عالية | متوسط | فشل فواتير وSlowdown | ترتيب ثابت للوصول للجداول + إعادة محاولة محدودة + مراقبة | P17 |
 | `RISK-13` | تشغيلي | انقطاع الشبكة مع محاولة كتابة محلية | عالية | متوسط | تضارب عند العودة | منع Offline-write + OfflineBanner + إعادة محاولة idempotent | P17 |
@@ -2211,10 +2243,11 @@ sequenceDiagram
 | `RISK-19` | تشغيلي | توقف Windows Service بعد تحديث Windows | متوسطة | متوسط | توقف المحل | `DelayedAutoStart` + Recovery + Health تنبيه | P19 |
 | `RISK-20` | جودة | تغطية اختبارات ناقصة (اليوم اختبار hashing فقط، `TN-10`) | عالية | عالي | أخطاء تصل للإنتاج | 7 مشاريع اختبار + بوابة CI إلزامية + القسم L | P18 |
 | `RISK-21` | مشروع | افتراض وجود شاشات/جداول ERP من PR #9–#31 (`TN-13`) | متوسطة | متوسط | تقديرات خاطئة وتكرار عمل | التدقيق P00 يثبت الشجرة الحالية؛ المرجع التاريخي غير مُعتمد | P00 |
-| `RISK-22` | مشروع | انحراف `origin/main` (PR #34) عن commit الأساس (`TN-17`) | متوسطة | عالي | تعارض دمج وفقدان إعدادات LAN | دمج/مراجعة PR #34 في P01 قبل أي تعديل هيكلي | P00/P01 |
+| `RISK-22` | أمني | إعدادات PR #34 **المدمجة** تحوي كلمة مرور SQL بنص صريح و`TrustServerCertificate=true` (`TN-01`) | عالية | عالي | تسريب صلاحية قاعدة البيانات وMITM على LAN | تدوير السر، إزالته من Git، نقله للسيرفر، CA داخلية | P00/P01 |
 | `RISK-23` | تشغيلي | غياب بيئة Windows/SQL فعلية للتحقق (`docs/ACCEPTANCE.md`) | عالية | عالي | ادعاءات غير مُختبرة | خطة بيئة اختبار من P00 + CI على windows-2022 + سجل قبول يدوي موقع | P00/P18 |
 | `RISK-24` | واجهة | إهمال الإنتاجية لصالح المؤثرات البصرية | متوسطة | متوسط | بطء الكاشير ورفض المستخدمين | اختصارات، Focus management، قياس زمن إتمام الفاتورة، تعطيل مؤثرات ثقيلة | P02/P08/P16 |
 | `RISK-25` | بيانات | فقدان تاريخ الفاتورة عند تغيير سعر المنتج لاحقًا | عالية | متوسط | تقارير تاريخية خاطئة | `UnitPriceSnapshot` + `PrintJobs` snapshot + منع تعديل المرحّل | P08/P09/P15 |
+| `RISK-26` | امتثال/أمن | البقاء على SQL Server 2016 SP1 Express كاعتمادية إنتاجية بعد نهاية الدعم الموسّع (`TN-18`) | حرجة | عالي | ثغرات بلا تصحيحات أمنية، وعدم توفر ESU لطبعة Express، ومخالفة متطلبات التدقيق | اعتماد SQL Server 2022 أو 2025 مع الإبقاء على مستوى 130، خطة ترقية مُختبرة، تحديث `docs/SERVER.md` و`docs/ACCEPTANCE.md` | P00/P01/P03/P19 |
 
 ---
 
@@ -2254,7 +2287,7 @@ flowchart LR
 | P16 السمات الثمان | P04–P14 | عقد المكونات ثابت؛ لا منطق مشروط بالسمة |
 | توثيق القرارات `OD-FIN-*`مع صاحب العمل | P01–P12 | يُغلق قبل P13 لا بعده |
 | كتابة اختبارات الوحدة لكل وحدة | مرحلة الوحدة نفسها | CI جاهز من P01 |
-| إعداد بيئة Windows/SQL laboratory | P00–P02 | جهازان + SQL 2016 SP1 فعلي |
+| إعداد بيئة Windows/SQL laboratory | P00–P02 | جهازان + SQL Server 2022 أو 2025 فعلي بمستوى 130 |
 
 ---
 
@@ -2318,6 +2351,9 @@ flowchart LR
 - [ ] **السمة المختارة محفوظة بعد إعادة تشغيل التطبيق**
 - [ ] **كل قوالب الطباعة تدعم العربية وRTL**
 - [ ] **أجهزة العملاء تعمل عبر السيرفر بلا وصول مباشر لقاعدة البيانات**
+- [ ] **محرك قاعدة البيانات المدعوم (2022 أو 2025) مع `COMPATIBILITY_LEVEL = 130` مثبت ومُختبَر؛ لا SQL Server 2016 SP1 في الإنتاج** (`TN-18`, `OD-ARC-09`)
+- [ ] **سر اتصال SQL مُدوَّر ومُزال من Git ومن حزم العملاء** (`TN-01`, `RISK-22`)
+- [ ] سياسة التحديث والرجوع موثّقة ومُختبرة (`OD-DEP-02`)، وقرار تثبيت SQL ضمن حزمة السيرفر محسوم (`OD-DEP-04`)
 - [ ] كل أنواع الاختبارات العشرة في القسم L منفذة ومسجلة
 - [ ] كل `OD-*` مغلق بتوقيع أو مُرحّل رسميًا؛ كل `RISK-*` بمتبقٍ مقبول
 - [ ] `docs/ACCEPTANCE.md` محدّث بنتائج فعلية على Windows/SQL Server لا بمراجعة نصية
@@ -2332,9 +2368,9 @@ flowchart LR
 |---|---|
 | حجم الفريق | 2–3 مطورين .NET/WPF + 1 مهندس اختبار + 0.5 مهندس معماري/DBA + صاحب عمل/محاسب بدوام جزئي للقرارات |
 | أسبوع العمل | 5 أيام، يوم مطور = 6 ساعات إنتاجية فعّالة |
-| البيئة | **غير متوفرة حاليًا**: لا Windows ولا SQL Server 2016 SP1 فعلي في بيئة التدقيق (`docs/ACCEPTANCE.md`)؛ CI على windows-2022 متاح للبناء فقط |
-| حالة المصدر | 40 ملفًا، جدول واحد، بلا API؛ لذلك تقديرات P01/P03 تحمل عدم يقين أعلى من تقديرات الوحدات |
-| القرارات | 40+ قرارًا مفتوحًا `OD-*`؛ أي تأخير في اعتماد `OD-FIN-*` يؤجل P13/P14 مباشرة |
+| البيئة | **غير متوفرة حاليًا**: لا Windows ولا SQL Server فعلي في بيئة التدقيق (`docs/ACCEPTANCE.md`)؛ CI على windows-2022 متاح للبناء فقط؛ الإصدار الهدف 2022 أو 2025 لا SP1 |
+| حالة المصدر | 44 ملفًا متتبّعًا، جدول واحد، بلا API؛ لذلك تقديرات P01/P03 تحمل عدم يقين أعلى من تقديرات الوحدات |
+| القرارات | **38 قرارًا مفتوحًا** `OD-*`؛ أي تأخير في اعتماد `OD-FIN-*` يؤجل P13/P14 مباشرة |
 | نطاق التقدير | **±35%** على المراحل المبكرة (P00–P04, P13, P17, P19) و**±20%** على الوحدات المتكررة (P05–P12, P15, P16) |
 | ما لا يشمله التقدير | شراء أجهزة/طابعات، تدريب موسّع، ترحيل بيانات تاريخية من أنظمة خارجية، دعم ما بعد الإطلاق |
 
@@ -2383,7 +2419,7 @@ flowchart LR
 | 10 قوالب طباعة + 3 أنواع طابعات + باركود | 18 | P15 |
 | حزم التثبيت + النسخ + التحديث + الاستعادة | 18 | P19 |
 | ورش القرارات المالية والتجارية (`OD-*`) | 8 | مسار موازٍ، **يُغلق قبل P13** |
-| بيئة اختبار Windows + جهازان + SQL 2016 SP1 | 6 | P00، شرط لكل اختبارات P17/P18 |
+| بيئة اختبار Windows + جهازان + SQL Server 2022/2025 | 6 | P00، شرط لكل اختبارات P17/P18 |
 
 ## P.4 الجهد مقابل المدة التقويمية
 
@@ -2410,9 +2446,9 @@ flowchart LR
 ## P.6 عناصر المسار الحرج والمسارات المتوازية
 
 - **حرج (لا يُؤجّل):** P00 → P01 → P03 → P04 → P05 → P06 → P08 → P09 → P10 → P13 → P14 → P17 → P18 → P19.
-- **اعتماد خفي لكنه حرج:** توقيع `OD-FIN-*` قبل P13؛ توفر جهازي Windows + SQL 2016 SP1 قبل P17؛ CA داخلية قبل P18.
+- **اعتماد خفي لكنه حرج:** توقيع `OD-FIN-*` قبل P13؛ توفر جهازي Windows + SQL Server 2022/2025 قبل P17؛ CA داخلية قبل P18.
 - **متوازٍ:** P02 مع P01/P03؛ P07 مع P08 جزئيًا؛ P11 مع P12؛ P15/P16 مع P04–P14؛ كتابة الاختبارات مع التطوير؛ ورش القرارات مع كل المراحل.
-- **عدم يقين صريح:** لا توجد تقديرات موثوقة لترحيل بيانات تاريخية (لا توجد بيانات اليوم)، ولا لتكلفة استبدال SQL Express إن تجاوزت 10GB (`OD-ARC-09`)، ولا لزمن اعتماد القواعد المالية لدى صاحب العمل؛ هذه تُضاف كاحتياط عدم يقين لا كأرقام نهائية.
+- **عدم يقين صريح:** لا توجد تقديرات موثوقة لترحيل بيانات تاريخية (لا توجد بيانات اليوم)، ولا لتكلفة ترقية إصدار/طبعة SQL Server إن تجاوزت حدود Express (`OD-ARC-09`)، ولا لزمن اعتماد القواعد المالية لدى صاحب العمل؛ هذه تُضاف كاحتياط عدم يقين لا كأرقام نهائية.
 
 ---
 
@@ -2893,6 +2929,7 @@ flowchart LR
 | ديون العملاء والموردين | `R-M08-06 … R-M08-11` + `R-FIN-05 … R-FIN-07` → P13 |
 | حدود التحويلات والتأكيد الخارجي | `R-M09-07 … R-M09-14` → P11/P13 |
 | باركود الإصلاح وسجل عميل الصيانة والبحث | `R-M10-02`, `R-M10-15`, `R-M10-16` → P12 |
+| ربحية الصيانة وتحميل تكلفة القطع وأجرة العمل | `R-M10-07`, `R-M13-19` + `OD-FIN-24` → P12/P13/P14 |
 | الصلاحيات الـ 19 والفرض خادميًا | `R-M11-06 … R-M11-11` → P04/P18 |
 | **الثمان سمات منفصلة** + الصفات الـ 13 + الحفظ | `R-M12-05 … R-M12-17` → P16/P02 |
 | التقارير الـ 41 | `R-M13-01 … R-M13-42` → P14/P13 |
@@ -2931,18 +2968,18 @@ flowchart LR
 | القسم المطلوب | مكانه | الحالة |
 |---|---|---|
 | A — Executive Summary | القسم A | ✅ |
-| B — Existing Project Audit | القسم B (B.1–B.12) | ✅ بأدلة `file:line` |
+| B — Existing Project Audit | القسم B (B.1–B.13، مع إعادة التحقق على HEAD) | ✅ بأدلة `file:line` |
 | C — Final Recommended Architecture | القسم C (C.1–C.8) + Mermaid | ✅ يفصل الحالي عن الهدف |
 | D — Complete Functional Module Inventory | القسم D (419 بندًا) | ✅ |
 | E — Proposed Database Architecture | القسم E (E.1–E.6 + 4 ER Diagrams) | ✅ |
 | F — Detailed Development Phases | القسم F (P00–P19 × 15 بندًا) | ✅ |
 | G — Cross-Module Dependencies | القسم G | ✅ |
-| H — Financial Rules & Calculations | القسم H (37 قرارًا مفتوحًا، بلا معادلات مُبتدعة) | ✅ |
+| H — Financial Rules & Calculations | القسم H (**38 قرارًا مفتوحًا**، بلا معادلات مُبتدعة) | ✅ |
 | I — UI/UX Implementation Plan | القسم I (shell، شاشات، مكونات، 8 سمات) | ✅ |
 | J — LAN Deployment Plan | القسم J | ✅ |
 | K — Security & Data Integrity | القسم K | ✅ |
 | L — Testing Strategy | القسم L (10 أنواع) | ✅ |
-| M — Risk Register | القسم M (25 خطرًا بالخطورة/الاحتمال/التخفيف) | ✅ |
+| M — Risk Register | القسم M (**26 خطرًا** بالخطورة/الاحتمال/التخفيف) | ✅ |
 | N — Implementation Priority | القسم N (5 فئات + مسار حرج + توازٍ) | ✅ |
 | O — Final Completion Checklist | القسم O | ✅ |
 | إضافات مطلوبة أخرى | P التقديرات، Q المصفوفة الإلزامية، R التحقق، الملحق | ✅ |
@@ -2958,11 +2995,11 @@ flowchart LR
 | التقارير | **41** تقريرًا + بند القواعد الرسمية |
 | أنواع المستندات المطبوعة | **10** |
 | كيانات قاعدة البيانات | **57** كيانًا موصوفًا + 18 كيانًا مكتشفًا موثّقًا |
-| القرارات المفتوحة | **37** (`OD-FIN`, `OD-ARC`, `OD-SEC`, `OD-DEP`) |
-| المخاطر | **25** بندًا |
+| القرارات المفتوحة | **38** (`OD-FIN`, `OD-ARC`, `OD-SEC`, `OD-DEP`) بعد إضافة `OD-FIN-24` |
+| المخاطر | **26** بندًا |
 | أنواع الاختبارات | **10** |
 | مخططات Mermaid | **16** مخططًا (معمارية، تسلسل، ER، تدفق) |
-| ملفات المصدر المُعدَّلة | **0** — أُضيف مستند Markdown واحد فقط |
+| ملفات المصدر البرمجي المُعدَّلة | **0** — أُضيف مستند Markdown واحد فقط، ثم صُحِّح هذا المستند نفسه في مراجعة التحقق |
 
 ## R.4 إثبات الالتزام بـ «لا تبدأ التنفيذ»
 
@@ -2980,11 +3017,11 @@ flowchart LR
 
 ## R.5 ما هو غير محسوم صراحةً (لا يُخفى)
 
-1. **القواعد المالية كاملة** (`OD-FIN-01 … OD-FIN-23`) — تحتاج توقيع صاحب العمل/المحاسب قبل P13.
-2. **اختيار ORM** (`OD-ARC-04`) و**تعدد المخازن** (`OD-ARC-10`) و**تتبع IMEI** (`OD-ARC-11`) و**ترقية SQL Express** (`OD-ARC-09`).
+1. **القواعد المالية كاملة** (`OD-FIN-01 … OD-FIN-24`، ومن ضمنها صراحةً ربحية الصيانة) — تحتاج توقيع صاحب العمل/المحاسب قبل P13.
+2. **اختيار ORM** (`OD-ARC-04`) و**تعدد المخازن** (`OD-ARC-10`) و**تتبع IMEI** (`OD-ARC-11`) و**إصدار/طبعة SQL Server المدعومة ومسار رفع مستوى التوافق** (`OD-ARC-09`).
 3. **شكل الجلسة والشهادات** (`OD-SEC-01/02/03`) و**نمط التثبيت والتحديثات** (`OD-DEP-01 … 05`).
-4. **الفجوة بين الفرع و`origin/main`**: PR #34 أضاف إعدادات LAN على `main` بعد commit الأساس؛ يجب دمجه ومراجعته في P00/P01 قبل أي تنفيذ (`TN-17`, `RISK-22`).
-5. **غياب بيئة Windows/SQL Server 2016 SP1 فعلية**: كل اختبارات التشغيل في `docs/ACCEPTANCE.md` ما زالت «لم يُختبر»؛ هذا المستند لا يدّعي تنفيذًا فعليًا.
+4. **الفجوة بين الفرع و`origin/main` مُحسومة**: PR #34 وPR #35 مدمجان في `HEAD`؛ المتبقي هو مراجعة أثرهما الأمني وتدوير السر النصي (`TN-01`, `TN-17`, `RISK-22`)، إضافة إلى اعتماد إصدار SQL Server مدعوم (`TN-18`, `RISK-26`).
+5. **غياب بيئة Windows/SQL Server فعلية**: اختبارات التشغيل الـ 21 في `docs/ACCEPTANCE.md` ما زالت «لم يُختبر»؛ ولا تزال الأدلة تستهدف SP1 (`TN-19`). هذا المستند لا يدّعي تنفيذًا فعليًا.
 
 ---
 
@@ -3023,15 +3060,15 @@ python3 tools/static_checks.py
 | المرجع | المحتوى |
 |---|---|
 | `README.md` | التقنية الحالية وإغلاق التطبيق المُصلح |
-| `docs/ACCEPTANCE.md` | 17 اختبارًا كلها «لم يُختبر» |
-| `docs/SERVER.md` | إعداد SQL Server 2016 SP1، TLS، حدود الاتصال المباشر |
+| `docs/ACCEPTANCE.md` | 21 اختبارًا كلها «لم يُختبر»؛ لا تزال تستهدف SP1 (`TN-19`) |
+| `docs/SERVER.md` | إعداد SQL Server 2016 SP1 (خارج الدعم)، TLS، حدود الاتصال المباشر — يُحدَّث في P00 |
 | `docs/CLIENTS.md` | نشر العملاء وتغيير الخادم |
 | `docs/STATIC-CHECKS.txt` | مخرجات الفحوص البنيوية الحالية |
-| `tools/static_checks.py` | فحوص XML/JSON/hash/جدول واحد/الإغلاق |
+| `tools/static_checks.py` | فحوص XML/JSON/hash/جدول واحد/الإغلاق/إعدادات LAN |
 | `.github/workflows/windows-build.yml` | CI على windows-2022 |
 
 ## الملحق 4 — خاتمة
 
-هذا المستند هو **المرجع التقني والوظيفي الرسمي** لتحويل المشروع من تطبيق تسجيل دخول عامل إلى نظام ERP تجاري متكامل على Windows LAN. نقطة البداية موثّقة بالأدلة، ونظام الدخول محمي صراحةً، والتقنية الحالية لم تُستبدل، وكل متطلب من متطلبات الطلب مُرقّم ومُربوط بمرحلة وكيان وخدمة وشاشة واختبار قبول. **لا يُبدأ أي تنفيذ قبل اعتماد القرارات المفتوحة وتوفّر بيئة Windows/SQL Server فعلية للاختبار.**
+هذا المستند هو **المرجع التقني والوظيفي الرسمي** لتحويل المشروع من تطبيق تسجيل دخول عامل إلى نظام ERP تجاري متكامل على Windows LAN. نقطة البداية موثّقة بالأدلة، ونظام الدخول محمي صراحةً، والتقنية الحالية لم تُستبدل، وكل متطلب من متطلبات الطلب مُرقّم ومُربوط بمرحلة وكيان وخدمة وشاشة واختبار قبول. **لا يُبدأ أي تنفيذ قبل اعتماد القرارات المفتوحة، وتأكيد هوية المستودع المقصود، واعتماد إصدار SQL Server مدعوم، وتوفّر بيئة Windows/SQL Server فعلية للاختبار.** راجع `docs/ROADMAP_FINAL_VALIDATION.md` للتحقق النهائي وقرار الاعتماد.
 
 ---
