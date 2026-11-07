@@ -12,12 +12,13 @@ void Check(bool condition, string name)
     Console.WriteLine("PASS: " + name);
 }
 
-bool Throws(Action action) => Throws<ConnectionConfigurationException>(action);
-
-bool Throws<T>(Action action) where T : Exception
+// Local functions cannot be overloaded, so this one helper covers every case.
+// Only configuration errors are expected here: anything else must escape and fail
+// the run loudly instead of being mistaken for a handled error.
+bool Throws(Action action)
 {
     try { action(); return false; }
-    catch (T) { return true; }
+    catch (ConnectionConfigurationException) { return true; }
 }
 
 string Message(Action action)
