@@ -1,18 +1,19 @@
 PASS JSON: global.json
-PASS XML: src/FitohPhone/App.xaml
-PASS XML: src/FitohPhone/FitohPhone.csproj
-PASS XML: src/FitohPhone/Properties/PublishProfiles/FolderProfile.pubxml
-PASS XML: src/FitohPhone/Properties/PublishProfiles/FolderProfile1.pubxml
-PASS XML: src/FitohPhone/Resources/Theme.xaml
-PASS XML: src/FitohPhone/Views/LoginWindow.xaml
-PASS XML: src/FitohPhone/Views/MainWindow.xaml
-PASS XML: src/FitohPhone/app.manifest
-PASS JSON: src/FitohPhone/connectionsettings.json
-PASS XML: tests/FitohPhone.Security.Tests/FitohPhone.Security.Tests.csproj
+PASS XML: src/ProjectZ/App.xaml
+PASS XML: src/ProjectZ/ProjectZ.csproj
+PASS XML: src/ProjectZ/Properties/PublishProfiles/FolderProfile.pubxml
+PASS XML: src/ProjectZ/Properties/PublishProfiles/FolderProfile1.pubxml
+PASS XML: src/ProjectZ/Resources/Theme.xaml
+PASS XML: src/ProjectZ/Views/LoginWindow.xaml
+PASS XML: src/ProjectZ/Views/MainWindow.xaml
+PASS XML: src/ProjectZ/app.manifest
+PASS JSON: src/ProjectZ/connectionsettings.json
+PASS XML: tests/ProjectZ.Security.Tests/ProjectZ.Security.Tests.csproj
 PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector
-PASS: exactly one CREATE TABLE; explicit compatibility 130
+PASS: ProjectZ database scripts; exactly one CREATE TABLE; compatibility 130
 PASS: ShutdownMode=OnLastWindowClose; OnExplicitShutdown removed
 PASS: guarded shutdown, late-login protection, token cleanup, and safe window swaps
-PASS: Arabic culture, Arabic window titles/content, RTL layout and text alignment
+PASS: Arabic culture/content and RTL client areas; native window chrome stays LTR
 PASS: credential fields retain LTR input for account names and passwords
+PASS: executable, assembly, namespaces, database and SQL login use ProjectZ
 NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish

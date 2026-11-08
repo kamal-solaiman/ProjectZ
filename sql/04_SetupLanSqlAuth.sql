@@ -2,9 +2,9 @@
 -- Compatible with SQL Server 2016 SP1 Express (13.0.4001.0, Compatibility Level 130).
 -- NOTE: Change the password below (and in connectionsettings.json) before sensitive production deployment.
 
-IF DB_ID(N'FitohPhone') IS NULL
+IF DB_ID(N'ProjectZ') IS NULL
 BEGIN
-    THROW 50001, N'Database [FitohPhone] does not exist. Run sql/01_CreateDatabase.sql and sql/02_SeedAdmin.sql first.', 1;
+    THROW 50001, N'Database [ProjectZ] does not exist. Run sql/01_CreateDatabase.sql and sql/02_SeedAdmin.sql first.', 1;
 END;
 GO
 
@@ -21,43 +21,43 @@ EXEC sys.xp_instance_regwrite
 GO
 
 -- 2. Create or update the least-privilege SQL login used by LAN clients
-IF NOT EXISTS (SELECT 1 FROM sys.sql_logins WHERE name = N'FitohPhoneClient')
+IF NOT EXISTS (SELECT 1 FROM sys.sql_logins WHERE name = N'ProjectZClient')
 BEGIN
-    CREATE LOGIN [FitohPhoneClient]
+    CREATE LOGIN [ProjectZClient]
         WITH PASSWORD = N'Fitoh@LanClient#2026!',
-             DEFAULT_DATABASE = [FitohPhone],
+             DEFAULT_DATABASE = [ProjectZ],
              CHECK_EXPIRATION = OFF,
              CHECK_POLICY = ON;
 END
 ELSE
 BEGIN
-    ALTER LOGIN [FitohPhoneClient]
+    ALTER LOGIN [ProjectZClient]
         WITH PASSWORD = N'Fitoh@LanClient#2026!',
-             DEFAULT_DATABASE = [FitohPhone],
+             DEFAULT_DATABASE = [ProjectZ],
              CHECK_EXPIRATION = OFF,
              CHECK_POLICY = ON;
 END;
 
-ALTER LOGIN [FitohPhoneClient] ENABLE;
+ALTER LOGIN [ProjectZClient] ENABLE;
 GO
 
--- 3. Map the login to [FitohPhone] and grant SELECT-only access on dbo.Users
-USE [FitohPhone];
+-- 3. Map the login to [ProjectZ] and grant SELECT-only access on dbo.Users
+USE [ProjectZ];
 GO
 
-IF DATABASE_PRINCIPAL_ID(N'FitohPhoneClient') IS NULL
+IF DATABASE_PRINCIPAL_ID(N'ProjectZClient') IS NULL
 BEGIN
-    CREATE USER [FitohPhoneClient] FOR LOGIN [FitohPhoneClient];
+    CREATE USER [ProjectZClient] FOR LOGIN [ProjectZClient];
 END
 ELSE
 BEGIN
-    ALTER USER [FitohPhoneClient] WITH LOGIN = [FitohPhoneClient];
+    ALTER USER [ProjectZClient] WITH LOGIN = [ProjectZClient];
 END;
 
-GRANT CONNECT TO [FitohPhoneClient];
-GRANT SELECT ON OBJECT::dbo.Users TO [FitohPhoneClient];
+GRANT CONNECT TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.Users TO [ProjectZClient];
 GO
 
-PRINT N'SUCCESS: FitohPhoneClient login/user configured and Mixed Mode enabled.';
+PRINT N'SUCCESS: ProjectZClient login/user configured and Mixed Mode enabled.';
 PRINT N'IMPORTANT: Right-click the server in SSMS Object Explorer -> Restart (once) so Mixed Mode takes effect.';
 GO
