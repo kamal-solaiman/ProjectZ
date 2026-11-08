@@ -11,31 +11,19 @@ public sealed class LoginViewModel : ObservableObject
     private string username = "", error = "";
     private bool busy;
     public string Username { get => username; set { username = value; Changed(); } }
-    public string Error { get => error; private set { error = value; Changed(); Changed(nameof(HasError)); } }
-    public bool HasError => error.Length > 0;
+    public string Error { get => error; private set { error = value; Changed(); } }
     public bool IsBusy { get => busy; private set { busy = value; Changed(); Changed(nameof(IsIdle)); Changed(nameof(ButtonText)); } }
     public bool IsIdle => !IsBusy;
     public string ButtonText => IsBusy ? "جارٍ تسجيل الدخول…" : "تسجيل الدخول";
-    // Which LAN target this device resolved to. Read-only diagnostic line, so an
-    // operator can confirm two PCs point at the same server without opening SSMS.
-    public string ConnectionSummary { get; }
     public AsyncCommand LoginCommand { get; }
 
     public LoginViewModel(AuthenticationService service, Func<string> readPassword, Action clearPassword,
-        Action<UserSession> signedIn, CancellationToken token, ConnectionSettingsProvider settings)
+        Action<UserSession> signedIn, CancellationToken token)
     {
-        ConnectionSummary = DescribeTarget(settings);
-
         LoginCommand = new AsyncCommand(async () =>
         {
             Error = "";
-            // Resolve settings first: a broken/missing file must report the precise
-            // configuration message on the UI instead of a generic failure.
-            try { settings.GetProfile(); }
-            catch (ConnectionConfigurationException ex) { Error = ex.Message; return; }
-
             string password = readPassword();
-
             clearPassword();
             if (string.IsNullOrWhiteSpace(Username) || Username.Trim().Length > 100 || password.Length is 0 or > 1024)
             {
@@ -78,25 +66,6 @@ public sealed class LoginViewModel : ObservableObject
         });
     }
 
-    private static string DescribeTarget(ConnectionSettingsProvider settings)
-    {
-        try
-        {
-            var target = settings.GetTarget();
-            var auth = target.IntegratedSecurity ? "مصادقة Windows" : "حساب SQL";
-            return $"الجهاز: {target.MachineName} · القسم: {target.ProfileKey} · الخادم: {target.Server} · القاعدة: {target.Database} · {auth}";
-        }
-        catch (ConnectionConfigurationException ex)
-        {
-            return ex.Message;
-        }
-        catch (Exception)
-        {
-            // The diagnostic line must never prevent the window from opening.
-            return "تعذر قراءة إعدادات الاتصال. راجع ملف connectionsettings.json بجوار البرنامج.";
-        }
-    }
-
     private static string DescribeSqlError(SqlException ex)
     {
         int win32Code = (ex.InnerException as Win32Exception)?.NativeErrorCode ?? 0;
@@ -122,7 +91,7 @@ public sealed class LoginViewModel : ObservableObject
                 "تعذر الوصول إلى خادم SQL Server. تحقق من اسم الخادم في connectionsettings.json، وتشغيل خدمة SQL Server، وتفعيل TCP/IP، وفتح المنفذ في جدار الحماية.",
             4060 => "تعذر فتح قاعدة البيانات FitohPhone (خطأ 4060). تأكد من إنشاء القاعدة على هذا الخادم ومنح حساب الدخول صلاحية الوصول إليها.",
             18452 => "نوع المصادقة غير مفعّل على الخادم (خطأ 18452). راجع إعداد IntegratedSecurity أو فعّل Mixed Mode في SQL Server.",
-            18456 => "رفض خادم SQL تسجيل دخول حساب الاتصال (خطأ 18456). تحقق من صلاحيات حساب Windows في SQL Server أو بيانات UserId/Password.",
+            18456 => "رفض خادم SQL تسجيل دخول حساب الاتصال (خطأ 18456). نفّذ السكربت sql/04_SetupLanSqlAuth.sql في SSMS، ثم أعد تشغيل خدمة SQL Server لتفعيل Mixed Mode.",
             208 => "جدول المستخدمين (dbo.Users) غير موجود في قاعدة البيانات FitohPhone. نفّذ sql/01_CreateDatabase.sql ثم sql/02_SeedAdmin.sql في SSMS.",
             229 => "حساب الاتصال لا يملك صلاحية القراءة (SELECT) على جدول dbo.Users (خطأ 229).",
             -2 or 258 => "انتهت مهلة الاتصال بقاعدة البيانات. تحقق من استجابة الخادم والشبكة وجدار الحماية.",

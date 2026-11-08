@@ -1,7 +1,5 @@
 # تشغيل العملاء وتغيير عنوان الخادم
 
-> لتشغيل عدة أجهزة في نفس الشبكة الداخلية (قسم مشترك `Default` + استثناءات `Machines` لكل جهاز، وجدار الحماية والتحقق من الجلسات) اقرأ **[دليل الشبكة الداخلية](LAN-SETUP.md)**. هذا الملف يغطي العميل الواحد وتغيير عنوان الخادم.
-
 ## متطلبات العملاء
 
 - Windows x64 مدعوم من .NET 10 (مثل Windows 11 بإصدار مدعوم)، واتصال LAN بالخادم. اختيار SQL 2016 على الجهاز الرئيسي لا يفرض تثبيته على العملاء.
@@ -12,26 +10,22 @@
 
 على جهاز تطوير Windows مجهز بـ SDK 10، نفّذ أوامر README. على كل عميل، انسخ مجلد النشر إلى مجلد محلي مثل `C:\Apps\FitohPhone`. لا تنسخ مجلد المصدر بدل مخرجات publish. عدّل `connectionsettings.json` بجوار EXE ثم افتح البرنامج بدون صلاحيات Administrator.
 
-حساب التطبيق الافتراضي `admin` وكلمته `Admin@123`. اضغط Enter أو زر تسجيل الدخول. بعد النجاح تظهر MainWindow واسم العرض واسم المستخدم وزر تسجيل الخروج الوحيد. تسجيل الخروج يمسح الجلسة ويعيد نافذة دخول جديدة خالية. إغلاق أي نافذة نشطة بـ X أو Alt+F4 ينهي التطبيق: لا تبقى نوافذ مخفية ولا عملية `FitohPhone.exe` في إدارة المهام (الضبط `ShutdownMode="OnLastWindowClose"` مع إغلاق صريح عند آخر نافذة). إن بقيت العملية بعد الإغلاق، فالنسخة المنشورة قديمة؛ أعد النشر من المصدر المحدَّث.
+حساب التطبيق الافتراضي `admin` وكلمته `Admin@123`. اضغط Enter أو زر تسجيل الدخول. بعد النجاح تظهر MainWindow واسم العرض واسم المستخدم وزر تسجيل الخروج الوحيد. تسجيل الخروج يمسح الجلسة ويعيد نافذة دخول جديدة خالية. إغلاق أي نافذة نشطة ينهي التطبيق.
 
 ## إعداد Windows Authentication
 
 ```json
 {
-  "Default": {
-    "Server": "DESKTOP-M1T0F31",
-    "Database": "FitohPhone",
-    "IntegratedSecurity": true,
-    "UserId": "",
-    "Password": "",
-    "Encrypt": true,
-    "TrustServerCertificate": true,
-    "ConnectTimeoutSeconds": 15
-  }
+  "Server": "DESKTOP-M1T0F31",
+  "Database": "FitohPhone",
+  "IntegratedSecurity": true,
+  "UserId": "",
+  "Password": "",
+  "Encrypt": true,
+  "TrustServerCertificate": true,
+  "ConnectTimeoutSeconds": 15
 }
 ```
-
-للاستثناء على جهاز واحد فقط أضف قسمًا باسمه داخل `Machines`؛ بقية الأجهزة تبقى على `Default`. قسم الجهاز **يُدمج فوق `Default`**، فيكفي أن يكتب ما يختلف فقط (مثل `Server` أو `IntegratedSecurity`) وتُورَّث بقية القيم. الملف القديم المسطح (بدون `Default`/`Machines`) يزال مقروءًا ويُعامل كقسم `Default`، فلا يلزم تعديل مجلد عميل منشور سابقًا.
 
 في JSON تمثَّل الشرطة العكسية الواحدة بـ `\\` عند وجود Instance مسماة (مثل `MAIN-PC\\SQLEXPRESS`). اسم الخادم يمكن أن يكون اسم جهاز (للنسخة الافتراضية)، IP، اسمًا مع instance، أو IP/اسمًا مع منفذ مفصول بفاصلة (ليس نقطتين): `192.168.1.10,1433`.
 
@@ -39,16 +33,14 @@
 
 ```json
 {
-  "Default": {
-    "Server": "192.168.1.10,1433",
-    "Database": "FitohPhone",
-    "IntegratedSecurity": false,
-    "UserId": "FitohPhoneClient",
-    "Password": "REPLACE_LOCALLY_WITH_REAL_SECRET",
-    "Encrypt": true,
-    "TrustServerCertificate": true,
-    "ConnectTimeoutSeconds": 15
-  }
+  "Server": "192.168.1.10,1433",
+  "Database": "FitohPhone",
+  "IntegratedSecurity": false,
+  "UserId": "FitohPhoneClient",
+  "Password": "REPLACE_LOCALLY_WITH_REAL_SECRET",
+  "Encrypt": true,
+  "TrustServerCertificate": true,
+  "ConnectTimeoutSeconds": 15
 }
 ```
 
@@ -58,10 +50,9 @@
 
 1. أغلق البرنامج.
 2. خذ نسخة آمنة من الإعدادات. افتح الملف المجاور للـ EXE، لا ملف المصدر.
-3. غيّر `Server` في قسم `Default` (ويُطبّق على كل الأجهزة) عند بقاء بقية التفاصيل كما هي، وحدّث بيانات الهوية/الثقة عند الحاجة. يبقى Database = FitohPhone. لا تعدّل `Machines` إلا إذا كان القسم خاصًا بجهاز معيّن.
+3. غيّر `Server` فقط عند بقاء بقية التفاصيل كما هي، وحدّث بيانات الهوية/الثقة عند الحاجة. يبقى Database = FitohPhone.
 4. احفظ JSON صحيحًا وشغل البرنامج. تُقرأ الإعدادات في كل محاولة دخول؛ إعادة التشغيل تضمن إنهاء أي اتصال pooled قديم.
-5. طبّق العنوان نفسه على كل الأجهزة (قسم `Default` واحد يكفي). لا تستخدم `.` أو `(local)` أو LocalDB كعنوان العملاء. العنوان الافتراضي في المصدر placeholder متعمد ولا يتصل محليًا تلقائيًا.
-6. شاشة الدخول تعرض سطرًا تشخيصيًا بسيطًا: اسم الجهاز، القسم المستخدم، الخادم، القاعدة، ونوع المصادقة. استخدمه للتأكد أن جهازين يقرآن نفس القسم ونفس الخادم.
+5. طبّق العنوان نفسه على كل الأجهزة. لا تستخدم `.` أو `(local)` أو LocalDB كعنوان العملاء. العنوان الافتراضي في المصدر placeholder متعمد ولا يتصل محليًا تلقائيًا.
 
 ## رسائل الأعطال
 
