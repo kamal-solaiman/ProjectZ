@@ -4,7 +4,9 @@
 
 ## 1. تجهيز القاعدة
 
-1. افتح SSMS على الخادم بحساب إداري. شغّل `sql/01_CreateDatabase.sql` ثم `sql/02_SeedAdmin.sql` بالترتيب. لا تشغّل السكربتات عبر SqlCommand كما هي؛ `GO` فاصل دفعات خاص بـ SSMS/sqlcmd وليس T-SQL.
+إذا كانت لديك قاعدة سابقة باسم `FitohPhone` وتريد الاحتفاظ بالبيانات، خذ نسخة احتياطية وأوقف التطبيق وكل الاتصالات، ثم شغّل `sql/05_RenameLegacyDatabaseToProjectZ.sql` أولًا. السكربت `01` يوقف الإعداد إذا وجد القاعدة القديمة كي لا ينشئ قاعدة `ProjectZ` فارغة بجانبها.
+
+1. افتح SSMS على الخادم بحساب إداري. للتثبيت الجديد شغّل `sql/01_CreateDatabase.sql` ثم `sql/02_SeedAdmin.sql` بالترتيب. لا تشغّل السكربتات عبر SqlCommand كما هي؛ `GO` فاصل دفعات خاص بـ SSMS/sqlcmd وليس T-SQL.
 2. السكربتات تعيد التشغيل بأمان، ولا تحذف بيانات، ولا تعيد تعيين admin موجود. إذا كانت القاعدة موجودة مسبقًا بجدول مختلف، راجع بنيته؛ السكربت لا يقوم بترحيل جدول غير مطابق تلقائيًا.
 3. شغّل `sql/03_VerifyEnvironment.sql` واحفظ النتائج في سجل القبول. يجب أن يوجد جدول مستخدم واحد فقط.
 4. الحساب التجريبي: `admin` / `Admin@123`، الاسم `System Administrator`، نشط. المخزن hash وليس نص كلمة المرور. كلمة المرور الافتراضية معلومة؛ لا تضع النسخة في استخدام إنتاجي حساس قبل استبدال hash بواسطة مسؤول النظام بأداة موثوقة تنتج الصيغة الموثقة في PasswordHasher. لا توجد شاشة تغيير كلمة مرور ضمن النطاق المطلوب.
@@ -20,21 +22,23 @@
 
 ## 3. هوية الاتصال وصلاحياتها
 
+عند استخدام SQL Authentication، شغّل `sql/04_SetupLanSqlAuth.sql` بعد تجهيز قاعدة `ProjectZ`؛ ينشئ حساب الاتصال `ProjectZClient` بصلاحية `SELECT` فقط. إذا غُيّرت كلمة مرور SQL محليًا، حدّثها في السكربت وملف الإعدادات معًا.
+
 **Windows Authentication** مفضلة في domain: امنح مجموعة Windows مخصصة login وuser مع SELECT فقط على `dbo.Users`. لا يكفي أن حساب Windows المحلي يحمل الاسم نفسه على جهازين. في workgroup يمكن استخدام SQL Authentication.
 
 مثال ينفذه مسؤول SQL بعد استبدال الاسم باسم مجموعة حقيقية (ليست جداول إضافية):
 
 ```sql
 USE [master];
-CREATE LOGIN [DOMAIN\FitohPhoneUsers] FROM WINDOWS;
+CREATE LOGIN [DOMAIN\ProjectZUsers] FROM WINDOWS;
 GO
-USE [FitohPhone];
-CREATE USER [DOMAIN\FitohPhoneUsers] FOR LOGIN [DOMAIN\FitohPhoneUsers];
-GRANT SELECT ON OBJECT::dbo.Users TO [DOMAIN\FitohPhoneUsers];
+USE [ProjectZ];
+CREATE USER [DOMAIN\ProjectZUsers] FOR LOGIN [DOMAIN\ProjectZUsers];
+GRANT SELECT ON OBJECT::dbo.Users TO [DOMAIN\ProjectZUsers];
 GO
 ```
 
-**SQL Authentication** عند الحاجة: فعّل Mixed Mode من Server Properties → Security ثم أعد تشغيل الخدمة. أنشئ login مخصصًا بكلمة قوية وسياسة كلمات المرور، واربطه بـ user في FitohPhone وامنحه `SELECT` على dbo.Users فقط كما أعلاه. لا تستخدم `sa` أو db_owner، ولا تضع الحساب الإداري في ملف الإعدادات. توليد كلمة السر وإدخالها يتم محليًا لدى المسؤول؛ لا ترسلها في المحادثات أو Git.
+**SQL Authentication** عند الحاجة: فعّل Mixed Mode من Server Properties → Security ثم أعد تشغيل الخدمة. أنشئ login مخصصًا بكلمة قوية وسياسة كلمات المرور، واربطه بـ user في ProjectZ وامنحه `SELECT` على dbo.Users فقط كما أعلاه. لا تستخدم `sa` أو db_owner، ولا تضع الحساب الإداري في ملف الإعدادات. توليد كلمة السر وإدخالها يتم محليًا لدى المسؤول؛ لا ترسلها في المحادثات أو Git.
 
 ## 4. التشفير
 

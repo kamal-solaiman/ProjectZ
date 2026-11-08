@@ -8,16 +8,16 @@
 
 ## النشر
 
-على جهاز تطوير Windows مجهز بـ SDK 10، نفّذ أوامر README. على كل عميل، انسخ مجلد النشر إلى مجلد محلي مثل `C:\Apps\FitohPhone`. لا تنسخ مجلد المصدر بدل مخرجات publish. عدّل `connectionsettings.json` بجوار EXE ثم افتح البرنامج بدون صلاحيات Administrator.
+على جهاز تطوير Windows مجهز بـ SDK 10، نفّذ أوامر README. على كل عميل، انسخ مجلد النشر إلى مجلد محلي مثل `C:\Apps\ProjectZ`. لا تنسخ مجلد المصدر بدل مخرجات publish. عدّل `connectionsettings.json` بجوار EXE ثم افتح البرنامج بدون صلاحيات Administrator.
 
-حساب التطبيق الافتراضي `admin` وكلمته `Admin@123`. اضغط Enter أو زر تسجيل الدخول. بعد النجاح تظهر MainWindow واسم العرض واسم المستخدم وزر تسجيل الخروج الوحيد. تسجيل الخروج يمسح الجلسة ويعيد نافذة دخول جديدة خالية. إغلاق النافذة بـ X أو Alt+F4 يجب أن ينهي التطبيق ويزيل `FitohPhone.exe` من Task Manager؛ تحقق من ذلك قبل الدخول وبعده وبعد تسجيل الخروج، بما في ذلك إغلاق نافذة الدخول أثناء اتصال بطيء.
+حساب التطبيق الافتراضي `admin` وكلمته `Admin@123`. اضغط Enter أو زر تسجيل الدخول. بعد النجاح تظهر MainWindow واسم العرض واسم المستخدم وزر تسجيل الخروج الوحيد. تسجيل الخروج يمسح الجلسة ويعيد نافذة دخول جديدة خالية. إغلاق النافذة بـ X أو Alt+F4 يجب أن ينهي التطبيق ويزيل `ProjectZ.exe` من Task Manager؛ تحقق من ذلك قبل الدخول وبعده وبعد تسجيل الخروج، بما في ذلك إغلاق نافذة الدخول أثناء اتصال بطيء.
 
 ## إعداد Windows Authentication
 
 ```json
 {
   "Server": "DESKTOP-M1T0F31",
-  "Database": "FitohPhone",
+  "Database": "ProjectZ",
   "IntegratedSecurity": true,
   "UserId": "",
   "Password": "",
@@ -34,9 +34,9 @@
 ```json
 {
   "Server": "192.168.1.10,1433",
-  "Database": "FitohPhone",
+  "Database": "ProjectZ",
   "IntegratedSecurity": false,
-  "UserId": "FitohPhoneClient",
+  "UserId": "ProjectZClient",
   "Password": "REPLACE_LOCALLY_WITH_REAL_SECRET",
   "Encrypt": true,
   "TrustServerCertificate": true,
@@ -50,7 +50,7 @@
 
 1. أغلق البرنامج.
 2. خذ نسخة آمنة من الإعدادات. افتح الملف المجاور للـ EXE، لا ملف المصدر.
-3. غيّر `Server` فقط عند بقاء بقية التفاصيل كما هي، وحدّث بيانات الهوية/الثقة عند الحاجة. يبقى Database = FitohPhone.
+3. غيّر `Server` فقط عند بقاء بقية التفاصيل كما هي، وحدّث بيانات الهوية/الثقة عند الحاجة. يبقى Database = ProjectZ.
 4. احفظ JSON صحيحًا وشغل البرنامج. تُقرأ الإعدادات في كل محاولة دخول؛ إعادة التشغيل تضمن إنهاء أي اتصال pooled قديم.
 5. طبّق العنوان نفسه على كل الأجهزة. لا تستخدم `.` أو `(local)` أو LocalDB كعنوان العملاء. العنوان الافتراضي في المصدر placeholder متعمد ولا يتصل محليًا تلقائيًا.
 

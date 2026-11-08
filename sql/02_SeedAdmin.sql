@@ -1,6 +1,6 @@
 -- Password: Admin@123. PBKDF2-HMAC-SHA256, 600000 iterations, random 16-byte salt.
 -- Idempotent: existing accounts/passwords are NEVER overwritten.
-USE [FitohPhone];
+USE [ProjectZ];
 GO
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;

@@ -1,14 +1,19 @@
 -- Run in SSMS/sqlcmd using a database administrator. SQL Server 2016 SP1+ syntax only.
 USE [master];
 GO
-IF DB_ID(N'FitohPhone') IS NULL
+IF DB_ID(N'FitohPhone') IS NOT NULL
 BEGIN
-    CREATE DATABASE [FitohPhone];
+    ;THROW 50003, N'Legacy database [FitohPhone] exists. Back it up, then run sql/05_RenameLegacyDatabaseToProjectZ.sql before setup.', 1;
 END;
 GO
-ALTER DATABASE [FitohPhone] SET COMPATIBILITY_LEVEL = 130;
+IF DB_ID(N'ProjectZ') IS NULL
+BEGIN
+    CREATE DATABASE [ProjectZ];
+END;
 GO
-USE [FitohPhone];
+ALTER DATABASE [ProjectZ] SET COMPATIBILITY_LEVEL = 130;
+GO
+USE [ProjectZ];
 GO
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
