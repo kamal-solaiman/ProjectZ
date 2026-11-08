@@ -13,4 +13,6 @@ PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vecto
 PASS: exactly one CREATE TABLE; explicit compatibility 130
 PASS: ShutdownMode=OnLastWindowClose; OnExplicitShutdown removed
 PASS: guarded shutdown, late-login protection, token cleanup, and safe window swaps
+PASS: Arabic culture, Arabic window titles/content, RTL layout and text alignment
+PASS: credential fields retain LTR input for account names and passwords
 NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish

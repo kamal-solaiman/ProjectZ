@@ -40,17 +40,38 @@ assert 'protected override void OnExit' in app_cs
 assert 'Shutdown()' in app_cs and 'isShuttingDown' in app_cs
 assert 'liveWindows.Contains(login)' in app_cs, 'a late sign-in must not recreate a window'
 assert 'CancelPendingLogins()' in app_cs
-assert 'window.Closed +=' in app_cs and 'liveWindows.Count == 0' in app_cs, \
-    'last closed window must trigger shutdown'
+assert 'window.Closed +=' in app_cs and 'liveWindows.Count == 0' in app_cs, 'last closed window must trigger shutdown'
 assert '.Hide()' not in app_cs, 'hidden windows can keep the dispatcher alive'
-assert re.search(
-    r'main\.Show\(\);\s*login\.ClearPassword\(\);\s*login\.Close\(\);',
-    app_cs,
-), 'login swap must show the new window before closing the old one'
-assert re.search(
-    r'ShowLogin\(\);\s*main\.Close\(\);',
-    app_cs,
-), 'logout swap must show the new window before closing the old one'
+assert re.search(r'main\.Show\(\);\s*login\.ClearPassword\(\);\s*login\.Close\(\);', app_cs), 'login swap must show the new window before closing the old one'
+assert re.search(r'ShowLogin\(\);\s*main\.Close\(\);', app_cs), 'logout swap must show the new window before closing the old one'
 assert 'lifetime.Dispose()' not in login_cs, 'do not dispose a token source while SQL may still use it'
 print('PASS: guarded shutdown, late-login protection, token cleanup, and safe window swaps')
+
+# --- Arabic UI and right-to-left layout ---
+login_xaml = (root / 'src/FitohPhone/Views/LoginWindow.xaml').read_text(encoding='utf-8')
+main_xaml = (root / 'src/FitohPhone/Views/MainWindow.xaml').read_text(encoding='utf-8')
+login_root = ET.fromstring(login_xaml)
+main_root = ET.fromstring(main_xaml)
+for window_root in (login_root, main_root):
+    assert window_root.attrib.get('FlowDirection') == 'RightToLeft'
+    assert window_root.attrib.get('Language') == 'ar-EG'
+assert 'فيتوه فون' in login_xaml and 'تسجيل الدخول' in login_xaml
+assert 'فيتوه فون' in main_xaml and 'تسجيل الخروج' in main_xaml
+text_style = next(
+    style for style in ET.parse(root / 'src/FitohPhone/Resources/Theme.xaml').getroot()
+    if style.tag.endswith('Style') and style.attrib.get('TargetType') == 'TextBlock'
+)
+text_setters = {
+    setter.attrib.get('Property'): setter.attrib.get('Value')
+    for setter in text_style if setter.tag.endswith('Setter')
+}
+assert text_setters.get('FlowDirection') == 'RightToLeft'
+assert text_setters.get('TextAlignment') == 'Right'
+for element in login_root.iter():
+    if element.tag.endswith(('TextBox', 'PasswordBox')):
+        assert element.attrib.get('FlowDirection') == 'LeftToRight', 'credential entry stays LTR for usernames/passwords'
+assert 'CultureInfo.DefaultThreadCurrentCulture = arabicCulture;' in app_cs
+assert 'CultureInfo.DefaultThreadCurrentUICulture = arabicCulture;' in app_cs
+print('PASS: Arabic culture, Arabic window titles/content, RTL layout and text alignment')
+print('PASS: credential fields retain LTR input for account names and passwords')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
