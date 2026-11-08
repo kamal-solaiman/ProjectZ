@@ -4,41 +4,123 @@ using FitohPhone.Models;
 using FitohPhone.Services;
 using FitohPhone.ViewModels;
 using FitohPhone.Views;
+
 namespace FitohPhone;
+
 public partial class App : Application
 {
-    private UserSession? session;
+    // Track windows explicitly as MainWindow changes during login and logout.
+    private readonly List<Window> liveWindows = new();
+    private readonly List<CancellationTokenSource> loginLifetimes = new();
     private AuthenticationService service = null!;
+    private bool isShuttingDown;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         service = new AuthenticationService(new UserRepository(new ConnectionSettingsProvider()));
         ShowLogin();
     }
+
     private void ShowLogin()
     {
+        if (isShuttingDown) return;
+
+        var lifetime = new CancellationTokenSource();
+        loginLifetimes.Add(lifetime);
+
         var window = new LoginWindow();
-        window.DataContext = new LoginViewModel(service, () => window.ReadPassword(), window.ClearPassword,
-            user => OpenMain(window, user), window.LifetimeToken);
+        window.DataContext = new LoginViewModel(
+            service,
+            () => window.ReadPassword(),
+            window.ClearPassword,
+            user => OpenMain(window, user),
+            lifetime.Token);
+
         MainWindow = window;
-        window.Closed += (_, _) => { if (ReferenceEquals(MainWindow, window)) Shutdown(); };
+        TrackWindow(window, () => Cancel(lifetime));
         window.Show();
     }
+
     private void OpenMain(LoginWindow login, UserSession user)
     {
-        session = user;
+        // A slow SQL login may finish after its window has closed. Do not let
+        // that late result recreate a window or keep an invisible process alive.
+        if (isShuttingDown || !liveWindows.Contains(login)) return;
+
         var main = new Views.MainWindow();
-        main.DataContext = new MainViewModel(session, () =>
-        {
-            session = null;
-            main.DataContext = null;
-            ShowLogin();
-            main.Close();
-        });
+        main.DataContext = new MainViewModel(user, () => Logout(main));
         MainWindow = main;
-        main.Closed += (_, _) => { if (ReferenceEquals(MainWindow, main)) { session = null; Shutdown(); } };
+        TrackWindow(main);
+
+        // Show the replacement first: closing the old window must not briefly
+        // make the application windowless during a successful login.
         main.Show();
         login.ClearPassword();
         login.Close();
+    }
+
+    private void Logout(Window main)
+    {
+        if (isShuttingDown) return;
+
+        main.DataContext = null;
+        ShowLogin();
+        main.Close();
+    }
+
+    private void TrackWindow(Window window, Action? onClosed = null)
+    {
+        liveWindows.Add(window);
+        window.Closed += (_, _) =>
+        {
+            liveWindows.Remove(window);
+            onClosed?.Invoke();
+            window.DataContext = null;
+
+            if (liveWindows.Count == 0)
+                ShutdownApplication();
+        };
+    }
+
+    private void ShutdownApplication()
+    {
+        if (isShuttingDown) return;
+
+        isShuttingDown = true;
+        CancelPendingLogins();
+        // OnLastWindowClose also requests shutdown; this explicit call is a
+        // guarded fallback so no WPF dispatcher is left running without a UI.
+        Shutdown();
+    }
+
+    private static void Cancel(CancellationTokenSource source)
+    {
+        try
+        {
+            source.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The source was already cleaned up during application exit.
+        }
+    }
+
+    private void CancelPendingLogins()
+    {
+        foreach (var lifetime in loginLifetimes)
+            Cancel(lifetime);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        isShuttingDown = true;
+        CancelPendingLogins();
+        foreach (var lifetime in loginLifetimes)
+            lifetime.Dispose();
+
+        loginLifetimes.Clear();
+        liveWindows.Clear();
+        base.OnExit(e);
     }
 }
