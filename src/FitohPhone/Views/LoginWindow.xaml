@@ -27,10 +27,9 @@
                 <StackPanel VerticalAlignment="Center">
                     <Border Width="72"
                             Height="72"
-                            Margin="0,0,0,28"
                             CornerRadius="20"
                             Background="#1D455F"
-                            HorizontalAlignment="Right">
+                            >
                         <TextBlock Text="&#xE77B;"
                                    FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                    FontSize="32"
@@ -42,21 +41,25 @@
                                FontSize="34"
                                FontWeight="Bold"
                                Foreground="White"
-                               HorizontalAlignment="Right" />
+                               TextAlignment="Center"
+                               />
                     <TextBlock Text="بوابتك إلى بيئة العمل"
                                Margin="0,18,0,12"
                                FontSize="23"
                                Foreground="White"
+                               TextAlignment="Center"
                                TextWrapping="Wrap" />
-                    <TextBlock Text="واجهة بسيطة. اتصال موحّد.&#x0a;بيانات المؤسسة في مكان واحد."
+                    <TextBlock Text="واجهة بسيطة. اتصال موحّد.&#xA;بيانات المؤسسة في مكان واحد."
                                FontSize="16"
                                LineHeight="28"
                                Foreground="#B7CFDD"
+                               TextAlignment="Center"
                                TextWrapping="Wrap" />
                 </StackPanel>
                 <TextBlock Text="نظام الدخول المؤسسي"
                            VerticalAlignment="Bottom"
                            Foreground="#85AABC"
+                           TextAlignment="Center"
                            FontSize="12" />
             </Grid>
         </Border>
@@ -74,20 +77,23 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <TextBlock Text="فيتوه فون"
-                           HorizontalAlignment="Right"
+                           HorizontalAlignment="Center"
                            FontSize="16"
                            FontWeight="Bold"
+                           TextAlignment="Center"
                            Foreground="{StaticResource Accent}" />
                 <StackPanel Grid.Row="1" VerticalAlignment="Center">
                     <TextBlock Text="تسجيل الدخول"
                                Margin="0,0,0,8"
                                FontSize="30"
-                               FontWeight="Bold" />
+                               FontWeight="Bold" 
+                               TextAlignment="Center" />
                     <TextBlock Text="مرحبًا بعودتك، أدخل بيانات حسابك للمتابعة."
                                Margin="0,0,0,28"
                                Foreground="#64748B"
+                               TextAlignment="Center"
                                TextWrapping="Wrap" />
-                    <TextBlock Text="اسم المستخدم" Margin="0,0,0,8" />
+                    <TextBlock Text="اسم المستخدم" Margin="0,0,0,8" TextAlignment="Center"/>
                     <!-- Account names and passwords are identifiers, so their input direction stays LTR. -->
                     <TextBox x:Name="UsernameInput"
                              Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
@@ -96,7 +102,7 @@
                              FlowDirection="LeftToRight"
                              TextAlignment="Left"
                              AutomationProperties.Name="اسم المستخدم" />
-                    <TextBlock Text="كلمة المرور" Margin="0,18,0,8" />
+                    <TextBlock Text="كلمة المرور" Margin="0,18,0,8" TextAlignment="Center" />
                     <PasswordBox x:Name="PasswordInput"
                                  MaxLength="1024"
                                  IsEnabled="{Binding IsIdle}"
