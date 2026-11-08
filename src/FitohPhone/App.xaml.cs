@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Threading;
 using System.Windows;
 using FitohPhone.Data;
 using FitohPhone.Models;
@@ -17,6 +19,12 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        var arabicCulture = CultureInfo.GetCultureInfo("ar-EG");
+        CultureInfo.DefaultThreadCurrentCulture = arabicCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = arabicCulture;
+        Thread.CurrentThread.CurrentCulture = arabicCulture;
+        Thread.CurrentThread.CurrentUICulture = arabicCulture;
+
         base.OnStartup(e);
         service = new AuthenticationService(new UserRepository(new ConnectionSettingsProvider()));
         ShowLogin();
