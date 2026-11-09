@@ -27,11 +27,11 @@ public sealed class AddProductViewModel : ObservableObject
     private string initialStockText = "10";
     private string minStockAlertText = "5";
     private bool isActiveForSale = true;
-    private bool trackSerialNumber;
+    private bool trackSerialNumber = true;
     private string notes = "";
 
     private string catalogSearchText = "";
-    private string statusMessage = "مرحلة التصميم (بدون Backend): سجّل صنفًا جديدًا مع أسعار القطاعي والمميز والجملة وسيظهر فورًا في المعاينة ونقطة البيع.";
+    private string statusMessage = "مرحلة التصميم (بدون Backend): سجّل صنفًا جديدًا مع أسعار القطاعي والجملة والمميز وسيظهر فورًا في المعاينة ونقطة البيع.";
     private bool isErrorStatus;
 
     public ObservableCollection<string> Categories { get; } = [];
@@ -266,12 +266,12 @@ public sealed class AddProductViewModel : ObservableObject
     {
         get
         {
-            if (ParsedRetail <= 0m || (ParsedSpecial <= 0m && ParsedWholesale <= 0m))
+            if (ParsedRetail <= 0m || (ParsedWholesale <= 0m && ParsedSpecial <= 0m))
                 return false;
 
-            return (ParsedSpecial > 0m && ParsedSpecial > ParsedRetail)
-                   || (ParsedWholesale > 0m && ParsedWholesale > ParsedRetail)
-                   || (ParsedSpecial > 0m && ParsedWholesale > 0m && ParsedWholesale > ParsedSpecial);
+            return (ParsedWholesale > 0m && ParsedWholesale > ParsedRetail)
+                   || (ParsedSpecial > 0m && ParsedSpecial > ParsedRetail)
+                   || (ParsedWholesale > 0m && ParsedSpecial > 0m && ParsedSpecial >= ParsedWholesale);
         }
     }
 
@@ -337,7 +337,7 @@ public sealed class AddProductViewModel : ObservableObject
             NewCategoryName = "";
             IsAddingCustomCategory = false;
         });
-        EstimatePricesFromRetailCommand = new ActionCommand(EstimateSpecialAndWholesaleFromRetail);
+        EstimatePricesFromRetailCommand = new ActionCommand(EstimateWholesaleAndSpecialFromRetail);
         SaveProductCommand = new ActionCommand(() => SaveProduct(keepCategoryAndUnit: false));
         SaveAndKeepCategoryCommand = new ActionCommand(() => SaveProduct(keepCategoryAndUnit: true));
         ResetFormCommand = new ActionCommand(() => ResetForm(keepCategoryAndUnit: false));
@@ -374,20 +374,20 @@ public sealed class AddProductViewModel : ObservableObject
         SetStatus($"تم اختيار التصنيف «{SelectedCategory}».", false);
     }
 
-    private void EstimateSpecialAndWholesaleFromRetail()
+    private void EstimateWholesaleAndSpecialFromRetail()
     {
         if (!PosFormatting.TryParseAmount(RetailPriceText, out var retail) || retail <= 0m)
         {
-            SetStatus("أدخل سعر القطاعي أولًا ليتم تقدير السعر المميز وسعر الجملة تلقائيًا.", true);
+            SetStatus("أدخل سعر القطاعي أولًا ليتم تقدير سعر الجملة والسعر المميز تلقائيًا.", true);
             return;
         }
 
-        var special = Math.Round(retail * 0.92m, 2);
-        var wholesale = Math.Round(retail * 0.85m, 2);
+        var wholesale = Math.Round(retail * 0.90m, 2);
+        var special = Math.Round(retail * 0.85m, 2);
 
-        SpecialPriceText = PosFormatting.FormatPlainNumber(special);
         WholesalePriceText = PosFormatting.FormatPlainNumber(wholesale);
-        SetStatus("تم تقدير السعر المميز (-8%) وسعر الجملة (-15%) من السعر القطاعي؛ يمكنك تعديلها يدويًا.", false);
+        SpecialPriceText = PosFormatting.FormatPlainNumber(special);
+        SetStatus("تم تقدير سعر الجملة (-10%) والسعر المميز (-15%) من السعر القطاعي؛ يمكنك تعديلها يدويًا.", false);
     }
 
     private void SaveProduct(bool keepCategoryAndUnit)
@@ -433,15 +433,15 @@ public sealed class AddProductViewModel : ObservableObject
             return;
         }
 
-        if (!PosFormatting.TryParseAmount(SpecialPriceText, out var specialPrice) || specialPrice <= 0m)
-        {
-            SetStatus("يرجى إدخال سعر مميز صحيح أكبر من صفر.", true);
-            return;
-        }
-
         if (!PosFormatting.TryParseAmount(WholesalePriceText, out var wholesalePrice) || wholesalePrice <= 0m)
         {
             SetStatus("يرجى إدخال سعر جملة صحيح أكبر من صفر.", true);
+            return;
+        }
+
+        if (!PosFormatting.TryParseAmount(SpecialPriceText, out var specialPrice) || specialPrice <= 0m)
+        {
+            SetStatus("يرجى إدخال سعر مميز صحيح أكبر من صفر.", true);
             return;
         }
 
@@ -466,8 +466,8 @@ public sealed class AddProductViewModel : ObservableObject
             Unit = string.IsNullOrWhiteSpace(SelectedUnit) ? "قطعة" : SelectedUnit,
             CostPrice = costPrice,
             RetailPrice = retailPrice,
-            SpecialPrice = specialPrice,
             WholesalePrice = wholesalePrice,
+            SpecialPrice = specialPrice,
             AvailableStock = initialStock,
             MinStockAlert = minStock,
             IsActiveForSale = IsActiveForSale,
@@ -479,7 +479,7 @@ public sealed class AddProductViewModel : ObservableObject
         sharedCatalog.Add(created);
         ResetForm(keepCategoryAndUnit, clearStatus: false);
         SetStatus(
-            $"وضع التصميم (بدون Backend): تم تسجيل «{created.Name}» ({created.Barcode}) — قطاعي {created.RetailPriceDisplay} | مميز {created.SpecialPriceDisplay} | جملة {created.WholesalePriceDisplay} وإضافته لنقطة البيع.",
+            $"وضع التصميم (بدون Backend): تم تسجيل «{created.Name}» ({created.Barcode}) — قطاعي {created.RetailPriceDisplay} | جملة {created.WholesalePriceDisplay} | مميز {created.SpecialPriceDisplay} وإضافته لنقطة البيع.",
             false);
         FocusProductNameRequested?.Invoke();
     }
@@ -497,8 +497,8 @@ public sealed class AddProductViewModel : ObservableObject
         SelectedUnit = source.UnitDisplay;
         CostPriceText = source.CostPrice > 0m ? PosFormatting.FormatPlainNumber(source.CostPrice) : "";
         RetailPriceText = PosFormatting.FormatPlainNumber(source.RetailPrice);
-        SpecialPriceText = PosFormatting.FormatPlainNumber(source.SpecialPrice);
         WholesalePriceText = PosFormatting.FormatPlainNumber(source.WholesalePrice);
+        SpecialPriceText = PosFormatting.FormatPlainNumber(source.SpecialPrice);
         InitialStockText = source.AvailableStock.ToString(CultureInfo.InvariantCulture);
         MinStockAlertText = source.MinStockAlert.ToString(CultureInfo.InvariantCulture);
         IsActiveForSale = source.IsActiveForSale;
@@ -530,12 +530,12 @@ public sealed class AddProductViewModel : ObservableObject
         NewCategoryName = "";
         CostPriceText = "";
         RetailPriceText = "";
-        SpecialPriceText = "";
         WholesalePriceText = "";
+        SpecialPriceText = "";
         InitialStockText = "10";
         MinStockAlertText = "5";
         IsActiveForSale = true;
-        TrackSerialNumber = false;
+        TrackSerialNumber = true;
         Notes = "";
 
         if (clearStatus)
