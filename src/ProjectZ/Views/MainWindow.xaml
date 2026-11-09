@@ -19,7 +19,7 @@
             <Setter Property="Margin" Value="0,2" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Right" />
             <Setter Property="FlowDirection" Value="RightToLeft" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -172,28 +172,33 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0"
-                                Margin="8,6,8,14"
-                                HorizontalAlignment="Stretch"
-                                FlowDirection="RightToLeft">
-                        <TextBlock Text="ProjectZ"
+                    <Grid Grid.Row="0"
+                          Margin="8,6,8,14"
+                          FlowDirection="RightToLeft">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0"
+                                   Text="ProjectZ"
                                    HorizontalAlignment="Right"
                                    FlowDirection="LeftToRight"
                                    TextAlignment="Right"
                                    FontSize="22"
                                    FontWeight="Bold"
                                    Foreground="White" />
-                        <TextBlock Text="القائمة الرئيسية"
+                        <TextBlock Grid.Row="1"
+                                   Text="القائمة الرئيسية"
                                    Margin="0,5,0,0"
                                    HorizontalAlignment="Right"
                                    FlowDirection="RightToLeft"
                                    TextAlignment="Right"
                                    FontSize="13"
                                    Foreground="#B7CFDD" />
-                    </StackPanel>
+                    </Grid>
 
                     <ScrollViewer Grid.Row="1"
-                                  FlowDirection="RightToLeft"
+                                  FlowDirection="LeftToRight"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   CanContentScroll="True">
@@ -210,7 +215,7 @@
                                                 HorizontalAlignment="Stretch"
                                                 Click="CategoryHeader_Click"
                                                 Style="{StaticResource SidebarCategoryButtonStyle}">
-                                            <Grid HorizontalAlignment="Stretch" FlowDirection="LeftToRight">
+                                            <Grid HorizontalAlignment="Right" FlowDirection="LeftToRight">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
