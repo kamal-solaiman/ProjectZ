@@ -166,7 +166,7 @@
                     <Style TargetType="Border">
                         <Setter Property="Padding" Value="40" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsPosSelected}" Value="True">
+                            <DataTrigger Binding="{Binding IsImplementedScreenSelected}" Value="True">
                                 <Setter Property="Padding" Value="16" />
                             </DataTrigger>
                         </Style.Triggers>
@@ -178,7 +178,7 @@
                             <Style TargetType="StackPanel">
                                 <Setter Property="Visibility" Value="Visible" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsPosSelected}" Value="True">
+                                    <DataTrigger Binding="{Binding IsImplementedScreenSelected}" Value="True">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -217,6 +217,20 @@
                             </Style>
                         </Grid.Style>
                         <views:PosView DataContext="{Binding Pos}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAddProductSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:AddProductView DataContext="{Binding AddProduct}" />
                     </Grid>
                 </Grid>
             </Border>
