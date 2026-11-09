@@ -263,7 +263,28 @@ for token in (
     assert token in pos_xaml, f'POS UI missing expected token: {token}'
 
 assert 'IsPosSelected' in main_viewmodel and 'IsPosSelected' in main_xaml
+assert 'IsAddProductSelected' in main_viewmodel and 'IsAddProductSelected' in main_xaml
 assert 'views:PosView' in main_xaml
+assert 'views:AddProductView' in main_xaml
+
+add_product_xaml_path = root / 'src/ProjectZ/Views/AddProductView.xaml'
+assert add_product_xaml_path.is_file()
+add_product_xaml = add_product_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'ProductNameInput',
+    'Barcode',
+    'GenerateBarcodeCommand',
+    'SelectedCategory',
+    'ToggleNewCategoryCommand',
+    'RetailPriceText',
+    'SpecialPriceText',
+    'WholesalePriceText',
+    'سعر قطاعي',
+    'سعر مميز',
+    'سعر جملة',
+    'SaveProductCommand',
+):
+    assert token in add_product_xaml, f'AddProduct UI missing expected token: {token}'
 
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
@@ -271,8 +292,10 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/PosInvoiceViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceItemViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddCustomerViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/AddProductView.xaml.cs',
 ]
 for p in pos_code_paths:
     text = p.read_text(encoding='utf-8')

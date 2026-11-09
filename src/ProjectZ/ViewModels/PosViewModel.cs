@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 
@@ -16,8 +17,8 @@ public sealed class PosViewModel : ObservableObject
 
     public string CashierName { get; }
     public IReadOnlyList<PriceTierOption> PriceTierOptions => PosFormatting.PriceTierOptions;
-    public IReadOnlyList<PosCategoryFilterViewModel> CategoryFilters { get; }
-    public IReadOnlyList<PosProductDesignItem> Catalog { get; }
+    public ObservableCollection<PosCategoryFilterViewModel> CategoryFilters { get; } = [];
+    public ObservableCollection<PosProductDesignItem> Catalog { get; }
     public ObservableCollection<PosProductDesignItem> FilteredCatalog { get; } = [];
     public ObservableCollection<PosCustomerDesignItem> Customers { get; } = [];
     public ObservableCollection<PosInvoiceViewModel> Invoices { get; } = [];
@@ -104,17 +105,19 @@ public sealed class PosViewModel : ObservableObject
     public ActionCommand CompleteInvoicePreviewCommand { get; }
     public ActionCommand FocusBarcodeCommand { get; }
 
-    public PosViewModel() : this("المشرف")
+    public PosViewModel() : this("المشرف", null)
     {
     }
 
-    public PosViewModel(string cashierName)
+    public PosViewModel(string cashierName, ObservableCollection<PosProductDesignItem>? sharedCatalog = null)
     {
         CashierName = cashierName;
-        Catalog = PosDesignSeedData.CreateSampleCatalog();
-        CategoryFilters = PosDesignSeedData.CategoryFilters
-            .Select((title, index) => new PosCategoryFilterViewModel(title, index == 0))
-            .ToArray();
+        Catalog = sharedCatalog ?? PosDesignSeedData.CreateSharedSampleCatalog();
+        foreach (var title in PosDesignSeedData.CategoryFilters)
+            CategoryFilters.Add(new PosCategoryFilterViewModel(title, title == "الكل"));
+        SyncCategoryFiltersFromCatalog();
+        Catalog.CollectionChanged += OnCatalogCollectionChanged;
+
         foreach (var customer in PosDesignSeedData.CreateSampleCustomers())
             Customers.Add(customer);
 
@@ -216,7 +219,7 @@ public sealed class PosViewModel : ObservableObject
         }
 
         var exactBarcode = Catalog.FirstOrDefault(p =>
-            p.Barcode.Equals(query, StringComparison.OrdinalIgnoreCase));
+            p.IsActiveForSale && p.Barcode.Equals(query, StringComparison.OrdinalIgnoreCase));
         if (exactBarcode is not null)
         {
             ActiveInvoice.AddProduct(exactBarcode);
@@ -295,13 +298,30 @@ public sealed class PosViewModel : ObservableObject
             false);
     }
 
+    private void OnCatalogCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        SyncCategoryFiltersFromCatalog();
+        RefreshFilteredCatalog();
+    }
+
+    private void SyncCategoryFiltersFromCatalog()
+    {
+        foreach (var item in Catalog)
+        {
+            if (string.IsNullOrWhiteSpace(item.Category)) continue;
+            if (CategoryFilters.All(f => !f.Title.Equals(item.Category, StringComparison.OrdinalIgnoreCase)))
+                CategoryFilters.Add(new PosCategoryFilterViewModel(item.Category, item.Category == selectedCategoryFilter));
+        }
+    }
+
     private void RefreshFilteredCatalog()
     {
         var query = productSearchText.Trim();
         var category = selectedCategoryFilter;
 
         var matches = Catalog.Where(p =>
-            (category == "الكل" || p.Category == category)
+            p.IsActiveForSale
+            && (category == "الكل" || p.Category == category)
             && (string.IsNullOrEmpty(query)
                 || p.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                 || p.Barcode.Contains(query, StringComparison.OrdinalIgnoreCase)

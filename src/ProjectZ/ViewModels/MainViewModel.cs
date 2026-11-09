@@ -11,9 +11,12 @@ public sealed class MainViewModel : ObservableObject
 
     public IReadOnlyList<NavigationMenuCategoryViewModel> Categories { get; }
     public PosViewModel Pos { get; }
+    public AddProductViewModel AddProduct { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
+    public bool IsAddProductSelected => ReferenceEquals(selectedItem, Categories[0].Items[1]);
+    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -58,7 +61,9 @@ public sealed class MainViewModel : ObservableObject
                 "اعدادات عامة", "المظهر", "النسخ الاحتياطي")
         };
 
-        Pos = new PosViewModel(user.DisplayName);
+        var sharedCatalog = PosDesignSeedData.CreateSharedSampleCatalog();
+        Pos = new PosViewModel(user.DisplayName, sharedCatalog);
+        AddProduct = new AddProductViewModel(sharedCatalog, () => SelectItem(Categories[0].Items[0]));
 
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);
@@ -97,6 +102,8 @@ public sealed class MainViewModel : ObservableObject
 
         selectedItem = item;
         Changed(nameof(IsPosSelected));
+        Changed(nameof(IsAddProductSelected));
+        Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));
         Changed(nameof(SelectedPageDescription));
