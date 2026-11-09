@@ -18,6 +18,7 @@
             <Setter Property="Padding" Value="14,11" />
             <Setter Property="Margin" Value="0,2" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="FlowDirection" Value="RightToLeft" />
             <Setter Property="Template">
@@ -65,7 +66,8 @@
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Normal" />
             <Setter Property="Foreground" Value="#B7CFDD" />
-            <Setter Property="Padding" Value="30,9,12,9" />
+            <!-- Add submenu indentation on the right, where Arabic labels align. -->
+            <Setter Property="Padding" Value="12,9,30,9" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
                     <Setter Property="Background" Value="{StaticResource Accent}" />
@@ -186,14 +188,19 @@
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   CanContentScroll="True">
-                        <ItemsControl ItemsSource="{Binding Categories}">
+                        <ItemsControl ItemsSource="{Binding Categories}"
+                                      HorizontalAlignment="Stretch"
+                                      HorizontalContentAlignment="Stretch">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Margin="0,0,0,5" FlowDirection="RightToLeft">
+                                    <StackPanel Margin="0,0,0,5"
+                                                HorizontalAlignment="Stretch"
+                                                FlowDirection="RightToLeft">
                                         <Button Tag="{Binding}"
+                                                HorizontalAlignment="Stretch"
                                                 Click="CategoryHeader_Click"
                                                 Style="{StaticResource SidebarCategoryButtonStyle}">
-                                            <Grid FlowDirection="LeftToRight">
+                                            <Grid HorizontalAlignment="Stretch" FlowDirection="LeftToRight">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
@@ -206,11 +213,14 @@
                                                            TextAlignment="Center" />
                                                 <TextBlock Grid.Column="1"
                                                            Text="{Binding Title}"
+                                                           HorizontalAlignment="Stretch"
                                                            FlowDirection="RightToLeft"
                                                            TextAlignment="Right" />
                                             </Grid>
                                         </Button>
-                                        <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl ItemsSource="{Binding Items}"
+                                                      HorizontalAlignment="Stretch"
+                                                      HorizontalContentAlignment="Stretch">
                                             <ItemsControl.Style>
                                                 <Style TargetType="ItemsControl">
                                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -223,10 +233,15 @@
                                             </ItemsControl.Style>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Button Content="{Binding Title}"
-                                                            Tag="{Binding}"
+                                                    <Button Tag="{Binding}"
+                                                            HorizontalAlignment="Stretch"
                                                             Click="MenuItem_Click"
-                                                            Style="{StaticResource SidebarMenuButtonStyle}" />
+                                                            Style="{StaticResource SidebarMenuButtonStyle}">
+                                                        <TextBlock Text="{Binding Title}"
+                                                                   HorizontalAlignment="Stretch"
+                                                                   FlowDirection="RightToLeft"
+                                                                   TextAlignment="Right" />
+                                                    </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
