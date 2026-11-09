@@ -13,6 +13,7 @@ PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vecto
 PASS: ProjectZ database scripts; exactly one CREATE TABLE; compatibility 130
 PASS: ShutdownMode=OnLastWindowClose; OnExplicitShutdown removed
 PASS: guarded shutdown, late-login protection, token cleanup, and safe window swaps
+PASS: post-login sidebar labels, selected state, single-open accordion and vertical scrolling
 PASS: Arabic culture/content and RTL client areas; native window chrome stays LTR
 PASS: credential fields retain LTR input for account names and passwords
 PASS: executable, assembly, namespaces, database and SQL login use ProjectZ
