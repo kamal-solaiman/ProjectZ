@@ -377,6 +377,25 @@ for token in (
 ):
     assert token in registrations_xaml, f'ProductRegistrationsWindow missing expected token: {token}'
 
+assert 'IsCategoriesSelected' in main_viewmodel and 'IsCategoriesSelected' in main_xaml
+assert 'views:CategoriesView' in main_xaml
+assert 'sharedCategories' in main_viewmodel and 'ProductCategories' in main_viewmodel
+
+categories_xaml_path = root / 'src/ProjectZ/Views/CategoriesView.xaml'
+assert categories_xaml_path.is_file()
+categories_xaml = categories_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'اسم التصنيف',
+    'NewCategoryName',
+    'AddCategoryCommand',
+    'FilteredCategories',
+    'BeginEditCommand',
+    'SaveEditCommand',
+    'CancelEditCommand',
+    'DeleteCommand',
+):
+    assert token in categories_xaml, f'Categories UI missing expected token: {token}'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
@@ -387,10 +406,12 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs',
+    root / 'src/ProjectZ/ViewModels/CategoriesViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AddProductView.xaml.cs',
     root / 'src/ProjectZ/Views/InventoryView.xaml.cs',
+    root / 'src/ProjectZ/Views/CategoriesView.xaml.cs',
     root / 'src/ProjectZ/Views/ProductRegistrationsWindow.xaml.cs',
     root / 'src/ProjectZ/Views/SupplyStockWindow.xaml.cs',
     root / 'src/ProjectZ/Views/EditProductWindow.xaml.cs',
@@ -423,5 +444,5 @@ for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
         res = m.group(1)
         assert res in local_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
 
-print('PASS: POS, AddProduct & Inventory UI design views, registrations, damaged stock, modals, no backend')
+print('PASS: POS, AddProduct, Inventory & Categories UI design views, registrations, damaged stock, modals, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

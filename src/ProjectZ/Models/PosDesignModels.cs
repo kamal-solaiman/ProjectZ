@@ -349,6 +349,9 @@ public static class PosDesignSeedData
         "دستة"
     ];
 
+    public static System.Collections.ObjectModel.ObservableCollection<string> CreateSharedCategories()
+        => new(ProductCategories);
+
     public static System.Collections.ObjectModel.ObservableCollection<PosProductDesignItem> CreateSharedSampleCatalog()
         => new(CreateSampleCatalog());
 

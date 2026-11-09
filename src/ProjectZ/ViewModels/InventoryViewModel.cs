@@ -10,6 +10,7 @@ public sealed class InventoryViewModel : ObservableObject
 {
     private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
     private readonly ObservableCollection<InventoryUnitRegistrationItem> sharedRegistrations;
+    private readonly ObservableCollection<string>? sharedCategories;
     private readonly Action? navigateToAddProduct;
 
     private int nextRegistrationId = 2001;
@@ -204,10 +205,12 @@ public sealed class InventoryViewModel : ObservableObject
     public InventoryViewModel(
         ObservableCollection<PosProductDesignItem> sharedCatalog,
         ObservableCollection<InventoryUnitRegistrationItem> sharedRegistrations,
-        Action? navigateToAddProduct = null)
+        Action? navigateToAddProduct = null,
+        ObservableCollection<string>? sharedCategories = null)
     {
         this.sharedCatalog = sharedCatalog;
         this.sharedRegistrations = sharedRegistrations;
+        this.sharedCategories = sharedCategories;
         this.navigateToAddProduct = navigateToAddProduct;
         nextRegistrationId = sharedRegistrations.Count > 0 ? sharedRegistrations.Max(r => r.Id) + 1 : 1001;
 
@@ -340,7 +343,8 @@ public sealed class InventoryViewModel : ObservableObject
     {
         if (product is null) return;
 
-        var categoryList = PosDesignSeedData.ProductCategories
+        var baseCategories = (IEnumerable<string>?)sharedCategories ?? PosDesignSeedData.ProductCategories;
+        var categoryList = baseCategories
             .Concat(sharedCatalog.Select(p => p.Category))
             .Where(c => !string.IsNullOrWhiteSpace(c))
             .Distinct()

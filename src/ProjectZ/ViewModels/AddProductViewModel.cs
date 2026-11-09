@@ -35,7 +35,7 @@ public sealed class AddProductViewModel : ObservableObject
     private string statusMessage = "مرحلة التصميم (بدون Backend): سجّل صنفًا جديدًا مع أسعار القطاعي والجملة والمميز وسيظهر فورًا في المعاينة ونقطة البيع.";
     private bool isErrorStatus;
 
-    public ObservableCollection<string> Categories { get; } = [];
+    public ObservableCollection<string> Categories { get; }
     public IReadOnlyList<string> Units => PosDesignSeedData.ProductUnits;
     public ObservableCollection<PosProductDesignItem> FilteredProducts { get; } = [];
 
@@ -70,8 +70,9 @@ public sealed class AddProductViewModel : ObservableObject
         get => selectedCategory;
         set
         {
-            if (selectedCategory == value) return;
-            selectedCategory = value;
+            var normalized = value ?? "";
+            if (selectedCategory == normalized) return;
+            selectedCategory = normalized;
             Changed();
         }
     }
@@ -304,23 +305,27 @@ public sealed class AddProductViewModel : ObservableObject
     public AddProductViewModel(
         ObservableCollection<PosProductDesignItem> sharedCatalog,
         Action? navigateToPos = null,
-        Action<PosProductDesignItem>? onProductCreated = null)
+        Action<PosProductDesignItem>? onProductCreated = null,
+        ObservableCollection<string>? sharedCategories = null)
     {
         this.sharedCatalog = sharedCatalog;
         this.navigateToPos = navigateToPos;
         this.onProductCreated = onProductCreated;
 
-        foreach (var category in PosDesignSeedData.ProductCategories)
-            Categories.Add(category);
-        foreach (var item in sharedCatalog)
+        Categories = sharedCategories ?? PosDesignSeedData.CreateSharedCategories();
+        if (sharedCategories is null)
         {
-            if (!string.IsNullOrWhiteSpace(item.Category) && !Categories.Contains(item.Category))
-                Categories.Add(item.Category);
+            foreach (var item in sharedCatalog)
+            {
+                if (!string.IsNullOrWhiteSpace(item.Category) && !Categories.Contains(item.Category))
+                    Categories.Add(item.Category);
+            }
         }
 
-        selectedCategory = Categories.FirstOrDefault() ?? "هواتف";
+        selectedCategory = Categories.FirstOrDefault() ?? "";
         barcode = GenerateNextAvailableBarcode();
 
+        Categories.CollectionChanged += OnSharedCategoriesChanged;
         sharedCatalog.CollectionChanged += OnCatalogCollectionChanged;
 
         GenerateBarcodeCommand = new ActionCommand(() =>
@@ -577,6 +582,23 @@ public sealed class AddProductViewModel : ObservableObject
         var pct = Math.Round((diff / costPrice) * 100m, 1);
         var sign = diff >= 0m ? "+" : "";
         return $"{sign}{PosFormatting.FormatPlainNumber(diff)} ج.م ({sign}{pct.ToString("0.#", CultureInfo.InvariantCulture)}%)";
+    }
+
+    private void OnSharedCategoriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action == NotifyCollectionChangedAction.Replace
+            && e.OldItems is { Count: > 0 }
+            && e.NewItems is { Count: > 0 }
+            && e.OldItems[0] is string oldCategory
+            && e.NewItems[0] is string newCategory
+            && SelectedCategory.Equals(oldCategory, StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedCategory = newCategory;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SelectedCategory) || !Categories.Contains(SelectedCategory))
+            SelectedCategory = Categories.FirstOrDefault() ?? "";
     }
 
     private void OnCatalogCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

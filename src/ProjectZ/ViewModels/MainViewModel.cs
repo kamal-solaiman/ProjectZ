@@ -13,12 +13,14 @@ public sealed class MainViewModel : ObservableObject
     public PosViewModel Pos { get; }
     public AddProductViewModel AddProduct { get; }
     public InventoryViewModel Inventory { get; }
+    public CategoriesViewModel ProductCategories { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
     public bool IsAddProductSelected => ReferenceEquals(selectedItem, Categories[0].Items[1]);
     public bool IsInventorySelected => ReferenceEquals(selectedItem, Categories[0].Items[2]);
-    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected || IsInventorySelected;
+    public bool IsCategoriesSelected => ReferenceEquals(selectedItem, Categories[0].Items[3]);
+    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -64,16 +66,22 @@ public sealed class MainViewModel : ObservableObject
         };
 
         var sharedCatalog = PosDesignSeedData.CreateSharedSampleCatalog();
+        var sharedCategories = PosDesignSeedData.CreateSharedCategories();
         var sharedRegistrations = InventoryDesignSeedData.CreateSharedSampleRegistrations(sharedCatalog);
         Pos = new PosViewModel(user.DisplayName, sharedCatalog);
         Inventory = new InventoryViewModel(
             sharedCatalog,
             sharedRegistrations,
-            () => SelectItem(Categories[0].Items[1]));
+            () => SelectItem(Categories[0].Items[1]),
+            sharedCategories);
         AddProduct = new AddProductViewModel(
             sharedCatalog,
             () => SelectItem(Categories[0].Items[0]),
-            Inventory.RegisterInitialStockForNewProduct);
+            Inventory.RegisterInitialStockForNewProduct,
+            sharedCategories);
+        ProductCategories = new CategoriesViewModel(
+            sharedCategories,
+            () => SelectItem(Categories[0].Items[1]));
 
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);
@@ -114,6 +122,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
         Changed(nameof(IsInventorySelected));
+        Changed(nameof(IsCategoriesSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));
