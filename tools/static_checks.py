@@ -81,7 +81,49 @@ assert login_content.attrib.get('FlowDirection') == 'LeftToRight'  # stable phys
 assert [panel.attrib.get('Grid.Column') for panel in login_panels] == ['0', '1']
 assert all(panel.attrib.get('FlowDirection') == 'RightToLeft' for panel in login_panels)
 main_content = next(element for element in main_root if element.tag.endswith('Grid'))
-assert main_content.attrib.get('FlowDirection') == 'RightToLeft'
+assert main_content.attrib.get('FlowDirection') == 'LeftToRight'  # stable physical column order
+main_body = next(
+    element for element in main_content
+    if element.tag.endswith('Grid') and element.attrib.get('Grid.Row') == '1'
+)
+main_panels = [element for element in main_body if element.tag.endswith('Border')]
+assert [panel.attrib.get('Grid.Column') for panel in main_panels] == ['0', '1']
+assert all(panel.attrib.get('FlowDirection') == 'RightToLeft' for panel in main_panels)
+logout_button = next(
+    element for element in main_root.iter()
+    if element.tag.endswith('Button') and element.attrib.get('Content') == 'تسجيل الخروج'
+)
+assert logout_button.attrib.get('FlowDirection') == 'RightToLeft'
+sidebar_scrollers = [element for element in main_root.iter() if element.tag.endswith('ScrollViewer')]
+assert len(sidebar_scrollers) == 1
+assert sidebar_scrollers[0].attrib.get('VerticalScrollBarVisibility') == 'Auto'
+assert sidebar_scrollers[0].attrib.get('HorizontalScrollBarVisibility') == 'Disabled'
+assert any(element.attrib.get('Click') == 'CategoryHeader_Click' for element in main_root.iter())
+assert any(element.attrib.get('Click') == 'MenuItem_Click' for element in main_root.iter())
+assert 'IsSelected' in main_xaml and 'IsExpanded' in main_xaml
+
+main_viewmodel = (root / 'src/ProjectZ/ViewModels/MainViewModel.cs').read_text(encoding='utf-8')
+expected_menu = [
+    ('المبيعات', ['نقطة البيع', 'اضافة منتج', 'المخزون', 'التصنيفات', 'الفواتير', 'المرتجع والاستبدال']),
+    ('المشتريات', ['شراء فاتورة', 'فاتورة المشتريات']),
+    ('الصيانة', ['امر صيانة', 'فواتير الصيانة', 'اجراءات الصيانة', 'قطع الغيار']),
+    ('المالية', ['تحويل فودافون كاش', 'تحويل انستاباي', 'سجلات فودافون كاش', 'سجلات انستاباي', 'حساباتي']),
+    ('العملاء والموردين', ['العملاء', 'الموردين']),
+    ('المستخدمين', ['المستخدمين', 'الصلاحيات']),
+    ('الاعدادات', ['اعدادات عامة', 'المظهر', 'النسخ الاحتياطي']),
+]
+menu_groups = re.findall(
+    r'new NavigationMenuCategoryViewModel\("([^"]+)",\s*(.*?)\)',
+    main_viewmodel,
+    re.S,
+)
+actual_menu = [(title, re.findall(r'"([^"]+)"', items)) for title, items in menu_groups]
+assert actual_menu == expected_menu, f'sidebar labels/order differ: {actual_menu}'
+assert 'SelectItem(Categories[0].Items[0]);' in main_viewmodel
+assert 'هذا العنصر للتحديد فقط حاليًا؛ لم تُنفذ شاشته بعد.' in main_viewmodel
+assert 'itemCategory.SetExpanded(expand && ReferenceEquals(itemCategory, category));' in main_viewmodel
+assert 'category.SetExpanded(ReferenceEquals(category, item.Category));' in main_viewmodel
+print('PASS: post-login sidebar labels, selected state, single-open accordion and vertical scrolling')
 
 for element in login_root.iter():
     if element.tag.endswith(('TextBox', 'PasswordBox')):
