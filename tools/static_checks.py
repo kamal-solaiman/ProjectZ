@@ -98,7 +98,7 @@ sidebar_heading = next(
     element for element in main_root.iter()
     if element.tag.endswith('TextBlock') and element.attrib.get('Text') == 'القائمة الرئيسية'
 )
-assert sidebar_heading.attrib.get('HorizontalAlignment') == 'Stretch'
+assert sidebar_heading.attrib.get('HorizontalAlignment') == 'Right'
 assert sidebar_heading.attrib.get('FlowDirection') == 'RightToLeft'
 assert sidebar_heading.attrib.get('TextAlignment') == 'Right'
 sidebar_label_blocks = [
@@ -107,7 +107,7 @@ sidebar_label_blocks = [
 ]
 assert len(sidebar_label_blocks) == 2
 assert all(
-    element.attrib.get('HorizontalAlignment') == 'Stretch'
+    element.attrib.get('HorizontalAlignment') == 'Right'
     and element.attrib.get('FlowDirection') == 'RightToLeft'
     and element.attrib.get('TextAlignment') == 'Right'
     for element in sidebar_label_blocks
