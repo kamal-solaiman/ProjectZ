@@ -233,4 +233,61 @@ for path in (root / 'src/ProjectZ').rglob('*'):
     if path.is_file() and path.suffix in {'.cs', '.xaml', '.csproj', '.json', '.manifest'}:
         assert legacy_product_name not in path.read_text(encoding='utf-8'), f'old product name remains in {path}'
 print('PASS: executable, assembly, namespaces, database and SQL login use ProjectZ')
+
+# --- POS UI Design Phase (no backend/SQL) ---
+pos_xaml_path = root / 'src/ProjectZ/Views/PosView.xaml'
+add_customer_xaml_path = root / 'src/ProjectZ/Views/AddCustomerWindow.xaml'
+pos_styles_path = root / 'src/ProjectZ/Resources/PosStyles.xaml'
+assert pos_xaml_path.is_file() and add_customer_xaml_path.is_file() and pos_styles_path.is_file()
+pos_xaml = pos_xaml_path.read_text(encoding='utf-8')
+add_customer_xaml = add_customer_xaml_path.read_text(encoding='utf-8')
+add_customer_root = ET.fromstring(add_customer_xaml)
+assert add_customer_root.attrib.get('FlowDirection') == 'LeftToRight'
+assert add_customer_root.attrib.get('Language') == 'ar-EG'
+assert add_customer_root.attrib.get('WindowStartupLocation') == 'CenterOwner'
+
+for token in (
+    'NewInvoiceCommand',
+    'BarcodeSearchInput',
+    'ScanOrSearchEnterCommand',
+    'OpenAddCustomerWindowCommand',
+    'SetCashPresetCommand',
+    'SetVodafonePresetCommand',
+    'SetInstaPayPresetCommand',
+    'SetSplitPresetCommand',
+    'سعر قطاعي',
+    'سعر مميز',
+    'سعر جملة',
+    'SelectedPriceTier',
+):
+    assert token in pos_xaml, f'POS UI missing expected token: {token}'
+
+assert 'IsPosSelected' in main_viewmodel and 'IsPosSelected' in main_xaml
+assert 'views:PosView' in main_xaml
+
+pos_code_paths = [
+    root / 'src/ProjectZ/Models/PosDesignModels.cs',
+    root / 'src/ProjectZ/ViewModels/PosViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/PosInvoiceViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/PosInvoiceItemViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/AddCustomerViewModel.cs',
+    root / 'src/ProjectZ/Views/PosView.xaml.cs',
+    root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
+]
+for p in pos_code_paths:
+    text = p.read_text(encoding='utf-8')
+    assert 'SqlClient' not in text and 'SqlConnection' not in text, f'POS design phase must not include backend SQL code: {p}'
+
+defined_keys = set()
+for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
+    for elem in ET.parse(xf).getroot().iter():
+        for k, v in elem.attrib.items():
+            if k.endswith('Key'):
+                defined_keys.add(v)
+for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
+    for m in re.finditer(r'\{StaticResource\s+([^\}\s]+)\}', xf.read_text(encoding='utf-8')):
+        res = m.group(1)
+        assert res in defined_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
+
+print('PASS: POS UI design views, multi-invoice, barcode/search, AddCustomerWindow, split payments, 3 price tiers, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
