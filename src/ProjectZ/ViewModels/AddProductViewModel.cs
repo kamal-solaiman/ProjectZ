@@ -10,6 +10,7 @@ public sealed class AddProductViewModel : ObservableObject
 {
     private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
     private readonly Action? navigateToPos;
+    private readonly Action<PosProductDesignItem>? onProductCreated;
     private int nextProductId = 100;
 
     private string productName = "";
@@ -302,10 +303,12 @@ public sealed class AddProductViewModel : ObservableObject
 
     public AddProductViewModel(
         ObservableCollection<PosProductDesignItem> sharedCatalog,
-        Action? navigateToPos = null)
+        Action? navigateToPos = null,
+        Action<PosProductDesignItem>? onProductCreated = null)
     {
         this.sharedCatalog = sharedCatalog;
         this.navigateToPos = navigateToPos;
+        this.onProductCreated = onProductCreated;
 
         foreach (var category in PosDesignSeedData.ProductCategories)
             Categories.Add(category);
@@ -477,6 +480,7 @@ public sealed class AddProductViewModel : ObservableObject
         };
 
         sharedCatalog.Add(created);
+        onProductCreated?.Invoke(created);
         ResetForm(keepCategoryAndUnit, clearStatus: false);
         SetStatus(
             $"وضع التصميم (بدون Backend): تم تسجيل «{created.Name}» ({created.Barcode}) — قطاعي {created.RetailPriceDisplay} | جملة {created.WholesalePriceDisplay} | مميز {created.SpecialPriceDisplay} وإضافته لنقطة البيع.",

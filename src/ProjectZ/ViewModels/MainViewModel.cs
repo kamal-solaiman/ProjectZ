@@ -12,11 +12,13 @@ public sealed class MainViewModel : ObservableObject
     public IReadOnlyList<NavigationMenuCategoryViewModel> Categories { get; }
     public PosViewModel Pos { get; }
     public AddProductViewModel AddProduct { get; }
+    public InventoryViewModel Inventory { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
     public bool IsAddProductSelected => ReferenceEquals(selectedItem, Categories[0].Items[1]);
-    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected;
+    public bool IsInventorySelected => ReferenceEquals(selectedItem, Categories[0].Items[2]);
+    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected || IsInventorySelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -62,8 +64,16 @@ public sealed class MainViewModel : ObservableObject
         };
 
         var sharedCatalog = PosDesignSeedData.CreateSharedSampleCatalog();
+        var sharedRegistrations = InventoryDesignSeedData.CreateSharedSampleRegistrations(sharedCatalog);
         Pos = new PosViewModel(user.DisplayName, sharedCatalog);
-        AddProduct = new AddProductViewModel(sharedCatalog, () => SelectItem(Categories[0].Items[0]));
+        Inventory = new InventoryViewModel(
+            sharedCatalog,
+            sharedRegistrations,
+            () => SelectItem(Categories[0].Items[1]));
+        AddProduct = new AddProductViewModel(
+            sharedCatalog,
+            () => SelectItem(Categories[0].Items[0]),
+            Inventory.RegisterInitialStockForNewProduct);
 
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);
@@ -103,6 +113,7 @@ public sealed class MainViewModel : ObservableObject
         selectedItem = item;
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
+        Changed(nameof(IsInventorySelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));

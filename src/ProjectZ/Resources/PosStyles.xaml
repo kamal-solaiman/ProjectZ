@@ -88,6 +88,35 @@
         </Setter>
     </Style>
 
+    <Style x:Key="PosDangerButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="#B42318" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Body"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Body" Property="Opacity" Value="0.88" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Body" Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="PosSecondaryButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="#F1F5F9" />
         <Setter Property="Foreground" Value="#172B41" />
