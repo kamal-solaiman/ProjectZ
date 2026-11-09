@@ -1,0 +1,1568 @@
+<UserControl x:Class="ProjectZ.Views.PosView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FlowDirection="LeftToRight"
+             Language="ar-EG">
+    <UserControl.Resources>
+        <Style x:Key="CategoryPillButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#F1F5F9" />
+                <Setter Property="Foreground" Value="#475569" />
+                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Padding" Value="11,5" />
+                <Setter Property="Margin" Value="6,0,0,0" />
+                <Setter Property="FontSize" Value="12.5" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Pill"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="14"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Pill" Property="BorderBrush" Value="#147D92" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                        <Setter Property="Background" Value="#147D92" />
+                        <Setter Property="Foreground" Value="White" />
+                        <Setter Property="BorderBrush" Value="#147D92" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="InvoiceTierPillBaseStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="#475569" />
+                <Setter Property="Padding" Value="12,6" />
+                <Setter Property="FontSize" Value="12.5" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Body"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="7"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Body" Property="Opacity" Value="0.88" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="PaymentPresetButtonBaseStyle" TargetType="Button">
+                <Setter Property="Background" Value="#F8FAFC" />
+                <Setter Property="Foreground" Value="#334155" />
+                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Padding" Value="8,7" />
+                <Setter Property="FontSize" Value="12.5" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Body"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Body" Property="BorderBrush" Value="#147D92" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+    </UserControl.Resources>
+
+    <!-- Keep physical coordinates predictable (LTR); Arabic labels/tables explicitly use RTL. -->
+    <Grid FlowDirection="LeftToRight">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ROW 0: POS Header & Whole-Invoice Price Tier Controls -->
+        <Grid Grid.Row="0" Margin="0,0,0,10" FlowDirection="LeftToRight">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Physical Left: Invoice-wide price tier segmented control + clear button -->
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        FlowDirection="RightToLeft">
+                <TextBlock Text="سعر الفاتورة كاملة:"
+                           Style="{StaticResource PosRtlTextStyle}"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#475569"
+                           Margin="0,0,0,0" />
+
+                <Border Margin="8,0,0,0"
+                        Padding="3"
+                        CornerRadius="9"
+                        Background="#F1F5F9"
+                        BorderBrush="#CBD5E1"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                        <Button Content="سعر قطاعي"
+                                Command="{Binding ActiveInvoice.SetInvoiceRetailCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource InvoiceTierPillBaseStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ActiveInvoice.IsInvoiceRetail}" Value="True">
+                                            <Setter Property="Background" Value="#147D92" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="سعر مميز"
+                                Margin="3,0,0,0"
+                                Command="{Binding ActiveInvoice.SetInvoiceSpecialCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource InvoiceTierPillBaseStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ActiveInvoice.IsInvoiceSpecial}" Value="True">
+                                            <Setter Property="Background" Value="#6D28D9" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="سعر جملة"
+                                Margin="3,0,0,0"
+                                Command="{Binding ActiveInvoice.SetInvoiceWholesaleCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource InvoiceTierPillBaseStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ActiveInvoice.IsInvoiceWholesale}" Value="True">
+                                            <Setter Property="Background" Value="#102E48" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <Button Content="إفراغ الفاتورة"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource PosSecondaryButtonStyle}"
+                        Padding="11,6"
+                        FontSize="12.5"
+                        Command="{Binding ActiveInvoice.ClearInvoiceCommand}" />
+            </StackPanel>
+
+            <!-- Physical Right: POS Title + Design Mode Pill -->
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        FlowDirection="RightToLeft">
+                <TextBlock Text="نقطة البيع"
+                           Style="{StaticResource PosRtlTextStyle}"
+                           FontSize="22"
+                           FontWeight="Bold"
+                           Foreground="#102E48"
+                           VerticalAlignment="Center" />
+                <Border Margin="10,0,0,0"
+                        Padding="10,4"
+                        CornerRadius="12"
+                        Background="#E0F2FE"
+                        BorderBrush="#BAE6FD"
+                        BorderThickness="1"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="تصميم الواجهة — بدون Backend"
+                               Style="{StaticResource PosCenterTextStyle}"
+                               FontSize="11.5"
+                               FontWeight="SemiBold"
+                               Foreground="#0369A1" />
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- ROW 1: Multi-Invoice Tab Strip -->
+        <Border Grid.Row="1"
+                Margin="0,0,0,12"
+                Padding="8"
+                CornerRadius="12"
+                Background="#F8FAFC"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                FlowDirection="LeftToRight">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0"
+                        Margin="0,0,10,0"
+                        Style="{StaticResource PosOutlineTealButtonStyle}"
+                        Padding="12,7"
+                        Command="{Binding NewInvoiceCommand}">
+                    <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                        <TextBlock Text="+"
+                                   Style="{StaticResource PosCenterTextStyle}"
+                                   FontSize="15"
+                                   FontWeight="Bold"
+                                   Foreground="#147D92"
+                                   Margin="0,0,0,0" />
+                        <TextBlock Text="فاتورة جديدة"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   Margin="6,0,0,0"
+                                   FontSize="13"
+                                   FontWeight="Bold"
+                                   Foreground="#147D92" />
+                    </StackPanel>
+                </Button>
+
+                <ScrollViewer Grid.Column="1"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled"
+                              FlowDirection="RightToLeft">
+                    <ItemsControl ItemsSource="{Binding Invoices}" FlowDirection="RightToLeft">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,8,0" CornerRadius="10" BorderThickness="1">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="White" />
+                                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                    <Setter Property="Background" Value="#102E48" />
+                                                    <Setter Property="BorderBrush" Value="#102E48" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid FlowDirection="RightToLeft">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Button Grid.Column="0"
+                                                Padding="12,6"
+                                                Background="Transparent"
+                                                Cursor="Hand"
+                                                Command="{Binding DataContext.SelectInvoiceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter VerticalAlignment="Center" />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding TabTitle}" FontSize="13" FontWeight="Bold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
+                                                            <Setter Property="Foreground" Value="#172B41" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding TabItemsSummary}"
+                                                           Margin="8,0,0,0"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource PosLtrTextStyle}">
+                                                            <Setter Property="Foreground" Value="#64748B" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#6EE7D8" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <Button Grid.Column="1"
+                                                Content="×"
+                                                Width="26"
+                                                Height="26"
+                                                Margin="0,0,4,0"
+                                                Padding="0"
+                                                FontSize="15"
+                                                FontWeight="Bold"
+                                                Cursor="Hand"
+                                                ToolTip="إغلاق الفاتورة"
+                                                Command="{Binding DataContext.CloseInvoiceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Setter Property="Foreground" Value="#64748B" />
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="CloseChrome"
+                                                                        Background="{TemplateBinding Background}"
+                                                                        CornerRadius="6">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="CloseChrome" Property="Background" Value="#FEE2E2" />
+                                                                        <Setter Property="Foreground" Value="#B42318" />
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                            <Setter Property="Foreground" Value="#B7CFDD" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- ROW 2: Two-Column POS Body -->
+        <Grid Grid.Row="2" FlowDirection="LeftToRight">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="368" MinWidth="320" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- PHYSICAL LEFT COLUMN: Customer + Totals + Multi-Method Payment -->
+            <ScrollViewer Grid.Column="0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          FlowDirection="LeftToRight">
+                <StackPanel Margin="0,0,4,0" FlowDirection="LeftToRight">
+
+                    <!-- CARD 1: Customer Selection & Add Customer Window Trigger -->
+                    <Border Margin="0,0,0,10"
+                            Padding="13"
+                            CornerRadius="14"
+                            Background="#F8FAFC"
+                            BorderBrush="#E2E8F0"
+                            BorderThickness="1"
+                            FlowDirection="LeftToRight">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8" FlowDirection="LeftToRight">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0"
+                                        Style="{StaticResource PosOutlineTealButtonStyle}"
+                                        Padding="10,5"
+                                        FontSize="12"
+                                        Command="{Binding OpenAddCustomerWindowCommand}">
+                                    <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                                        <TextBlock Text="+"
+                                                   Style="{StaticResource PosCenterTextStyle}"
+                                                   FontWeight="Bold"
+                                                   Foreground="#147D92" />
+                                        <TextBlock Text="عميل جديد"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   Margin="5,0,0,0"
+                                                   FontWeight="Bold"
+                                                   Foreground="#147D92" />
+                                    </StackPanel>
+                                </Button>
+
+                                <TextBlock Grid.Column="1"
+                                           Text="بيانات العميل"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           VerticalAlignment="Center"
+                                           FontSize="14.5"
+                                           FontWeight="Bold"
+                                           Foreground="#102E48" />
+                            </Grid>
+
+                            <!-- Selected Customer Card -->
+                            <Border Padding="10,8"
+                                    CornerRadius="10"
+                                    BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="White" />
+                                        <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ActiveInvoice.HasNamedCustomer}" Value="True">
+                                                <Setter Property="Background" Value="#F0FDFA" />
+                                                <Setter Property="BorderBrush" Value="#5EEAD4" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid FlowDirection="LeftToRight">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="0"
+                                            Content="عميل نقدي"
+                                            Style="{StaticResource PosSecondaryButtonStyle}"
+                                            Padding="8,4"
+                                            FontSize="11.5"
+                                            VerticalAlignment="Center"
+                                            Visibility="{Binding ActiveInvoice.HasNamedCustomer, Converter={StaticResource BoolToVis}}"
+                                            Command="{Binding ActiveInvoice.ResetWalkInCustomerCommand}" />
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding ActiveInvoice.SelectedCustomer.Name}"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   FontSize="13.5"
+                                                   FontWeight="Bold"
+                                                   Foreground="#102E48" />
+                                        <StackPanel Orientation="Horizontal"
+                                                    HorizontalAlignment="Right"
+                                                    FlowDirection="RightToLeft"
+                                                    Margin="0,3,0,0">
+                                            <TextBlock Text="{Binding ActiveInvoice.SelectedCustomer.DisplayPhone}"
+                                                       Style="{StaticResource PosLtrTextStyle}"
+                                                       FontSize="11.5"
+                                                       Foreground="#64748B" />
+                                            <TextBlock Text=" · "
+                                                       Style="{StaticResource PosCenterTextStyle}"
+                                                       FontSize="11.5"
+                                                       Foreground="#94A3B8" />
+                                            <TextBlock Text="{Binding ActiveInvoice.SelectedCustomerTierDisplay}"
+                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                       FontSize="11.5"
+                                                       Foreground="#147D92"
+                                                       FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Customer Search & Picker Trigger -->
+                            <Grid Margin="0,8,0,0" FlowDirection="LeftToRight">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0"
+                                        Content="القائمة"
+                                        Margin="0,0,6,0"
+                                        Style="{StaticResource PosSecondaryButtonStyle}"
+                                        Padding="10,6"
+                                        FontSize="12"
+                                        Command="{Binding ActiveInvoice.ToggleCustomerPickerCommand}" />
+
+                                <Grid Grid.Column="1">
+                                    <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                             Padding="10,6,30,6"
+                                             FlowDirection="RightToLeft"
+                                             TextAlignment="Left"
+                                             Text="{Binding ActiveInvoice.CustomerSearchText, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Text="ابحث عن عميل بالاسم أو الهاتف..."
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               Margin="30,0,10,0"
+                                               VerticalAlignment="Center"
+                                               FontSize="12.5"
+                                               Foreground="#94A3B8"
+                                               IsHitTestVisible="False"
+                                               Visibility="{Binding ActiveInvoice.CustomerSearchText, Converter={StaticResource StringEmptyToVis}}" />
+                                    <Button Content="×"
+                                            Width="22"
+                                            Height="22"
+                                            Margin="6,0,0,0"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource PosDangerIconButtonStyle}"
+                                            Visibility="{Binding ActiveInvoice.CustomerSearchText, Converter={StaticResource StringNotEmptyToVis}}"
+                                            Command="{Binding ActiveInvoice.ClearCustomerSearchCommand}" />
+                                </Grid>
+                            </Grid>
+
+                            <!-- Customer Not Found Callout -> Opens Window -->
+                            <Border Margin="0,8,0,0"
+                                    Padding="10"
+                                    CornerRadius="10"
+                                    Background="#FFFBEB"
+                                    BorderBrush="#F59E0B"
+                                    BorderThickness="1"
+                                    Visibility="{Binding ActiveInvoice.IsCustomerNotFound, Converter={StaticResource BoolToVis}}">
+                                <StackPanel>
+                                    <TextBlock Text="العميل غير متواجد في القائمة الحالية"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="12.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="#92400E" />
+                                    <Button Margin="0,6,0,0"
+                                            Content="+ فتح نافذة إضافة العميل"
+                                            Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                                            Padding="10,6"
+                                            FontSize="12.5"
+                                            Command="{Binding OpenAddCustomerWindowCommand}" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Filtered Customer Picker List -->
+                            <Border Margin="0,8,0,0"
+                                    Padding="4"
+                                    CornerRadius="10"
+                                    Background="White"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding ActiveInvoice.IsCustomerPickerVisible}" Value="True" />
+                                                    <Condition Binding="{Binding ActiveInvoice.HasFilteredCustomers}" Value="True" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <ScrollViewer MaxHeight="115"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding ActiveInvoice.FilteredCustomers}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Padding="8,6"
+                                                        Margin="0,1"
+                                                        Cursor="Hand"
+                                                        HorizontalContentAlignment="Stretch"
+                                                        Command="{Binding DataContext.ActiveInvoice.SelectCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="ItemBg" Background="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="ItemBg" Property="Background" Value="#E0F2FE" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                    <Grid FlowDirection="LeftToRight">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding DefaultPriceTierTitle}"
+                                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                                   FontSize="11"
+                                                                   Foreground="#147D92"
+                                                                   VerticalAlignment="Center" />
+                                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                                       FontSize="12.5"
+                                                                       FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding DisplayPhone}"
+                                                                       Style="{StaticResource PosLtrTextStyle}"
+                                                                       HorizontalAlignment="Right"
+                                                                       FontSize="11"
+                                                                       Foreground="#64748B" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- CARD 2: Invoice Totals & Discount -->
+                    <Border Margin="0,0,0,10"
+                            Padding="13"
+                            CornerRadius="14"
+                            Background="#F8FAFC"
+                            BorderBrush="#E2E8F0"
+                            BorderThickness="1"
+                            FlowDirection="LeftToRight">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding ActiveInvoice.ItemsCountSummary}"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           HorizontalAlignment="Left"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1"
+                                           Text="الأصناف:"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="12.5"
+                                           Foreground="#64748B" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding ActiveInvoice.SubtotalDisplay}"
+                                           Style="{StaticResource PosLtrTextStyle}"
+                                           FontSize="13.5"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1"
+                                           Text="المجموع الفرعي:"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="13"
+                                           Foreground="#64748B" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Style="{StaticResource PosNumericTextBoxStyle}"
+                                         MinHeight="30"
+                                         Padding="8,4"
+                                         FontSize="13"
+                                         Text="{Binding ActiveInvoice.DiscountAmountText, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="خصم إضافي (ج.م):"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           VerticalAlignment="Center"
+                                           FontSize="13"
+                                           Foreground="#64748B" />
+                            </Grid>
+
+                            <Border Padding="14,10" CornerRadius="11" Background="#102E48">
+                                <Grid FlowDirection="LeftToRight">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding ActiveInvoice.NetTotalDisplay}"
+                                               Style="{StaticResource PosLtrTextStyle}"
+                                               VerticalAlignment="Center"
+                                               FontSize="20"
+                                               FontWeight="Bold"
+                                               Foreground="White" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="الإجمالي المستحق"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               VerticalAlignment="Center"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="#6EE7D8" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- CARD 3: Single or Combined Payment Methods -->
+                    <Border Margin="0,0,0,10"
+                            Padding="13"
+                            CornerRadius="14"
+                            Background="#F8FAFC"
+                            BorderBrush="#E2E8F0"
+                            BorderThickness="1"
+                            FlowDirection="LeftToRight">
+                        <StackPanel>
+                            <TextBlock Text="طرق الدفع (فردي أو متعدد)"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       Margin="0,0,0,8"
+                                       FontSize="14.5"
+                                       FontWeight="Bold"
+                                       Foreground="#102E48" />
+
+                            <!-- 4 Preset Mode Buttons -->
+                            <Grid Margin="0,0,0,10" FlowDirection="LeftToRight">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="6" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Row="0" Grid.Column="2" Content="نقدي" Command="{Binding ActiveInvoice.SetCashPresetCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PaymentPresetButtonBaseStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveInvoice.IsCashPresetActive}" Value="True">
+                                                    <Setter Property="Background" Value="#0F766E" />
+                                                    <Setter Property="BorderBrush" Value="#0F766E" />
+                                                    <Setter Property="Foreground" Value="White" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Grid.Row="0" Grid.Column="0" Content="فودافون كاش" Command="{Binding ActiveInvoice.SetVodafonePresetCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PaymentPresetButtonBaseStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveInvoice.IsVodafonePresetActive}" Value="True">
+                                                    <Setter Property="Background" Value="#C8102E" />
+                                                    <Setter Property="BorderBrush" Value="#C8102E" />
+                                                    <Setter Property="Foreground" Value="White" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Grid.Row="2" Grid.Column="2" Content="انستاباي" Command="{Binding ActiveInvoice.SetInstaPayPresetCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PaymentPresetButtonBaseStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveInvoice.IsInstaPayPresetActive}" Value="True">
+                                                    <Setter Property="Background" Value="#6D28D9" />
+                                                    <Setter Property="BorderBrush" Value="#6D28D9" />
+                                                    <Setter Property="Foreground" Value="White" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Grid.Row="2" Grid.Column="0" Content="نقدي + فودافون + انستاباي" FontSize="11.5" Command="{Binding ActiveInvoice.SetSplitPresetCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PaymentPresetButtonBaseStyle}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ActiveInvoice.IsSplitPresetActive}" Value="True">
+                                                    <Setter Property="Background" Value="#102E48" />
+                                                    <Setter Property="BorderBrush" Value="#102E48" />
+                                                    <Setter Property="Foreground" Value="White" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+
+                            <!-- Channel 1: Cash -->
+                            <Border Margin="0,0,0,7" Padding="9" CornerRadius="10" Background="White" BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ActiveInvoice.IsCashEnabled}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#0F766E" />
+                                                <Setter Property="Background" Value="#F0FDFA" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid FlowDirection="LeftToRight">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="105" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0"
+                                            Content="باقي"
+                                            Margin="0,0,6,0"
+                                            Style="{StaticResource PosSecondaryButtonStyle}"
+                                            Padding="8,5"
+                                            FontSize="11.5"
+                                            ToolTip="إكمال المتبقي نقدي"
+                                            Command="{Binding ActiveInvoice.FillCashRemainingCommand}" />
+                                    <TextBox Grid.Column="1"
+                                             Style="{StaticResource PosNumericTextBoxStyle}"
+                                             MinHeight="32"
+                                             Padding="8,4"
+                                             Text="{Binding ActiveInvoice.CashAmountText, UpdateSourceTrigger=PropertyChanged}" />
+                                    <CheckBox Grid.Column="2"
+                                              Style="{StaticResource PosCheckBoxStyle}"
+                                              HorizontalAlignment="Right"
+                                              IsChecked="{Binding ActiveInvoice.IsCashEnabled, Mode=TwoWay}">
+                                        <TextBlock Text="نقدي"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
+                                                   Foreground="#0F766E" />
+                                    </CheckBox>
+                                </Grid>
+                            </Border>
+
+                            <!-- Channel 2: Vodafone Cash -->
+                            <Border Margin="0,0,0,7" Padding="9" CornerRadius="10" Background="White" BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ActiveInvoice.IsVodafoneCashEnabled}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#C8102E" />
+                                                <Setter Property="Background" Value="#FEF2F2" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <Grid FlowDirection="LeftToRight">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="105" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0"
+                                                Content="باقي"
+                                                Margin="0,0,6,0"
+                                                Style="{StaticResource PosSecondaryButtonStyle}"
+                                                Padding="8,5"
+                                                FontSize="11.5"
+                                                ToolTip="إكمال المتبقي فودافون كاش"
+                                                Command="{Binding ActiveInvoice.FillVodafoneRemainingCommand}" />
+                                        <TextBox Grid.Column="1"
+                                                 Style="{StaticResource PosNumericTextBoxStyle}"
+                                                 MinHeight="32"
+                                                 Padding="8,4"
+                                                 Text="{Binding ActiveInvoice.VodafoneCashAmountText, UpdateSourceTrigger=PropertyChanged}" />
+                                        <CheckBox Grid.Column="2"
+                                                  Style="{StaticResource PosCheckBoxStyle}"
+                                                  HorizontalAlignment="Right"
+                                                  IsChecked="{Binding ActiveInvoice.IsVodafoneCashEnabled, Mode=TwoWay}">
+                                            <TextBlock Text="فودافون كاش"
+                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                       FontSize="13"
+                                                       FontWeight="Bold"
+                                                       Foreground="#C8102E" />
+                                        </CheckBox>
+                                    </Grid>
+                                    <Grid Margin="0,6,0,0"
+                                          Visibility="{Binding ActiveInvoice.IsVodafoneCashEnabled, Converter={StaticResource BoolToVis}}">
+                                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
+                                                 MinHeight="30"
+                                                 Padding="8,4"
+                                                 FontSize="12"
+                                                 FontWeight="Normal"
+                                                 Text="{Binding ActiveInvoice.VodafoneCashReference, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="رقم محفظة العميل / مرجع التحويل (اختياري)"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   Margin="10,0,10,0"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="11.5"
+                                                   Foreground="#94A3B8"
+                                                   IsHitTestVisible="False"
+                                                   Visibility="{Binding ActiveInvoice.VodafoneCashReference, Converter={StaticResource StringEmptyToVis}}" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Channel 3: InstaPay -->
+                            <Border Margin="0,0,0,8" Padding="9" CornerRadius="10" Background="White" BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ActiveInvoice.IsInstaPayEnabled}" Value="True">
+                                                <Setter Property="BorderBrush" Value="#6D28D9" />
+                                                <Setter Property="Background" Value="#F5F3FF" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <Grid FlowDirection="LeftToRight">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="105" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0"
+                                                Content="باقي"
+                                                Margin="0,0,6,0"
+                                                Style="{StaticResource PosSecondaryButtonStyle}"
+                                                Padding="8,5"
+                                                FontSize="11.5"
+                                                ToolTip="إكمال المتبقي انستاباي"
+                                                Command="{Binding ActiveInvoice.FillInstaPayRemainingCommand}" />
+                                        <TextBox Grid.Column="1"
+                                                 Style="{StaticResource PosNumericTextBoxStyle}"
+                                                 MinHeight="32"
+                                                 Padding="8,4"
+                                                 Text="{Binding ActiveInvoice.InstaPayAmountText, UpdateSourceTrigger=PropertyChanged}" />
+                                        <CheckBox Grid.Column="2"
+                                                  Style="{StaticResource PosCheckBoxStyle}"
+                                                  HorizontalAlignment="Right"
+                                                  IsChecked="{Binding ActiveInvoice.IsInstaPayEnabled, Mode=TwoWay}">
+                                            <TextBlock Text="انستاباي"
+                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                       FontSize="13"
+                                                       FontWeight="Bold"
+                                                       Foreground="#6D28D9" />
+                                        </CheckBox>
+                                    </Grid>
+                                    <Grid Margin="0,6,0,0"
+                                          Visibility="{Binding ActiveInvoice.IsInstaPayEnabled, Converter={StaticResource BoolToVis}}">
+                                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
+                                                 MinHeight="30"
+                                                 Padding="8,4"
+                                                 FontSize="12"
+                                                 FontWeight="Normal"
+                                                 Text="{Binding ActiveInvoice.InstaPayReference, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="عنوان / مرجع انستاباي (اختياري)"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   Margin="10,0,10,0"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="11.5"
+                                                   Foreground="#94A3B8"
+                                                   IsHitTestVisible="False"
+                                                   Visibility="{Binding ActiveInvoice.InstaPayReference, Converter={StaticResource StringEmptyToVis}}" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Payment Balance Summary -->
+                            <Border Padding="10,8" CornerRadius="9" Background="White" BorderBrush="#CBD5E1" BorderThickness="1">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding ActiveInvoice.TotalPaidDisplay}"
+                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                   FontSize="13"
+                                                   FontWeight="Bold" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="إجمالي المدفوع:"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   FontSize="12.5"
+                                                   Foreground="#64748B" />
+                                    </Grid>
+
+                                    <Grid Visibility="{Binding ActiveInvoice.HasRemaining, Converter={StaticResource BoolToVis}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding ActiveInvoice.RemainingAmountDisplay}"
+                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
+                                                   Foreground="#B42318" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="المتبقي على العميل:"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   FontSize="12.5"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#B42318" />
+                                    </Grid>
+
+                                    <Grid Visibility="{Binding ActiveInvoice.HasChange, Converter={StaticResource BoolToVis}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding ActiveInvoice.ChangeAmountDisplay}"
+                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
+                                                   Foreground="#0F766E" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="الباقي للعميل:"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   FontSize="12.5"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#0F766E" />
+                                    </Grid>
+
+                                    <TextBlock Text="تم سداد كامل الفاتورة ✓"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Foreground="#0F766E"
+                                               Visibility="{Binding ActiveInvoice.IsFullySettled, Converter={StaticResource BoolToVis}}" />
+
+                                    <TextBlock Text="{Binding ActiveInvoice.PaymentMixSummary}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               Margin="0,4,0,0"
+                                               FontSize="11.5"
+                                               Foreground="#475569"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Primary Checkout Preview Button -->
+                    <Button Content="معاينة إتمام الفاتورة"
+                            Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                            Padding="16,12"
+                            FontSize="15"
+                            Command="{Binding CompleteInvoicePreviewCommand}" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- PHYSICAL RIGHT COLUMN: Barcode/Search + Cart Items Table + Status -->
+            <Grid Grid.Column="1" Margin="14,0,0,0" FlowDirection="LeftToRight">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Search / Barcode Scanner & Quick Product Picker Card -->
+                <Border Grid.Row="0"
+                        Margin="0,0,0,10"
+                        Padding="12"
+                        CornerRadius="14"
+                        Background="#F8FAFC"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        FlowDirection="LeftToRight">
+                    <StackPanel>
+                        <!-- Barcode / Product Search Input Row -->
+                        <Grid FlowDirection="LeftToRight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0"
+                                    Margin="0,0,8,0"
+                                    Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                                    Padding="14,8"
+                                    Command="{Binding ScanOrSearchEnterCommand}">
+                                <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                                    <TextBlock Text="إضافة / مسح (Enter)"
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               FontSize="12.5"
+                                               FontWeight="Bold"
+                                               Foreground="White" />
+                                </StackPanel>
+                            </Button>
+
+                            <Grid Grid.Column="1">
+                                <TextBox x:Name="BarcodeSearchInput"
+                                         Style="{StaticResource PosCompactTextBoxStyle}"
+                                         Padding="36,7,32,7"
+                                         FlowDirection="RightToLeft"
+                                         TextAlignment="Left"
+                                         Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding ScanOrSearchEnterCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+
+                                <!-- Barcode icon on physical right -->
+                                <Path Data="M2,4 H4 V18 H2 Z M5,4 H6 V18 H5 Z M8,4 H11 V18 H8 Z M12,4 H13 V18 H12 Z M15,4 H17 V18 H15 Z M19,4 H20 V18 H19 Z M21,4 H23 V18 H21 Z"
+                                      Fill="#147D92"
+                                      Stretch="Uniform"
+                                      Width="18"
+                                      Height="14"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,11,0"
+                                      IsHitTestVisible="False" />
+
+                                <TextBlock Text="امسح الباركود بالماسح أو ابحث باسم المنتج..."
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           Margin="32,0,36,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="13"
+                                           Foreground="#94A3B8"
+                                           IsHitTestVisible="False"
+                                           Visibility="{Binding ProductSearchText, Converter={StaticResource StringEmptyToVis}}" />
+
+                                <Button Content="×"
+                                        Width="24"
+                                        Height="24"
+                                        Margin="6,0,0,0"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource PosDangerIconButtonStyle}"
+                                        Visibility="{Binding ProductSearchText, Converter={StaticResource StringNotEmptyToVis}}"
+                                        Command="{Binding ClearProductSearchCommand}" />
+                            </Grid>
+                        </Grid>
+
+                        <!-- Category Filter Pills + Barcode Tip -->
+                        <Grid Margin="0,8,0,8" FlowDirection="LeftToRight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       Text="باركود تجريبي: 6221001001"
+                                       Style="{StaticResource PosLtrTextStyle}"
+                                       VerticalAlignment="Center"
+                                       FontSize="11.5"
+                                       Foreground="#64748B" />
+
+                            <ItemsControl Grid.Column="1"
+                                          HorizontalAlignment="Right"
+                                          ItemsSource="{Binding CategoryFilters}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding Title}"
+                                                Style="{StaticResource CategoryPillButtonStyle}"
+                                                Command="{Binding DataContext.SelectCategoryFilterCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+
+                        <!-- Quick Filtered Products List -->
+                        <Border CornerRadius="10"
+                                Background="White"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                Padding="4">
+                            <Grid>
+                                <ScrollViewer MaxHeight="128"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              FlowDirection="LeftToRight">
+                                    <ItemsControl ItemsSource="{Binding FilteredCatalog}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Margin="2"
+                                                        Padding="10,6"
+                                                        CornerRadius="8"
+                                                        Background="#F8FAFC"
+                                                        BorderBrush="#E2E8F0"
+                                                        BorderThickness="1">
+                                                    <Grid FlowDirection="LeftToRight">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Add button -->
+                                                        <Button Grid.Column="0"
+                                                                Content="+ إضافة"
+                                                                Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                                                                Padding="10,5"
+                                                                FontSize="12"
+                                                                VerticalAlignment="Center"
+                                                                Command="{Binding DataContext.AddProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}" />
+
+                                                        <!-- 3-Tier Price Preview -->
+                                                        <StackPanel Grid.Column="1"
+                                                                    Margin="10,0,12,0"
+                                                                    VerticalAlignment="Center"
+                                                                    Orientation="Horizontal"
+                                                                    FlowDirection="RightToLeft">
+                                                            <Border Padding="6,2" CornerRadius="5" Background="#E0F2FE">
+                                                                <TextBlock Text="{Binding RetailBadgeText}"
+                                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#0369A1" />
+                                                            </Border>
+                                                            <Border Margin="4,0,0,0" Padding="6,2" CornerRadius="5" Background="#F5F3FF">
+                                                                <TextBlock Text="{Binding SpecialBadgeText}"
+                                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#6D28D9" />
+                                                            </Border>
+                                                            <Border Margin="4,0,0,0" Padding="6,2" CornerRadius="5" Background="#E2E8F0">
+                                                                <TextBlock Text="{Binding WholesaleBadgeText}"
+                                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#102E48" />
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <!-- Product Name, Barcode & Stock -->
+                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                                       FontSize="13"
+                                                                       FontWeight="Bold"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <StackPanel Orientation="Horizontal"
+                                                                        HorizontalAlignment="Right"
+                                                                        FlowDirection="RightToLeft"
+                                                                        Margin="0,2,0,0">
+                                                                <TextBlock Text="{Binding Barcode}"
+                                                                           Style="{StaticResource PosLtrTextStyle}"
+                                                                           FontSize="11"
+                                                                           Foreground="#64748B" />
+                                                                <TextBlock Text=" · "
+                                                                           Style="{StaticResource PosCenterTextStyle}"
+                                                                           FontSize="11"
+                                                                           Foreground="#94A3B8" />
+                                                                <TextBlock Text="{Binding Category}"
+                                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                                           FontSize="11"
+                                                                           Foreground="#64748B" />
+                                                                <TextBlock Text=" · "
+                                                                           Style="{StaticResource PosCenterTextStyle}"
+                                                                           FontSize="11"
+                                                                           Foreground="#94A3B8" />
+                                                                <TextBlock Text="{Binding StockDisplay}"
+                                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                                           FontSize="11"
+                                                                           Foreground="#0F766E" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <TextBlock Text="لم يتم العثور على منتج مطابق للبحث أو الباركود."
+                                           Style="{StaticResource PosCenterTextStyle}"
+                                           Margin="0,18"
+                                           FontSize="12.5"
+                                           Foreground="#94A3B8"
+                                           Visibility="{Binding HasNoFilteredProducts, Converter={StaticResource BoolToVis}}" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Cart Items Table -->
+                <Border Grid.Row="1"
+                        CornerRadius="14"
+                        Background="White"
+                        BorderBrush="#CBD5E1"
+                        BorderThickness="1"
+                        FlowDirection="LeftToRight">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Table Banner -->
+                        <Border Grid.Row="0"
+                                Padding="12,8"
+                                CornerRadius="13,13,0,0"
+                                Background="#F8FAFC"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="0,0,0,1">
+                            <Grid FlowDirection="LeftToRight">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0"
+                                        Padding="8,3"
+                                        CornerRadius="6"
+                                        Background="#FEF3C7"
+                                        BorderBrush="#FCD34D"
+                                        BorderThickness="1"
+                                        Visibility="{Binding ActiveInvoice.HasAnyCustomItemTier, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="تحتوي على أسعار مخصصة لبعض المنتجات"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="11.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="#92400E" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            HorizontalAlignment="Right"
+                                            FlowDirection="RightToLeft">
+                                    <TextBlock Text="أصناف الفاتورة الحالية"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               Foreground="#102E48" />
+                                    <TextBlock Text="{Binding ActiveInvoice.InvoicePriceTierBadgeText}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               Margin="8,0,0,0"
+                                               FontSize="12.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="#147D92"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Column Headers -->
+                        <Border Grid.Row="1"
+                                Padding="10,8"
+                                Background="#F1F5F9"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="0,0,0,1">
+                            <Grid FlowDirection="RightToLeft">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="104" />
+                                    <ColumnDefinition Width="82" />
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="92" />
+                                    <ColumnDefinition Width="36" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="#" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="1" Text="المنتج / الباركود" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="2" Text="فئة السعر" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="3" Text="السعر" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="4" Text="الكمية" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="5" Text="الإجمالي" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="6" Text="حذف" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Cart Rows & Empty State -->
+                        <Grid Grid.Row="2">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          FlowDirection="LeftToRight">
+                                <ItemsControl ItemsSource="{Binding ActiveInvoice.Items}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="10,8"
+                                                    BorderBrush="#F1F5F9"
+                                                    BorderThickness="0,0,0,1"
+                                                    Background="White">
+                                                <Grid FlowDirection="RightToLeft">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="32" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="104" />
+                                                        <ColumnDefinition Width="82" />
+                                                        <ColumnDefinition Width="96" />
+                                                        <ColumnDefinition Width="92" />
+                                                        <ColumnDefinition Width="36" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- # -->
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding LineNumber}"
+                                                               Style="{StaticResource PosCenterTextStyle}"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="12.5"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#64748B" />
+
+                                                    <!-- Product Name + Barcode + Custom Tier Badge -->
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0,6,0">
+                                                        <TextBlock Text="{Binding Product.Name}"
+                                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                                   FontSize="13"
+                                                                   FontWeight="SemiBold"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                            <TextBlock Text="{Binding Product.Barcode}"
+                                                                       Style="{StaticResource PosLtrTextStyle}"
+                                                                       FontSize="11"
+                                                                       Foreground="#64748B" />
+                                                            <Border Margin="6,0,0,0"
+                                                                    Padding="6,1"
+                                                                    CornerRadius="4"
+                                                                    Background="#FEF3C7"
+                                                                    Visibility="{Binding IsCustomTierOverride, Converter={StaticResource BoolToVis}}">
+                                                                <TextBlock Text="سعر مخصص"
+                                                                           Style="{StaticResource PosCenterTextStyle}"
+                                                                           FontSize="10.5"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="#92400E" />
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </StackPanel>
+
+                                                    <!-- Per-Item Price Tier Selector -->
+                                                    <ComboBox Grid.Column="2"
+                                                              Style="{StaticResource PosComboBoxStyle}"
+                                                              Margin="4,0"
+                                                              VerticalAlignment="Center"
+                                                              ItemsSource="{Binding PriceTierOptions}"
+                                                              DisplayMemberPath="ShortTitle"
+                                                              SelectedValuePath="Tier"
+                                                              SelectedValue="{Binding SelectedPriceTier, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                                    <!-- Unit Price -->
+                                                    <TextBlock Grid.Column="3"
+                                                               Text="{Binding UnitPriceDisplay}"
+                                                               Style="{StaticResource PosCenterTextStyle}"
+                                                               FlowDirection="LeftToRight"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="12.5"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#334155" />
+
+                                                    <!-- Quantity Stepper -->
+                                                    <StackPanel Grid.Column="4"
+                                                                Orientation="Horizontal"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                FlowDirection="LeftToRight">
+                                                        <Button Content="−"
+                                                                Style="{StaticResource PosStepperButtonStyle}"
+                                                                Command="{Binding DataContext.ActiveInvoice.DecrementItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <TextBlock Text="{Binding Quantity}"
+                                                                   Style="{StaticResource PosCenterTextStyle}"
+                                                                   FlowDirection="LeftToRight"
+                                                                   MinWidth="30"
+                                                                   VerticalAlignment="Center"
+                                                                   FontSize="13.5"
+                                                                   FontWeight="Bold" />
+                                                        <Button Content="+"
+                                                                Style="{StaticResource PosStepperButtonStyle}"
+                                                                Command="{Binding DataContext.ActiveInvoice.IncrementItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </StackPanel>
+
+                                                    <!-- Line Total -->
+                                                    <TextBlock Grid.Column="5"
+                                                               Text="{Binding LineTotalDisplay}"
+                                                               Style="{StaticResource PosCenterTextStyle}"
+                                                               FlowDirection="LeftToRight"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="13"
+                                                               FontWeight="Bold"
+                                                               Foreground="#102E48" />
+
+                                                    <!-- Remove Button -->
+                                                    <Button Grid.Column="6"
+                                                            Content="×"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            Style="{StaticResource PosDangerIconButtonStyle}"
+                                                            ToolTip="إزالة الصنف"
+                                                            Command="{Binding DataContext.ActiveInvoice.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Empty Cart Placeholder -->
+                            <StackPanel VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Visibility="{Binding ActiveInvoice.IsEmpty, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="لا توجد منتجات في هذه الفاتورة بعد"
+                                           Style="{StaticResource PosCenterTextStyle}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Foreground="#475569" />
+                                <TextBlock Text="امسح الباركود في الأعلى أو اضغط «+ إضافة» بجانب أي منتج."
+                                           Style="{StaticResource PosCenterTextStyle}"
+                                           Margin="0,6,0,0"
+                                           FontSize="13"
+                                           Foreground="#94A3B8" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- Status Feedback Strip -->
+                <Border Grid.Row="2"
+                        Margin="0,10,0,0"
+                        Padding="12,8"
+                        CornerRadius="10"
+                        BorderThickness="1"
+                        Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVis}}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F0FDFA" />
+                            <Setter Property="BorderBrush" Value="#99F6E4" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
+                                    <Setter Property="Background" Value="#FEF2F2" />
+                                    <Setter Property="BorderBrush" Value="#FECACA" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12.5" FontWeight="SemiBold">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
+                                <Setter Property="Foreground" Value="#0F766E" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
+                                        <Setter Property="Foreground" Value="#B42318" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>
