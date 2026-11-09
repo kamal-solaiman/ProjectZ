@@ -172,25 +172,35 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Margin="8,6,8,14">
+                    <StackPanel Grid.Row="0"
+                                Margin="8,6,8,14"
+                                HorizontalAlignment="Stretch"
+                                FlowDirection="RightToLeft">
                         <TextBlock Text="ProjectZ"
+                                   HorizontalAlignment="Stretch"
                                    FlowDirection="LeftToRight"
+                                   TextAlignment="Right"
                                    FontSize="22"
                                    FontWeight="Bold"
                                    Foreground="White" />
                         <TextBlock Text="القائمة الرئيسية"
                                    Margin="0,5,0,0"
+                                   HorizontalAlignment="Stretch"
+                                   FlowDirection="RightToLeft"
+                                   TextAlignment="Right"
                                    FontSize="13"
                                    Foreground="#B7CFDD" />
                     </StackPanel>
 
                     <ScrollViewer Grid.Row="1"
+                                  FlowDirection="RightToLeft"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   CanContentScroll="True">
                         <ItemsControl ItemsSource="{Binding Categories}"
                                       HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
+                                      HorizontalContentAlignment="Stretch"
+                                      FlowDirection="RightToLeft">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Margin="0,0,0,5"
@@ -202,16 +212,17 @@
                                                 Style="{StaticResource SidebarCategoryButtonStyle}">
                                             <Grid HorizontalAlignment="Stretch" FlowDirection="LeftToRight">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding Chevron}"
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Chevron}"
                                                            MinWidth="20"
                                                            FontSize="17"
                                                            FlowDirection="LeftToRight"
                                                            Foreground="#85AABC"
                                                            TextAlignment="Center" />
-                                                <TextBlock Grid.Column="1"
+                                                <TextBlock Grid.Column="0"
                                                            Text="{Binding Title}"
                                                            HorizontalAlignment="Stretch"
                                                            FlowDirection="RightToLeft"
@@ -220,7 +231,8 @@
                                         </Button>
                                         <ItemsControl ItemsSource="{Binding Items}"
                                                       HorizontalAlignment="Stretch"
-                                                      HorizontalContentAlignment="Stretch">
+                                                      HorizontalContentAlignment="Stretch"
+                                                      FlowDirection="RightToLeft">
                                             <ItemsControl.Style>
                                                 <Style TargetType="ItemsControl">
                                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -253,6 +265,8 @@
 
                     <TextBlock Grid.Row="2"
                                Margin="8,12,8,2"
+                               HorizontalAlignment="Stretch"
+                               FlowDirection="RightToLeft"
                                Text="إدارة النظام"
                                FontSize="12"
                                Foreground="#85AABC"
