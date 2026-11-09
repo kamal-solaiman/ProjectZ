@@ -114,20 +114,25 @@ sidebar_heading = next(
     element for element in main_root.iter()
     if element.tag.endswith('TextBlock') and element.attrib.get('Text') == 'القائمة الرئيسية'
 )
-assert sidebar_heading.attrib.get('HorizontalAlignment') == 'Stretch'
+# NOTE: inside an RTL TextBlock, TextAlignment is flow-relative ("Right" renders on the physical LEFT),
+# so sidebar labels are content-sized and pinned with HorizontalAlignment="Right" instead.
+assert sidebar_heading.attrib.get('HorizontalAlignment') == 'Right'
 assert sidebar_heading.attrib.get('FlowDirection') == 'RightToLeft'
-assert sidebar_heading.attrib.get('TextAlignment') == 'Right'
+assert sidebar_heading.attrib.get('TextAlignment') is None
 sidebar_label_blocks = [
     element for element in main_root.iter()
     if element.tag.endswith('TextBlock') and element.attrib.get('Text') == '{Binding Title}'
 ]
 assert len(sidebar_label_blocks) == 2
 assert all(
-    element.attrib.get('HorizontalAlignment') == 'Stretch'
-    and element.attrib.get('FlowDirection') == 'RightToLeft'
-    and element.attrib.get('TextAlignment') == 'Right'
+    element.attrib.get('FlowDirection') == 'RightToLeft'
+    and element.attrib.get('TextAlignment') is None
     for element in sidebar_label_blocks
-), 'sidebar category and item labels must fill the row and align right'
+), 'sidebar labels are RTL; physical placement must not depend on flow-relative TextAlignment'
+item_label = next(
+    element for element in sidebar_label_blocks if element.attrib.get('HorizontalAlignment') is not None
+)
+assert item_label.attrib.get('HorizontalAlignment') == 'Right', 'submenu labels pin to the right edge'
 menu_style = next(
     style for style in main_root.iter()
     if style.tag.endswith('Style')
@@ -137,11 +142,18 @@ menu_padding = next(
     setter.attrib.get('Value') for setter in menu_style
     if setter.tag.endswith('Setter') and setter.attrib.get('Property') == 'Padding'
 )
-assert menu_padding == '12,9,30,9', 'submenu indentation belongs on the RTL right side'
+assert menu_padding == '12,9,50,9', 'submenu labels indent on the right, under the category title (after the icon)'
 sidebar_scrollers = [element for element in main_root.iter() if element.tag.endswith('ScrollViewer')]
 assert len(sidebar_scrollers) == 1
 assert sidebar_scrollers[0].attrib.get('FlowDirection') == 'LeftToRight', 'place the scrollbar at the right edge'
-assert sidebar_scrollers[0].attrib.get('VerticalScrollBarVisibility') == 'Auto'
+scroller_setters = {
+    setter.attrib.get('Property'): setter.attrib.get('Value')
+    for style in sidebar_scrollers[0].iter()
+    if style.tag.endswith('Style')
+    for setter in style
+    if setter.tag.endswith('Setter')
+}
+assert scroller_setters.get('VerticalScrollBarVisibility') == 'Auto'
 assert sidebar_scrollers[0].attrib.get('HorizontalScrollBarVisibility') == 'Disabled'
 sidebar_item_controls = [
     element for element in main_root.iter()
@@ -166,12 +178,29 @@ expected_menu = [
     ('الاعدادات', ['اعدادات عامة', 'المظهر', 'النسخ الاحتياطي']),
 ]
 menu_groups = re.findall(
-    r'new NavigationMenuCategoryViewModel\("([^"]+)",\s*(.*?)\)',
+    r'new NavigationMenuCategoryViewModel\("([^"]+)",\s*"([^"]+)",\s*(.*?)\)',
     main_viewmodel,
     re.S,
 )
-actual_menu = [(title, re.findall(r'"([^"]+)"', items)) for title, items in menu_groups]
+actual_menu = [(title, re.findall(r'"([^"]+)"', items)) for title, _icon, items in menu_groups]
 assert actual_menu == expected_menu, f'sidebar labels/order differ: {actual_menu}'
+assert all(icon for _title, icon, _items in menu_groups), 'every category needs a rail icon'
+assert 'ToggleSidebarCommand' in main_viewmodel and 'IsSidebarCollapsed' in main_viewmodel
+assert 'OpenCategoryFromRail' in main_viewmodel
+toggle_button = next(
+    element for element in main_root.iter()
+    if element.tag.endswith('Button') and element.attrib.get('Command') == '{Binding ToggleSidebarCommand}'
+)
+assert toggle_button.attrib.get('Style') == '{StaticResource SidebarToggleButtonStyle}'
+sidebar_border = next(
+    element for element in main_body
+    if element.tag.endswith('Border') and element.attrib.get('Grid.Column') == '1'
+)
+assert any(
+    node.tag.endswith('DoubleAnimation') and node.attrib.get('Storyboard.TargetProperty') == 'Width'
+    for node in sidebar_border.iter()
+), 'sidebar width animates between expanded and rail'
+print('PASS: sidebar toggle command, animated width, icon rail')
 assert 'SelectItem(Categories[0].Items[0]);' in main_viewmodel
 assert 'هذا العنصر للتحديد فقط حاليًا؛ لم تُنفذ شاشته بعد.' in main_viewmodel
 assert 'itemCategory.SetExpanded(expand && ReferenceEquals(itemCategory, category));' in main_viewmodel

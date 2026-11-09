@@ -7,6 +7,7 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly UserSession user;
     private NavigationMenuItemViewModel? selectedItem;
+    private bool isSidebarCollapsed;
 
     public IReadOnlyList<NavigationMenuCategoryViewModel> Categories { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
@@ -18,25 +19,40 @@ public sealed class MainViewModel : ObservableObject
         : "هذا العنصر للتحديد فقط حاليًا؛ لم تُنفذ شاشته بعد.";
     public RelayCommand LogoutCommand { get; }
 
+    // Collapsed = narrow icon rail anchored to the right edge; expanded = full menu.
+    public bool IsSidebarCollapsed
+    {
+        get => isSidebarCollapsed;
+        private set
+        {
+            if (isSidebarCollapsed == value) return;
+
+            isSidebarCollapsed = value;
+            Changed();
+        }
+    }
+    public RelayCommand ToggleSidebarCommand { get; }
+
     public MainViewModel(UserSession user, Action logout)
     {
         this.user = user;
         LogoutCommand = new RelayCommand(logout);
+        ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         Categories = new[]
         {
-            new NavigationMenuCategoryViewModel("المبيعات",
+            new NavigationMenuCategoryViewModel("المبيعات", "\U0001F6D2",
                 "نقطة البيع", "اضافة منتج", "المخزون", "التصنيفات", "الفواتير", "المرتجع والاستبدال"),
-            new NavigationMenuCategoryViewModel("المشتريات",
+            new NavigationMenuCategoryViewModel("المشتريات", "\U0001F4E6",
                 "شراء فاتورة", "فاتورة المشتريات"),
-            new NavigationMenuCategoryViewModel("الصيانة",
+            new NavigationMenuCategoryViewModel("الصيانة", "\U0001F527",
                 "امر صيانة", "فواتير الصيانة", "اجراءات الصيانة", "قطع الغيار"),
-            new NavigationMenuCategoryViewModel("المالية",
+            new NavigationMenuCategoryViewModel("المالية", "\U0001F4B0",
                 "تحويل فودافون كاش", "تحويل انستاباي", "سجلات فودافون كاش", "سجلات انستاباي", "حساباتي"),
-            new NavigationMenuCategoryViewModel("العملاء والموردين",
+            new NavigationMenuCategoryViewModel("العملاء والموردين", "\U0001F465",
                 "العملاء", "الموردين"),
-            new NavigationMenuCategoryViewModel("المستخدمين",
+            new NavigationMenuCategoryViewModel("المستخدمين", "\U0001F464",
                 "المستخدمين", "الصلاحيات"),
-            new NavigationMenuCategoryViewModel("الاعدادات",
+            new NavigationMenuCategoryViewModel("الاعدادات", "\u2699",
                 "اعدادات عامة", "المظهر", "النسخ الاحتياطي")
         };
 
@@ -52,6 +68,16 @@ public sealed class MainViewModel : ObservableObject
         // A category header only controls disclosure; navigation changes on item selection.
         foreach (var itemCategory in Categories)
             itemCategory.SetExpanded(expand && ReferenceEquals(itemCategory, category));
+    }
+
+    // From the collapsed rail a category icon expands the sidebar and opens that category.
+    public void OpenCategoryFromRail(NavigationMenuCategoryViewModel category)
+    {
+        if (!Categories.Contains(category)) return;
+
+        IsSidebarCollapsed = false;
+        foreach (var other in Categories)
+            other.SetExpanded(ReferenceEquals(other, category));
     }
 
     public void SelectItem(NavigationMenuItemViewModel item)
@@ -77,13 +103,16 @@ public sealed class NavigationMenuCategoryViewModel : ObservableObject
     private bool isExpanded;
 
     public string Title { get; }
+    public string Icon { get; }
     public IReadOnlyList<NavigationMenuItemViewModel> Items { get; }
     public bool IsExpanded => isExpanded;
-    public string Chevron => IsExpanded ? "⌄" : "›";
+    // Physical glyphs (the chevron TextBlock is LTR): closed arrow points left, toward the RTL content.
+    public string Chevron => IsExpanded ? "⌄" : "‹";
 
-    public NavigationMenuCategoryViewModel(string title, params string[] itemTitles)
+    public NavigationMenuCategoryViewModel(string title, string icon, params string[] itemTitles)
     {
         Title = title;
+        Icon = icon;
         Items = itemTitles.Select(itemTitle => new NavigationMenuItemViewModel(this, itemTitle)).ToArray();
     }
 

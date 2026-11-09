@@ -13,7 +13,10 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel viewModel
             && sender is Button { Tag: NavigationMenuCategoryViewModel category })
         {
-            viewModel.ToggleCategory(category);
+            if (viewModel.IsSidebarCollapsed)
+                viewModel.OpenCategoryFromRail(category);
+            else
+                viewModel.ToggleCategory(category);
         }
     }
 

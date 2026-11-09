@@ -67,13 +67,38 @@
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Normal" />
             <Setter Property="Foreground" Value="#B7CFDD" />
-            <!-- Add submenu indentation on the right, where Arabic labels align. -->
-            <Setter Property="Padding" Value="12,9,30,9" />
+            <!-- Indent submenu labels on the right so they line up under the category title (after the icon). -->
+            <Setter Property="Padding" Value="12,9,50,9" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
                     <Setter Property="Background" Value="{StaticResource Accent}" />
                     <Setter Property="Foreground" Value="White" />
                     <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="SidebarToggleButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource SidebarBaseButtonStyle}">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="ToolTip" Value="طي القائمة" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                    <Setter Property="ToolTip" Value="توسيع القائمة" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Labels that only make sense in the expanded sidebar; hidden in the icon rail. -->
+        <Style x:Key="SidebarExpandedOnlyTextStyle"
+               TargetType="TextBlock"
+               BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -129,7 +154,7 @@
         <Grid Grid.Row="1" FlowDirection="LeftToRight">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="340" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
@@ -161,11 +186,53 @@
                 </StackPanel>
             </Border>
 
+            <!--
+              Sidebar on the physical right. Width is animated (expanded <-> icon rail), so the
+              right edge stays anchored and the content area grows toward the right when collapsed.
+              Arabic labels are content-sized and HorizontalAlignment="Right": inside an RTL TextBlock
+              TextAlignment is flow-relative, so TextAlignment="Right" would land on the physical LEFT.
+            -->
             <Border Grid.Column="1"
-                    Padding="16"
                     CornerRadius="18"
                     Background="#102E48"
+                    ClipToBounds="True"
                     FlowDirection="LeftToRight">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Width" Value="340" />
+                        <Setter Property="Padding" Value="16" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Width"
+                                                             To="88"
+                                                             Duration="0:0:0.22">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="Width"
+                                                             To="340"
+                                                             Duration="0:0:0.22">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseInOut" />
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.ExitActions>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -174,35 +241,69 @@
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0"
-                          Margin="8,6,8,14"
+                          Margin="0,6,0,14"
                           FlowDirection="LeftToRight">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0"
-                                   Text="ProjectZ"
-                                   HorizontalAlignment="Stretch"
-                                   FlowDirection="LeftToRight"
-                                   TextAlignment="Right"
-                                   FontSize="22"
-                                   FontWeight="Bold"
-                                   Foreground="White" />
+                        <!-- RTL order: first child (the toggle) sits on the far right. -->
+                        <StackPanel Grid.Row="0"
+                                    Orientation="Horizontal"
+                                    FlowDirection="RightToLeft">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="HorizontalAlignment" Value="Right" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                                            <Setter Property="HorizontalAlignment" Value="Center" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Button Command="{Binding ToggleSidebarCommand}"
+                                    AutomationProperties.Name="طي أو توسيع القائمة الجانبية"
+                                    Style="{StaticResource SidebarToggleButtonStyle}">
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <Border Width="18" Height="2" CornerRadius="1" Background="#DCE8EE" />
+                                    <Border Width="18" Height="2" CornerRadius="1" Margin="0,4" Background="#DCE8EE" />
+                                    <Border Width="18" Height="2" CornerRadius="1" Background="#DCE8EE" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Text="ProjectZ"
+                                       Margin="12,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FlowDirection="LeftToRight"
+                                       FontSize="22"
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       Style="{StaticResource SidebarExpandedOnlyTextStyle}" />
+                        </StackPanel>
                         <TextBlock Grid.Row="1"
                                    Text="القائمة الرئيسية"
-                                   Margin="0,5,0,0"
-                                   HorizontalAlignment="Stretch"
+                                   Margin="0,8,12,0"
+                                   HorizontalAlignment="Right"
                                    FlowDirection="RightToLeft"
-                                   TextAlignment="Right"
                                    FontSize="13"
-                                   Foreground="#B7CFDD" />
+                                   Foreground="#B7CFDD"
+                                   Style="{StaticResource SidebarExpandedOnlyTextStyle}" />
                     </Grid>
 
                     <ScrollViewer Grid.Row="1"
                                   FlowDirection="LeftToRight"
-                                  VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   CanContentScroll="True">
+                        <ScrollViewer.Style>
+                            <Style TargetType="ScrollViewer">
+                                <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+                                <Style.Triggers>
+                                    <!-- No scrollbar in the narrow rail (wheel scrolling still works). -->
+                                    <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                                        <Setter Property="VerticalScrollBarVisibility" Value="Hidden" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ScrollViewer.Style>
                         <ItemsControl ItemsSource="{Binding Categories}"
                                       HorizontalAlignment="Stretch"
                                       HorizontalContentAlignment="Stretch"
@@ -212,28 +313,37 @@
                                     <StackPanel Margin="0,0,0,5"
                                                 HorizontalAlignment="Stretch"
                                                 FlowDirection="LeftToRight">
-                                        <Button Tag="{Binding}"
+                                        <Button x:Name="CategoryButton"
+                                                Tag="{Binding}"
                                                 HorizontalAlignment="Stretch"
                                                 Click="CategoryHeader_Click"
                                                 Style="{StaticResource SidebarCategoryButtonStyle}">
-                                            <Grid HorizontalAlignment="Stretch" FlowDirection="LeftToRight">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="1"
+                                            <!-- RTL stack: icon on the far right, then the title, then the chevron. -->
+                                            <StackPanel x:Name="CategoryContent"
+                                                        Orientation="Horizontal"
+                                                        FlowDirection="RightToLeft">
+                                                <TextBlock x:Name="CategoryIcon"
+                                                           Text="{Binding Icon}"
+                                                           Width="26"
+                                                           VerticalAlignment="Center"
+                                                           FontFamily="Segoe UI Emoji, Segoe UI Symbol"
+                                                           FontSize="17"
+                                                           TextAlignment="Center" />
+                                                <TextBlock x:Name="CategoryTitle"
+                                                           Text="{Binding Title}"
+                                                           Margin="10,0,0,0"
+                                                           VerticalAlignment="Center"
+                                                           FlowDirection="RightToLeft" />
+                                                <TextBlock x:Name="CategoryChevron"
                                                            Text="{Binding Chevron}"
                                                            MinWidth="20"
+                                                           Margin="10,0,0,0"
+                                                           VerticalAlignment="Center"
                                                            FontSize="17"
                                                            FlowDirection="LeftToRight"
                                                            Foreground="#85AABC"
                                                            TextAlignment="Center" />
-                                                <TextBlock Grid.Column="0"
-                                                           Text="{Binding Title}"
-                                                           HorizontalAlignment="Stretch"
-                                                           FlowDirection="RightToLeft"
-                                                           TextAlignment="Right" />
-                                            </Grid>
+                                            </StackPanel>
                                         </Button>
                                         <ItemsControl ItemsSource="{Binding Items}"
                                                       HorizontalAlignment="Stretch"
@@ -243,9 +353,14 @@
                                                 <Style TargetType="ItemsControl">
                                                     <Setter Property="Visibility" Value="Collapsed" />
                                                     <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                        <!-- Submenus show only for the open category AND an expanded sidebar. -->
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsExpanded}" Value="True" />
+                                                                <Condition Binding="{Binding DataContext.IsSidebarCollapsed, RelativeSource={RelativeSource AncestorType=Window}}" Value="False" />
+                                                            </MultiDataTrigger.Conditions>
                                                             <Setter Property="Visibility" Value="Visible" />
-                                                        </DataTrigger>
+                                                        </MultiDataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </ItemsControl.Style>
@@ -256,27 +371,35 @@
                                                             Click="MenuItem_Click"
                                                             Style="{StaticResource SidebarMenuButtonStyle}">
                                                         <TextBlock Text="{Binding Title}"
-                                                                   HorizontalAlignment="Stretch"
-                                                                   FlowDirection="RightToLeft"
-                                                                   TextAlignment="Right" />
+                                                                   HorizontalAlignment="Right"
+                                                                   FlowDirection="RightToLeft" />
                                                     </Button>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <!-- Icon rail: icon only, centered, with the full name as a tooltip. -->
+                                        <DataTrigger Binding="{Binding DataContext.IsSidebarCollapsed, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                            <Setter TargetName="CategoryTitle" Property="Visibility" Value="Collapsed" />
+                                            <Setter TargetName="CategoryChevron" Property="Visibility" Value="Collapsed" />
+                                            <Setter TargetName="CategoryContent" Property="HorizontalAlignment" Value="Center" />
+                                            <Setter TargetName="CategoryButton" Property="ToolTip" Value="{Binding Title}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
 
                     <TextBlock Grid.Row="2"
-                               Margin="8,12,8,2"
-                               HorizontalAlignment="Stretch"
+                               Margin="0,12,12,2"
+                               HorizontalAlignment="Right"
                                FlowDirection="RightToLeft"
                                Text="إدارة النظام"
                                FontSize="12"
                                Foreground="#85AABC"
-                               TextAlignment="Right" />
+                               Style="{StaticResource SidebarExpandedOnlyTextStyle}" />
                 </Grid>
             </Border>
         </Grid>
