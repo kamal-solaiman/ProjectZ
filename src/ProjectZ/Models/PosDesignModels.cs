@@ -75,8 +75,8 @@ public static class PosFormatting
     public static IReadOnlyList<PriceTierOption> PriceTierOptions { get; } =
     [
         new PriceTierOption(PriceTier.Retail, "سعر قطاعي", "قطاعي"),
-        new PriceTierOption(PriceTier.Special, "سعر مميز", "مميز"),
-        new PriceTierOption(PriceTier.Wholesale, "سعر جملة", "جملة")
+        new PriceTierOption(PriceTier.Wholesale, "سعر جملة", "جملة"),
+        new PriceTierOption(PriceTier.Special, "سعر مميز", "مميز")
     ];
 
     public static string GetPriceTierTitle(PriceTier tier) => tier switch
@@ -176,8 +176,8 @@ public static class PosDesignSeedData
             CostPrice = 310m,
             AvailableStock = 24,
             RetailPrice = 450m,
-            SpecialPrice = 410m,
-            WholesalePrice = 370m
+            WholesalePrice = 390m,
+            SpecialPrice = 360m
         },
         new PosProductDesignItem
         {
@@ -188,8 +188,8 @@ public static class PosDesignSeedData
             CostPrice = 95m,
             AvailableStock = 40,
             RetailPrice = 180m,
-            SpecialPrice = 155m,
-            WholesalePrice = 130m
+            WholesalePrice = 145m,
+            SpecialPrice = 125m
         },
         new PosProductDesignItem
         {
@@ -200,8 +200,8 @@ public static class PosDesignSeedData
             CostPrice = 670m,
             AvailableStock = 14,
             RetailPrice = 950m,
-            SpecialPrice = 875m,
-            WholesalePrice = 790m
+            WholesalePrice = 840m,
+            SpecialPrice = 775m
         },
         new PosProductDesignItem
         {
@@ -212,8 +212,8 @@ public static class PosDesignSeedData
             CostPrice = 40m,
             AvailableStock = 65,
             RetailPrice = 120m,
-            SpecialPrice = 95m,
-            WholesalePrice = 70m
+            WholesalePrice = 85m,
+            SpecialPrice = 65m
         },
         new PosProductDesignItem
         {
@@ -224,8 +224,8 @@ public static class PosDesignSeedData
             CostPrice = 75m,
             AvailableStock = 38,
             RetailPrice = 160m,
-            SpecialPrice = 135m,
-            WholesalePrice = 105m
+            WholesalePrice = 125m,
+            SpecialPrice = 100m
         },
         new PosProductDesignItem
         {
@@ -236,8 +236,8 @@ public static class PosDesignSeedData
             CostPrice = 880m,
             AvailableStock = 11,
             RetailPrice = 1250m,
-            SpecialPrice = 1150m,
-            WholesalePrice = 1020m
+            WholesalePrice = 1090m,
+            SpecialPrice = 990m
         },
         new PosProductDesignItem
         {
@@ -250,8 +250,8 @@ public static class PosDesignSeedData
             MinStockAlert = 2,
             TrackSerialNumber = true,
             RetailPrice = 18500m,
-            SpecialPrice = 18100m,
-            WholesalePrice = 17650m
+            WholesalePrice = 17900m,
+            SpecialPrice = 17500m
         },
         new PosProductDesignItem
         {
@@ -264,8 +264,8 @@ public static class PosDesignSeedData
             MinStockAlert = 2,
             TrackSerialNumber = true,
             RetailPrice = 12400m,
-            SpecialPrice = 12050m,
-            WholesalePrice = 11700m
+            WholesalePrice = 11900m,
+            SpecialPrice = 11550m
         },
         new PosProductDesignItem
         {
@@ -276,8 +276,8 @@ public static class PosDesignSeedData
             CostPrice = 145m,
             AvailableStock = 29,
             RetailPrice = 260m,
-            SpecialPrice = 225m,
-            WholesalePrice = 190m
+            WholesalePrice = 210m,
+            SpecialPrice = 185m
         },
         new PosProductDesignItem
         {
@@ -288,8 +288,8 @@ public static class PosDesignSeedData
             CostPrice = 160m,
             AvailableStock = 19,
             RetailPrice = 290m,
-            SpecialPrice = 250m,
-            WholesalePrice = 210m
+            WholesalePrice = 235m,
+            SpecialPrice = 205m
         }
     ];
 

@@ -297,9 +297,9 @@
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" FlowDirection="RightToLeft" Margin="0,5,0,0">
                                                                 <TextBlock Text="{Binding RetailBadgeText}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0369A1" />
                                                                 <TextBlock Text=" | " Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" Foreground="#CBD5E1" />
-                                                                <TextBlock Text="{Binding SpecialBadgeText}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" FontWeight="SemiBold" Foreground="#6D28D9" />
-                                                                <TextBlock Text=" | " Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" Foreground="#CBD5E1" />
                                                                 <TextBlock Text="{Binding WholesaleBadgeText}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" FontWeight="SemiBold" Foreground="#102E48" />
+                                                                <TextBlock Text=" | " Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" Foreground="#CBD5E1" />
+                                                                <TextBlock Text="{Binding SpecialBadgeText}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" FontWeight="SemiBold" Foreground="#6D28D9" />
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </Border>
@@ -505,7 +505,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- FORM CARD 2: Cost & 3-Tier Pricing (Retail / Special / Wholesale) -->
+                        <!-- FORM CARD 2: Cost & 3-Tier Pricing (Retail / Wholesale / Special) -->
                         <Border Margin="0,0,0,10"
                                 Padding="14"
                                 CornerRadius="14"
@@ -521,14 +521,14 @@
                                     </Grid.ColumnDefinitions>
 
                                     <Button Grid.Column="0"
-                                            Content="تقدير المميز والجملة من القطاعي"
+                                            Content="تقدير الجملة والمميز من القطاعي"
                                             Style="{StaticResource PosOutlineTealButtonStyle}"
                                             Padding="10,5"
                                             FontSize="11.5"
                                             Command="{Binding EstimatePricesFromRetailCommand}" />
 
                                     <TextBlock Grid.Column="1"
-                                               Text="الأسعار والتكلفة (قطاعي · مميز · جملة)"
+                                               Text="الأسعار والتكلفة (قطاعي · جملة · مميز)"
                                                Style="{StaticResource PosRtlTextStyle}"
                                                VerticalAlignment="Center"
                                                FontSize="15"
@@ -570,7 +570,7 @@
                                     </StackPanel>
                                 </Grid>
 
-                                <!-- Three Color-Coded Selling Prices -->
+                                <!-- Three Color-Coded Selling Prices (RTL order: Retail -> Wholesale -> Special) -->
                                 <Grid FlowDirection="LeftToRight">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -579,70 +579,6 @@
                                         <ColumnDefinition Width="10" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-
-                                    <!-- Wholesale Price (Physical Left) -->
-                                    <Border Grid.Column="0"
-                                            Padding="11"
-                                            CornerRadius="11"
-                                            Background="White"
-                                            BorderBrush="#102E48"
-                                            BorderThickness="1.5">
-                                        <StackPanel>
-                                            <Border HorizontalAlignment="Right" Padding="8,2" CornerRadius="6" Background="#E2E8F0" Margin="0,0,0,6">
-                                                <TextBlock Text="سعر جملة *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#102E48" />
-                                            </Border>
-                                            <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
-                                                     Text="{Binding WholesalePriceText, UpdateSourceTrigger=PropertyChanged}" />
-                                            <TextBlock Text="{Binding WholesaleMarginText}"
-                                                       Margin="0,5,0,0"
-                                                       FontSize="11.5"
-                                                       FontWeight="SemiBold"
-                                                       Visibility="{Binding HasCostPrice, Converter={StaticResource BoolToVis}}">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-                                                        <Setter Property="Foreground" Value="#0F766E" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsWholesaleMarginNegative}" Value="True">
-                                                                <Setter Property="Foreground" Value="#B42318" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <!-- Special Price (Center) -->
-                                    <Border Grid.Column="2"
-                                            Padding="11"
-                                            CornerRadius="11"
-                                            Background="#FAF5FF"
-                                            BorderBrush="#6D28D9"
-                                            BorderThickness="1.5">
-                                        <StackPanel>
-                                            <Border HorizontalAlignment="Right" Padding="8,2" CornerRadius="6" Background="#EDE9FE" Margin="0,0,0,6">
-                                                <TextBlock Text="سعر مميز *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#6D28D9" />
-                                            </Border>
-                                            <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
-                                                     Text="{Binding SpecialPriceText, UpdateSourceTrigger=PropertyChanged}" />
-                                            <TextBlock Text="{Binding SpecialMarginText}"
-                                                       Margin="0,5,0,0"
-                                                       FontSize="11.5"
-                                                       FontWeight="SemiBold"
-                                                       Visibility="{Binding HasCostPrice, Converter={StaticResource BoolToVis}}">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-                                                        <Setter Property="Foreground" Value="#0F766E" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsSpecialMarginNegative}" Value="True">
-                                                                <Setter Property="Foreground" Value="#B42318" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </StackPanel>
-                                    </Border>
 
                                     <!-- Retail Price (Physical Right) -->
                                     <Border Grid.Column="4"
@@ -675,6 +611,70 @@
                                             </TextBlock>
                                         </StackPanel>
                                     </Border>
+
+                                    <!-- Wholesale Price (Center) -->
+                                    <Border Grid.Column="2"
+                                            Padding="11"
+                                            CornerRadius="11"
+                                            Background="White"
+                                            BorderBrush="#102E48"
+                                            BorderThickness="1.5">
+                                        <StackPanel>
+                                            <Border HorizontalAlignment="Right" Padding="8,2" CornerRadius="6" Background="#E2E8F0" Margin="0,0,0,6">
+                                                <TextBlock Text="سعر جملة *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#102E48" />
+                                            </Border>
+                                            <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
+                                                     Text="{Binding WholesalePriceText, UpdateSourceTrigger=PropertyChanged}" />
+                                            <TextBlock Text="{Binding WholesaleMarginText}"
+                                                       Margin="0,5,0,0"
+                                                       FontSize="11.5"
+                                                       FontWeight="SemiBold"
+                                                       Visibility="{Binding HasCostPrice, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
+                                                        <Setter Property="Foreground" Value="#0F766E" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsWholesaleMarginNegative}" Value="True">
+                                                                <Setter Property="Foreground" Value="#B42318" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Special Price (Physical Left; lowest VIP price < Wholesale) -->
+                                    <Border Grid.Column="0"
+                                            Padding="11"
+                                            CornerRadius="11"
+                                            Background="#FAF5FF"
+                                            BorderBrush="#6D28D9"
+                                            BorderThickness="1.5">
+                                        <StackPanel>
+                                            <Border HorizontalAlignment="Right" Padding="8,2" CornerRadius="6" Background="#EDE9FE" Margin="0,0,0,6">
+                                                <TextBlock Text="سعر مميز *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#6D28D9" />
+                                            </Border>
+                                            <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
+                                                     Text="{Binding SpecialPriceText, UpdateSourceTrigger=PropertyChanged}" />
+                                            <TextBlock Text="{Binding SpecialMarginText}"
+                                                       Margin="0,5,0,0"
+                                                       FontSize="11.5"
+                                                       FontWeight="SemiBold"
+                                                       Visibility="{Binding HasCostPrice, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
+                                                        <Setter Property="Foreground" Value="#0F766E" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSpecialMarginNegative}" Value="True">
+                                                                <Setter Property="Foreground" Value="#B42318" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
                                 </Grid>
 
                                 <!-- Price Order Warning -->
@@ -685,7 +685,7 @@
                                         BorderBrush="#F59E0B"
                                         BorderThickness="1"
                                         Visibility="{Binding HasPriceOrderWarning, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="ملاحظة تسعير: يُفضّل عادةً أن يكون سعر القطاعي أكبر من أو يساوي السعر المميز ثم سعر الجملة."
+                                    <TextBlock Text="ملاحظة تسعير: يُفضّل عادةً أن يكون سعر القطاعي أكبر من سعر الجملة، والسعر المميز أقل من سعر الجملة."
                                                Style="{StaticResource PosRtlTextStyle}"
                                                FontSize="11.5"
                                                FontWeight="SemiBold"

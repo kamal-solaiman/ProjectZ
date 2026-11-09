@@ -313,6 +313,27 @@ for removed_token in (
 for removed_label in ('الماركة', 'كود داخلي', 'موقع التخزين', 'خاضع للضريبة'):
     assert removed_label not in add_product_xaml, f'Removed label {removed_label} still in AddProductView.xaml'
 
+assert 'private bool trackSerialNumber = true;' in add_product_vm_text, 'TrackSerialNumber must default to checked'
+assert 'TrackSerialNumber = true;' in add_product_vm_text, 'ResetForm must keep TrackSerialNumber checked'
+assert 'TrackSerialNumber = false;' not in add_product_vm_text, 'ResetForm must not uncheck TrackSerialNumber'
+assert 'ParsedSpecial >= ParsedWholesale' in add_product_vm_text, 'Special price must be lower than Wholesale price'
+assert 'قطاعي · جملة · مميز' in add_product_xaml, 'AddProduct price header must be Retail · Wholesale · Special'
+
+# Verify AddProduct price cards RTL order (Retail right col 4 -> Wholesale center col 2 -> Special left col 0)
+retail_idx = add_product_xaml.index('RetailPriceText')
+wholesale_idx = add_product_xaml.index('WholesalePriceText')
+special_idx = add_product_xaml.index('SpecialPriceText')
+assert retail_idx < wholesale_idx < special_idx, 'Price inputs must appear in Retail -> Wholesale -> Special order'
+
+# Verify sample catalog prices respect Retail > Wholesale > Special
+for retail_m, wholesale_m, special_m in re.findall(
+    r'RetailPrice\s*=\s*([0-9.]+)m,\s*WholesalePrice\s*=\s*([0-9.]+)m,\s*SpecialPrice\s*=\s*([0-9.]+)m',
+    pos_models_text,
+):
+    assert float(retail_m) > float(wholesale_m) > float(special_m), (
+        f'Sample catalog item must satisfy Retail > Wholesale > Special: {retail_m}, {wholesale_m}, {special_m}'
+    )
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/ViewModels/PosViewModel.cs',

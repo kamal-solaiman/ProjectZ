@@ -161,14 +161,14 @@ public sealed class PosViewModel : ObservableObject
         var invoice1 = new PosInvoiceViewModel(nextInvoiceNumber++, Customers, SetStatus);
         invoice1.SelectCustomer(Customers[1], applyDefaultTier: false);
         invoice1.AddProduct(Catalog[0], quantity: 1, explicitTier: PriceTier.Retail);   // 450
-        invoice1.AddProduct(Catalog[2], quantity: 1, explicitTier: PriceTier.Special);  // 875 (custom override)
+        invoice1.AddProduct(Catalog[2], quantity: 1, explicitTier: PriceTier.Special);  // 775 (custom override)
         invoice1.AddProduct(Catalog[3], quantity: 2, explicitTier: PriceTier.Retail);   // 240
-        invoice1.SetSplitAmounts(cash: 565m, vodafoneCash: 500m, instaPay: 500m);
+        invoice1.SetSplitAmounts(cash: 465m, vodafoneCash: 500m, instaPay: 500m);
 
         // Sample Invoice #2: demonstrates simultaneous open invoice in wholesale pricing
         var invoice2 = new PosInvoiceViewModel(nextInvoiceNumber++, Customers, SetStatus);
         invoice2.SelectCustomer(Customers[3], applyDefaultTier: true); // Wholesale customer
-        invoice2.AddProduct(Catalog[1], quantity: 5); // 5 x 130 = 650
+        invoice2.AddProduct(Catalog[1], quantity: 5); // 5 x 145 = 725
 
         Invoices.Add(invoice1);
         Invoices.Add(invoice2);
