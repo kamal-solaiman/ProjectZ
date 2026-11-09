@@ -334,31 +334,94 @@ for retail_m, wholesale_m, special_m in re.findall(
         f'Sample catalog item must satisfy Retail > Wholesale > Special: {retail_m}, {wholesale_m}, {special_m}'
     )
 
+assert 'IsInventorySelected' in main_viewmodel and 'IsInventorySelected' in main_xaml
+assert 'views:InventoryView' in main_xaml
+
+inventory_xaml_path = root / 'src/ProjectZ/Views/InventoryView.xaml'
+registrations_xaml_path = root / 'src/ProjectZ/Views/ProductRegistrationsWindow.xaml'
+assert inventory_xaml_path.is_file() and registrations_xaml_path.is_file()
+inventory_xaml = inventory_xaml_path.read_text(encoding='utf-8')
+registrations_xaml = registrations_xaml_path.read_text(encoding='utf-8')
+
+for token in (
+    'اسم المنتج',
+    'باركود',
+    'الكمية',
+    'سعر القطاعي',
+    'سعر الجملة',
+    'سعر المميز',
+    'الهالك',
+    'أزرار التحكمات',
+    'OpenRegistrationsCommand',
+    'OpenSupplyCommand',
+    'OpenEditCommand',
+    'OpenBarcodePrintCommand',
+    'OpenMarkDamagedCommand',
+    'DeleteProductCommand',
+    'IsDamagedTabSelected',
+    'RestoreDamagedUnitCommand',
+    'DeleteDamagedUnitCommand',
+):
+    assert token in inventory_xaml, f'Inventory UI missing expected token: {token}'
+
+for token in (
+    'ID',
+    'الاسم',
+    'سعر الشراء',
+    'اسم المورد',
+    'تاريخ التسجيل',
+    'الحالة',
+    'ID الفاتورة',
+    'MarkUnitDamagedCommand',
+    'RestoreUnitCommand',
+):
+    assert token in registrations_xaml, f'ProductRegistrationsWindow missing expected token: {token}'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
+    root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
     root / 'src/ProjectZ/ViewModels/PosViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceItemViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddCustomerViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AddProductView.xaml.cs',
+    root / 'src/ProjectZ/Views/InventoryView.xaml.cs',
+    root / 'src/ProjectZ/Views/ProductRegistrationsWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/SupplyStockWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/EditProductWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/MarkDamagedWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/BarcodePrintPreviewWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/ConfirmActionWindow.xaml.cs',
 ]
 for p in pos_code_paths:
     text = p.read_text(encoding='utf-8')
-    assert 'SqlClient' not in text and 'SqlConnection' not in text, f'POS design phase must not include backend SQL code: {p}'
+    assert 'SqlClient' not in text and 'SqlConnection' not in text, f'POS/Inventory design phase must not include backend SQL code: {p}'
 
-defined_keys = set()
+app_resource_keys = set()
+for rf in (
+    root / 'src/ProjectZ/App.xaml',
+    root / 'src/ProjectZ/Resources/Theme.xaml',
+    root / 'src/ProjectZ/Resources/PosStyles.xaml',
+):
+    for elem in ET.parse(rf).getroot().iter():
+        for k, v in elem.attrib.items():
+            if k.endswith('Key'):
+                app_resource_keys.add(v)
+
 for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
+    local_keys = set(app_resource_keys)
     for elem in ET.parse(xf).getroot().iter():
         for k, v in elem.attrib.items():
             if k.endswith('Key'):
-                defined_keys.add(v)
-for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
+                local_keys.add(v)
     for m in re.finditer(r'\{StaticResource\s+([^\}\s]+)\}', xf.read_text(encoding='utf-8')):
         res = m.group(1)
-        assert res in defined_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
+        assert res in local_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
 
-print('PASS: POS UI design views, multi-invoice, barcode/search, AddCustomerWindow, split payments, 3 price tiers, no backend')
+print('PASS: POS, AddProduct & Inventory UI design views, registrations, damaged stock, modals, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

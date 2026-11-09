@@ -1,4 +1,5 @@
 using System.Globalization;
+using ProjectZ.Helpers;
 
 namespace ProjectZ.Models;
 
@@ -19,23 +20,206 @@ public enum PaymentPresetMode
 
 public sealed record PriceTierOption(PriceTier Tier, string Title, string ShortTitle);
 
-public sealed class PosProductDesignItem
+public sealed class PosProductDesignItem : ObservableObject
 {
+    private string barcode = "";
+    private string name = "";
+    private string category = "";
+    private string unit = "قطعة";
+    private decimal costPrice;
+    private int availableStock;
+    private int damagedCount;
+    private int minStockAlert = 5;
+    private decimal retailPrice;
+    private decimal specialPrice;
+    private decimal wholesalePrice;
+    private bool trackSerialNumber;
+    private bool isActiveForSale = true;
+    private string notes = "";
+    private bool isNewlyAdded;
+
     public int Id { get; init; }
-    public string Barcode { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Category { get; init; } = "";
-    public string Unit { get; init; } = "قطعة";
-    public decimal CostPrice { get; init; }
-    public int AvailableStock { get; init; }
-    public int MinStockAlert { get; init; } = 5;
-    public decimal RetailPrice { get; init; }
-    public decimal SpecialPrice { get; init; }
-    public decimal WholesalePrice { get; init; }
-    public bool TrackSerialNumber { get; init; }
-    public bool IsActiveForSale { get; init; } = true;
-    public string Notes { get; init; } = "";
-    public bool IsNewlyAdded { get; init; }
+
+    public string Barcode
+    {
+        get => barcode;
+        set
+        {
+            if (barcode == value) return;
+            barcode = value;
+            Changed();
+        }
+    }
+
+    public string Name
+    {
+        get => name;
+        set
+        {
+            if (name == value) return;
+            name = value;
+            Changed();
+        }
+    }
+
+    public string Category
+    {
+        get => category;
+        set
+        {
+            if (category == value) return;
+            category = value;
+            Changed();
+        }
+    }
+
+    public string Unit
+    {
+        get => unit;
+        set
+        {
+            if (unit == value) return;
+            unit = value;
+            Changed();
+            Changed(nameof(UnitDisplay));
+        }
+    }
+
+    public decimal CostPrice
+    {
+        get => costPrice;
+        set
+        {
+            if (costPrice == value) return;
+            costPrice = value;
+            Changed();
+            Changed(nameof(CostPriceDisplay));
+        }
+    }
+
+    public int AvailableStock
+    {
+        get => availableStock;
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (availableStock == clamped) return;
+            availableStock = clamped;
+            Changed();
+            Changed(nameof(StockDisplay));
+            Changed(nameof(IsLowStock));
+        }
+    }
+
+    public int DamagedCount
+    {
+        get => damagedCount;
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (damagedCount == clamped) return;
+            damagedCount = clamped;
+            Changed();
+            Changed(nameof(DamagedCountDisplay));
+            Changed(nameof(HasDamaged));
+        }
+    }
+
+    public int MinStockAlert
+    {
+        get => minStockAlert;
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (minStockAlert == clamped) return;
+            minStockAlert = clamped;
+            Changed();
+            Changed(nameof(IsLowStock));
+        }
+    }
+
+    public decimal RetailPrice
+    {
+        get => retailPrice;
+        set
+        {
+            if (retailPrice == value) return;
+            retailPrice = value;
+            Changed();
+            Changed(nameof(RetailPriceDisplay));
+            Changed(nameof(RetailBadgeText));
+        }
+    }
+
+    public decimal SpecialPrice
+    {
+        get => specialPrice;
+        set
+        {
+            if (specialPrice == value) return;
+            specialPrice = value;
+            Changed();
+            Changed(nameof(SpecialPriceDisplay));
+            Changed(nameof(SpecialBadgeText));
+        }
+    }
+
+    public decimal WholesalePrice
+    {
+        get => wholesalePrice;
+        set
+        {
+            if (wholesalePrice == value) return;
+            wholesalePrice = value;
+            Changed();
+            Changed(nameof(WholesalePriceDisplay));
+            Changed(nameof(WholesaleBadgeText));
+        }
+    }
+
+    public bool TrackSerialNumber
+    {
+        get => trackSerialNumber;
+        set
+        {
+            if (trackSerialNumber == value) return;
+            trackSerialNumber = value;
+            Changed();
+        }
+    }
+
+    public bool IsActiveForSale
+    {
+        get => isActiveForSale;
+        set
+        {
+            if (isActiveForSale == value) return;
+            isActiveForSale = value;
+            Changed();
+        }
+    }
+
+    public string Notes
+    {
+        get => notes;
+        set
+        {
+            if (notes == value) return;
+            notes = value;
+            Changed();
+        }
+    }
+
+    public bool IsNewlyAdded
+    {
+        get => isNewlyAdded;
+        set
+        {
+            if (isNewlyAdded == value) return;
+            isNewlyAdded = value;
+            Changed();
+        }
+    }
 
     public decimal GetPrice(PriceTier tier) => tier switch
     {
@@ -52,6 +236,9 @@ public sealed class PosProductDesignItem
     public string SpecialBadgeText => $"مميز: {SpecialPriceDisplay}";
     public string WholesaleBadgeText => $"جملة: {WholesalePriceDisplay}";
     public string StockDisplay => $"متاح: {AvailableStock}";
+    public string DamagedCountDisplay => DamagedCount.ToString(CultureInfo.InvariantCulture);
+    public bool IsLowStock => AvailableStock <= MinStockAlert;
+    public bool HasDamaged => DamagedCount > 0;
     public string UnitDisplay => string.IsNullOrWhiteSpace(Unit) ? "قطعة" : Unit;
 }
 
@@ -175,6 +362,7 @@ public static class PosDesignSeedData
             Category = "شواحن وكابلات",
             CostPrice = 310m,
             AvailableStock = 24,
+            DamagedCount = 1,
             RetailPrice = 450m,
             WholesalePrice = 390m,
             SpecialPrice = 360m
@@ -211,6 +399,7 @@ public static class PosDesignSeedData
             Category = "حماية وإكسسوار",
             CostPrice = 40m,
             AvailableStock = 65,
+            DamagedCount = 2,
             RetailPrice = 120m,
             WholesalePrice = 85m,
             SpecialPrice = 65m
@@ -247,7 +436,7 @@ public static class PosDesignSeedData
             Category = "هواتف",
             CostPrice = 16800m,
             AvailableStock = 5,
-            MinStockAlert = 2,
+            MinStockAlert = 6,
             TrackSerialNumber = true,
             RetailPrice = 18500m,
             WholesalePrice = 17900m,
@@ -275,6 +464,7 @@ public static class PosDesignSeedData
             Category = "سماعات",
             CostPrice = 145m,
             AvailableStock = 29,
+            DamagedCount = 1,
             RetailPrice = 260m,
             WholesalePrice = 210m,
             SpecialPrice = 185m
