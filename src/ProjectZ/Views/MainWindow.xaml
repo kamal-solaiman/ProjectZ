@@ -107,6 +107,10 @@
 
     <!-- Use fixed physical columns; each Arabic content region sets RTL itself. -->
     <Grid Margin="24" FlowDirection="LeftToRight">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="26*"/>
+            <ColumnDefinition Width="41*"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -116,7 +120,7 @@
                 Margin="0,0,0,18"
                 Padding="16,12"
                 CornerRadius="16"
-                Background="White">
+                Background="#102E48" Grid.ColumnSpan="2">
             <Grid FlowDirection="LeftToRight">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -132,27 +136,22 @@
                             Orientation="Horizontal"
                             VerticalAlignment="Center"
                             FlowDirection="RightToLeft">
-                    <TextBlock Text="ProjectZ"
-                               FlowDirection="LeftToRight"
-                               FontSize="21"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource Accent}"
-                               VerticalAlignment="Center" />
                     <StackPanel Margin="18,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="{Binding Welcome}"
                                    FontSize="16"
+                                   Foreground="#DCE8EE"
                                    FontWeight="SemiBold" />
                         <TextBlock Text="{Binding Username}"
                                    Margin="0,3,0,0"
                                    FontSize="12"
-                                   Foreground="#64748B"
+                                   Foreground="#DCE8EE"
                                    FlowDirection="LeftToRight" />
                     </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" FlowDirection="LeftToRight">
+        <Grid Grid.Row="1" FlowDirection="LeftToRight" Grid.ColumnSpan="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
