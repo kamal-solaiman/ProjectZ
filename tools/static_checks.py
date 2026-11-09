@@ -94,6 +94,27 @@ logout_button = next(
     if element.tag.endswith('Button') and element.attrib.get('Content') == 'تسجيل الخروج'
 )
 assert logout_button.attrib.get('FlowDirection') == 'RightToLeft'
+sidebar_label_blocks = [
+    element for element in main_root.iter()
+    if element.tag.endswith('TextBlock') and element.attrib.get('Text') == '{Binding Title}'
+]
+assert len(sidebar_label_blocks) == 2
+assert all(
+    element.attrib.get('HorizontalAlignment') == 'Stretch'
+    and element.attrib.get('FlowDirection') == 'RightToLeft'
+    and element.attrib.get('TextAlignment') == 'Right'
+    for element in sidebar_label_blocks
+), 'sidebar category and item labels must fill the row and align right'
+menu_style = next(
+    style for style in main_root.iter()
+    if style.tag.endswith('Style')
+    and style.attrib.get('{http://schemas.microsoft.com/winfx/2006/xaml}Key') == 'SidebarMenuButtonStyle'
+)
+menu_padding = next(
+    setter.attrib.get('Value') for setter in menu_style
+    if setter.tag.endswith('Setter') and setter.attrib.get('Property') == 'Padding'
+)
+assert menu_padding == '12,9,30,9', 'submenu indentation belongs on the RTL right side'
 sidebar_scrollers = [element for element in main_root.iter() if element.tag.endswith('ScrollViewer')]
 assert len(sidebar_scrollers) == 1
 assert sidebar_scrollers[0].attrib.get('VerticalScrollBarVisibility') == 'Auto'
