@@ -88,7 +88,8 @@ main_body = next(
 )
 main_panels = [element for element in main_body if element.tag.endswith('Border')]
 assert [panel.attrib.get('Grid.Column') for panel in main_panels] == ['0', '1']
-assert all(panel.attrib.get('FlowDirection') == 'RightToLeft' for panel in main_panels)
+assert main_panels[0].attrib.get('FlowDirection') == 'RightToLeft'  # Arabic workspace
+assert main_panels[1].attrib.get('FlowDirection') == 'LeftToRight'  # stable sidebar layout
 logout_button = next(
     element for element in main_root.iter()
     if element.tag.endswith('Button') and element.attrib.get('Content') == 'تسجيل الخروج'
@@ -101,14 +102,19 @@ sidebar_button_style = next(
 )
 assert any(
     setter.attrib.get('Property') == 'HorizontalContentAlignment'
-    and setter.attrib.get('Value') == 'Right'
+    and setter.attrib.get('Value') == 'Stretch'
     for setter in sidebar_button_style
-), 'sidebar button content must be anchored to the right'
+), 'sidebar buttons must stretch to preserve a stable content area'
+assert any(
+    setter.attrib.get('Property') == 'FlowDirection'
+    and setter.attrib.get('Value') == 'LeftToRight'
+    for setter in sidebar_button_style
+), 'button layout stays physical LTR while its text is RTL'
 sidebar_heading = next(
     element for element in main_root.iter()
     if element.tag.endswith('TextBlock') and element.attrib.get('Text') == 'القائمة الرئيسية'
 )
-assert sidebar_heading.attrib.get('HorizontalAlignment') == 'Right'
+assert sidebar_heading.attrib.get('HorizontalAlignment') == 'Stretch'
 assert sidebar_heading.attrib.get('FlowDirection') == 'RightToLeft'
 assert sidebar_heading.attrib.get('TextAlignment') == 'Right'
 sidebar_label_blocks = [
@@ -117,7 +123,7 @@ sidebar_label_blocks = [
 ]
 assert len(sidebar_label_blocks) == 2
 assert all(
-    element.attrib.get('HorizontalAlignment') == 'Right'
+    element.attrib.get('HorizontalAlignment') == 'Stretch'
     and element.attrib.get('FlowDirection') == 'RightToLeft'
     and element.attrib.get('TextAlignment') == 'Right'
     for element in sidebar_label_blocks
@@ -143,7 +149,8 @@ sidebar_item_controls = [
     and element.attrib.get('ItemsSource') in {'{Binding Categories}', '{Binding Items}'}
 ]
 assert len(sidebar_item_controls) == 2
-assert all(element.attrib.get('FlowDirection') == 'RightToLeft' for element in sidebar_item_controls)
+assert all(element.attrib.get('FlowDirection') == 'LeftToRight' for element in sidebar_item_controls)
+assert all(element.attrib.get('FlowDirection') == 'RightToLeft' for element in sidebar_label_blocks)
 assert any(element.attrib.get('Click') == 'CategoryHeader_Click' for element in main_root.iter())
 assert any(element.attrib.get('Click') == 'MenuItem_Click' for element in main_root.iter())
 assert 'IsSelected' in main_xaml and 'IsExpanded' in main_xaml
