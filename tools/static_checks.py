@@ -94,6 +94,16 @@ logout_button = next(
     if element.tag.endswith('Button') and element.attrib.get('Content') == 'تسجيل الخروج'
 )
 assert logout_button.attrib.get('FlowDirection') == 'RightToLeft'
+sidebar_button_style = next(
+    style for style in main_root.iter()
+    if style.tag.endswith('Style')
+    and style.attrib.get('{http://schemas.microsoft.com/winfx/2006/xaml}Key') == 'SidebarBaseButtonStyle'
+)
+assert any(
+    setter.attrib.get('Property') == 'HorizontalContentAlignment'
+    and setter.attrib.get('Value') == 'Right'
+    for setter in sidebar_button_style
+), 'sidebar button content must be anchored to the right'
 sidebar_heading = next(
     element for element in main_root.iter()
     if element.tag.endswith('TextBlock') and element.attrib.get('Text') == 'القائمة الرئيسية'
@@ -124,9 +134,16 @@ menu_padding = next(
 assert menu_padding == '12,9,30,9', 'submenu indentation belongs on the RTL right side'
 sidebar_scrollers = [element for element in main_root.iter() if element.tag.endswith('ScrollViewer')]
 assert len(sidebar_scrollers) == 1
-assert sidebar_scrollers[0].attrib.get('FlowDirection') == 'RightToLeft'
+assert sidebar_scrollers[0].attrib.get('FlowDirection') == 'LeftToRight', 'place the scrollbar at the right edge'
 assert sidebar_scrollers[0].attrib.get('VerticalScrollBarVisibility') == 'Auto'
 assert sidebar_scrollers[0].attrib.get('HorizontalScrollBarVisibility') == 'Disabled'
+sidebar_item_controls = [
+    element for element in main_root.iter()
+    if element.tag.endswith('ItemsControl')
+    and element.attrib.get('ItemsSource') in {'{Binding Categories}', '{Binding Items}'}
+]
+assert len(sidebar_item_controls) == 2
+assert all(element.attrib.get('FlowDirection') == 'RightToLeft' for element in sidebar_item_controls)
 assert any(element.attrib.get('Click') == 'CategoryHeader_Click' for element in main_root.iter())
 assert any(element.attrib.get('Click') == 'MenuItem_Click' for element in main_root.iter())
 assert 'IsSelected' in main_xaml and 'IsExpanded' in main_xaml
