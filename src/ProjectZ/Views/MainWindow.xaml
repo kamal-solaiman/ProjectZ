@@ -246,6 +246,20 @@
                         </Grid.Style>
                         <views:InventoryView DataContext="{Binding Inventory}" />
                     </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCategoriesSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:CategoriesView DataContext="{Binding ProductCategories}" />
+                    </Grid>
                 </Grid>
             </Border>
 
