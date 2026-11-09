@@ -94,6 +94,13 @@ logout_button = next(
     if element.tag.endswith('Button') and element.attrib.get('Content') == 'تسجيل الخروج'
 )
 assert logout_button.attrib.get('FlowDirection') == 'RightToLeft'
+sidebar_heading = next(
+    element for element in main_root.iter()
+    if element.tag.endswith('TextBlock') and element.attrib.get('Text') == 'القائمة الرئيسية'
+)
+assert sidebar_heading.attrib.get('HorizontalAlignment') == 'Stretch'
+assert sidebar_heading.attrib.get('FlowDirection') == 'RightToLeft'
+assert sidebar_heading.attrib.get('TextAlignment') == 'Right'
 sidebar_label_blocks = [
     element for element in main_root.iter()
     if element.tag.endswith('TextBlock') and element.attrib.get('Text') == '{Binding Title}'
@@ -117,6 +124,7 @@ menu_padding = next(
 assert menu_padding == '12,9,30,9', 'submenu indentation belongs on the RTL right side'
 sidebar_scrollers = [element for element in main_root.iter() if element.tag.endswith('ScrollViewer')]
 assert len(sidebar_scrollers) == 1
+assert sidebar_scrollers[0].attrib.get('FlowDirection') == 'RightToLeft'
 assert sidebar_scrollers[0].attrib.get('VerticalScrollBarVisibility') == 'Auto'
 assert sidebar_scrollers[0].attrib.get('HorizontalScrollBarVisibility') == 'Disabled'
 assert any(element.attrib.get('Click') == 'CategoryHeader_Click' for element in main_root.iter())
