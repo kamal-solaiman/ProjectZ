@@ -17,8 +17,6 @@ public sealed class AddProductViewModel : ObservableObject
     private string selectedCategory = "";
     private bool isAddingCustomCategory;
     private string newCategoryName = "";
-    private string brand = "";
-    private string sku = "";
     private string selectedUnit = "قطعة";
 
     private string costPriceText = "";
@@ -28,10 +26,8 @@ public sealed class AddProductViewModel : ObservableObject
 
     private string initialStockText = "10";
     private string minStockAlertText = "5";
-    private string shelfLocation = "";
     private bool isActiveForSale = true;
     private bool trackSerialNumber;
-    private bool isTaxable;
     private string notes = "";
 
     private string catalogSearchText = "";
@@ -76,7 +72,6 @@ public sealed class AddProductViewModel : ObservableObject
             if (selectedCategory == value) return;
             selectedCategory = value;
             Changed();
-            Changed(nameof(PreviewCategory));
         }
     }
 
@@ -102,30 +97,6 @@ public sealed class AddProductViewModel : ObservableObject
         }
     }
 
-    public string Brand
-    {
-        get => brand;
-        set
-        {
-            if (brand == value) return;
-            brand = value;
-            Changed();
-            Changed(nameof(PreviewBrandAndSku));
-        }
-    }
-
-    public string Sku
-    {
-        get => sku;
-        set
-        {
-            if (sku == value) return;
-            sku = value;
-            Changed();
-            Changed(nameof(PreviewBrandAndSku));
-        }
-    }
-
     public string SelectedUnit
     {
         get => selectedUnit;
@@ -134,7 +105,6 @@ public sealed class AddProductViewModel : ObservableObject
             if (selectedUnit == value) return;
             selectedUnit = value;
             Changed();
-            Changed(nameof(PreviewStockSummary));
         }
     }
 
@@ -194,7 +164,6 @@ public sealed class AddProductViewModel : ObservableObject
             if (initialStockText == value) return;
             initialStockText = value;
             Changed();
-            Changed(nameof(PreviewStockSummary));
         }
     }
 
@@ -206,19 +175,6 @@ public sealed class AddProductViewModel : ObservableObject
             if (minStockAlertText == value) return;
             minStockAlertText = value;
             Changed();
-            Changed(nameof(PreviewStockSummary));
-        }
-    }
-
-    public string ShelfLocation
-    {
-        get => shelfLocation;
-        set
-        {
-            if (shelfLocation == value) return;
-            shelfLocation = value;
-            Changed();
-            Changed(nameof(PreviewLocationDisplay));
         }
     }
 
@@ -230,7 +186,6 @@ public sealed class AddProductViewModel : ObservableObject
             if (isActiveForSale == value) return;
             isActiveForSale = value;
             Changed();
-            Changed(nameof(PreviewStatusText));
         }
     }
 
@@ -241,17 +196,6 @@ public sealed class AddProductViewModel : ObservableObject
         {
             if (trackSerialNumber == value) return;
             trackSerialNumber = value;
-            Changed();
-        }
-    }
-
-    public bool IsTaxable
-    {
-        get => isTaxable;
-        set
-        {
-            if (isTaxable == value) return;
-            isTaxable = value;
             Changed();
         }
     }
@@ -331,29 +275,9 @@ public sealed class AddProductViewModel : ObservableObject
         }
     }
 
-    // Live Card Preview Properties
-    public string PreviewName => string.IsNullOrWhiteSpace(ProductName) ? "اسم الصنف الجديد سيظهر هنا" : ProductName.Trim();
+    // Standard barcode label preview (product name + barcode only)
+    public string PreviewName => string.IsNullOrWhiteSpace(ProductName) ? "اسم المنتج" : ProductName.Trim();
     public string PreviewBarcode => string.IsNullOrWhiteSpace(Barcode) ? "62210010XX" : Barcode.Trim();
-    public string PreviewCategory => string.IsNullOrWhiteSpace(SelectedCategory) ? "بدون تصنيف" : SelectedCategory;
-    public string PreviewBrandAndSku => string.IsNullOrWhiteSpace(Brand) && string.IsNullOrWhiteSpace(Sku)
-        ? "الماركة / الكود: غير محدد"
-        : string.Join(" · ", new[] { Brand.Trim(), Sku.Trim() }.Where(s => !string.IsNullOrEmpty(s)));
-    public string PreviewCostDisplay => PosFormatting.FormatCurrency(ParsedCost);
-    public string PreviewRetailDisplay => PosFormatting.FormatCurrency(ParsedRetail);
-    public string PreviewSpecialDisplay => PosFormatting.FormatCurrency(ParsedSpecial);
-    public string PreviewWholesaleDisplay => PosFormatting.FormatCurrency(ParsedWholesale);
-    public string PreviewStockSummary
-    {
-        get
-        {
-            var stock = PosFormatting.TryParseNonNegativeInt(InitialStockText, out var s) ? s : 0;
-            var min = PosFormatting.TryParseNonNegativeInt(MinStockAlertText, out var m) ? m : 0;
-            var unit = string.IsNullOrWhiteSpace(SelectedUnit) ? "قطعة" : SelectedUnit;
-            return $"{stock} {unit} · حد التنبيه: {min}";
-        }
-    }
-    public string PreviewLocationDisplay => string.IsNullOrWhiteSpace(ShelfLocation) ? "الموقع: غير محدد" : $"الموقع: {ShelfLocation.Trim()}";
-    public string PreviewStatusText => IsActiveForSale ? "متاح للبيع في نقطة البيع" : "موقوف عن البيع مؤقتًا";
 
     public string CatalogCountDisplay => $"{sharedCatalog.Count} صنف في الدليل";
     public bool HasNoCatalogResults => FilteredProducts.Count == 0;
@@ -539,8 +463,6 @@ public sealed class AddProductViewModel : ObservableObject
             Barcode = trimmedBarcode,
             Name = trimmedName,
             Category = trimmedCategory,
-            Brand = Brand.Trim(),
-            Sku = Sku.Trim(),
             Unit = string.IsNullOrWhiteSpace(SelectedUnit) ? "قطعة" : SelectedUnit,
             CostPrice = costPrice,
             RetailPrice = retailPrice,
@@ -548,10 +470,8 @@ public sealed class AddProductViewModel : ObservableObject
             WholesalePrice = wholesalePrice,
             AvailableStock = initialStock,
             MinStockAlert = minStock,
-            ShelfLocation = ShelfLocation.Trim(),
             IsActiveForSale = IsActiveForSale,
             TrackSerialNumber = TrackSerialNumber,
-            IsTaxable = IsTaxable,
             Notes = Notes.Trim(),
             IsNewlyAdded = true
         };
@@ -574,8 +494,6 @@ public sealed class AddProductViewModel : ObservableObject
         ProductName = $"{source.Name} (نسخة)";
         Barcode = GenerateNextAvailableBarcode();
         SelectedCategory = source.Category;
-        Brand = source.Brand;
-        Sku = source.Sku;
         SelectedUnit = source.UnitDisplay;
         CostPriceText = source.CostPrice > 0m ? PosFormatting.FormatPlainNumber(source.CostPrice) : "";
         RetailPriceText = PosFormatting.FormatPlainNumber(source.RetailPrice);
@@ -583,10 +501,8 @@ public sealed class AddProductViewModel : ObservableObject
         WholesalePriceText = PosFormatting.FormatPlainNumber(source.WholesalePrice);
         InitialStockText = source.AvailableStock.ToString(CultureInfo.InvariantCulture);
         MinStockAlertText = source.MinStockAlert.ToString(CultureInfo.InvariantCulture);
-        ShelfLocation = source.ShelfLocation;
         IsActiveForSale = source.IsActiveForSale;
         TrackSerialNumber = source.TrackSerialNumber;
-        IsTaxable = source.IsTaxable;
         Notes = source.Notes;
 
         SetStatus($"تم تحميل بيانات «{source.Name}» في النموذج مع توليد باركود جديد للتعديل أو الحفظ.", false);
@@ -612,18 +528,14 @@ public sealed class AddProductViewModel : ObservableObject
         }
         IsAddingCustomCategory = false;
         NewCategoryName = "";
-        Brand = "";
-        Sku = "";
         CostPriceText = "";
         RetailPriceText = "";
         SpecialPriceText = "";
         WholesalePriceText = "";
         InitialStockText = "10";
         MinStockAlertText = "5";
-        ShelfLocation = "";
         IsActiveForSale = true;
         TrackSerialNumber = false;
-        IsTaxable = false;
         Notes = "";
 
         if (clearStatus)
@@ -652,10 +564,6 @@ public sealed class AddProductViewModel : ObservableObject
         Changed(nameof(IsSpecialMarginNegative));
         Changed(nameof(IsWholesaleMarginNegative));
         Changed(nameof(HasPriceOrderWarning));
-        Changed(nameof(PreviewCostDisplay));
-        Changed(nameof(PreviewRetailDisplay));
-        Changed(nameof(PreviewSpecialDisplay));
-        Changed(nameof(PreviewWholesaleDisplay));
     }
 
     private static string FormatMargin(decimal sellPrice, decimal costPrice)
@@ -680,8 +588,7 @@ public sealed class AddProductViewModel : ObservableObject
             .Where(p => string.IsNullOrEmpty(query)
                         || p.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                         || p.Barcode.Contains(query, StringComparison.OrdinalIgnoreCase)
-                        || p.Category.Contains(query, StringComparison.OrdinalIgnoreCase)
-                        || p.Brand.Contains(query, StringComparison.OrdinalIgnoreCase))
+                        || p.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(p => p.IsNewlyAdded)
             .ThenByDescending(p => p.Id);
 

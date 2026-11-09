@@ -76,7 +76,7 @@
                           FlowDirection="LeftToRight">
                 <StackPanel Margin="0,0,4,0" FlowDirection="LeftToRight">
 
-                    <!-- CARD A: Live Barcode & Product Card Preview -->
+                    <!-- CARD A: Standard Thermal Barcode Print Preview (50mm x 25mm) -->
                     <Border Margin="0,0,0,12"
                             Padding="14"
                             CornerRadius="14"
@@ -91,22 +91,15 @@
 
                                 <Border Grid.Column="0"
                                         Padding="8,3"
-                                        CornerRadius="10">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Background" Value="#334155" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsActiveForSale}" Value="True">
-                                                    <Setter Property="Background" Value="#0F766E" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                    <TextBlock Text="{Binding PreviewStatusText}"
+                                        CornerRadius="8"
+                                        Background="#1E3A5F"
+                                        BorderBrush="#334155"
+                                        BorderThickness="1">
+                                    <TextBlock Text="50 × 25 مم"
                                                Style="{StaticResource PosCenterTextStyle}"
                                                FontSize="11"
-                                               FontWeight="Bold"
-                                               Foreground="White" />
+                                               FontWeight="SemiBold"
+                                               Foreground="#BAE6FD" />
                                 </Border>
 
                                 <TextBlock Grid.Column="1"
@@ -118,146 +111,59 @@
                                            Foreground="#6EE7D8" />
                             </Grid>
 
-                            <!-- White Label / Sticker Surface -->
-                            <Border Padding="13" CornerRadius="12" Background="White">
-                                <StackPanel>
-                                    <Grid Margin="0,0,0,6" FlowDirection="LeftToRight">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <Border Grid.Column="0"
-                                                Padding="7,2"
-                                                CornerRadius="6"
-                                                Background="#FEF3C7"
-                                                Visibility="{Binding TrackSerialNumber, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="تتبع IMEI / سيريال"
-                                                       Style="{StaticResource PosCenterTextStyle}"
-                                                       FontSize="10.5"
-                                                       FontWeight="Bold"
-                                                       Foreground="#92400E" />
-                                        </Border>
-
-                                        <Border Grid.Column="1"
-                                                HorizontalAlignment="Right"
-                                                Padding="8,2"
-                                                CornerRadius="6"
-                                                Background="#E0F2FE">
-                                            <TextBlock Text="{Binding PreviewCategory}"
-                                                       Style="{StaticResource PosRtlTextStyle}"
-                                                       FontSize="11.5"
-                                                       FontWeight="Bold"
-                                                       Foreground="#0369A1" />
-                                        </Border>
-                                    </Grid>
-
-                                    <TextBlock Text="{Binding PreviewName}"
-                                               Style="{StaticResource PosRtlTextStyle}"
-                                               FontSize="15"
-                                               FontWeight="Bold"
-                                               Foreground="#102E48"
-                                               TextWrapping="Wrap" />
-
-                                    <TextBlock Text="{Binding PreviewBrandAndSku}"
-                                               Style="{StaticResource PosRtlTextStyle}"
-                                               Margin="0,3,0,10"
-                                               FontSize="11.5"
-                                               Foreground="#64748B" />
-
-                                    <!-- Visual Barcode Sticker -->
-                                    <Border Margin="0,0,0,10"
-                                            Padding="10,8"
-                                            CornerRadius="8"
-                                            Background="#F8FAFC"
-                                            BorderBrush="#E2E8F0"
-                                            BorderThickness="1">
-                                        <StackPanel HorizontalAlignment="Center">
-                                            <Path Data="M0,0 H3 V28 H0 Z M5,0 H6 V28 H5 Z M9,0 H13 V28 H9 Z M15,0 H17 V28 H15 Z M20,0 H21 V28 H20 Z M23,0 H27 V28 H23 Z M29,0 H30 V28 H29 Z M33,0 H35 V28 H33 Z M38,0 H42 V28 H38 Z M44,0 H45 V28 H44 Z M48,0 H50 V28 H48 Z M52,0 H55 V28 H52 Z M57,0 H59 V28 H57 Z M61,0 H64 V28 H61 Z M66,0 H68 V28 H66 Z M71,0 H74 V28 H71 Z"
-                                                  Fill="#172B41"
-                                                  Stretch="Fill"
-                                                  Width="180"
-                                                  Height="28"
-                                                  HorizontalAlignment="Center" />
-                                            <TextBlock Text="{Binding PreviewBarcode}"
-                                                       Style="{StaticResource PosLtrTextStyle}"
-                                                       HorizontalAlignment="Center"
-                                                       Margin="0,4,0,0"
-                                                       FontFamily="Consolas, Segoe UI"
-                                                       FontSize="13"
-                                                       FontWeight="Bold"
-                                                       Foreground="#172B41" />
-                                        </StackPanel>
-                                    </Border>
-
-                                    <!-- 3-Tier Live Prices Preview -->
-                                    <Grid Margin="0,0,0,8" FlowDirection="LeftToRight">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="6" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="6" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <Border Grid.Column="0" Padding="6,6" CornerRadius="8" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1">
-                                            <StackPanel>
-                                                <TextBlock Text="سعر جملة" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="#102E48" />
-                                                <TextBlock Text="{Binding PreviewWholesaleDisplay}"
-                                                           Style="{StaticResource PosCenterTextStyle}"
-                                                           FlowDirection="LeftToRight"
-                                                           Margin="0,2,0,0"
-                                                           FontSize="11.5"
-                                                           FontWeight="Bold"
-                                                           Foreground="#102E48" />
-                                            </StackPanel>
-                                        </Border>
-
-                                        <Border Grid.Column="2" Padding="6,6" CornerRadius="8" Background="#F5F3FF" BorderBrush="#DDD6FE" BorderThickness="1">
-                                            <StackPanel>
-                                                <TextBlock Text="سعر مميز" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="#6D28D9" />
-                                                <TextBlock Text="{Binding PreviewSpecialDisplay}"
-                                                           Style="{StaticResource PosCenterTextStyle}"
-                                                           FlowDirection="LeftToRight"
-                                                           Margin="0,2,0,0"
-                                                           FontSize="11.5"
-                                                           FontWeight="Bold"
-                                                           Foreground="#6D28D9" />
-                                            </StackPanel>
-                                        </Border>
-
-                                        <Border Grid.Column="4" Padding="6,6" CornerRadius="8" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1">
-                                            <StackPanel>
-                                                <TextBlock Text="سعر قطاعي" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="#147D92" />
-                                                <TextBlock Text="{Binding PreviewRetailDisplay}"
-                                                           Style="{StaticResource PosCenterTextStyle}"
-                                                           FlowDirection="LeftToRight"
-                                                           Margin="0,2,0,0"
-                                                           FontSize="11.5"
-                                                           FontWeight="Bold"
-                                                           Foreground="#147D92" />
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
-
+                            <!-- Label Print Tray -->
+                            <Border Padding="16,18"
+                                    CornerRadius="10"
+                                    Background="#E2E8F0"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1">
+                                <!-- Standard Thermal Barcode Label (50mm x 25mm at 96 DPI = 190 x 95 DIP) -->
+                                <Border Width="190"
+                                        Height="95"
+                                        Padding="8,5"
+                                        CornerRadius="4"
+                                        Background="White"
+                                        BorderBrush="#94A3B8"
+                                        BorderThickness="1"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
                                     <Grid FlowDirection="LeftToRight">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0"
-                                                   Text="{Binding PreviewLocationDisplay}"
-                                                   Style="{StaticResource PosRtlTextStyle}"
-                                                   FontSize="11"
-                                                   Foreground="#64748B" />
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding PreviewStockSummary}"
-                                                   Style="{StaticResource PosRtlTextStyle}"
-                                                   FontSize="11.5"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="#0F766E" />
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0"
+                                                   Text="{Binding PreviewName}"
+                                                   Style="{StaticResource PosCenterTextStyle}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="10.5"
+                                                   FontWeight="Bold"
+                                                   Foreground="#0F172A"
+                                                   TextWrapping="Wrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxHeight="28" />
+
+                                        <Path Grid.Row="1"
+                                              Data="M0,0 H3 V34 H0 Z M5,0 H6 V34 H5 Z M9,0 H13 V34 H9 Z M15,0 H17 V34 H15 Z M20,0 H21 V34 H20 Z M23,0 H27 V34 H23 Z M29,0 H30 V34 H29 Z M33,0 H35 V34 H33 Z M38,0 H42 V34 H38 Z M44,0 H45 V34 H44 Z M48,0 H50 V34 H48 Z M52,0 H55 V34 H52 Z M57,0 H59 V34 H57 Z M61,0 H64 V34 H61 Z M66,0 H68 V34 H66 Z M71,0 H74 V34 H71 Z M76,0 H78 V34 H76 Z M80,0 H83 V34 H80 Z M85,0 H86 V34 H85 Z M89,0 H92 V34 H89 Z"
+                                              Fill="#0F172A"
+                                              Stretch="Fill"
+                                              Width="156"
+                                              Height="34"
+                                              Margin="0,2,0,2"
+                                              HorizontalAlignment="Center" />
+
+                                        <TextBlock Grid.Row="2"
+                                                   Text="{Binding PreviewBarcode}"
+                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                   HorizontalAlignment="Center"
+                                                   FontFamily="Consolas, Segoe UI"
+                                                   FontSize="10.5"
+                                                   FontWeight="Bold"
+                                                   Foreground="#0F172A" />
                                     </Grid>
-                                </StackPanel>
+                                </Border>
                             </Border>
                         </StackPanel>
                     </Border>
@@ -318,7 +224,7 @@
 
                             <Border CornerRadius="10" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Padding="4">
                                 <Grid>
-                                    <ScrollViewer MaxHeight="235"
+                                    <ScrollViewer MaxHeight="300"
                                                   VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled"
                                                   FlowDirection="LeftToRight">
@@ -468,7 +374,7 @@
                                 </Grid>
 
                                 <!-- Barcode & Category Row -->
-                                <Grid Margin="0,0,0,10" FlowDirection="LeftToRight">
+                                <Grid FlowDirection="LeftToRight">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="12" />
@@ -594,55 +500,6 @@
                                                    Margin="0,4,0,0"
                                                    FontSize="11"
                                                    Foreground="#64748B" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <!-- Unit, SKU, Brand Row -->
-                                <Grid FlowDirection="LeftToRight">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="10" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="10" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="الوحدة"
-                                                   Style="{StaticResource PosRtlTextStyle}"
-                                                   Margin="0,0,0,5"
-                                                   FontSize="12.5"
-                                                   FontWeight="SemiBold" />
-                                        <ComboBox Style="{StaticResource PosComboBoxStyle}"
-                                                  MinHeight="36"
-                                                  ItemsSource="{Binding Units}"
-                                                  SelectedItem="{Binding SelectedUnit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="كود داخلي (SKU)"
-                                                   Style="{StaticResource PosRtlTextStyle}"
-                                                   Margin="0,0,0,5"
-                                                   FontSize="12.5"
-                                                   FontWeight="SemiBold" />
-                                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
-                                                 MinHeight="36"
-                                                 FontWeight="Normal"
-                                                 Text="{Binding Sku, UpdateSourceTrigger=PropertyChanged}"
-                                                 MaxLength="40" />
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="4">
-                                        <TextBlock Text="الماركة / الشركة"
-                                                   Style="{StaticResource PosRtlTextStyle}"
-                                                   Margin="0,0,0,5"
-                                                   FontSize="12.5"
-                                                   FontWeight="SemiBold" />
-                                        <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
-                                                 FlowDirection="RightToLeft"
-                                                 TextAlignment="Left"
-                                                 Text="{Binding Brand, UpdateSourceTrigger=PropertyChanged}"
-                                                 MaxLength="60" />
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -837,7 +694,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- FORM CARD 3: Inventory & Extra Options -->
+                        <!-- FORM CARD 3: Unit, Inventory & Extra Options -->
                         <Border Margin="0,0,0,6"
                                 Padding="14"
                                 CornerRadius="14"
@@ -846,7 +703,7 @@
                                 BorderThickness="1"
                                 FlowDirection="LeftToRight">
                             <StackPanel>
-                                <TextBlock Text="المخزون والخصائص الإضافية"
+                                <TextBlock Text="الوحدة والمخزون والخصائص الإضافية"
                                            Style="{StaticResource PosRtlTextStyle}"
                                            Margin="0,0,0,10"
                                            FontSize="15"
@@ -863,16 +720,15 @@
                                     </Grid.ColumnDefinitions>
 
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="موقع التخزين / الرف"
+                                        <TextBlock Text="الوحدة"
                                                    Style="{StaticResource PosRtlTextStyle}"
                                                    Margin="0,0,0,5"
                                                    FontSize="12.5"
                                                    FontWeight="SemiBold" />
-                                        <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
-                                                 FlowDirection="RightToLeft"
-                                                 TextAlignment="Left"
-                                                 Text="{Binding ShelfLocation, UpdateSourceTrigger=PropertyChanged}"
-                                                 MaxLength="40" />
+                                        <ComboBox Style="{StaticResource PosComboBoxStyle}"
+                                                  MinHeight="36"
+                                                  ItemsSource="{Binding Units}"
+                                                  SelectedItem="{Binding SelectedUnit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="2">
@@ -908,18 +764,10 @@
                                                    FontSize="13"
                                                    FontWeight="SemiBold" />
                                     </CheckBox>
-                                    <CheckBox Margin="0,0,16,6"
+                                    <CheckBox Margin="0,0,0,6"
                                               Style="{StaticResource PosCheckBoxStyle}"
                                               IsChecked="{Binding TrackSerialNumber, Mode=TwoWay}">
                                         <TextBlock Text="تتبع السيريال / IMEI"
-                                                   Style="{StaticResource PosRtlTextStyle}"
-                                                   FontSize="13"
-                                                   FontWeight="SemiBold" />
-                                    </CheckBox>
-                                    <CheckBox Margin="0,0,0,6"
-                                              Style="{StaticResource PosCheckBoxStyle}"
-                                              IsChecked="{Binding IsTaxable, Mode=TwoWay}">
-                                        <TextBlock Text="خاضع للضريبة"
                                                    Style="{StaticResource PosRtlTextStyle}"
                                                    FontSize="13"
                                                    FontWeight="SemiBold" />

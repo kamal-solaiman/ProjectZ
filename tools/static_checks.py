@@ -283,8 +283,35 @@ for token in (
     'سعر مميز',
     'سعر جملة',
     'SaveProductCommand',
+    'PreviewName',
+    'PreviewBarcode',
+    'Width="190"',
+    'Height="95"',
 ):
     assert token in add_product_xaml, f'AddProduct UI missing expected token: {token}'
+
+add_product_vm_text = (root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs').read_text(encoding='utf-8')
+pos_models_text = (root / 'src/ProjectZ/Models/PosDesignModels.cs').read_text(encoding='utf-8')
+for removed_token in (
+    'Brand',
+    'Sku',
+    'ShelfLocation',
+    'IsTaxable',
+    'PreviewCategory',
+    'PreviewBrandAndSku',
+    'PreviewCostDisplay',
+    'PreviewRetailDisplay',
+    'PreviewSpecialDisplay',
+    'PreviewWholesaleDisplay',
+    'PreviewStockSummary',
+    'PreviewLocationDisplay',
+    'PreviewStatusText',
+):
+    assert removed_token not in add_product_xaml, f'Removed token {removed_token} still in AddProductView.xaml'
+    assert removed_token not in add_product_vm_text, f'Removed token {removed_token} still in AddProductViewModel.cs'
+    assert removed_token not in pos_models_text, f'Removed token {removed_token} still in PosDesignModels.cs'
+for removed_label in ('الماركة', 'كود داخلي', 'موقع التخزين', 'خاضع للضريبة'):
+    assert removed_label not in add_product_xaml, f'Removed label {removed_label} still in AddProductView.xaml'
 
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
