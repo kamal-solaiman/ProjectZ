@@ -81,6 +81,20 @@
                     </Style>
                 </Button.Style>
             </Button>
+            <Button Content="إيصال التسليم والضمان (80 مم)" Margin="8,0,0,0" Command="{Binding SelectDeliveryReceiptModeCommand}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource PosSecondaryButtonStyle}">
+                        <Setter Property="Padding" Value="14,7" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsDeliveryReceiptMode}" Value="True">
+                                <Setter Property="Background" Value="#0F766E" />
+                                <Setter Property="BorderBrush" Value="#0F766E" />
+                                <Setter Property="Foreground" Value="White" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
         </StackPanel>
 
         <!-- Paper Preview Canvas -->
@@ -247,6 +261,132 @@
                                     </StackPanel>
                                 </Grid>
                             </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Mode 3: 80mm Final Delivery, Parts & Warranty Receipt -->
+                    <Border Width="345"
+                            Padding="16"
+                            Background="White"
+                            BorderBrush="#0F766E"
+                            BorderThickness="1.5"
+                            CornerRadius="6"
+                            Visibility="{Binding IsDeliveryReceiptMode, Converter={StaticResource BoolToVis}}">
+                        <StackPanel FlowDirection="RightToLeft">
+                            <TextBlock Text="ProjectZ — مركز الصيانة والخدمة"
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       FontSize="15.5"
+                                       FontWeight="Bold"
+                                       Foreground="#102E48" />
+                            <TextBlock Text="إيصال تسليم الصيانة والضمان"
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       Margin="0,2,0,6"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="#0F766E" />
+
+                            <Border Padding="8,5" Margin="0,0,0,8" Background="#F0FDFA" CornerRadius="6" BorderBrush="#99F6E4" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Order.OrderNumber}"
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               FontFamily="Consolas, Segoe UI"
+                                               FontSize="16"
+                                               FontWeight="Bold"
+                                               Foreground="#102E48" />
+                                    <TextBlock Text="{Binding Order.StatusTitle}"
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Foreground="#0F766E" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border BorderBrush="#CBD5E1" BorderThickness="0,1,0,1" Padding="0,6" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Order.CustomerName, StringFormat='العميل: {0}'}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" />
+                                    <TextBlock Text="{Binding Order.CustomerPhoneDisplay, StringFormat='هاتف: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11" />
+                                    <TextBlock Text="{Binding Order.DeviceFullTitle, StringFormat='الجهاز: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,3,0,0" FontSize="11.5" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Order.AssignedTechnicianDisplay, StringFormat='الفني المسؤول: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10.5" Foreground="#475569" />
+                                    <TextBlock Text="{Binding Order.DeliveredAtDisplay, StringFormat='تاريخ التسليم: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10.5" Foreground="#0F766E" />
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Text="تقرير ما تم تنفيذه:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#102E48" />
+                            <TextBlock Text="{Binding Order.DiagnosisNotes}"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       Margin="0,2,0,6"
+                                       FontSize="10.5"
+                                       Foreground="#334155"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding Order.HasDiagnosisNotes, Converter={StaticResource BoolToVis}}" />
+
+                            <StackPanel Visibility="{Binding Order.HasUsedParts, Converter={StaticResource BoolToVis}}" Margin="0,0,0,6">
+                                <TextBlock Text="قطع الغيار المستبدلة:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#102E48" Margin="0,0,0,3" />
+                                <ItemsControl ItemsSource="{Binding Order.UsedParts}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding ProductName}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Column="1" Text="{Binding LineTotalDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="10.5" FontWeight="SemiBold" Margin="6,0,0,0" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <Border Padding="0,6" Margin="0,2,0,8" BorderBrush="#0F172A" BorderThickness="0,1.5,0,1.5">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="قطع الغيار:" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Order.PartsTotalDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="10.5" />
+                                    </Grid>
+                                    <Grid Margin="0,2,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="أجرة الصيانة والمصنعية:" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Order.LaborCostDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="10.5" />
+                                    </Grid>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="الإجمالي النهائي:" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#102E48" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Order.EstimatedCostDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#102E48" />
+                                    </Grid>
+                                    <Grid Margin="0,2,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="إجمالي المسدد (عربون + تسليم):" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#0F766E" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Order.TotalCollectedAllDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="10.5" Foreground="#0F766E" FontWeight="Bold" />
+                                    </Grid>
+                                    <Grid Margin="0,2,0,0" Visibility="{Binding Order.HasEstimatedRemaining, Converter={StaticResource BoolToVis}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="المتبقي المستحق:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#B42318" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Order.EstimatedRemainingDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" Foreground="#B42318" FontWeight="Bold" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Padding="8,6" CornerRadius="6" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1" Margin="0,0,0,6">
+                                <TextBlock Text="{Binding Order.WarrantySummaryDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#0F766E" />
+                            </Border>
+                            <TextBlock Text="• يسري الضمان على العطل المُصلح فقط ولا يشمل الكسر أو السوائل." Style="{StaticResource PosRtlTextStyle}" FontSize="9.5" Foreground="#64748B" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
                 </Grid>

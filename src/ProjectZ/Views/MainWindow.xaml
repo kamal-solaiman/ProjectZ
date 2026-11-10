@@ -330,6 +330,20 @@
                         </Grid.Style>
                         <views:MaintenanceIntakeView DataContext="{Binding MaintenanceIntake}" />
                     </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMaintenanceActionsSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:MaintenanceActionsView DataContext="{Binding MaintenanceActions}" />
+                    </Grid>
                 </Grid>
             </Border>
 

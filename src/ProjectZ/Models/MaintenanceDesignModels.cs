@@ -58,9 +58,15 @@ public sealed class MaintenancePartUsageItem : ObservableObject
     public int Quantity { get; init; }
     public decimal UnitCost { get; init; }
     public decimal UnitSellPrice { get; init; }
+    public bool IsManualPart { get; init; }
+    public List<int> UnitRegistrationIds { get; init; } = [];
 
     public decimal LineTotal => Quantity * UnitSellPrice;
+    public decimal LineCostTotal => Quantity * UnitCost;
+    public string QuantityDisplay => $"{Quantity} قطعة";
+    public string UnitSellPriceDisplay => PosFormatting.FormatCurrency(UnitSellPrice);
     public string LineTotalDisplay => PosFormatting.FormatCurrency(LineTotal);
+    public string SourceBadgeText => IsManualPart ? "بند يدوي" : "من المخزون";
 }
 
 public sealed class MaintenanceOrderDesignItem : ObservableObject
@@ -68,20 +74,57 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     private MaintenanceOrderStatus status = MaintenanceOrderStatus.Received;
     private MaintenancePriority priority = MaintenancePriority.Normal;
     private string assignedTechnician = "";
+    private DateTime? expectedDeliveryAt;
+    private string expectedDeliveryLabel = "";
     private string diagnosisNotes = "";
+    private decimal laborCost;
+    private decimal discountAmount;
     private decimal? finalServiceCost;
     private decimal depositCashPaid;
     private decimal depositVodafonePaid;
     private string depositVodafoneReference = "";
     private decimal depositInstaPayPaid;
     private string depositInstaPayReference = "";
+    private decimal refundedDepositAmount;
+    private decimal finalPaymentCashPaid;
+    private decimal finalPaymentVodafonePaid;
+    private string finalPaymentVodafoneReference = "";
+    private decimal finalPaymentInstaPayPaid;
+    private string finalPaymentInstaPayReference = "";
+    private DateTime? deliveredAt;
+    private int warrantyDays;
+    private string deliveryNotes = "";
+    private string cancellationReason = "";
+    private bool hasWorkshopPricing;
 
     public int Id { get; init; }
     public string OrderNumber { get; init; } = "";
     public DateTime ReceivedAt { get; init; }
     public string ReceivedByName { get; init; } = "";
-    public DateTime? ExpectedDeliveryAt { get; init; }
-    public string ExpectedDeliveryLabel { get; init; } = "";
+
+    public DateTime? ExpectedDeliveryAt
+    {
+        get => expectedDeliveryAt;
+        set
+        {
+            if (expectedDeliveryAt == value) return;
+            expectedDeliveryAt = value;
+            Changed();
+            Changed(nameof(ExpectedDeliveryDisplay));
+        }
+    }
+
+    public string ExpectedDeliveryLabel
+    {
+        get => expectedDeliveryLabel;
+        set
+        {
+            if (expectedDeliveryLabel == value) return;
+            expectedDeliveryLabel = value;
+            Changed();
+            Changed(nameof(ExpectedDeliveryDisplay));
+        }
+    }
 
     // Customer snapshot
     public int CustomerId { get; init; }
@@ -120,6 +163,9 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
             status = value;
             Changed();
             Changed(nameof(StatusTitle));
+            Changed(nameof(NextRecommendedStatus));
+            Changed(nameof(NextRecommendedStatusTitle));
+            Changed(nameof(CanAdvanceStatus));
             Changed(nameof(IsReceived));
             Changed(nameof(IsDiagnosing));
             Changed(nameof(IsInRepair));
@@ -128,6 +174,7 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
             Changed(nameof(IsDelivered));
             Changed(nameof(IsCancelled));
             Changed(nameof(IsActiveOrder));
+            Changed(nameof(IsClosedOrder));
         }
     }
 
@@ -165,6 +212,49 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
             if (diagnosisNotes == value) return;
             diagnosisNotes = value;
             Changed();
+            Changed(nameof(HasDiagnosisNotes));
+        }
+    }
+
+    public bool HasDiagnosisNotes => !string.IsNullOrWhiteSpace(DiagnosisNotes);
+
+    public decimal LaborCost
+    {
+        get => laborCost;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (laborCost == clamped) return;
+            laborCost = clamped;
+            Changed();
+            Changed(nameof(LaborCostDisplay));
+            NotifyFinancialsChanged();
+        }
+    }
+
+    public decimal DiscountAmount
+    {
+        get => discountAmount;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (discountAmount == clamped) return;
+            discountAmount = clamped;
+            Changed();
+            Changed(nameof(DiscountAmountDisplay));
+            NotifyFinancialsChanged();
+        }
+    }
+
+    public bool HasWorkshopPricing
+    {
+        get => hasWorkshopPricing || FinalServiceCost.HasValue || UsedParts.Count > 0 || LaborCost > 0m || DiscountAmount > 0m;
+        set
+        {
+            if (hasWorkshopPricing == value) return;
+            hasWorkshopPricing = value;
+            Changed();
+            NotifyFinancialsChanged();
         }
     }
 
@@ -175,10 +265,139 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
         {
             if (finalServiceCost == value) return;
             finalServiceCost = value;
+            if (value.HasValue)
+                hasWorkshopPricing = true;
             Changed();
             NotifyFinancialsChanged();
         }
     }
+
+    public decimal RefundedDepositAmount
+    {
+        get => refundedDepositAmount;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (refundedDepositAmount == clamped) return;
+            refundedDepositAmount = clamped;
+            Changed();
+            NotifyFinancialsChanged();
+        }
+    }
+
+    public decimal FinalPaymentCashPaid
+    {
+        get => finalPaymentCashPaid;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (finalPaymentCashPaid == clamped) return;
+            finalPaymentCashPaid = clamped;
+            Changed();
+            NotifyFinancialsChanged();
+        }
+    }
+
+    public decimal FinalPaymentVodafonePaid
+    {
+        get => finalPaymentVodafonePaid;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (finalPaymentVodafonePaid == clamped) return;
+            finalPaymentVodafonePaid = clamped;
+            Changed();
+            NotifyFinancialsChanged();
+        }
+    }
+
+    public string FinalPaymentVodafoneReference
+    {
+        get => finalPaymentVodafoneReference;
+        set
+        {
+            if (finalPaymentVodafoneReference == value) return;
+            finalPaymentVodafoneReference = value;
+            Changed();
+        }
+    }
+
+    public decimal FinalPaymentInstaPayPaid
+    {
+        get => finalPaymentInstaPayPaid;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (finalPaymentInstaPayPaid == clamped) return;
+            finalPaymentInstaPayPaid = clamped;
+            Changed();
+            NotifyFinancialsChanged();
+        }
+    }
+
+    public string FinalPaymentInstaPayReference
+    {
+        get => finalPaymentInstaPayReference;
+        set
+        {
+            if (finalPaymentInstaPayReference == value) return;
+            finalPaymentInstaPayReference = value;
+            Changed();
+        }
+    }
+
+    public DateTime? DeliveredAt
+    {
+        get => deliveredAt;
+        set
+        {
+            if (deliveredAt == value) return;
+            deliveredAt = value;
+            Changed();
+            Changed(nameof(DeliveredAtDisplay));
+            Changed(nameof(WarrantySummaryDisplay));
+        }
+    }
+
+    public int WarrantyDays
+    {
+        get => warrantyDays;
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (warrantyDays == clamped) return;
+            warrantyDays = clamped;
+            Changed();
+            Changed(nameof(HasWarrantyCoverage));
+            Changed(nameof(WarrantySummaryDisplay));
+        }
+    }
+
+    public string DeliveryNotes
+    {
+        get => deliveryNotes;
+        set
+        {
+            if (deliveryNotes == value) return;
+            deliveryNotes = value;
+            Changed();
+        }
+    }
+
+    public string CancellationReason
+    {
+        get => cancellationReason;
+        set
+        {
+            if (cancellationReason == value) return;
+            cancellationReason = value;
+            Changed();
+            Changed(nameof(HasCancellationReason));
+        }
+    }
+
+    public bool HasCancellationReason => !string.IsNullOrWhiteSpace(CancellationReason);
+    public bool HasWarrantyCoverage => WarrantyDays > 0;
 
     public decimal DepositCashPaid
     {
@@ -304,6 +523,29 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     public bool IsDelivered => Status == MaintenanceOrderStatus.Delivered;
     public bool IsCancelled => Status == MaintenanceOrderStatus.Cancelled;
     public bool IsActiveOrder => Status is not (MaintenanceOrderStatus.Delivered or MaintenanceOrderStatus.Cancelled);
+    public bool IsClosedOrder => !IsActiveOrder;
+
+    public MaintenanceOrderStatus? NextRecommendedStatus => Status switch
+    {
+        MaintenanceOrderStatus.Received => MaintenanceOrderStatus.Diagnosing,
+        MaintenanceOrderStatus.Diagnosing => MaintenanceOrderStatus.InRepair,
+        MaintenanceOrderStatus.WaitingParts => MaintenanceOrderStatus.InRepair,
+        MaintenanceOrderStatus.InRepair => MaintenanceOrderStatus.ReadyForPickup,
+        MaintenanceOrderStatus.ReadyForPickup => MaintenanceOrderStatus.Delivered,
+        _ => null
+    };
+
+    public string NextRecommendedStatusTitle => Status switch
+    {
+        MaintenanceOrderStatus.Received => "بدء الفحص",
+        MaintenanceOrderStatus.Diagnosing => "بدء الصيانة",
+        MaintenanceOrderStatus.WaitingParts => "بدء الصيانة",
+        MaintenanceOrderStatus.InRepair => "جاهز للتسليم",
+        MaintenanceOrderStatus.ReadyForPickup => "تسليم وتحصيل",
+        _ => ""
+    };
+
+    public bool CanAdvanceStatus => NextRecommendedStatus.HasValue;
 
     public string PriorityTitle => Priority switch
     {
@@ -316,28 +558,76 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     public bool IsWarranty => Priority == MaintenancePriority.WarrantyRecheck;
 
     public decimal TotalDepositPaid => DepositCashPaid + DepositVodafonePaid + DepositInstaPayPaid;
+    public decimal NetDepositRetained => Math.Max(0m, TotalDepositPaid - RefundedDepositAmount);
+    public decimal TotalFinalPaymentPaid => FinalPaymentCashPaid + FinalPaymentVodafonePaid + FinalPaymentInstaPayPaid;
+    public decimal TotalCollectedAll => NetDepositRetained + TotalFinalPaymentPaid;
     public bool HasDeposit => TotalDepositPaid > 0m;
+    public bool HasRefundedDeposit => RefundedDepositAmount > 0m;
+    public bool HasFinalPayment => TotalFinalPaymentPaid > 0m;
     public bool HasDepositCash => DepositCashPaid > 0m;
     public bool HasDepositVodafone => DepositVodafonePaid > 0m || !string.IsNullOrWhiteSpace(DepositVodafoneReference);
     public bool HasDepositInstaPay => DepositInstaPayPaid > 0m || !string.IsNullOrWhiteSpace(DepositInstaPayReference);
 
-    public decimal CurrentEffectiveCost => FinalServiceCost ?? (IsEstimatePendingInspection ? 0m : EstimatedCost);
-    public decimal EstimatedRemaining => IsEstimatePendingInspection && !FinalServiceCost.HasValue
-        ? 0m
-        : Math.Max(0m, CurrentEffectiveCost - TotalDepositPaid);
-    public bool HasEstimatedRemaining => !IsEstimatePendingInspection && EstimatedRemaining > 0m;
+    public decimal PartsTotal => UsedParts.Sum(p => p.LineTotal);
+    public decimal PartsCostTotal => UsedParts.Sum(p => p.LineCostTotal);
+    public bool HasUsedParts => UsedParts.Count > 0;
+    public int UsedPartsTotalCount => UsedParts.Sum(p => p.Quantity);
+    public decimal ComputedServiceTotal => Math.Max(0m, LaborCost + PartsTotal - DiscountAmount);
 
-    public string EstimatedCostDisplay => IsEstimatePendingInspection && !FinalServiceCost.HasValue
+    public decimal CurrentEffectiveCost => HasWorkshopPricing
+        ? (FinalServiceCost ?? ComputedServiceTotal)
+        : (IsEstimatePendingInspection ? 0m : EstimatedCost);
+
+    public bool IsPriceStillPending => IsEstimatePendingInspection && !HasWorkshopPricing;
+
+    public decimal EstimatedRemaining => IsPriceStillPending
+        ? 0m
+        : Math.Max(0m, CurrentEffectiveCost - TotalCollectedAll);
+
+    public decimal OverpaidDepositAmount => IsPriceStillPending
+        ? 0m
+        : Math.Max(0m, NetDepositRetained - CurrentEffectiveCost);
+
+    public bool HasEstimatedRemaining => !IsPriceStillPending && EstimatedRemaining > 0m;
+    public decimal EstimatedProfit => Math.Max(0m, CurrentEffectiveCost - PartsCostTotal);
+
+    public string EstimatedCostDisplay => IsPriceStillPending
         ? "يُحدد بعد الفحص"
         : PosFormatting.FormatCurrency(CurrentEffectiveCost);
 
+    public string PartsTotalDisplay => PosFormatting.FormatCurrency(PartsTotal);
+    public string LaborCostDisplay => PosFormatting.FormatCurrency(LaborCost);
+    public string DiscountAmountDisplay => PosFormatting.FormatCurrency(DiscountAmount);
     public string TotalDepositPaidDisplay => PosFormatting.FormatCurrency(TotalDepositPaid);
+    public string RefundedDepositAmountDisplay => PosFormatting.FormatCurrency(RefundedDepositAmount);
+    public string NetDepositRetainedDisplay => PosFormatting.FormatCurrency(NetDepositRetained);
+    public string TotalFinalPaymentPaidDisplay => PosFormatting.FormatCurrency(TotalFinalPaymentPaid);
+    public string TotalCollectedAllDisplay => PosFormatting.FormatCurrency(TotalCollectedAll);
     public string DepositCashPaidDisplay => PosFormatting.FormatCurrency(DepositCashPaid);
     public string DepositVodafonePaidDisplay => PosFormatting.FormatCurrency(DepositVodafonePaid);
     public string DepositInstaPayPaidDisplay => PosFormatting.FormatCurrency(DepositInstaPayPaid);
-    public string EstimatedRemainingDisplay => IsEstimatePendingInspection && !FinalServiceCost.HasValue
+    public string EstimatedProfitDisplay => PosFormatting.FormatCurrency(EstimatedProfit);
+    public string EstimatedRemainingDisplay => IsPriceStillPending
         ? "يتحدد بعد الفحص"
         : PosFormatting.FormatCurrency(EstimatedRemaining);
+
+    public string DeliveredAtDisplay => DeliveredAt.HasValue
+        ? DeliveredAt.Value.ToString("yyyy-MM-dd · HH:mm", CultureInfo.InvariantCulture)
+        : "لم يُسلم بعد";
+
+    public string WarrantySummaryDisplay
+    {
+        get
+        {
+            if (WarrantyDays <= 0) return "بدون ضمان";
+            if (DeliveredAt.HasValue)
+            {
+                var endsAt = DeliveredAt.Value.Date.AddDays(WarrantyDays);
+                return $"ضمان {WarrantyDays} يومًا (حتى {endsAt:yyyy-MM-dd})";
+            }
+            return $"ضمان {WarrantyDays} يومًا بعد التسليم";
+        }
+    }
 
     public string DepositSummaryText
     {
@@ -353,23 +643,68 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
         }
     }
 
+    public string FinalPaymentSummaryText
+    {
+        get
+        {
+            if (TotalFinalPaymentPaid <= 0m) return "لا يوجد تحصيل إضافي عند التسليم";
+
+            var channels = new List<string>(3);
+            if (FinalPaymentCashPaid > 0m) channels.Add($"كاش {PosFormatting.FormatCurrency(FinalPaymentCashPaid)}");
+            if (FinalPaymentVodafonePaid > 0m) channels.Add($"فودافون {PosFormatting.FormatCurrency(FinalPaymentVodafonePaid)}");
+            if (FinalPaymentInstaPayPaid > 0m) channels.Add($"إنستاباي {PosFormatting.FormatCurrency(FinalPaymentInstaPayPaid)}");
+            return string.Join(" + ", channels);
+        }
+    }
+
+    public void RecalculateWorkshopTotal()
+    {
+        hasWorkshopPricing = true;
+        FinalServiceCost = ComputedServiceTotal;
+        Changed(nameof(HasWorkshopPricing));
+        NotifyFinancialsChanged();
+    }
+
     public void NotifyFinancialsChanged()
     {
+        Changed(nameof(PartsTotal));
+        Changed(nameof(PartsCostTotal));
+        Changed(nameof(HasUsedParts));
+        Changed(nameof(UsedPartsTotalCount));
+        Changed(nameof(ComputedServiceTotal));
+        Changed(nameof(HasWorkshopPricing));
+        Changed(nameof(IsPriceStillPending));
         Changed(nameof(TotalDepositPaid));
+        Changed(nameof(NetDepositRetained));
+        Changed(nameof(TotalFinalPaymentPaid));
+        Changed(nameof(TotalCollectedAll));
         Changed(nameof(HasDeposit));
+        Changed(nameof(HasRefundedDeposit));
+        Changed(nameof(HasFinalPayment));
         Changed(nameof(HasDepositCash));
         Changed(nameof(HasDepositVodafone));
         Changed(nameof(HasDepositInstaPay));
         Changed(nameof(CurrentEffectiveCost));
         Changed(nameof(EstimatedRemaining));
+        Changed(nameof(OverpaidDepositAmount));
         Changed(nameof(HasEstimatedRemaining));
+        Changed(nameof(EstimatedProfit));
         Changed(nameof(EstimatedCostDisplay));
+        Changed(nameof(PartsTotalDisplay));
+        Changed(nameof(LaborCostDisplay));
+        Changed(nameof(DiscountAmountDisplay));
         Changed(nameof(TotalDepositPaidDisplay));
+        Changed(nameof(RefundedDepositAmountDisplay));
+        Changed(nameof(NetDepositRetainedDisplay));
+        Changed(nameof(TotalFinalPaymentPaidDisplay));
+        Changed(nameof(TotalCollectedAllDisplay));
         Changed(nameof(DepositCashPaidDisplay));
         Changed(nameof(DepositVodafonePaidDisplay));
         Changed(nameof(DepositInstaPayPaidDisplay));
+        Changed(nameof(EstimatedProfitDisplay));
         Changed(nameof(EstimatedRemainingDisplay));
         Changed(nameof(DepositSummaryText));
+        Changed(nameof(FinalPaymentSummaryText));
     }
 }
 
@@ -450,6 +785,27 @@ public static class MaintenanceDesignSeedData
         "م. عمر — سوفت وير",
         "م. مصطفى — لابتوب وبوردة"
     ];
+
+    public static IReadOnlyList<string> DiagnosisSnippets { get; } =
+    [
+        "تم الفحص الظاهري والداخلي والتأكد من سلامة البوردة الأساسية.",
+        "العطل يتطلب استبدال قطعة غيار أصلية مع اختبار الشحن والشبكة بعد التركيب.",
+        "تم تنظيف البوردة وإزالة آثار الرطوبة وفحص مسارات الطاقة.",
+        "تم تثبيت النظام / السوفت وير واختبار الكاميرا والصوت والميكروفون.",
+        "بانتظار توفير قطعة الغيار المطلوبة من المورد وإبلاغ العميل.",
+        "تم الانتهاء من الصيانة والاختبار بنجاح والجهاز جاهز للتسليم."
+    ];
+
+    public static IReadOnlyList<string> CancellationReasons { get; } =
+    [
+        "العميل رفض التكلفة بعد الفحص",
+        "الجهاز لا يُصلح (تلف بالمعالج / البوردة)",
+        "عدم توفر قطعة الغيار المطلوبة",
+        "العميل استعجل وسحب الجهاز قبل الإصلاح",
+        "سبب آخر"
+    ];
+
+    public static IReadOnlyList<int> WarrantyDayOptions { get; } = [0, 7, 14, 30, 90];
 
     public static ObservableCollection<MaintenanceOrderDesignItem> CreateSharedSampleOrders(
         IEnumerable<PosCustomerDesignItem> customers)
@@ -609,6 +965,8 @@ public static class MaintenanceDesignSeedData
             PhysicalCondition = "خدوش بالهيكل",
             AccessoriesReceived = "شاحن، كابل",
             IntakeNotes = "نسخ ملفات سطح المكتب قبل الفورمات.",
+            DiagnosisNotes = "تم تنظيف نظام التبريد وتغيير المعجون الحراري وتثبيت ويندوز 11، واجتياز اختبار الحرارة لمدة ساعتين.",
+            LaborCost = 450m,
             Status = MaintenanceOrderStatus.ReadyForPickup,
             Priority = MaintenancePriority.Normal,
             AssignedTechnician = "م. مصطفى — لابتوب وبوردة",
@@ -617,6 +975,17 @@ public static class MaintenanceDesignSeedData
             DepositInstaPayPaid = 300m,
             DepositInstaPayReference = "IP-882014"
         };
+        ord1.UsedParts.Add(new MaintenancePartUsageItem
+        {
+            ProductId = 0,
+            Barcode = "MNT-PART-01",
+            ProductName = "معجون حراري احترافي Arctic MX-4 + وسادات تبريد",
+            Quantity = 1,
+            UnitCost = 140m,
+            UnitSellPrice = 300m,
+            IsManualPart = true
+        });
+        ord1.RecalculateWorkshopTotal();
         ord1.ActivityLog.Add(new MaintenanceActivityEntry
         {
             Timestamp = ord1.ReceivedAt,
@@ -625,7 +994,56 @@ public static class MaintenanceDesignSeedData
             ActorName = "المشرف",
             Amount = 300m
         });
+        ord1.ActivityLog.Add(new MaintenanceActivityEntry
+        {
+            Timestamp = ord1.ReceivedAt.AddHours(3),
+            ActionTitle = "تحويل الحالة إلى: جاهز للتسليم",
+            Details = "إتمام التنظيف والويندوز واعتماد التكلفة النهائية 750.00 ج.م.",
+            ActorName = "م. مصطفى — لابتوب وبوردة",
+            Amount = 750m
+        });
         list.Add(ord1);
+
+        var ord5 = new MaintenanceOrderDesignItem
+        {
+            Id = 5,
+            OrderNumber = "MNT-2026-0005",
+            ReceivedAt = DateTime.Today.AddDays(-2).AddHours(15),
+            ReceivedByName = "المشرف",
+            ExpectedDeliveryAt = DateTime.Today.AddDays(1),
+            ExpectedDeliveryLabel = "غدًا",
+            CustomerId = cust2.Id,
+            CustomerName = cust2.Name,
+            CustomerPhone = cust2.Phone,
+            CustomerAddress = cust2.Address,
+            DeviceType = "هاتف ذكي",
+            DeviceBrand = "OPPO",
+            DeviceModel = "Reno 11 5G",
+            DeviceColor = "أخضر",
+            SerialOrImei = "864410022993311",
+            PasscodeType = MaintenancePasscodeType.PinOrPassword,
+            PasscodeValue = "0000",
+            ReportedFault = "كسر باغة / شاشة AMOLED تحتاج تغيير كامل.",
+            PhysicalCondition = "شاشة مكسورة",
+            AccessoriesReceived = "الجهاز فقط (بدون ملحقات)",
+            IntakeNotes = "تم إبلاغ العميل بانتظار الشاشة الأصلية.",
+            DiagnosisNotes = "البوردة والشحن سليمين؛ بانتظار توريد شاشة Reno 11 الأصلية.",
+            LaborCost = 350m,
+            Status = MaintenanceOrderStatus.WaitingParts,
+            Priority = MaintenancePriority.Normal,
+            AssignedTechnician = "م. كريم — هاردوير وشاشات",
+            IsEstimatePendingInspection = false,
+            EstimatedCost = 2850m,
+            DepositCashPaid = 500m
+        };
+        ord5.ActivityLog.Add(new MaintenanceActivityEntry
+        {
+            Timestamp = ord5.ReceivedAt,
+            ActionTitle = "بانتظار قطع غيار",
+            Details = "تم فحص الجهاز وطلب شاشة AMOLED أصلية.",
+            ActorName = "م. كريم — هاردوير وشاشات"
+        });
+        list.Add(ord5);
 
         return list;
     }
