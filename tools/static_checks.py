@@ -170,7 +170,7 @@ assert 'IsSelected' in main_xaml and 'IsExpanded' in main_xaml
 main_viewmodel = (root / 'src/ProjectZ/ViewModels/MainViewModel.cs').read_text(encoding='utf-8')
 expected_menu = [
     ('المبيعات', ['نقطة البيع', 'اضافة منتج', 'المخزون', 'التصنيفات', 'الفواتير', 'المرتجع والاستبدال']),
-    ('المشتريات', ['شراء فاتورة', 'فاتورة المشتريات']),
+    ('المشتريات', ['شراء فاتورة', 'فواتير المشتريات']),
     ('الصيانة', ['امر صيانة', 'فواتير الصيانة', 'اجراءات الصيانة', 'قطع الغيار']),
     ('المالية', ['تحويل فودافون كاش', 'تحويل انستاباي', 'سجلات فودافون كاش', 'سجلات انستاباي', 'حساباتي']),
     ('العملاء والموردين', ['العملاء', 'الموردين']),
@@ -477,6 +477,51 @@ for token in (
 ):
     assert token in purchase_entry_xaml, f'PurchaseEntry UI missing expected token: {token}'
 
+assert 'IsPurchaseInvoicesSelected' in main_viewmodel and 'IsPurchaseInvoicesSelected' in main_xaml
+assert 'views:PurchaseInvoicesView' in main_xaml
+
+purchase_invoices_xaml_path = root / 'src/ProjectZ/Views/PurchaseInvoicesView.xaml'
+purchase_details_xaml_path = root / 'src/ProjectZ/Views/PurchaseInvoiceDetailsWindow.xaml'
+edit_purchase_xaml_path = root / 'src/ProjectZ/Views/EditPurchaseInvoiceWindow.xaml'
+purchase_return_xaml_path = root / 'src/ProjectZ/Views/PurchaseReturnWindow.xaml'
+pay_supplier_xaml_path = root / 'src/ProjectZ/Views/PaySupplierInvoiceWindow.xaml'
+assert all(p.is_file() for p in (
+    purchase_invoices_xaml_path,
+    purchase_details_xaml_path,
+    edit_purchase_xaml_path,
+    purchase_return_xaml_path,
+    pay_supplier_xaml_path,
+))
+
+purchase_invoices_xaml = purchase_invoices_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'SearchText',
+    'SelectDatePresetCommand',
+    'SelectedSupplierFilter',
+    'SelectedPaymentFilter',
+    'SelectedStatusFilter',
+    'SelectedSortOption',
+    'OpenInvoiceDetailsCommand',
+    'OpenEditInvoiceCommand',
+    'OpenReturnDialogCommand',
+    'OpenPrintPreviewCommand',
+    'FilterCreditOnlyCommand',
+):
+    assert token in purchase_invoices_xaml, f'PurchaseInvoices UI missing expected token: {token}'
+
+purchase_details_xaml = purchase_details_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'PrintPreviewCommand',
+    'PayRemainingCommand',
+    'EditInvoiceCommand',
+    'ReturnToSupplierCommand',
+    'CancelInvoiceCommand',
+    'DeleteInvoiceCommand',
+    'LineRows',
+    'ActivityLog',
+):
+    assert token in purchase_details_xaml, f'PurchaseInvoiceDetailsWindow missing expected token: {token}'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
@@ -499,6 +544,8 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/PurchaseDraftInvoiceViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PurchaseEntryViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PurchaseInvoicePrintPreviewViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/PurchaseInvoiceDialogViewModels.cs',
+    root / 'src/ProjectZ/ViewModels/PurchaseInvoicesViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AddSupplierWindow.xaml.cs',
@@ -508,6 +555,11 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/InvoicesView.xaml.cs',
     root / 'src/ProjectZ/Views/ReturnExchangeView.xaml.cs',
     root / 'src/ProjectZ/Views/PurchaseEntryView.xaml.cs',
+    root / 'src/ProjectZ/Views/PurchaseInvoicesView.xaml.cs',
+    root / 'src/ProjectZ/Views/PurchaseInvoiceDetailsWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/EditPurchaseInvoiceWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/PurchaseReturnWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/PaySupplierInvoiceWindow.xaml.cs',
     root / 'src/ProjectZ/Views/PurchaseInvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoiceReturnWindow.xaml.cs',
@@ -536,7 +588,16 @@ for rf in (
 
 for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
     local_keys = set(app_resource_keys)
-    for elem in ET.parse(xf).getroot().iter():
+    parsed_xf = ET.parse(xf).getroot()
+    for elem in parsed_xf.iter():
+        tag_short = elem.tag.split('}')[-1]
+        for child in elem:
+            ctag = child.tag.split('}')[-1]
+            if ctag.startswith(f'{tag_short}.'):
+                prop_name = ctag.split('.', 1)[1]
+                assert prop_name not in elem.attrib, (
+                    f'Duplicate XAML property {prop_name} set as both attribute and property element on {tag_short} in {xf}'
+                )
         for k, v in elem.attrib.items():
             if k.endswith('Key'):
                 local_keys.add(v)
@@ -544,5 +605,5 @@ for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
         res = m.group(1)
         assert res in local_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
 
-print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange & PurchaseEntry UI design views, full audit, returns, print preview, no backend')
+print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry & PurchaseInvoices UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

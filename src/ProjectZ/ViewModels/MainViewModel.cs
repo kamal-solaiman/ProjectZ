@@ -17,6 +17,7 @@ public sealed class MainViewModel : ObservableObject
     public InvoicesViewModel Invoices { get; }
     public ReturnExchangeViewModel ReturnExchange { get; }
     public PurchaseEntryViewModel PurchaseEntry { get; }
+    public PurchaseInvoicesViewModel PurchaseInvoices { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
@@ -26,9 +27,10 @@ public sealed class MainViewModel : ObservableObject
     public bool IsInvoicesSelected => ReferenceEquals(selectedItem, Categories[0].Items[4]);
     public bool IsReturnExchangeSelected => ReferenceEquals(selectedItem, Categories[0].Items[5]);
     public bool IsPurchaseEntrySelected => ReferenceEquals(selectedItem, Categories[1].Items[0]);
+    public bool IsPurchaseInvoicesSelected => ReferenceEquals(selectedItem, Categories[1].Items[1]);
     public bool IsImplementedScreenSelected =>
         IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
-        || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected;
+        || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -60,7 +62,7 @@ public sealed class MainViewModel : ObservableObject
             new NavigationMenuCategoryViewModel("المبيعات", "\U0001F6D2",
                 "نقطة البيع", "اضافة منتج", "المخزون", "التصنيفات", "الفواتير", "المرتجع والاستبدال"),
             new NavigationMenuCategoryViewModel("المشتريات", "\U0001F4E6",
-                "شراء فاتورة", "فاتورة المشتريات"),
+                "شراء فاتورة", "فواتير المشتريات"),
             new NavigationMenuCategoryViewModel("الصيانة", "\U0001F527",
                 "امر صيانة", "فواتير الصيانة", "اجراءات الصيانة", "قطع الغيار"),
             new NavigationMenuCategoryViewModel("المالية", "\U0001F4B0",
@@ -117,6 +119,16 @@ public sealed class MainViewModel : ObservableObject
             () => SelectItem(Categories[0].Items[1]),
             Inventory.NotifyExternalInventoryChanged,
             ReturnExchange.NotifyExternalDataChanged);
+        PurchaseInvoices = new PurchaseInvoicesViewModel(
+            sharedPurchaseInvoices,
+            sharedSuppliers,
+            sharedCatalog,
+            sharedRegistrations,
+            user.DisplayName,
+            () => SelectItem(Categories[1].Items[0]),
+            Inventory.NotifyExternalInventoryChanged,
+            ReturnExchange.NotifyExternalDataChanged,
+            PurchaseEntry.NotifyExternalCatalogChanged);
         Pos = new PosViewModel(
             user.DisplayName,
             sharedCatalog,
@@ -174,6 +186,8 @@ public sealed class MainViewModel : ObservableObject
             Inventory.NotifyExternalInventoryChanged();
         else if (ReferenceEquals(item, Categories[1].Items[0]))
             PurchaseEntry.NotifyExternalCatalogChanged();
+        else if (ReferenceEquals(item, Categories[1].Items[1]))
+            PurchaseInvoices.NotifyExternalPurchasesChanged();
 
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
@@ -182,6 +196,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsInvoicesSelected));
         Changed(nameof(IsReturnExchangeSelected));
         Changed(nameof(IsPurchaseEntrySelected));
+        Changed(nameof(IsPurchaseInvoicesSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));

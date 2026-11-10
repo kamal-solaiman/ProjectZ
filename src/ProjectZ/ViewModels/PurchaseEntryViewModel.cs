@@ -213,6 +213,8 @@ public sealed class PurchaseEntryViewModel : ObservableObject
     {
         RebuildCategoryFilters();
         RefreshFilteredCatalog();
+        if (LastSavedInvoice is not null && !sharedPurchaseInvoices.Contains(LastSavedInvoice))
+            LastSavedInvoice = sharedPurchaseInvoices.FirstOrDefault();
     }
 
     private void OnCatalogCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -392,7 +394,9 @@ public sealed class PurchaseEntryViewModel : ObservableObject
         }
 
         var supplier = ActiveInvoice.SelectedSupplier;
-        var invoiceId = nextPurchaseInvoiceId++;
+        var maxExistingId = sharedPurchaseInvoices.Count > 0 ? sharedPurchaseInvoices.Max(i => i.Id) : 0;
+        var invoiceId = Math.Max(nextPurchaseInvoiceId, maxExistingId + 1);
+        nextPurchaseInvoiceId = invoiceId + 1;
         var invoiceNo = $"PUR-2026-{invoiceId:0000}";
         var issuedAt = ActiveInvoice.PurchaseDate.Date.Add(DateTime.Now.TimeOfDay);
         var nextRegId = sharedRegistrations.Count > 0 ? sharedRegistrations.Max(r => r.Id) + 1 : 6001;
