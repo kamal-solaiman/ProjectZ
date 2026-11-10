@@ -26,6 +26,8 @@ public sealed class InventoryUnitRegistrationItem : ObservableObject
     private string supplierName = "";
     private InventoryUnitStatus status = InventoryUnitStatus.Available;
     private string purchaseInvoiceId = "";
+    private string saleInvoiceNumber = "";
+    private string serialNumber = "";
     private string damageReason = "";
     private DateTime? damagedAt;
     private string damageSettlementStatus = "";
@@ -101,6 +103,28 @@ public sealed class InventoryUnitRegistrationItem : ObservableObject
         {
             if (purchaseInvoiceId == value) return;
             purchaseInvoiceId = value;
+            Changed();
+        }
+    }
+
+    public string SaleInvoiceNumber
+    {
+        get => saleInvoiceNumber;
+        set
+        {
+            if (saleInvoiceNumber == value) return;
+            saleInvoiceNumber = value;
+            Changed();
+        }
+    }
+
+    public string SerialNumber
+    {
+        get => serialNumber;
+        set
+        {
+            if (serialNumber == value) return;
+            serialNumber = value;
             Changed();
         }
     }
@@ -260,7 +284,8 @@ public static class InventoryDesignSeedData
         SupplierName = supplier,
         RegisteredAt = registeredAt,
         Status = status,
-        PurchaseInvoiceId = invoiceId
+        PurchaseInvoiceId = invoiceId,
+        SerialNumber = product.TrackSerialNumber ? $"3589{product.Id:00}{id:0000}12" : ""
     };
 
     private static InventoryUnitRegistrationItem CreateDamagedUnit(

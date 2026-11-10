@@ -260,6 +260,20 @@
                         </Grid.Style>
                         <views:CategoriesView DataContext="{Binding ProductCategories}" />
                     </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsInvoicesSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:InvoicesView DataContext="{Binding Invoices}" />
+                    </Grid>
                 </Grid>
             </Border>
 
