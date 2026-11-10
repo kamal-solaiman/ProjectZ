@@ -70,13 +70,12 @@
     <Grid FlowDirection="LeftToRight">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- ROW 0: Top Header & KPI Badges -->
-        <Grid Grid.Row="0" Margin="0,0,0,8" FlowDirection="LeftToRight">
+        <Grid Grid.Row="0" Margin="0,0,0,10" FlowDirection="LeftToRight">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -131,139 +130,10 @@
             </StackPanel>
         </Grid>
 
-        <!-- ROW 1: Interactive Pipeline Stages Bar -->
-        <Border Grid.Row="1"
-                Margin="0,0,0,10"
-                Padding="8,6"
-                CornerRadius="12"
-                Background="#F8FAFC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1">
-            <WrapPanel Orientation="Horizontal" FlowDirection="RightToLeft">
-                <Button Content="{Binding AllCount, StringFormat='الكل ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="الكل">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterAll}" Value="True">
-                                    <Setter Property="Background" Value="#102E48" />
-                                    <Setter Property="BorderBrush" Value="#102E48" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Button Content="{Binding ActiveOrdersCount, StringFormat='النشطة بالورشة ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="النشطة">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterActive}" Value="True">
-                                    <Setter Property="Background" Value="#0F766E" />
-                                    <Setter Property="BorderBrush" Value="#0F766E" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Button Content="{Binding ReceivedCount, StringFormat='تم الاستلام ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="تم الاستلام">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterReceived}" Value="True">
-                                    <Setter Property="Background" Value="#0369A1" />
-                                    <Setter Property="BorderBrush" Value="#0369A1" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Button Content="{Binding DiagnosingCount, StringFormat='قيد الفحص ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="قيد الفحص">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterDiagnosing}" Value="True">
-                                    <Setter Property="Background" Value="#7C3AED" />
-                                    <Setter Property="BorderBrush" Value="#7C3AED" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Button Content="{Binding WaitingPartsCount, StringFormat='بانتظار قطع غيار ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="بانتظار قطع غيار">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterWaitingParts}" Value="True">
-                                    <Setter Property="Background" Value="#D97706" />
-                                    <Setter Property="BorderBrush" Value="#D97706" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Button Content="{Binding InRepairCount, StringFormat='قيد الصيانة ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="قيد الصيانة">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterInRepair}" Value="True">
-                                    <Setter Property="Background" Value="#147D92" />
-                                    <Setter Property="BorderBrush" Value="#147D92" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Button Content="{Binding ReadyForPickupCount, StringFormat='جاهز للتسليم ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="جاهز للتسليم">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterReady}" Value="True">
-                                    <Setter Property="Background" Value="#047857" />
-                                    <Setter Property="BorderBrush" Value="#047857" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Button Content="{Binding DeliveredCount, StringFormat='تم التسليم ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="تم التسليم">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterDelivered}" Value="True">
-                                    <Setter Property="Background" Value="#475569" />
-                                    <Setter Property="BorderBrush" Value="#475569" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-                <Button Content="{Binding CancelledCount, StringFormat='ملغى ({0})'}" Command="{Binding SetStageFilterCommand}" CommandParameter="ملغى">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsFilterCancelled}" Value="True">
-                                    <Setter Property="Background" Value="#B42318" />
-                                    <Setter Property="BorderBrush" Value="#B42318" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-            </WrapPanel>
-        </Border>
-
-        <!-- ROW 2: Split Workspace (Left: Orders Queue, Right: Full Workshop Control Panel) -->
-        <Grid Grid.Row="2" FlowDirection="LeftToRight">
+        <!-- ROW 1: Split Workspace (Left: Orders Queue, Right: Full Workshop Control Panel) -->
+        <Grid Grid.Row="1" FlowDirection="LeftToRight">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="390" />
                 <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
@@ -301,23 +171,36 @@
                                    Visibility="{Binding SearchText, Converter={StaticResource StringEmptyToVis}}" />
                     </Grid>
 
-                    <!-- Priority & Technician Filters -->
+                    <!-- Stage, Priority & Technician Filters -->
                     <Grid Grid.Row="1" Margin="0,0,0,8" FlowDirection="RightToLeft">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="6" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="6" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <ComboBox Grid.Column="0"
-                                  Style="{StaticResource PosComboBoxStyle}"
-                                  FontSize="11.5"
-                                  ItemsSource="{Binding PriorityFilterOptions}"
-                                  SelectedItem="{Binding SelectedPriorityFilter}" />
-                        <ComboBox Grid.Column="2"
-                                  Style="{StaticResource PosComboBoxStyle}"
-                                  FontSize="11.5"
-                                  ItemsSource="{Binding TechnicianFilterOptions}"
-                                  SelectedItem="{Binding SelectedTechnicianFilter}" />
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="حالة الجهاز" Style="{StaticResource PosRtlTextStyle}" FontSize="10" Foreground="#64748B" Margin="0,0,0,2" />
+                            <ComboBox Style="{StaticResource PosComboBoxStyle}"
+                                      FontSize="11"
+                                      ItemsSource="{Binding StageFilterOptions}"
+                                      SelectedItem="{Binding SelectedStageFilter}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="الأولوية" Style="{StaticResource PosRtlTextStyle}" FontSize="10" Foreground="#64748B" Margin="0,0,0,2" />
+                            <ComboBox Style="{StaticResource PosComboBoxStyle}"
+                                      FontSize="11"
+                                      ItemsSource="{Binding PriorityFilterOptions}"
+                                      SelectedItem="{Binding SelectedPriorityFilter}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="الفني" Style="{StaticResource PosRtlTextStyle}" FontSize="10" Foreground="#64748B" Margin="0,0,0,2" />
+                            <ComboBox Style="{StaticResource PosComboBoxStyle}"
+                                      FontSize="11"
+                                      ItemsSource="{Binding TechnicianFilterOptions}"
+                                      SelectedItem="{Binding SelectedTechnicianFilter}" />
+                        </StackPanel>
                     </Grid>
 
                     <!-- Orders Scrollable Queue -->
@@ -464,17 +347,13 @@
                                Foreground="#94A3B8"
                                Visibility="{Binding HasNoSelectedOrder, Converter={StaticResource BoolToVis}}" />
 
-                    <Grid Visibility="{Binding HasSelectedOrder, Converter={StaticResource BoolToVis}}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Visibility="{Binding HasSelectedOrder, Converter={StaticResource BoolToVis}}">
+                        <StackPanel FlowDirection="LeftToRight" Margin="0,0,4,0">
 
                         <!-- A. Order Banner & Top Quick Actions -->
-                        <Border Grid.Row="0" Margin="0,0,0,8" Padding="13" CornerRadius="12" Background="#102E48">
+                        <Border Margin="0,0,0,8" Padding="13" CornerRadius="12" Background="#102E48">
                             <Grid FlowDirection="LeftToRight">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
@@ -549,7 +428,7 @@
                         </Border>
 
                         <!-- B. Direct Status Switcher Bar -->
-                        <Border Grid.Row="1" Margin="0,0,0,8" Padding="10,7" CornerRadius="10" Background="White" BorderBrush="#E2E8F0" BorderThickness="1">
+                        <Border Margin="0,0,0,8" Padding="10,7" CornerRadius="10" Background="White" BorderBrush="#E2E8F0" BorderThickness="1">
                             <WrapPanel Orientation="Horizontal" FlowDirection="RightToLeft" VerticalAlignment="Center">
                                 <TextBlock Text="تحويل مباشر للحالة:" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12" FontWeight="Bold" Foreground="#102E48" />
                                 <Button Content="تم الاستلام" Command="{Binding SetDirectStatusCommand}" CommandParameter="Received">
@@ -628,8 +507,7 @@
                         </Border>
 
                         <!-- C. Workshop Assignment Row (Priority, Technician, Delivery Date) -->
-                        <Border Grid.Row="2"
-                                Margin="0,0,0,8"
+                        <Border Margin="0,0,0,8"
                                 Padding="10,8"
                                 CornerRadius="10"
                                 Background="White"
@@ -721,12 +599,11 @@
                         </Border>
 
                         <!-- D. Control Panel Tabs -->
-                        <StackPanel Grid.Row="3"
-                                    Orientation="Horizontal"
+                        <StackPanel Orientation="Horizontal"
                                     HorizontalAlignment="Right"
                                     FlowDirection="RightToLeft"
                                     Margin="0,0,0,8">
-                            <Button Content="1. الفحص والتشخيص وتفاصيل الاستلام" Command="{Binding SelectTabCommand}" CommandParameter="0">
+                            <Button Content="الفحص وتفاصيل الاستلام" Command="{Binding SelectTabCommand}" CommandParameter="0">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
                                         <Style.Triggers>
@@ -739,7 +616,7 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                            <Button Content="{Binding SelectedOrder.UsedPartsTotalCount, StringFormat='2. قطع الغيار والتسعير ({0})'}" Command="{Binding SelectTabCommand}" CommandParameter="1">
+                            <Button Content="قطع الغيار والتسعير" Command="{Binding SelectTabCommand}" CommandParameter="1">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
                                         <Style.Triggers>
@@ -752,7 +629,7 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                            <Button Content="3. المالية والضمان" Command="{Binding SelectTabCommand}" CommandParameter="2">
+                            <Button Content="المالية والضمان" Command="{Binding SelectTabCommand}" CommandParameter="2">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
                                         <Style.Triggers>
@@ -765,7 +642,7 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                            <Button Content="{Binding SelectedOrder.ActivityLog.Count, StringFormat='4. سجل الإجراءات ({0})'}" Command="{Binding SelectTabCommand}" CommandParameter="3">
+                            <Button Content="السجل الزمني" Command="{Binding SelectTabCommand}" CommandParameter="3">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
                                         <Style.Triggers>
@@ -781,9 +658,8 @@
                         </StackPanel>
 
                         <!-- E. Active Tab Content -->
-                        <Border Grid.Row="4" Padding="12" CornerRadius="12" Background="White" BorderBrush="#E2E8F0" BorderThickness="1">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <StackPanel FlowDirection="RightToLeft">
+                        <Border Padding="12" CornerRadius="12" Background="White" BorderBrush="#E2E8F0" BorderThickness="1">
+                            <StackPanel FlowDirection="RightToLeft">
 
                                     <!-- TAB 0: Diagnosis & Intake Snapshot -->
                                     <StackPanel Visibility="{Binding IsDiagnosisTabSelected, Converter={StaticResource BoolToVis}}">
@@ -1120,16 +996,12 @@
 
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="130" />
-                                                        <ColumnDefinition Width="8" />
-                                                        <ColumnDefinition Width="160" />
+                                                        <ColumnDefinition Width="140" />
                                                         <ColumnDefinition Width="8" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBox Grid.Column="0" Style="{StaticResource PosNumericTextBoxStyle}" MinHeight="32" Padding="8,4" ToolTip="المبلغ (ج.م)" Text="{Binding ExtraDepositAmountText, UpdateSourceTrigger=PropertyChanged}" />
-                                                    <TextBox Grid.Column="2" Style="{StaticResource PosNumericTextBoxStyle}" MinHeight="32" Padding="8,4" ToolTip="رقم المرجع (مطلوب لفودافون/إنستاباي)" Text="{Binding ExtraDepositReference, UpdateSourceTrigger=PropertyChanged}"
-                                                             Visibility="{Binding NeedsExtraDepositReference, Converter={StaticResource BoolToVis}}" />
-                                                    <Button Grid.Column="4" Content="+ تحصيل الدفعة" Style="{StaticResource PosPrimaryCompactButtonStyle}" Padding="14,6" Command="{Binding CollectExtraDepositCommand}" />
+                                                    <Button Grid.Column="2" Content="+ تحصيل الدفعة" Style="{StaticResource PosPrimaryCompactButtonStyle}" Padding="14,6" Command="{Binding CollectExtraDepositCommand}" />
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
@@ -1174,15 +1046,15 @@
                                         </ItemsControl>
                                     </StackPanel>
                                 </StackPanel>
-                            </ScrollViewer>
                         </Border>
-                    </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </Border>
         </Grid>
 
-        <!-- ROW 3: Bottom Status Banner -->
-        <Border Grid.Row="3"
+        <!-- ROW 2: Bottom Status Banner -->
+        <Border Grid.Row="2"
                 Margin="0,10,0,0"
                 Padding="12,8"
                 CornerRadius="10"

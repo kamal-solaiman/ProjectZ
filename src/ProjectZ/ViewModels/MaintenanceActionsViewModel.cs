@@ -18,7 +18,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     private MaintenanceOrderDesignItem? selectedOrder;
     private string searchText = "";
-    private string selectedStageFilter = "الكل";
+    private string selectedStageFilter = "كل الحالات";
     private string selectedPriorityFilter = "كل الأولويات";
     private string selectedTechnicianFilter = "كل الفنيين";
     private int activeControlTabIndex;
@@ -45,7 +45,6 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     // Additional mid-repair deposit collection
     private MaintenanceDepositMode extraDepositMode = MaintenanceDepositMode.CashOnly;
     private string extraDepositAmountText = "";
-    private string extraDepositReference = "";
 
     private string statusMessage = "";
     private bool isErrorStatus;
@@ -56,6 +55,18 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     public IReadOnlyList<string> Technicians => MaintenanceDesignSeedData.Technicians;
     public IReadOnlyList<string> DeliverySlotOptions => MaintenanceDesignSeedData.DeliverySlotOptions;
     public IReadOnlyList<string> DiagnosisSnippets => MaintenanceDesignSeedData.DiagnosisSnippets;
+    public IReadOnlyList<string> StageFilterOptions { get; } =
+    [
+        "كل الحالات",
+        "النشطة بالورشة",
+        "تم الاستلام",
+        "قيد الفحص",
+        "بانتظار قطع غيار",
+        "قيد الصيانة",
+        "جاهز للتسليم",
+        "تم التسليم",
+        "ملغى"
+    ];
     public IReadOnlyList<string> PriorityFilterOptions { get; } =
         ["كل الأولويات", "مستعجل", "عادي", "ضمان / إعادة فحص"];
     public IReadOnlyList<string> TechnicianFilterOptions { get; }
@@ -134,9 +145,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     public string SelectedStageFilter
     {
         get => selectedStageFilter;
-        private set
+        set
         {
-            if (selectedStageFilter == value) return;
+            if (string.IsNullOrWhiteSpace(value) || selectedStageFilter == value) return;
             selectedStageFilter = value;
             Changed();
             NotifyStageFilterSelection();
@@ -144,8 +155,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         }
     }
 
-    public bool IsFilterAll => SelectedStageFilter == "الكل";
-    public bool IsFilterActive => SelectedStageFilter == "النشطة";
+    public bool IsFilterAll => SelectedStageFilter is "الكل" or "كل الحالات";
+    public bool IsFilterActive => SelectedStageFilter is "النشطة" or "النشطة بالورشة";
     public bool IsFilterReceived => SelectedStageFilter == "تم الاستلام";
     public bool IsFilterDiagnosing => SelectedStageFilter == "قيد الفحص";
     public bool IsFilterWaitingParts => SelectedStageFilter == "بانتظار قطع غيار";
@@ -378,7 +389,6 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     public bool IsExtraDepositCash => extraDepositMode == MaintenanceDepositMode.CashOnly;
     public bool IsExtraDepositVodafone => extraDepositMode == MaintenanceDepositMode.VodafoneCashOnly;
     public bool IsExtraDepositInstaPay => extraDepositMode == MaintenanceDepositMode.InstaPayOnly;
-    public bool NeedsExtraDepositReference => extraDepositMode is MaintenanceDepositMode.VodafoneCashOnly or MaintenanceDepositMode.InstaPayOnly;
 
     public string ExtraDepositAmountText
     {
@@ -387,17 +397,6 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         {
             if (extraDepositAmountText == value) return;
             extraDepositAmountText = value;
-            Changed();
-        }
-    }
-
-    public string ExtraDepositReference
-    {
-        get => extraDepositReference;
-        set
-        {
-            if (extraDepositReference == value) return;
-            extraDepositReference = value;
             Changed();
         }
     }
@@ -1186,7 +1185,6 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         Changed(nameof(IsExtraDepositCash));
         Changed(nameof(IsExtraDepositVodafone));
         Changed(nameof(IsExtraDepositInstaPay));
-        Changed(nameof(NeedsExtraDepositReference));
     }
 
     private void CollectExtraDeposit()
@@ -1204,24 +1202,16 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        if (NeedsExtraDepositReference && string.IsNullOrWhiteSpace(ExtraDepositReference))
-        {
-            SetStatus("أدخل رقم مرجع التحويل لهذه القناة.", true);
-            return;
-        }
-
         string channelTitle;
         if (extraDepositMode == MaintenanceDepositMode.VodafoneCashOnly)
         {
             SelectedOrder.DepositVodafonePaid += amount;
-            SelectedOrder.DepositVodafoneReference = ExtraDepositReference.Trim();
-            channelTitle = $"فودافون كاش (مرجع: {ExtraDepositReference.Trim()})";
+            channelTitle = "فودافون كاش";
         }
         else if (extraDepositMode == MaintenanceDepositMode.InstaPayOnly)
         {
             SelectedOrder.DepositInstaPayPaid += amount;
-            SelectedOrder.DepositInstaPayReference = ExtraDepositReference.Trim();
-            channelTitle = $"إنستاباي (مرجع: {ExtraDepositReference.Trim()})";
+            channelTitle = "إنستاباي";
         }
         else
         {
@@ -1239,9 +1229,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         });
 
         ExtraDepositAmountText = "";
-        ExtraDepositReference = "";
         NotifyStageAndKpiCounts();
-        SetStatus($"تم تحصيل دفعة إضافية {PosFormatting.FormatCurrency(amount)} على الأمر {SelectedOrder.OrderNumber}.", false);
+        SetStatus($"تم تحصيل دفعة إضافية {PosFormatting.FormatCurrency(amount)} على الأمر {SelectedOrder.OrderNumber} ({channelTitle}).", false);
     }
 
     private void RefreshFilteredOrders()
@@ -1254,7 +1243,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         {
             var stageMatches = SelectedStageFilter switch
             {
-                "النشطة" => order.IsActiveOrder,
+                "النشطة" or "النشطة بالورشة" => order.IsActiveOrder,
                 "تم الاستلام" => order.IsReceived,
                 "قيد الفحص" => order.IsDiagnosing,
                 "بانتظار قطع غيار" => order.IsWaitingParts,
