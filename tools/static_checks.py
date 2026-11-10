@@ -555,11 +555,48 @@ maintenance_receipt_xaml = maintenance_receipt_xaml_path.read_text(encoding='utf
 for token in (
     'SelectCustomerReceiptModeCommand',
     'SelectDeviceStickerModeCommand',
+    'SelectDeliveryReceiptModeCommand',
     'IsCustomerReceiptMode',
     'IsDeviceStickerMode',
+    'IsDeliveryReceiptMode',
     'OrderNumber',
 ):
     assert token in maintenance_receipt_xaml, f'MaintenanceReceiptPreviewWindow missing expected token: {token}'
+
+maintenance_actions_xaml_path = root / 'src/ProjectZ/Views/MaintenanceActionsView.xaml'
+maintenance_delivery_xaml_path = root / 'src/ProjectZ/Views/MaintenanceDeliveryWindow.xaml'
+maintenance_cancel_xaml_path = root / 'src/ProjectZ/Views/MaintenanceCancelOrderWindow.xaml'
+assert all(
+    p.is_file()
+    for p in (
+        maintenance_actions_xaml_path,
+        maintenance_delivery_xaml_path,
+        maintenance_cancel_xaml_path,
+    )
+)
+assert 'IsMaintenanceActionsSelected' in main_viewmodel and 'MaintenanceActions' in main_viewmodel
+assert 'views:MaintenanceActionsView' in main_xaml
+
+maintenance_actions_xaml = maintenance_actions_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'SetStageFilterCommand',
+    'FilteredOrders',
+    'SelectedOrder',
+    'AdvanceToNextStageCommand',
+    'SetDirectStatusCommand',
+    'ReopenOrderCommand',
+    'OpenDeliveryDialogCommand',
+    'OpenCancelDialogCommand',
+    'OpenReceiptPreviewCommand',
+    'EditDiagnosisNotes',
+    'AddCatalogPartDirectCommand',
+    'AddManualPartCommand',
+    'RemoveUsedPartCommand',
+    'EditLaborCostText',
+    'SaveWorkshopUpdatesCommand',
+    'CollectExtraDepositCommand',
+):
+    assert token in maintenance_actions_xaml, f'MaintenanceActions UI missing expected token: {token}'
 
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
@@ -587,6 +624,8 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/PurchaseInvoiceDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/PurchaseInvoicesViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceIntakeViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/MaintenanceActionsDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceReceiptPreviewViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
@@ -604,6 +643,9 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/PaySupplierInvoiceWindow.xaml.cs',
     root / 'src/ProjectZ/Views/PurchaseInvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceIntakeView.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceActionsView.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceDeliveryWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceCancelOrderWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceReceiptPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoiceReturnWindow.xaml.cs',
@@ -649,5 +691,5 @@ for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
         res = m.group(1)
         assert res in local_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
 
-print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry, PurchaseInvoices & MaintenanceIntake UI design views, full audit, returns, print preview, no backend')
+print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry, PurchaseInvoices, MaintenanceIntake & MaintenanceActions UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

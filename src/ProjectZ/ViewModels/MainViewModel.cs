@@ -20,6 +20,7 @@ public sealed class MainViewModel : ObservableObject
     public PurchaseEntryViewModel PurchaseEntry { get; }
     public PurchaseInvoicesViewModel PurchaseInvoices { get; }
     public MaintenanceIntakeViewModel MaintenanceIntake { get; }
+    public MaintenanceActionsViewModel MaintenanceActions { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
@@ -31,10 +32,11 @@ public sealed class MainViewModel : ObservableObject
     public bool IsPurchaseEntrySelected => ReferenceEquals(selectedItem, Categories[1].Items[0]);
     public bool IsPurchaseInvoicesSelected => ReferenceEquals(selectedItem, Categories[1].Items[1]);
     public bool IsMaintenanceIntakeSelected => ReferenceEquals(selectedItem, Categories[2].Items[0]);
+    public bool IsMaintenanceActionsSelected => ReferenceEquals(selectedItem, Categories[2].Items[2]);
     public bool IsImplementedScreenSelected =>
         IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
-        || IsMaintenanceIntakeSelected;
+        || IsMaintenanceIntakeSelected || IsMaintenanceActionsSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -140,6 +142,15 @@ public sealed class MainViewModel : ObservableObject
             user.DisplayName,
             sharedCustomers,
             sharedMaintenanceOrders);
+        MaintenanceActions = new MaintenanceActionsViewModel(
+            user.DisplayName,
+            sharedMaintenanceOrders,
+            sharedCatalog,
+            sharedRegistrations,
+            () => SelectItem(Categories[2].Items[0]),
+            Inventory.NotifyExternalInventoryChanged,
+            ReturnExchange.NotifyExternalDataChanged,
+            PurchaseEntry.NotifyExternalCatalogChanged);
         Pos = new PosViewModel(
             user.DisplayName,
             sharedCatalog,
@@ -202,6 +213,8 @@ public sealed class MainViewModel : ObservableObject
             PurchaseInvoices.NotifyExternalPurchasesChanged();
         else if (ReferenceEquals(item, Categories[2].Items[0]))
             MaintenanceIntake.NotifyExternalDataChanged();
+        else if (ReferenceEquals(item, Categories[2].Items[2]))
+            MaintenanceActions.NotifyExternalDataChanged();
 
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
@@ -212,6 +225,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsPurchaseEntrySelected));
         Changed(nameof(IsPurchaseInvoicesSelected));
         Changed(nameof(IsMaintenanceIntakeSelected));
+        Changed(nameof(IsMaintenanceActionsSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));
