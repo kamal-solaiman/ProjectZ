@@ -400,9 +400,9 @@ public sealed class PaySupplierInvoiceViewModel : ObservableObject
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
-    public decimal CashAmount => PosFormatting.ParseDecimal(CashAmountText);
-    public decimal VodafoneCashAmount => PosFormatting.ParseDecimal(VodafoneCashAmountText);
-    public decimal InstaPayAmount => PosFormatting.ParseDecimal(InstaPayAmountText);
+    public decimal CashAmount => PosFormatting.TryParseAmount(CashAmountText, out var cash) && cash >= 0m ? cash : 0m;
+    public decimal VodafoneCashAmount => PosFormatting.TryParseAmount(VodafoneCashAmountText, out var vf) && vf >= 0m ? vf : 0m;
+    public decimal InstaPayAmount => PosFormatting.TryParseAmount(InstaPayAmountText, out var ip) && ip >= 0m ? ip : 0m;
     public decimal TotalPayNow => CashAmount + VodafoneCashAmount + InstaPayAmount;
     public bool HasOverpayment => TotalPayNow > OriginalRemaining;
     public decimal RemainingAfterPayment => Math.Max(0m, OriginalRemaining - TotalPayNow);
@@ -887,7 +887,7 @@ public sealed class EditPurchaseLineItemViewModel : ObservableObject
             if (unitPurchaseCostText == value) return;
             unitPurchaseCostText = value;
             Changed();
-            UnitPurchaseCost = PosFormatting.ParseDecimal(value);
+            UnitPurchaseCost = PosFormatting.TryParseAmount(value, out var parsed) && parsed >= 0m ? parsed : 0m;
         }
     }
 
@@ -1163,13 +1163,13 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
     public decimal ReturnedGoodsTotal => Lines.Sum(l => l.ReturnedQuantity * l.UnitPurchaseCost);
     public decimal ActiveGrossTotal => Math.Max(0m, Subtotal - ReturnedGoodsTotal);
-    public decimal DiscountAmount => Math.Max(0m, PosFormatting.ParseDecimal(DiscountAmountText));
+    public decimal DiscountAmount => PosFormatting.TryParseAmount(DiscountAmountText, out var disc) && disc >= 0m ? disc : 0m;
     public decimal EffectiveDiscount => Math.Min(ActiveGrossTotal, DiscountAmount);
     public decimal NetTotal => Math.Max(0m, ActiveGrossTotal - EffectiveDiscount);
 
-    public decimal CashAmount => Math.Max(0m, PosFormatting.ParseDecimal(CashAmountText));
-    public decimal VodafoneCashAmount => Math.Max(0m, PosFormatting.ParseDecimal(VodafoneCashAmountText));
-    public decimal InstaPayAmount => Math.Max(0m, PosFormatting.ParseDecimal(InstaPayAmountText));
+    public decimal CashAmount => PosFormatting.TryParseAmount(CashAmountText, out var cash) && cash >= 0m ? cash : 0m;
+    public decimal VodafoneCashAmount => PosFormatting.TryParseAmount(VodafoneCashAmountText, out var vf) && vf >= 0m ? vf : 0m;
+    public decimal InstaPayAmount => PosFormatting.TryParseAmount(InstaPayAmountText, out var ip) && ip >= 0m ? ip : 0m;
     public decimal TotalPaid => CashAmount + VodafoneCashAmount + InstaPayAmount;
     public decimal NetCashOutflow => Math.Max(0m, TotalPaid - Invoice.SupplierRefundReceived);
     public decimal RemainingPayable => Math.Max(0m, NetTotal - NetCashOutflow);
@@ -1238,7 +1238,7 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
                               Barcode = line.Barcode,
                               Name = line.ProductName,
                               Category = line.Category,
-                              UnitDisplay = line.Unit,
+                              Unit = line.Unit,
                               TrackSerialNumber = line.TrackSerialNumber,
                               CostPrice = line.UnitPurchaseCost
                           };
