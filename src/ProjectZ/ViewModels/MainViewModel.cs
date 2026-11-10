@@ -15,6 +15,7 @@ public sealed class MainViewModel : ObservableObject
     public InventoryViewModel Inventory { get; }
     public CategoriesViewModel ProductCategories { get; }
     public InvoicesViewModel Invoices { get; }
+    public ReturnExchangeViewModel ReturnExchange { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
@@ -22,7 +23,8 @@ public sealed class MainViewModel : ObservableObject
     public bool IsInventorySelected => ReferenceEquals(selectedItem, Categories[0].Items[2]);
     public bool IsCategoriesSelected => ReferenceEquals(selectedItem, Categories[0].Items[3]);
     public bool IsInvoicesSelected => ReferenceEquals(selectedItem, Categories[0].Items[4]);
-    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected || IsInvoicesSelected;
+    public bool IsReturnExchangeSelected => ReferenceEquals(selectedItem, Categories[0].Items[5]);
+    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected || IsInvoicesSelected || IsReturnExchangeSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -71,6 +73,7 @@ public sealed class MainViewModel : ObservableObject
         var sharedCategories = PosDesignSeedData.CreateSharedCategories();
         var sharedRegistrations = InventoryDesignSeedData.CreateSharedSampleRegistrations(sharedCatalog);
         var sharedSalesInvoices = InvoiceDesignSeedData.CreateSharedSampleInvoices(sharedCatalog, sharedRegistrations);
+        var sharedReturnOperations = ReturnExchangeDesignSeedData.CreateSharedSampleOperations(sharedSalesInvoices);
 
         Inventory = new InventoryViewModel(
             sharedCatalog,
@@ -83,7 +86,18 @@ public sealed class MainViewModel : ObservableObject
             sharedRegistrations,
             user.DisplayName,
             () => SelectItem(Categories[0].Items[0]),
-            Inventory.NotifyExternalInventoryChanged);
+            Inventory.NotifyExternalInventoryChanged,
+            sharedReturnOperations);
+        ReturnExchange = new ReturnExchangeViewModel(
+            sharedSalesInvoices,
+            sharedCatalog,
+            sharedRegistrations,
+            sharedReturnOperations,
+            user.DisplayName,
+            () => SelectItem(Categories[0].Items[4]),
+            Inventory.NotifyExternalInventoryChanged,
+            Invoices.NotifyExternalInvoicesChanged);
+        Invoices.SetReturnExchangeNotifier(ReturnExchange.NotifyExternalDataChanged);
         Pos = new PosViewModel(
             user.DisplayName,
             sharedCatalog,
@@ -133,11 +147,19 @@ public sealed class MainViewModel : ObservableObject
         }
 
         selectedItem = item;
+        if (ReferenceEquals(item, Categories[0].Items[5]))
+            ReturnExchange.NotifyExternalDataChanged();
+        else if (ReferenceEquals(item, Categories[0].Items[4]))
+            Invoices.NotifyExternalInvoicesChanged();
+        else if (ReferenceEquals(item, Categories[0].Items[2]))
+            Inventory.NotifyExternalInventoryChanged();
+
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
         Changed(nameof(IsInventorySelected));
         Changed(nameof(IsCategoriesSelected));
         Changed(nameof(IsInvoicesSelected));
+        Changed(nameof(IsReturnExchangeSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));

@@ -423,10 +423,37 @@ for token in (
 ):
     assert token in invoices_xaml, f'Invoices UI missing expected token: {token}'
 
+assert 'IsReturnExchangeSelected' in main_viewmodel and 'IsReturnExchangeSelected' in main_xaml
+assert 'views:ReturnExchangeView' in main_xaml
+assert 'sharedReturnOperations' in main_viewmodel
+
+return_exchange_xaml_path = root / 'src/ProjectZ/Views/ReturnExchangeView.xaml'
+assert return_exchange_xaml_path.is_file()
+return_exchange_xaml = return_exchange_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'IsWorkspaceTabSelected',
+    'IsHistoryTabSelected',
+    'SearchText',
+    'SelectDatePresetCommand',
+    'IsReturnMode',
+    'IsExchangeMode',
+    'GoodReturnQtyDisplay',
+    'DamagedReturnQtyDisplay',
+    'ReplacementItems',
+    'FilteredReplacementCatalog',
+    'NeedsCustomerRefund',
+    'NeedsCustomerPayment',
+    'ConfirmOperationCommand',
+    'OpenOperationInvoiceCommand',
+    'PrintSelectedInvoiceCommand',
+):
+    assert token in return_exchange_xaml, f'ReturnExchange UI missing expected token: {token}'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
     root / 'src/ProjectZ/Models/InvoiceDesignModels.cs',
+    root / 'src/ProjectZ/Models/ReturnExchangeDesignModels.cs',
     root / 'src/ProjectZ/ViewModels/PosViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceItemViewModel.cs',
@@ -437,12 +464,14 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/CategoriesViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InvoicesViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InvoiceDialogViewModels.cs',
+    root / 'src/ProjectZ/ViewModels/ReturnExchangeViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AddProductView.xaml.cs',
     root / 'src/ProjectZ/Views/InventoryView.xaml.cs',
     root / 'src/ProjectZ/Views/CategoriesView.xaml.cs',
     root / 'src/ProjectZ/Views/InvoicesView.xaml.cs',
+    root / 'src/ProjectZ/Views/ReturnExchangeView.xaml.cs',
     root / 'src/ProjectZ/Views/InvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoiceReturnWindow.xaml.cs',
     root / 'src/ProjectZ/Views/CollectInvoicePaymentWindow.xaml.cs',
@@ -478,5 +507,5 @@ for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
         res = m.group(1)
         assert res in local_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
 
-print('PASS: POS, AddProduct, Inventory, Categories & Invoices UI design views, full audit, returns, print preview, no backend')
+print('PASS: POS, AddProduct, Inventory, Categories, Invoices & ReturnExchange UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

@@ -10,7 +10,8 @@ public enum SalesInvoiceStatus
     PartialCredit = 1,
     PartiallyReturned = 2,
     FullyReturned = 3,
-    Cancelled = 4
+    Cancelled = 4,
+    Exchanged = 5
 }
 
 public sealed class SalesInvoiceActivityEntry
@@ -43,6 +44,7 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
     public int Quantity { get; init; }
     public decimal UnitPrice { get; init; }
     public decimal UnitCost { get; init; }
+    public bool IsExchangeReplacement { get; init; }
 
     public int ReturnedQuantity
     {
@@ -121,6 +123,7 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     private decimal refundedAmount;
     private string notes = "";
     private bool isSelected;
+    private bool isReturnWorkspaceSelected;
 
     public int Id { get; init; }
     public string InvoiceNumber { get; init; } = "";
@@ -151,6 +154,7 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
             Changed(nameof(IsPartiallyReturned));
             Changed(nameof(IsFullyReturned));
             Changed(nameof(IsCancelled));
+            Changed(nameof(IsExchanged));
             Changed(nameof(CanReturn));
             Changed(nameof(CanCollectRemaining));
             Changed(nameof(CanCancel));
@@ -253,11 +257,23 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
         }
     }
 
+    public bool IsReturnWorkspaceSelected
+    {
+        get => isReturnWorkspaceSelected;
+        internal set
+        {
+            if (isReturnWorkspaceSelected == value) return;
+            isReturnWorkspaceSelected = value;
+            Changed();
+        }
+    }
+
     public string IssuedDateDisplay => IssuedAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     public string IssuedTimeDisplay => IssuedAt.ToString("HH:mm", CultureInfo.InvariantCulture);
     public string IssuedFullDisplay => IssuedAt.ToString("yyyy-MM-dd · HH:mm", CultureInfo.InvariantCulture);
     public string CustomerPhoneDisplay => string.IsNullOrWhiteSpace(CustomerPhone) ? "بدون هاتف" : CustomerPhone;
     public string CustomerAddressDisplay => string.IsNullOrWhiteSpace(CustomerAddress) ? "غير مسجل" : CustomerAddress;
+    public string CustomerTypeDisplay => IsWalkInCustomer ? "عميل نقدي عام" : "عميل مسجل";
     public string DefaultPriceTierTitle => PosFormatting.GetPriceTierTitle(DefaultPriceTier);
     public bool HasNotes => !string.IsNullOrWhiteSpace(Notes);
 
@@ -306,6 +322,7 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     public bool HasRefundedAmount => RefundedAmount > 0m;
     public bool HasRemaining => RemainingAmount > 0m;
     public bool HasChange => ChangeAmount > 0m;
+    public bool HasCashPaid => CashPaid > 0m;
     public bool HasVodafoneCash => VodafoneCashPaid > 0m || !string.IsNullOrWhiteSpace(VodafoneCashReference);
     public bool HasInstaPay => InstaPayPaid > 0m || !string.IsNullOrWhiteSpace(InstaPayReference);
 
@@ -331,6 +348,7 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
         SalesInvoiceStatus.PartiallyReturned => "مرتجع جزئي",
         SalesInvoiceStatus.FullyReturned => "مرتجع كلي",
         SalesInvoiceStatus.Cancelled => "ملغاة",
+        SalesInvoiceStatus.Exchanged => "مستبدلة / معدلة",
         _ => "مكتملة"
     };
 
@@ -339,10 +357,16 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     public bool IsPartiallyReturned => Status == SalesInvoiceStatus.PartiallyReturned;
     public bool IsFullyReturned => Status == SalesInvoiceStatus.FullyReturned;
     public bool IsCancelled => Status == SalesInvoiceStatus.Cancelled;
+    public bool IsExchanged => Status == SalesInvoiceStatus.Exchanged;
 
-    public bool CanReturn => Status is SalesInvoiceStatus.Completed or SalesInvoiceStatus.PartialCredit or SalesInvoiceStatus.PartiallyReturned
+    public bool CanReturn => Status is SalesInvoiceStatus.Completed
+        or SalesInvoiceStatus.PartialCredit
+        or SalesInvoiceStatus.PartiallyReturned
+        or SalesInvoiceStatus.Exchanged
         && Items.Any(i => i.RemainingQuantity > 0);
-    public bool CanCollectRemaining => Status is SalesInvoiceStatus.PartialCredit or SalesInvoiceStatus.PartiallyReturned
+    public bool CanCollectRemaining => Status is SalesInvoiceStatus.PartialCredit
+        or SalesInvoiceStatus.PartiallyReturned
+        or SalesInvoiceStatus.Exchanged
         && RemainingAmount > 0m;
     public bool CanCancel => Status is SalesInvoiceStatus.Completed or SalesInvoiceStatus.PartialCredit;
 
@@ -404,6 +428,7 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
         Changed(nameof(HasRefundedAmount));
         Changed(nameof(HasRemaining));
         Changed(nameof(HasChange));
+        Changed(nameof(HasCashPaid));
         Changed(nameof(HasVodafoneCash));
         Changed(nameof(HasInstaPay));
         Changed(nameof(SubtotalDisplay));

@@ -274,6 +274,20 @@
                         </Grid.Style>
                         <views:InvoicesView DataContext="{Binding Invoices}" />
                     </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsReturnExchangeSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:ReturnExchangeView DataContext="{Binding ReturnExchange}" />
+                    </Grid>
                 </Grid>
             </Border>
 

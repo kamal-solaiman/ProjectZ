@@ -427,6 +427,9 @@
                                                 <DataTrigger Binding="{Binding SelectedInvoice.IsCancelled}" Value="True">
                                                     <Setter Property="Background" Value="#475569" />
                                                 </DataTrigger>
+                                                <DataTrigger Binding="{Binding SelectedInvoice.IsExchanged}" Value="True">
+                                                    <Setter Property="Background" Value="#4F46E5" />
+                                                </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
@@ -582,6 +585,13 @@
                                                                     Background="#FEF2F2"
                                                                     Visibility="{Binding HasReturned, Converter={StaticResource BoolToVis}}">
                                                                 <TextBlock Text="{Binding ReturnedSummaryDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="10" FontWeight="Bold" Foreground="#B42318" />
+                                                            </Border>
+                                                            <Border Margin="6,0,0,0"
+                                                                    Padding="5,1"
+                                                                    CornerRadius="4"
+                                                                    Background="#EEF2FF"
+                                                                    Visibility="{Binding IsExchangeReplacement, Converter={StaticResource BoolToVis}}">
+                                                                <TextBlock Text="بديل استبدال" Style="{StaticResource PosCenterTextStyle}" FontSize="10" FontWeight="Bold" Foreground="#4F46E5" />
                                                             </Border>
                                                         </WrapPanel>
 
@@ -1003,6 +1013,9 @@
                                                                     <DataTrigger Binding="{Binding IsCancelled}" Value="True">
                                                                         <Setter Property="Background" Value="#E2E8F0" />
                                                                     </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsExchanged}" Value="True">
+                                                                        <Setter Property="Background" Value="#EEF2FF" />
+                                                                    </DataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
@@ -1022,6 +1035,9 @@
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding IsCancelled}" Value="True">
                                                                             <Setter Property="Foreground" Value="#475569" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsExchanged}" Value="True">
+                                                                            <Setter Property="Foreground" Value="#4F46E5" />
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
