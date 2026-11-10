@@ -637,7 +637,8 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         ObservableCollection<MaintenanceOrderDesignItem>? sharedMaintenanceOrders = null)
     {
         this.currentUserName = currentUserName;
-        this.sharedCustomers = sharedCustomers ?? PosDesignSeedData.CreateSampleCustomers();
+        this.sharedCustomers = sharedCustomers
+            ?? new ObservableCollection<PosCustomerDesignItem>(PosDesignSeedData.CreateSampleCustomers());
         this.sharedMaintenanceOrders = sharedMaintenanceOrders ?? MaintenanceDesignSeedData.CreateSharedSampleOrders(this.sharedCustomers);
 
         nextOrderId = this.sharedMaintenanceOrders.Count > 0 ? this.sharedMaintenanceOrders.Max(o => o.Id) + 1 : 1;

@@ -91,7 +91,7 @@ public sealed class MainViewModel : ObservableObject
             sharedCatalog,
             sharedRegistrations,
             sharedSuppliers);
-        var sharedMaintenanceOrders = MaintenanceDesignSeedData.CreateSharedSampleOrders();
+        var sharedMaintenanceOrders = MaintenanceDesignSeedData.CreateSharedSampleOrders(sharedCustomers);
 
         Inventory = new InventoryViewModel(
             sharedCatalog,
