@@ -202,66 +202,96 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Mode 2: Compact Device Technician Sticker Label -->
-                    <Border Width="390"
-                            Padding="14"
-                            Background="White"
-                            BorderBrush="#0F172A"
-                            BorderThickness="2"
-                            CornerRadius="8"
+                    <!-- Mode 2: Compact Barcode-Style Device Sticker (Logo, Customer, Code, Received Date only) -->
+                    <Border Padding="24,22"
+                            CornerRadius="10"
+                            Background="#CBD5E1"
+                            BorderBrush="#94A3B8"
+                            BorderThickness="1"
+                            VerticalAlignment="Center"
                             Visibility="{Binding IsDeviceStickerMode, Converter={StaticResource BoolToVis}}">
-                        <StackPanel FlowDirection="RightToLeft">
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="{Binding Order.OrderNumber}"
-                                               Style="{StaticResource PosLtrTextStyle}"
-                                               HorizontalAlignment="Right"
-                                               FontFamily="Consolas, Segoe UI"
-                                               FontSize="20"
-                                               FontWeight="Bold"
-                                               Foreground="#102E48" />
-                                    <TextBlock Text="{Binding Order.ReceivedFullDisplay}"
-                                               Style="{StaticResource PosRtlTextStyle}"
-                                               FontSize="10.5"
-                                               Foreground="#64748B" />
-                                </StackPanel>
-                                <Border Grid.Column="1" Padding="10,4" CornerRadius="6" Background="#102E48" VerticalAlignment="Top">
-                                    <TextBlock Text="{Binding Order.PriorityTitle}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#6EE7D8" />
-                                </Border>
-                            </Grid>
+                        <Border Width="180"
+                                Height="90"
+                                Padding="7,5"
+                                Background="White"
+                                BorderBrush="#64748B"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <Grid FlowDirection="LeftToRight">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
 
-                            <Border Padding="8" CornerRadius="6" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Order.DeviceFullTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="#102E48" />
-                                    <TextBlock Text="{Binding Order.SerialOrImeiDisplay, StringFormat='IMEI / SN: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11" Foreground="#475569" />
-                                    <TextBlock Text="{Binding Order.PasscodeDisplay, StringFormat='قفل الشاشة: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,3,0,0" FontSize="12" FontWeight="Bold" Foreground="#B42318" />
-                                </StackPanel>
-                            </Border>
-
-                            <TextBlock Text="{Binding Order.ReportedFault, StringFormat='العطل: {0}'}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" TextWrapping="Wrap" />
-                            <TextBlock Text="{Binding Order.AccessoriesDisplay, StringFormat='الملحقات: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,4,0,0" FontSize="11" Foreground="#475569" />
-
-                            <Border Margin="0,8,0,0" Padding="8,5" CornerRadius="6" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1">
-                                <Grid>
+                                <!-- Logo + Received Date -->
+                                <Grid Grid.Row="0" Margin="0,0,0,2">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding Order.CustomerName}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" />
-                                        <TextBlock Text="{Binding Order.CustomerPhoneDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="11" Foreground="#0F766E" FontWeight="SemiBold" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="التسليم المتوقع" Style="{StaticResource PosCenterTextStyle}" FontSize="9.5" Foreground="#64748B" />
-                                        <TextBlock Text="{Binding Order.ExpectedDeliveryDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#102E48" />
+
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding Order.ReceivedDateDisplay}"
+                                               Style="{StaticResource PosLtrTextStyle}"
+                                               VerticalAlignment="Center"
+                                               FontFamily="Consolas, Segoe UI"
+                                               FontSize="8.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="#475569" />
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock Text="ProjectZ"
+                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="9.5"
+                                                   FontWeight="Bold"
+                                                   Foreground="#102E48"
+                                                   Margin="0,0,4,0" />
+                                        <Border Width="14" Height="14" CornerRadius="3" Background="#102E48">
+                                            <TextBlock Text="PZ"
+                                                       Style="{StaticResource PosCenterTextStyle}"
+                                                       VerticalAlignment="Center"
+                                                       FontSize="7"
+                                                       FontWeight="Bold"
+                                                       Foreground="#6EE7D8" />
+                                        </Border>
                                     </StackPanel>
                                 </Grid>
-                            </Border>
-                        </StackPanel>
+
+                                <!-- Customer Name -->
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding Order.CustomerName}"
+                                           Style="{StaticResource PosCenterTextStyle}"
+                                           FontSize="9.5"
+                                           FontWeight="Bold"
+                                           Foreground="#0F172A"
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="0,0,0,2" />
+
+                                <!-- Barcode Graphic -->
+                                <Path Grid.Row="2"
+                                      Data="M0,0 H3 V24 H0 Z M5,0 H6 V24 H5 Z M9,0 H13 V24 H9 Z M15,0 H17 V24 H15 Z M20,0 H21 V24 H20 Z M23,0 H27 V24 H23 Z M29,0 H30 V24 H29 Z M33,0 H35 V24 H33 Z M38,0 H42 V24 H38 Z M44,0 H45 V24 H44 Z M48,0 H50 V24 H48 Z M52,0 H55 V24 H52 Z M57,0 H59 V24 H57 Z M61,0 H64 V24 H61 Z M66,0 H68 V24 H66 Z M71,0 H74 V24 H71 Z M76,0 H78 V24 H76 Z M80,0 H83 V24 H80 Z M85,0 H86 V24 H85 Z M89,0 H92 V24 H89 Z"
+                                      Fill="#0F172A"
+                                      Stretch="Fill"
+                                      Width="148"
+                                      Height="24"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center" />
+
+                                <!-- Ticket Code -->
+                                <TextBlock Grid.Row="3"
+                                           Text="{Binding Order.OrderNumber}"
+                                           Style="{StaticResource PosLtrTextStyle}"
+                                           HorizontalAlignment="Center"
+                                           FontFamily="Consolas, Segoe UI"
+                                           FontSize="9.5"
+                                           FontWeight="Bold"
+                                           Foreground="#0F172A"
+                                           Margin="0,1,0,0" />
+                            </Grid>
+                        </Border>
                     </Border>
 
                     <!-- Mode 3: 80mm Final Delivery, Parts & Warranty Receipt -->

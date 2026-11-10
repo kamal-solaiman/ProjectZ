@@ -560,6 +560,8 @@ for token in (
     'IsDeviceStickerMode',
     'IsDeliveryReceiptMode',
     'OrderNumber',
+    'ReceivedDateDisplay',
+    'CustomerName',
 ):
     assert token in maintenance_receipt_xaml, f'MaintenanceReceiptPreviewWindow missing expected token: {token}'
 
@@ -579,7 +581,8 @@ assert 'views:MaintenanceActionsView' in main_xaml
 
 maintenance_actions_xaml = maintenance_actions_xaml_path.read_text(encoding='utf-8')
 for token in (
-    'SetStageFilterCommand',
+    'StageFilterOptions',
+    'SelectedStageFilter',
     'FilteredOrders',
     'SelectedOrder',
     'AdvanceToNextStageCommand',
@@ -595,8 +598,13 @@ for token in (
     'EditLaborCostText',
     'SaveWorkshopUpdatesCommand',
     'CollectExtraDepositCommand',
+    'الفحص وتفاصيل الاستلام',
+    'قطع الغيار والتسعير',
+    'المالية والضمان',
+    'السجل الزمني',
 ):
     assert token in maintenance_actions_xaml, f'MaintenanceActions UI missing expected token: {token}'
+assert 'ExtraDepositReference' not in maintenance_actions_xaml, 'Reference input should not appear in extra deposit collection'
 
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
