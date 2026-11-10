@@ -545,7 +545,7 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="SemiBold">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12.5" FontWeight="SemiBold">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
                         <Setter Property="Foreground" Value="#065F46" />

@@ -588,7 +588,16 @@ for rf in (
 
 for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
     local_keys = set(app_resource_keys)
-    for elem in ET.parse(xf).getroot().iter():
+    parsed_xf = ET.parse(xf).getroot()
+    for elem in parsed_xf.iter():
+        tag_short = elem.tag.split('}')[-1]
+        for child in elem:
+            ctag = child.tag.split('}')[-1]
+            if ctag.startswith(f'{tag_short}.'):
+                prop_name = ctag.split('.', 1)[1]
+                assert prop_name not in elem.attrib, (
+                    f'Duplicate XAML property {prop_name} set as both attribute and property element on {tag_short} in {xf}'
+                )
         for k, v in elem.attrib.items():
             if k.endswith('Key'):
                 local_keys.add(v)
