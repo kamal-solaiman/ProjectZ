@@ -449,29 +449,66 @@ for token in (
 ):
     assert token in return_exchange_xaml, f'ReturnExchange UI missing expected token: {token}'
 
+assert 'IsPurchaseEntrySelected' in main_viewmodel and 'IsPurchaseEntrySelected' in main_xaml
+assert 'views:PurchaseEntryView' in main_xaml
+assert 'sharedSuppliers' in main_viewmodel and 'sharedPurchaseInvoices' in main_viewmodel
+
+purchase_entry_xaml_path = root / 'src/ProjectZ/Views/PurchaseEntryView.xaml'
+add_supplier_xaml_path = root / 'src/ProjectZ/Views/AddSupplierWindow.xaml'
+purchase_print_xaml_path = root / 'src/ProjectZ/Views/PurchaseInvoicePrintPreviewWindow.xaml'
+assert purchase_entry_xaml_path.is_file() and add_supplier_xaml_path.is_file() and purchase_print_xaml_path.is_file()
+
+purchase_entry_xaml = purchase_entry_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'OpenAddSupplierWindowCommand',
+    'SelectSupplierCommand',
+    'SetCashPresetCommand',
+    'SetVodafonePresetCommand',
+    'SetInstaPayPresetCommand',
+    'SetSplitPresetCommand',
+    'SetFullCreditPresetCommand',
+    'UnitPurchaseCostText',
+    'QuantityText',
+    'RemainingPayableDisplay',
+    'CompletePurchaseInvoiceCommand',
+    'CompleteAndPrintPurchaseInvoiceCommand',
+    'PreviewDraftCommand',
+    'PreviewLastSavedInvoiceCommand',
+):
+    assert token in purchase_entry_xaml, f'PurchaseEntry UI missing expected token: {token}'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
     root / 'src/ProjectZ/Models/InvoiceDesignModels.cs',
     root / 'src/ProjectZ/Models/ReturnExchangeDesignModels.cs',
+    root / 'src/ProjectZ/Models/PurchaseDesignModels.cs',
     root / 'src/ProjectZ/ViewModels/PosViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceItemViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddCustomerViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/AddSupplierViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/CategoriesViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InvoicesViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InvoiceDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/ReturnExchangeViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/PurchaseInvoiceItemViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/PurchaseDraftInvoiceViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/PurchaseEntryViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/PurchaseInvoicePrintPreviewViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/AddSupplierWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AddProductView.xaml.cs',
     root / 'src/ProjectZ/Views/InventoryView.xaml.cs',
     root / 'src/ProjectZ/Views/CategoriesView.xaml.cs',
     root / 'src/ProjectZ/Views/InvoicesView.xaml.cs',
     root / 'src/ProjectZ/Views/ReturnExchangeView.xaml.cs',
+    root / 'src/ProjectZ/Views/PurchaseEntryView.xaml.cs',
+    root / 'src/ProjectZ/Views/PurchaseInvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoiceReturnWindow.xaml.cs',
     root / 'src/ProjectZ/Views/CollectInvoicePaymentWindow.xaml.cs',
@@ -507,5 +544,5 @@ for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
         res = m.group(1)
         assert res in local_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
 
-print('PASS: POS, AddProduct, Inventory, Categories, Invoices & ReturnExchange UI design views, full audit, returns, print preview, no backend')
+print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange & PurchaseEntry UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
