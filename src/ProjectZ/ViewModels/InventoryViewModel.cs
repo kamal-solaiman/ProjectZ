@@ -284,6 +284,7 @@ public sealed class InventoryViewModel : ObservableObject
 
     public void NotifyExternalInventoryChanged()
     {
+        RebuildFilterLookups();
         RefreshCatalogFilter();
         RefreshDamagedFilter();
         NotifyKpis();

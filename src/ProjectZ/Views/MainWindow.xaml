@@ -288,6 +288,20 @@
                         </Grid.Style>
                         <views:ReturnExchangeView DataContext="{Binding ReturnExchange}" />
                     </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPurchaseEntrySelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:PurchaseEntryView DataContext="{Binding PurchaseEntry}" />
+                    </Grid>
                 </Grid>
             </Border>
 
