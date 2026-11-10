@@ -11,9 +11,11 @@ public sealed class InvoicesViewModel : ObservableObject
     private readonly ObservableCollection<SalesInvoiceDesignItem> sharedInvoices;
     private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
     private readonly ObservableCollection<InventoryUnitRegistrationItem> sharedRegistrations;
+    private readonly ObservableCollection<ReturnExchangeOperationItem>? sharedReturnOperations;
     private readonly string currentCashierName;
     private readonly Action? navigateToPos;
     private readonly Action? notifyInventoryChanged;
+    private Action? notifyReturnExchangeChanged;
 
     private int nextInvoiceId;
     private SalesInvoiceDesignItem? selectedInvoice;
@@ -35,7 +37,7 @@ public sealed class InvoicesViewModel : ObservableObject
 
     public IReadOnlyList<string> DatePresets { get; } = ["الكل", "اليوم", "آخر 7 أيام", "هذا الشهر", "فترة مخصصة"];
     public IReadOnlyList<string> PaymentFilters { get; } = ["الكل", "نقدي", "فودافون كاش", "إنستاباي", "دفع مقسم", "آجل / متبقي"];
-    public IReadOnlyList<string> StatusFilters { get; } = ["الكل", "مكتملة", "آجل / متبقي", "مرتجع جزئي", "مرتجع كلي", "ملغاة"];
+    public IReadOnlyList<string> StatusFilters { get; } = ["الكل", "مكتملة", "آجل / متبقي", "مرتجع جزئي", "مرتجع كلي", "مستبدلة / معدلة", "ملغاة"];
 
     public Action<InvoicePrintPreviewViewModel>? OpenPrintPreviewRequested { get; set; }
     public Action<InvoiceReturnViewModel>? OpenReturnDialogRequested { get; set; }
@@ -281,14 +283,18 @@ public sealed class InvoicesViewModel : ObservableObject
         ObservableCollection<InventoryUnitRegistrationItem> sharedRegistrations,
         string currentCashierName = "المشرف",
         Action? navigateToPos = null,
-        Action? notifyInventoryChanged = null)
+        Action? notifyInventoryChanged = null,
+        ObservableCollection<ReturnExchangeOperationItem>? sharedReturnOperations = null,
+        Action? notifyReturnExchangeChanged = null)
     {
         this.sharedInvoices = sharedInvoices;
         this.sharedCatalog = sharedCatalog;
         this.sharedRegistrations = sharedRegistrations;
+        this.sharedReturnOperations = sharedReturnOperations;
         this.currentCashierName = currentCashierName;
         this.navigateToPos = navigateToPos;
         this.notifyInventoryChanged = notifyInventoryChanged;
+        this.notifyReturnExchangeChanged = notifyReturnExchangeChanged;
 
         nextInvoiceId = sharedInvoices.Count > 0 ? sharedInvoices.Max(i => i.Id) + 1 : 1;
 
@@ -431,8 +437,21 @@ public sealed class InvoicesViewModel : ObservableObject
         RefreshFilteredInvoices();
         SelectedInvoice = invoice;
         notifyInventoryChanged?.Invoke();
+        notifyReturnExchangeChanged?.Invoke();
         SetStatus($"تم استلام الفاتورة الجديدة {invoiceNo} من نقطة البيع بقيمة {invoice.NetTotalDisplay}.", false);
         return invoice;
+    }
+
+    public void SetReturnExchangeNotifier(Action? notifier)
+    {
+        notifyReturnExchangeChanged = notifier;
+    }
+
+    public void NotifyExternalInvoicesChanged()
+    {
+        RebuildCashierFilters();
+        RefreshFilteredInvoices();
+        NotifyKpis();
     }
 
     private void SaveSelectedNotes()
@@ -566,7 +585,36 @@ public sealed class InvoicesViewModel : ObservableObject
                 Amount = returnValue
             });
 
+            if (sharedReturnOperations is not null)
+            {
+                var opId = sharedReturnOperations.Count > 0 ? sharedReturnOperations.Max(o => o.Id) + 1 : 1;
+                var summaryItems = string.Join("، ", submission.Lines.Select(l =>
+                    $"{l.ReturnQuantity}× {l.Line.ProductName} ({(submission.ReturnAsAvailableStock ? "سليم ← المخزون" : "هالك ← مخزون الهالك")})"));
+                sharedReturnOperations.Insert(0, new ReturnExchangeOperationItem
+                {
+                    Id = opId,
+                    OperationNumber = $"RET-2026-{opId:0000}",
+                    OperationType = ReturnExchangeType.Return,
+                    CreatedAt = DateTime.Now,
+                    ActorName = currentCashierName,
+                    InvoiceId = invoice.Id,
+                    InvoiceNumber = invoice.InvoiceNumber,
+                    CustomerName = invoice.CustomerName,
+                    CustomerPhone = invoice.CustomerPhone,
+                    Reason = submission.Reason,
+                    GoodReturnedUnitsCount = submission.ReturnAsAvailableStock ? returnedUnitsCount : 0,
+                    DamagedReturnedUnitsCount = submission.ReturnAsAvailableStock ? 0 : returnedUnitsCount,
+                    ReplacementUnitsCount = 0,
+                    ReturnedValue = returnValue,
+                    ReplacementValue = 0m,
+                    ReturnedItemsSummary = summaryItems,
+                    ReplacementItemsSummary = "—",
+                    SettlementSummary = refundNote
+                });
+            }
+
             notifyInventoryChanged?.Invoke();
+            notifyReturnExchangeChanged?.Invoke();
             RefreshFilteredInvoices();
             NotifyKpis();
             SetStatus($"تم تسجيل مرتجع على الفاتورة {invoice.InvoiceNumber} ({returnedUnitsCount} قطعة) وتحديث المخزون.", false);
@@ -628,6 +676,7 @@ public sealed class InvoicesViewModel : ObservableObject
 
             RefreshFilteredInvoices();
             NotifyKpis();
+            notifyReturnExchangeChanged?.Invoke();
             SetStatus($"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber}.", false);
         });
 
@@ -693,6 +742,7 @@ public sealed class InvoicesViewModel : ObservableObject
             });
 
             notifyInventoryChanged?.Invoke();
+            notifyReturnExchangeChanged?.Invoke();
             RefreshFilteredInvoices();
             NotifyKpis();
             SetStatus($"تم إلغاء الفاتورة {invoice.InvoiceNumber} وإعادة أصنافها للمخزون.", false);
