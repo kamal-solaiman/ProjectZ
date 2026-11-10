@@ -522,12 +522,52 @@ for token in (
 ):
     assert token in purchase_details_xaml, f'PurchaseInvoiceDetailsWindow missing expected token: {token}'
 
+maintenance_intake_xaml_path = root / 'src/ProjectZ/Views/MaintenanceIntakeView.xaml'
+maintenance_receipt_xaml_path = root / 'src/ProjectZ/Views/MaintenanceReceiptPreviewWindow.xaml'
+assert maintenance_intake_xaml_path.is_file() and maintenance_receipt_xaml_path.is_file()
+assert 'IsMaintenanceIntakeSelected' in main_viewmodel and 'MaintenanceIntake' in main_viewmodel
+assert 'sharedCustomers' in main_viewmodel and 'sharedMaintenanceOrders' in main_viewmodel
+assert 'views:MaintenanceIntakeView' in main_xaml
+
+maintenance_intake_xaml = maintenance_intake_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'OpenAddCustomerWindowCommand',
+    'DeviceTypeOptions',
+    'DeviceBrands',
+    'DeviceModel',
+    'SerialOrImei',
+    'PasscodeValue',
+    'CommonFaults',
+    'ReportedFault',
+    'ConditionChecklist',
+    'AccessoryChecklist',
+    'EstimatedCostText',
+    'IsEstimatePendingInspection',
+    'SaveOrderCommand',
+    'SaveAndPrintCommand',
+    'FilteredRecentOrders',
+    'PreviewOrderReceiptCommand',
+    'CopyCustomerForNewOrderCommand',
+):
+    assert token in maintenance_intake_xaml, f'MaintenanceIntake UI missing expected token: {token}'
+
+maintenance_receipt_xaml = maintenance_receipt_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'SelectCustomerReceiptModeCommand',
+    'SelectDeviceStickerModeCommand',
+    'IsCustomerReceiptMode',
+    'IsDeviceStickerMode',
+    'OrderNumber',
+):
+    assert token in maintenance_receipt_xaml, f'MaintenanceReceiptPreviewWindow missing expected token: {token}'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
     root / 'src/ProjectZ/Models/InvoiceDesignModels.cs',
     root / 'src/ProjectZ/Models/ReturnExchangeDesignModels.cs',
     root / 'src/ProjectZ/Models/PurchaseDesignModels.cs',
+    root / 'src/ProjectZ/Models/MaintenanceDesignModels.cs',
     root / 'src/ProjectZ/ViewModels/PosViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceItemViewModel.cs',
@@ -546,6 +586,8 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/PurchaseInvoicePrintPreviewViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PurchaseInvoiceDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/PurchaseInvoicesViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/MaintenanceIntakeViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/MaintenanceReceiptPreviewViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AddSupplierWindow.xaml.cs',
@@ -561,6 +603,8 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/PurchaseReturnWindow.xaml.cs',
     root / 'src/ProjectZ/Views/PaySupplierInvoiceWindow.xaml.cs',
     root / 'src/ProjectZ/Views/PurchaseInvoicePrintPreviewWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceIntakeView.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceReceiptPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/InvoiceReturnWindow.xaml.cs',
     root / 'src/ProjectZ/Views/CollectInvoicePaymentWindow.xaml.cs',
@@ -605,5 +649,5 @@ for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
         res = m.group(1)
         assert res in local_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
 
-print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry & PurchaseInvoices UI design views, full audit, returns, print preview, no backend')
+print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry, PurchaseInvoices & MaintenanceIntake UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
