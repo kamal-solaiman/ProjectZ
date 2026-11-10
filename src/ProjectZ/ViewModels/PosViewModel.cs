@@ -9,7 +9,6 @@ public sealed class PosViewModel : ObservableObject
 {
     private readonly Func<PosInvoiceViewModel, string>? onInvoiceCompleted;
     private int nextInvoiceNumber = 1;
-    private int nextCustomerId = 100;
     private PosInvoiceViewModel activeInvoice = null!;
     private string productSearchText = "";
     private string selectedCategoryFilter = "الكل";
@@ -21,7 +20,7 @@ public sealed class PosViewModel : ObservableObject
     public ObservableCollection<PosCategoryFilterViewModel> CategoryFilters { get; } = [];
     public ObservableCollection<PosProductDesignItem> Catalog { get; }
     public ObservableCollection<PosProductDesignItem> FilteredCatalog { get; } = [];
-    public ObservableCollection<PosCustomerDesignItem> Customers { get; } = [];
+    public ObservableCollection<PosCustomerDesignItem> Customers { get; }
     public ObservableCollection<PosInvoiceViewModel> Invoices { get; } = [];
 
     public PosInvoiceViewModel ActiveInvoice
@@ -106,25 +105,24 @@ public sealed class PosViewModel : ObservableObject
     public ActionCommand CompleteInvoicePreviewCommand { get; }
     public ActionCommand FocusBarcodeCommand { get; }
 
-    public PosViewModel() : this("المشرف", null, null)
+    public PosViewModel() : this("المشرف", null, null, null)
     {
     }
 
     public PosViewModel(
         string cashierName,
         ObservableCollection<PosProductDesignItem>? sharedCatalog = null,
-        Func<PosInvoiceViewModel, string>? onInvoiceCompleted = null)
+        Func<PosInvoiceViewModel, string>? onInvoiceCompleted = null,
+        ObservableCollection<PosCustomerDesignItem>? sharedCustomers = null)
     {
         this.onInvoiceCompleted = onInvoiceCompleted;
         CashierName = cashierName;
         Catalog = sharedCatalog ?? PosDesignSeedData.CreateSharedSampleCatalog();
+        Customers = sharedCustomers ?? CreateDefaultCustomers();
         foreach (var title in PosDesignSeedData.CategoryFilters)
             CategoryFilters.Add(new PosCategoryFilterViewModel(title, title == "الكل"));
         SyncCategoryFiltersFromCatalog();
         Catalog.CollectionChanged += OnCatalogCollectionChanged;
-
-        foreach (var customer in PosDesignSeedData.CreateSampleCustomers())
-            Customers.Add(customer);
 
         NewInvoiceCommand = new ActionCommand(CreateAndSelectNewInvoice);
         SelectInvoiceCommand = new RelayCommand<PosInvoiceViewModel>(invoice =>
@@ -251,6 +249,14 @@ public sealed class PosViewModel : ObservableObject
         SetStatus($"لم يتم العثور على منتج بالباركود أو الاسم «{query}».", true);
     }
 
+    private static ObservableCollection<PosCustomerDesignItem> CreateDefaultCustomers()
+    {
+        var list = new ObservableCollection<PosCustomerDesignItem>();
+        foreach (var customer in PosDesignSeedData.CreateSampleCustomers())
+            list.Add(customer);
+        return list;
+    }
+
     private void RequestOpenAddCustomerWindow()
     {
         var initialSearch = ActiveInvoice.CustomerSearchText.Trim();
@@ -258,9 +264,10 @@ public sealed class PosViewModel : ObservableObject
             string.IsNullOrWhiteSpace(initialSearch) ? null : initialSearch,
             createdCustomer =>
             {
+                var nextId = Customers.Select(c => c.Id).DefaultIfEmpty(99).Max() + 1;
                 var customerWithId = new PosCustomerDesignItem
                 {
-                    Id = nextCustomerId++,
+                    Id = nextId,
                     Name = createdCustomer.Name,
                     Phone = createdCustomer.Phone,
                     SecondaryPhone = createdCustomer.SecondaryPhone,

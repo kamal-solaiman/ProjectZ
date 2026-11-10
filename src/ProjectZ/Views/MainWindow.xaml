@@ -316,6 +316,20 @@
                         </Grid.Style>
                         <views:PurchaseInvoicesView DataContext="{Binding PurchaseInvoices}" />
                     </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMaintenanceIntakeSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:MaintenanceIntakeView DataContext="{Binding MaintenanceIntake}" />
+                    </Grid>
                 </Grid>
             </Border>
 

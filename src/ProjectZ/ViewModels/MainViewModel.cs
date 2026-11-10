@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 
@@ -18,6 +19,7 @@ public sealed class MainViewModel : ObservableObject
     public ReturnExchangeViewModel ReturnExchange { get; }
     public PurchaseEntryViewModel PurchaseEntry { get; }
     public PurchaseInvoicesViewModel PurchaseInvoices { get; }
+    public MaintenanceIntakeViewModel MaintenanceIntake { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
@@ -28,9 +30,11 @@ public sealed class MainViewModel : ObservableObject
     public bool IsReturnExchangeSelected => ReferenceEquals(selectedItem, Categories[0].Items[5]);
     public bool IsPurchaseEntrySelected => ReferenceEquals(selectedItem, Categories[1].Items[0]);
     public bool IsPurchaseInvoicesSelected => ReferenceEquals(selectedItem, Categories[1].Items[1]);
+    public bool IsMaintenanceIntakeSelected => ReferenceEquals(selectedItem, Categories[2].Items[0]);
     public bool IsImplementedScreenSelected =>
         IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
-        || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected;
+        || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
+        || IsMaintenanceIntakeSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -77,6 +81,8 @@ public sealed class MainViewModel : ObservableObject
 
         var sharedCatalog = PosDesignSeedData.CreateSharedSampleCatalog();
         var sharedCategories = PosDesignSeedData.CreateSharedCategories();
+        var sharedCustomers = new ObservableCollection<PosCustomerDesignItem>(
+            PosDesignSeedData.CreateSampleCustomers());
         var sharedRegistrations = InventoryDesignSeedData.CreateSharedSampleRegistrations(sharedCatalog);
         var sharedSalesInvoices = InvoiceDesignSeedData.CreateSharedSampleInvoices(sharedCatalog, sharedRegistrations);
         var sharedReturnOperations = ReturnExchangeDesignSeedData.CreateSharedSampleOperations(sharedSalesInvoices);
@@ -85,6 +91,7 @@ public sealed class MainViewModel : ObservableObject
             sharedCatalog,
             sharedRegistrations,
             sharedSuppliers);
+        var sharedMaintenanceOrders = MaintenanceDesignSeedData.CreateSharedSampleOrders(sharedCustomers);
 
         Inventory = new InventoryViewModel(
             sharedCatalog,
@@ -129,10 +136,15 @@ public sealed class MainViewModel : ObservableObject
             Inventory.NotifyExternalInventoryChanged,
             ReturnExchange.NotifyExternalDataChanged,
             PurchaseEntry.NotifyExternalCatalogChanged);
+        MaintenanceIntake = new MaintenanceIntakeViewModel(
+            user.DisplayName,
+            sharedCustomers,
+            sharedMaintenanceOrders);
         Pos = new PosViewModel(
             user.DisplayName,
             sharedCatalog,
-            posInvoice => Invoices.RecordCompletedPosSale(posInvoice).InvoiceNumber);
+            posInvoice => Invoices.RecordCompletedPosSale(posInvoice).InvoiceNumber,
+            sharedCustomers);
         AddProduct = new AddProductViewModel(
             sharedCatalog,
             () => SelectItem(Categories[0].Items[0]),
@@ -188,6 +200,8 @@ public sealed class MainViewModel : ObservableObject
             PurchaseEntry.NotifyExternalCatalogChanged();
         else if (ReferenceEquals(item, Categories[1].Items[1]))
             PurchaseInvoices.NotifyExternalPurchasesChanged();
+        else if (ReferenceEquals(item, Categories[2].Items[0]))
+            MaintenanceIntake.NotifyExternalDataChanged();
 
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
@@ -197,6 +211,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsReturnExchangeSelected));
         Changed(nameof(IsPurchaseEntrySelected));
         Changed(nameof(IsPurchaseInvoicesSelected));
+        Changed(nameof(IsMaintenanceIntakeSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));
