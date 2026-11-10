@@ -14,13 +14,15 @@ public sealed class MainViewModel : ObservableObject
     public AddProductViewModel AddProduct { get; }
     public InventoryViewModel Inventory { get; }
     public CategoriesViewModel ProductCategories { get; }
+    public InvoicesViewModel Invoices { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
     public bool IsAddProductSelected => ReferenceEquals(selectedItem, Categories[0].Items[1]);
     public bool IsInventorySelected => ReferenceEquals(selectedItem, Categories[0].Items[2]);
     public bool IsCategoriesSelected => ReferenceEquals(selectedItem, Categories[0].Items[3]);
-    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected;
+    public bool IsInvoicesSelected => ReferenceEquals(selectedItem, Categories[0].Items[4]);
+    public bool IsImplementedScreenSelected => IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected || IsInvoicesSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -68,12 +70,24 @@ public sealed class MainViewModel : ObservableObject
         var sharedCatalog = PosDesignSeedData.CreateSharedSampleCatalog();
         var sharedCategories = PosDesignSeedData.CreateSharedCategories();
         var sharedRegistrations = InventoryDesignSeedData.CreateSharedSampleRegistrations(sharedCatalog);
-        Pos = new PosViewModel(user.DisplayName, sharedCatalog);
+        var sharedSalesInvoices = InvoiceDesignSeedData.CreateSharedSampleInvoices(sharedCatalog, sharedRegistrations);
+
         Inventory = new InventoryViewModel(
             sharedCatalog,
             sharedRegistrations,
             () => SelectItem(Categories[0].Items[1]),
             sharedCategories);
+        Invoices = new InvoicesViewModel(
+            sharedSalesInvoices,
+            sharedCatalog,
+            sharedRegistrations,
+            user.DisplayName,
+            () => SelectItem(Categories[0].Items[0]),
+            Inventory.NotifyExternalInventoryChanged);
+        Pos = new PosViewModel(
+            user.DisplayName,
+            sharedCatalog,
+            posInvoice => Invoices.RecordCompletedPosSale(posInvoice).InvoiceNumber);
         AddProduct = new AddProductViewModel(
             sharedCatalog,
             () => SelectItem(Categories[0].Items[0]),
@@ -123,6 +137,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsAddProductSelected));
         Changed(nameof(IsInventorySelected));
         Changed(nameof(IsCategoriesSelected));
+        Changed(nameof(IsInvoicesSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));

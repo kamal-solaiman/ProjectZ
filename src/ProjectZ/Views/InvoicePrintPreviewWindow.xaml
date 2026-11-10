@@ -1,0 +1,473 @@
+<Window x:Class="ProjectZ.Views.InvoicePrintPreviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ProjectZ | معاينة وطباعة الفاتورة"
+        Width="740"
+        Height="720"
+        MinWidth="620"
+        MinHeight="560"
+        FlowDirection="LeftToRight"
+        Language="ar-EG"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Resources>
+        <Style x:Key="PrintModePillStyle" TargetType="Button">
+            <Setter Property="Background" Value="#E2E8F0" />
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="Padding" Value="14,6" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Body"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Body" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18" FlowDirection="LeftToRight">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0"
+                Margin="0,0,0,12"
+                Padding="16,12"
+                CornerRadius="14"
+                Background="#102E48">
+            <Grid FlowDirection="LeftToRight">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Padding="10,5" CornerRadius="8" Background="#1E3A5F" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding CurrentModeLabel}"
+                               Style="{StaticResource PosCenterTextStyle}"
+                               FontSize="12"
+                               FontWeight="Bold"
+                               Foreground="#6EE7D8" />
+                </Border>
+
+                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                    <TextBlock Text="معاينة طباعة فاتورة المبيعات"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="17"
+                               FontWeight="Bold"
+                               Foreground="White" />
+                    <TextBlock Text="{Binding Invoice.InvoiceNumber}"
+                               Style="{StaticResource PosLtrTextStyle}"
+                               HorizontalAlignment="Right"
+                               Margin="0,3,0,0"
+                               FontFamily="Consolas, Segoe UI"
+                               FontSize="13"
+                               FontWeight="Bold"
+                               Foreground="#BAE6FD" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Mode Selector -->
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    FlowDirection="RightToLeft"
+                    Margin="0,0,0,10">
+            <Button Content="إيصال حراري (80 مم)"
+                    Margin="0,0,8,0"
+                    Command="{Binding SelectThermalModeCommand}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource PrintModePillStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsThermalMode}" Value="True">
+                                <Setter Property="Background" Value="#0F766E" />
+                                <Setter Property="Foreground" Value="White" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button Content="فاتورة رسمية (A4)"
+                    Command="{Binding SelectA4ModeCommand}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource PrintModePillStyle}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsA4Mode}" Value="True">
+                                <Setter Property="Background" Value="#102E48" />
+                                <Setter Property="Foreground" Value="White" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </StackPanel>
+
+        <!-- Preview Tray -->
+        <Border Grid.Row="2"
+                Padding="16"
+                CornerRadius="12"
+                Background="#E2E8F0"
+                BorderBrush="#CBD5E1"
+                BorderThickness="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Auto"
+                          FlowDirection="LeftToRight">
+                <Grid HorizontalAlignment="Center">
+                    <!-- Mode 1: Thermal 80mm Receipt (302 DIP = 80mm at 96 DPI) -->
+                    <Border Width="312"
+                            Padding="14,16"
+                            Background="White"
+                            BorderBrush="#94A3B8"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Visibility="{Binding IsThermalMode, Converter={StaticResource BoolToVis}}">
+                        <StackPanel FlowDirection="RightToLeft">
+                            <TextBlock Text="ProjectZ للموبايل والإكسسوارات"
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       FontSize="14.5"
+                                       FontWeight="Bold"
+                                       Foreground="#0F172A" />
+                            <TextBlock Text="فاتورة مبيعات ضريبية مبسطة"
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       Margin="0,2,0,8"
+                                       FontSize="11"
+                                       Foreground="#475569" />
+
+                            <Border BorderBrush="#94A3B8" BorderThickness="0,1,0,1" Padding="0,6" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <Grid FlowDirection="RightToLeft">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="رقم الفاتورة:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#475569" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.InvoiceNumber}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontFamily="Consolas, Segoe UI" FontSize="11" FontWeight="Bold" />
+                                    </Grid>
+                                    <Grid Margin="0,2,0,0" FlowDirection="RightToLeft">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="التاريخ:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#475569" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.IssuedFullDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="11" />
+                                    </Grid>
+                                    <Grid Margin="0,2,0,0" FlowDirection="RightToLeft">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="الكاشير:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#475569" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.CashierName}" Style="{StaticResource PosRtlTextStyle}" Margin="6,0,0,0" FontSize="11" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <Grid Margin="0,2,0,0" FlowDirection="RightToLeft">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="العميل:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#475569" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.CustomerName}" Style="{StaticResource PosRtlTextStyle}" Margin="6,0,0,0" FontSize="11" FontWeight="SemiBold" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Receipt Line Items -->
+                            <Grid Margin="0,0,0,4" FlowDirection="RightToLeft">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="34" />
+                                    <ColumnDefinition Width="58" />
+                                    <ColumnDefinition Width="66" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="الصنف" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" FontWeight="Bold" />
+                                <TextBlock Grid.Column="1" Text="ك" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" />
+                                <TextBlock Grid.Column="2" Text="سعر" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" />
+                                <TextBlock Grid.Column="3" Text="إجمالي" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding Invoice.Items}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="0,4" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+                                            <StackPanel>
+                                                <Grid FlowDirection="RightToLeft">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="34" />
+                                                        <ColumnDefinition Width="58" />
+                                                        <ColumnDefinition Width="66" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding ProductName}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" TextWrapping="Wrap" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding QuantityDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding UnitPriceDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="10" />
+                                                    <TextBlock Grid.Column="3" Text="{Binding LineGrossTotalDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" />
+                                                </Grid>
+                                                <TextBlock Text="{Binding SerialSummary}"
+                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                           FontSize="9.5"
+                                                           Foreground="#64748B"
+                                                           Visibility="{Binding TrackSerialNumber, Converter={StaticResource BoolToVis}}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Receipt Totals -->
+                            <Border Margin="0,6,0,8" Padding="0,6" BorderBrush="#0F172A" BorderThickness="0,1.5,0,1.5">
+                                <StackPanel>
+                                    <Grid FlowDirection="RightToLeft">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="الإجمالي الفرعي:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.SubtotalDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <Grid Margin="0,2,0,0" FlowDirection="RightToLeft" Visibility="{Binding Invoice.HasDiscount, Converter={StaticResource BoolToVis}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="الخصم:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.EffectiveDiscountDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" Foreground="#B42318" />
+                                    </Grid>
+                                    <Grid Margin="0,4,0,0" FlowDirection="RightToLeft">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="الصافي المطلوب:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.NetTotalDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="12.5" FontWeight="Bold" />
+                                    </Grid>
+                                    <Grid Margin="0,4,0,0" FlowDirection="RightToLeft">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="طريقة السداد:" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#475569" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.PaymentMethodSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <Grid Margin="0,2,0,0" FlowDirection="RightToLeft" Visibility="{Binding Invoice.HasRemaining, Converter={StaticResource BoolToVis}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="المتبقي الآجل:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#B42318" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Invoice.RemainingAmountDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#B42318" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Path Data="M0,0 H3 V26 H0 Z M5,0 H6 V26 H5 Z M9,0 H13 V26 H9 Z M15,0 H17 V26 H15 Z M20,0 H21 V26 H20 Z M23,0 H27 V26 H23 Z M29,0 H30 V26 H29 Z M33,0 H35 V26 H33 Z M38,0 H42 V26 H38 Z M44,0 H45 V26 H44 Z M48,0 H50 V26 H48 Z M52,0 H55 V26 H52 Z M57,0 H59 V26 H57 Z M61,0 H64 V26 H61 Z M66,0 H68 V26 H66 Z M71,0 H74 V26 H71 Z M76,0 H78 V26 H76 Z M80,0 H83 V26 H80 Z"
+                                  Fill="#0F172A"
+                                  Stretch="Fill"
+                                  Width="190"
+                                  Height="26"
+                                  HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding Invoice.InvoiceNumber}"
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       Margin="0,3,0,0"
+                                       FontFamily="Consolas, Segoe UI"
+                                       FontSize="10.5"
+                                       FontWeight="Bold" />
+                            <TextBlock Text="شكرًا لتعاملكم معنا · يُرجى الاحتفاظ بالفاتورة للضمان والاستبدال"
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       Margin="0,6,0,0"
+                                       FontSize="10"
+                                       Foreground="#64748B"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Mode 2: Formal A4 Invoice -->
+                    <Border Width="620"
+                            Padding="22"
+                            Background="White"
+                            BorderBrush="#94A3B8"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Visibility="{Binding IsA4Mode, Converter={StaticResource BoolToVis}}">
+                        <StackPanel FlowDirection="RightToLeft">
+                            <Grid Margin="0,0,0,14" FlowDirection="RightToLeft">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="ProjectZ — فاتورة مبيعات تفصيلية"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="18"
+                                               FontWeight="Bold"
+                                               Foreground="#102E48" />
+                                    <TextBlock Text="{Binding Invoice.IssuedFullDisplay}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               Margin="0,3,0,0"
+                                               FontSize="12"
+                                               Foreground="#64748B" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Padding="12,6" CornerRadius="8" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Invoice.InvoiceNumber}" Style="{StaticResource PosCenterTextStyle}" FontFamily="Consolas, Segoe UI" FontSize="14" FontWeight="Bold" Foreground="#102E48" />
+                                        <TextBlock Text="{Binding Invoice.StatusTitle}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#0F766E" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Border Margin="0,0,0,12" Padding="10" CornerRadius="8" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1">
+                                <Grid FlowDirection="RightToLeft">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Invoice.CustomerName, StringFormat=العميل: {0}}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" />
+                                        <TextBlock Text="{Binding Invoice.CustomerPhoneDisplay, StringFormat=الهاتف: {0}}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11.5" Foreground="#475569" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding Invoice.CashierName, StringFormat=الكاشير: {0}}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Invoice.DefaultPriceTierTitle, StringFormat=فئة التسعير: {0}}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11.5" Foreground="#475569" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- A4 Table Header -->
+                            <Border Padding="10,7" Background="#102E48" CornerRadius="6,6,0,0">
+                                <Grid FlowDirection="RightToLeft">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="32" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="60" />
+                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="85" />
+                                        <ColumnDefinition Width="95" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="#" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#BAE6FD" />
+                                    <TextBlock Grid.Column="1" Text="الصنف والباركود / السيريال" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="White" />
+                                    <TextBlock Grid.Column="2" Text="الفئة" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="White" />
+                                    <TextBlock Grid.Column="3" Text="الكمية" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="White" />
+                                    <TextBlock Grid.Column="4" Text="السعر" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="White" />
+                                    <TextBlock Grid.Column="5" Text="الإجمالي" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#6EE7D8" />
+                                </Grid>
+                            </Border>
+
+                            <ItemsControl ItemsSource="{Binding Invoice.Items}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="10,7" BorderBrush="#E2E8F0" BorderThickness="1,0,1,1">
+                                            <Grid FlowDirection="RightToLeft">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="32" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="60" />
+                                                    <ColumnDefinition Width="52" />
+                                                    <ColumnDefinition Width="85" />
+                                                    <ColumnDefinition Width="95" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding LineNumber}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" />
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding ProductName}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding SerialSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="10" Foreground="#64748B" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding PriceTierTitle}" Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="#475569" />
+                                                <TextBlock Grid.Column="3" Text="{Binding QuantityDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" />
+                                                <TextBlock Grid.Column="4" Text="{Binding UnitPriceDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" />
+                                                <TextBlock Grid.Column="5" Text="{Binding LineGrossTotalDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- A4 Totals & Payments -->
+                            <Grid Margin="0,12,0,0" FlowDirection="RightToLeft">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Padding="10" CornerRadius="8" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="تفصيل السداد:" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#102E48" Margin="0,0,0,4" />
+                                        <TextBlock Text="{Binding Invoice.PaymentMethodSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Invoice.NetCollectedDisplay, StringFormat=صافي المحصل: {0}}" Style="{StaticResource PosRtlTextStyle}" Margin="0,3,0,0" FontSize="11.5" Foreground="#0F766E" />
+                                        <TextBlock Text="{Binding Invoice.RemainingAmountDisplay, StringFormat=المتبقي: {0}}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11.5" FontWeight="Bold" Foreground="#B42318" Visibility="{Binding Invoice.HasRemaining, Converter={StaticResource BoolToVis}}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Padding="10" CornerRadius="8" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Invoice.SubtotalDisplay, StringFormat=الإجمالي الفرعي: {0}}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" />
+                                        <TextBlock Text="{Binding Invoice.EffectiveDiscountDisplay, StringFormat=الخصم: {0}}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11.5" Foreground="#B42318" />
+                                        <TextBlock Text="{Binding Invoice.NetTotalDisplay, StringFormat=صافي الفاتورة: {0}}" Style="{StaticResource PosRtlTextStyle}" Margin="0,4,0,0" FontSize="14" FontWeight="Bold" Foreground="#0F766E" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Print Preview Status Message -->
+        <Border Grid.Row="3"
+                Margin="0,10,0,0"
+                Padding="10,7"
+                CornerRadius="8"
+                Background="#ECFDF5"
+                BorderBrush="#A7F3D0"
+                BorderThickness="1"
+                Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="{Binding StatusMessage}"
+                       Style="{StaticResource PosRtlTextStyle}"
+                       FontSize="12"
+                       FontWeight="SemiBold"
+                       Foreground="#065F46" />
+        </Border>
+
+        <!-- Footer Buttons -->
+        <Grid Grid.Row="4" Margin="0,12,0,0" FlowDirection="LeftToRight">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0"
+                    Content="إغلاق"
+                    Style="{StaticResource PosSecondaryButtonStyle}"
+                    MinWidth="110"
+                    Padding="16,9"
+                    IsCancel="True"
+                    Command="{Binding CloseCommand}" />
+
+            <Button Grid.Column="2"
+                    Content="طباعة الفاتورة"
+                    Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                    MinWidth="180"
+                    Padding="18,9"
+                    IsDefault="True"
+                    Command="{Binding PrintCommand}" />
+        </Grid>
+    </Grid>
+</Window>

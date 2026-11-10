@@ -7,6 +7,7 @@ namespace ProjectZ.ViewModels;
 
 public sealed class PosViewModel : ObservableObject
 {
+    private readonly Func<PosInvoiceViewModel, string>? onInvoiceCompleted;
     private int nextInvoiceNumber = 1;
     private int nextCustomerId = 100;
     private PosInvoiceViewModel activeInvoice = null!;
@@ -105,12 +106,16 @@ public sealed class PosViewModel : ObservableObject
     public ActionCommand CompleteInvoicePreviewCommand { get; }
     public ActionCommand FocusBarcodeCommand { get; }
 
-    public PosViewModel() : this("المشرف", null)
+    public PosViewModel() : this("المشرف", null, null)
     {
     }
 
-    public PosViewModel(string cashierName, ObservableCollection<PosProductDesignItem>? sharedCatalog = null)
+    public PosViewModel(
+        string cashierName,
+        ObservableCollection<PosProductDesignItem>? sharedCatalog = null,
+        Func<PosInvoiceViewModel, string>? onInvoiceCompleted = null)
     {
+        this.onInvoiceCompleted = onInvoiceCompleted;
         CashierName = cashierName;
         Catalog = sharedCatalog ?? PosDesignSeedData.CreateSharedSampleCatalog();
         foreach (var title in PosDesignSeedData.CategoryFilters)
@@ -292,6 +297,20 @@ public sealed class PosViewModel : ObservableObject
         var changeNote = ActiveInvoice.HasChange
             ? $" · الباقي للعميل: {ActiveInvoice.ChangeAmountDisplay}"
             : "";
+
+        if (onInvoiceCompleted is not null)
+        {
+            var customerName = ActiveInvoice.SelectedCustomer.Name;
+            var paymentMix = ActiveInvoice.PaymentMixSummary;
+            var netTotal = ActiveInvoice.NetTotalDisplay;
+            var savedNo = onInvoiceCompleted(ActiveInvoice);
+
+            CloseInvoice(ActiveInvoice);
+            SetStatus(
+                $"تم حفظ الفاتورة {savedNo} للعميل «{customerName}» ({paymentMix} | الإجمالي: {netTotal}{changeNote}) وإضافتها لقسم الفواتير وتحديث المخزون.",
+                false);
+            return;
+        }
 
         SetStatus(
             $"وضع التصميم (بدون Backend): الفاتورة #{ActiveInvoice.InvoiceNumber} للعميل «{ActiveInvoice.SelectedCustomer.Name}» جاهزة ({ActiveInvoice.PaymentMixSummary} | الإجمالي: {ActiveInvoice.NetTotalDisplay}{changeNote}).",

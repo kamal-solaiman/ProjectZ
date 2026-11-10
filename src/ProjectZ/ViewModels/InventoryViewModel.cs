@@ -282,6 +282,13 @@ public sealed class InventoryViewModel : ObservableObject
         NotifyKpis();
     }
 
+    public void NotifyExternalInventoryChanged()
+    {
+        RefreshCatalogFilter();
+        RefreshDamagedFilter();
+        NotifyKpis();
+    }
+
     private void OpenRegistrationsDialog(PosProductDesignItem? product)
     {
         if (product is null) return;
