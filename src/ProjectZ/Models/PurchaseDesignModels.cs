@@ -9,7 +9,9 @@ public enum PurchaseInvoiceStatus
     Paid = 0,
     PartialCredit = 1,
     FullCredit = 2,
-    Cancelled = 3
+    Cancelled = 3,
+    PartiallyReturned = 4,
+    FullyReturned = 5
 }
 
 public enum PurchasePaymentPresetMode
@@ -81,22 +83,105 @@ public sealed record PurchaseInvoiceActivityEntry
 
 public sealed class PurchaseInvoiceLineDesignItem : ObservableObject
 {
-    public int LineNumber { get; init; }
+    private int lineNumber;
+    private int quantity;
+    private int returnedQuantity;
+    private decimal unitPurchaseCost;
+    private IReadOnlyList<int> unitRegistrationIds = [];
+    private IReadOnlyList<string> serialNumbers = [];
+
+    public int LineNumber
+    {
+        get => lineNumber;
+        set
+        {
+            if (lineNumber == value) return;
+            lineNumber = value;
+            Changed();
+        }
+    }
+
     public int ProductId { get; init; }
     public string Barcode { get; init; } = "";
     public string ProductName { get; init; } = "";
     public string Category { get; init; } = "";
     public string Unit { get; init; } = "قطعة";
     public bool TrackSerialNumber { get; init; }
-    public IReadOnlyList<int> UnitRegistrationIds { get; init; } = [];
-    public IReadOnlyList<string> SerialNumbers { get; init; } = [];
-    public int Quantity { get; init; }
-    public decimal UnitPurchaseCost { get; init; }
 
+    public IReadOnlyList<int> UnitRegistrationIds
+    {
+        get => unitRegistrationIds;
+        set
+        {
+            unitRegistrationIds = value ?? [];
+            Changed();
+            Changed(nameof(SerialSummary));
+        }
+    }
+
+    public IReadOnlyList<string> SerialNumbers
+    {
+        get => serialNumbers;
+        set
+        {
+            serialNumbers = value ?? [];
+            Changed();
+            Changed(nameof(SerialSummary));
+        }
+    }
+
+    public int Quantity
+    {
+        get => quantity;
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (quantity == clamped) return;
+            quantity = clamped;
+            Changed();
+            NotifyLineChanged();
+        }
+    }
+
+    public int ReturnedQuantity
+    {
+        get => returnedQuantity;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, Quantity);
+            if (returnedQuantity == clamped) return;
+            returnedQuantity = clamped;
+            Changed();
+            NotifyLineChanged();
+        }
+    }
+
+    public decimal UnitPurchaseCost
+    {
+        get => unitPurchaseCost;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (unitPurchaseCost == clamped) return;
+            unitPurchaseCost = clamped;
+            Changed();
+            NotifyLineChanged();
+        }
+    }
+
+    public int RemainingQuantity => Math.Max(0, Quantity - ReturnedQuantity);
+    public bool HasReturnedQuantity => ReturnedQuantity > 0;
     public decimal LineTotal => Quantity * UnitPurchaseCost;
+    public decimal ReturnedAmount => ReturnedQuantity * UnitPurchaseCost;
+    public decimal NetActiveLineTotal => RemainingQuantity * UnitPurchaseCost;
+
     public string QuantityDisplay => Quantity.ToString(CultureInfo.InvariantCulture);
+    public string ReturnedQuantityDisplay => ReturnedQuantity.ToString(CultureInfo.InvariantCulture);
+    public string RemainingQuantityDisplay => RemainingQuantity.ToString(CultureInfo.InvariantCulture);
     public string UnitPurchaseCostDisplay => PosFormatting.FormatCurrency(UnitPurchaseCost);
     public string LineTotalDisplay => PosFormatting.FormatCurrency(LineTotal);
+    public string ReturnedAmountDisplay => PosFormatting.FormatCurrency(ReturnedAmount);
+    public string NetActiveLineTotalDisplay => PosFormatting.FormatCurrency(NetActiveLineTotal);
 
     public string SerialSummary
     {
@@ -109,34 +194,159 @@ public sealed class PurchaseInvoiceLineDesignItem : ObservableObject
             return TrackSerialNumber ? "تتبع سيريال" : "بدون سيريال";
         }
     }
+
+    public void NotifyLineChanged()
+    {
+        Changed(nameof(RemainingQuantity));
+        Changed(nameof(HasReturnedQuantity));
+        Changed(nameof(LineTotal));
+        Changed(nameof(ReturnedAmount));
+        Changed(nameof(NetActiveLineTotal));
+        Changed(nameof(QuantityDisplay));
+        Changed(nameof(ReturnedQuantityDisplay));
+        Changed(nameof(RemainingQuantityDisplay));
+        Changed(nameof(UnitPurchaseCostDisplay));
+        Changed(nameof(LineTotalDisplay));
+        Changed(nameof(ReturnedAmountDisplay));
+        Changed(nameof(NetActiveLineTotalDisplay));
+    }
 }
 
 public sealed class PurchaseInvoiceDesignItem : ObservableObject
 {
     private PurchaseInvoiceStatus status = PurchaseInvoiceStatus.Paid;
+    private string supplierInvoiceNumber = "";
+    private DateTime issuedAt;
+    private int supplierId;
+    private string supplierName = "";
+    private string supplierPhone = "";
+    private string supplierCompany = "";
+    private string supplierAddress = "";
+    private decimal discountAmount;
     private decimal cashPaid;
     private decimal vodafoneCashPaid;
     private string vodafoneCashReference = "";
     private decimal instaPayPaid;
     private string instaPayReference = "";
+    private decimal supplierRefundReceived;
     private string notes = "";
+    private bool isSelected;
 
     public int Id { get; init; }
     public string InvoiceNumber { get; init; } = "";
-    public string SupplierInvoiceNumber { get; init; } = "";
-    public DateTime IssuedAt { get; init; }
     public string BuyerName { get; init; } = "";
 
-    public int SupplierId { get; init; }
-    public string SupplierName { get; init; } = "";
-    public string SupplierPhone { get; init; } = "";
-    public string SupplierCompany { get; init; } = "";
-    public string SupplierAddress { get; init; } = "";
+    public string SupplierInvoiceNumber
+    {
+        get => supplierInvoiceNumber;
+        set
+        {
+            if (supplierInvoiceNumber == value) return;
+            supplierInvoiceNumber = value;
+            Changed();
+            Changed(nameof(SupplierInvoiceNumberDisplay));
+            Changed(nameof(HasSupplierInvoiceNumber));
+        }
+    }
 
-    public decimal DiscountAmount { get; init; }
+    public DateTime IssuedAt
+    {
+        get => issuedAt;
+        set
+        {
+            if (issuedAt == value) return;
+            issuedAt = value;
+            Changed();
+            Changed(nameof(IssuedDateDisplay));
+            Changed(nameof(IssuedTimeDisplay));
+            Changed(nameof(IssuedFullDisplay));
+        }
+    }
+
+    public int SupplierId
+    {
+        get => supplierId;
+        set
+        {
+            if (supplierId == value) return;
+            supplierId = value;
+            Changed();
+        }
+    }
+
+    public string SupplierName
+    {
+        get => supplierName;
+        set
+        {
+            if (supplierName == value) return;
+            supplierName = value;
+            Changed();
+        }
+    }
+
+    public string SupplierPhone
+    {
+        get => supplierPhone;
+        set
+        {
+            if (supplierPhone == value) return;
+            supplierPhone = value;
+            Changed();
+            Changed(nameof(SupplierPhoneDisplay));
+        }
+    }
+
+    public string SupplierCompany
+    {
+        get => supplierCompany;
+        set
+        {
+            if (supplierCompany == value) return;
+            supplierCompany = value;
+            Changed();
+            Changed(nameof(SupplierCompanyDisplay));
+        }
+    }
+
+    public string SupplierAddress
+    {
+        get => supplierAddress;
+        set
+        {
+            if (supplierAddress == value) return;
+            supplierAddress = value;
+            Changed();
+            Changed(nameof(SupplierAddressDisplay));
+        }
+    }
+
+    public decimal DiscountAmount
+    {
+        get => discountAmount;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (discountAmount == clamped) return;
+            discountAmount = clamped;
+            Changed();
+            NotifyFinancialsChanged();
+        }
+    }
 
     public ObservableCollection<PurchaseInvoiceLineDesignItem> Items { get; } = [];
     public ObservableCollection<PurchaseInvoiceActivityEntry> ActivityLog { get; } = [];
+
+    public bool IsSelected
+    {
+        get => isSelected;
+        set
+        {
+            if (isSelected == value) return;
+            isSelected = value;
+            Changed();
+        }
+    }
 
     public PurchaseInvoiceStatus Status
     {
@@ -146,11 +356,7 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
             if (status == value) return;
             status = value;
             Changed();
-            Changed(nameof(StatusTitle));
-            Changed(nameof(IsPaid));
-            Changed(nameof(IsPartialCredit));
-            Changed(nameof(IsFullCredit));
-            Changed(nameof(IsCancelled));
+            NotifyStatusChanged();
             NotifyFinancialsChanged();
         }
     }
@@ -215,6 +421,19 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
         }
     }
 
+    public decimal SupplierRefundReceived
+    {
+        get => supplierRefundReceived;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (supplierRefundReceived == clamped) return;
+            supplierRefundReceived = clamped;
+            Changed();
+            NotifyFinancialsChanged();
+        }
+    }
+
     public string Notes
     {
         get => notes;
@@ -239,36 +458,54 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
 
     public int TotalLineCount => Items.Count;
     public int TotalUnitsCount => Items.Sum(i => i.Quantity);
-    public string ItemsAndUnitsSummary =>
-        $"{TotalLineCount} {(TotalLineCount == 1 ? "صنف" : "أصناف")} / {TotalUnitsCount} قطعة";
+    public int TotalReturnedUnitsCount => Items.Sum(i => i.ReturnedQuantity);
+    public int ActiveUnitsCount => Items.Sum(i => i.RemainingQuantity);
+    public string ItemsAndUnitsSummary => TotalReturnedUnitsCount > 0
+        ? $"{TotalLineCount} {(TotalLineCount == 1 ? "صنف" : "أصناف")} / {ActiveUnitsCount} من {TotalUnitsCount} قطعة"
+        : $"{TotalLineCount} {(TotalLineCount == 1 ? "صنف" : "أصناف")} / {TotalUnitsCount} قطعة";
 
     public decimal Subtotal => Items.Sum(i => i.LineTotal);
-    public decimal EffectiveDiscount => Math.Min(Subtotal, DiscountAmount);
-    public decimal NetTotal => Math.Max(0m, Subtotal - EffectiveDiscount);
-    public decimal TotalPaid => CashPaid + VodafoneCashPaid + InstaPayPaid;
-    public decimal RemainingPayable => Status == PurchaseInvoiceStatus.Cancelled
+    public decimal ReturnedGoodsTotal => Items.Sum(i => i.ReturnedAmount);
+    public bool HasReturnedGoods => ReturnedGoodsTotal > 0m;
+    public decimal ActiveGrossTotal => Math.Max(0m, Subtotal - ReturnedGoodsTotal);
+    public decimal EffectiveDiscount => Math.Min(ActiveGrossTotal, DiscountAmount);
+    public decimal NetTotal => Status == PurchaseInvoiceStatus.Cancelled
         ? 0m
-        : Math.Max(0m, NetTotal - TotalPaid);
+        : Math.Max(0m, ActiveGrossTotal - EffectiveDiscount);
+    public decimal TotalPaid => CashPaid + VodafoneCashPaid + InstaPayPaid;
+    public decimal NetCashOutflow => Status == PurchaseInvoiceStatus.Cancelled
+        ? 0m
+        : Math.Max(0m, TotalPaid - SupplierRefundReceived);
+    public decimal RemainingPayable => Status == PurchaseInvoiceStatus.Cancelled || Status == PurchaseInvoiceStatus.FullyReturned
+        ? 0m
+        : Math.Max(0m, NetTotal - NetCashOutflow);
 
     public bool HasDiscount => EffectiveDiscount > 0m;
     public bool HasRemainingPayable => RemainingPayable > 0m;
     public bool HasCashPaid => CashPaid > 0m;
     public bool HasVodafoneCash => VodafoneCashPaid > 0m || !string.IsNullOrWhiteSpace(VodafoneCashReference);
     public bool HasInstaPay => InstaPayPaid > 0m || !string.IsNullOrWhiteSpace(InstaPayReference);
+    public bool HasSupplierRefundReceived => SupplierRefundReceived > 0m;
 
     public string SubtotalDisplay => PosFormatting.FormatCurrency(Subtotal);
+    public string ReturnedGoodsTotalDisplay => PosFormatting.FormatCurrency(ReturnedGoodsTotal);
+    public string ActiveGrossTotalDisplay => PosFormatting.FormatCurrency(ActiveGrossTotal);
     public string EffectiveDiscountDisplay => PosFormatting.FormatCurrency(EffectiveDiscount);
     public string NetTotalDisplay => PosFormatting.FormatCurrency(NetTotal);
     public string CashPaidDisplay => PosFormatting.FormatCurrency(CashPaid);
     public string VodafoneCashPaidDisplay => PosFormatting.FormatCurrency(VodafoneCashPaid);
     public string InstaPayPaidDisplay => PosFormatting.FormatCurrency(InstaPayPaid);
     public string TotalPaidDisplay => PosFormatting.FormatCurrency(TotalPaid);
+    public string SupplierRefundReceivedDisplay => PosFormatting.FormatCurrency(SupplierRefundReceived);
+    public string NetCashOutflowDisplay => PosFormatting.FormatCurrency(NetCashOutflow);
     public string RemainingPayableDisplay => PosFormatting.FormatCurrency(RemainingPayable);
 
     public string StatusTitle => Status switch
     {
         PurchaseInvoiceStatus.PartialCredit => "مدفوعة جزئيًا (آجل)",
         PurchaseInvoiceStatus.FullCredit => "آجل بالكامل",
+        PurchaseInvoiceStatus.PartiallyReturned => "مرتجع جزئي",
+        PurchaseInvoiceStatus.FullyReturned => "مرتجع كلي",
         PurchaseInvoiceStatus.Cancelled => "ملغاة",
         _ => "مدفوعة بالكامل"
     };
@@ -276,13 +513,21 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
     public bool IsPaid => Status == PurchaseInvoiceStatus.Paid;
     public bool IsPartialCredit => Status == PurchaseInvoiceStatus.PartialCredit;
     public bool IsFullCredit => Status == PurchaseInvoiceStatus.FullCredit;
+    public bool IsPartiallyReturned => Status == PurchaseInvoiceStatus.PartiallyReturned;
+    public bool IsFullyReturned => Status == PurchaseInvoiceStatus.FullyReturned;
     public bool IsCancelled => Status == PurchaseInvoiceStatus.Cancelled;
+
+    public bool CanPayRemaining => !IsCancelled && !IsFullyReturned && RemainingPayable > 0m;
+    public bool CanEdit => !IsCancelled && !IsFullyReturned;
+    public bool CanReturn => !IsCancelled && !IsFullyReturned && Items.Any(i => i.RemainingQuantity > 0);
+    public bool CanCancel => !IsCancelled && !IsFullyReturned;
 
     public string PaymentMethodSummary
     {
         get
         {
             if (IsCancelled) return "ملغاة";
+            if (IsFullyReturned) return HasSupplierRefundReceived ? "مرتجع كلي (مسترد)" : "مرتجع كلي";
 
             var channels = new List<string>(3);
             if (CashPaid > 0m) channels.Add("كاش");
@@ -301,29 +546,90 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
         }
     }
 
+    public void RecalculateStatusFromBalances()
+    {
+        if (IsCancelled) return;
+
+        var anyItems = Items.Count > 0;
+        var allReturned = anyItems && Items.All(i => i.RemainingQuantity == 0);
+        var anyReturned = Items.Any(i => i.ReturnedQuantity > 0);
+
+        if (allReturned)
+        {
+            Status = PurchaseInvoiceStatus.FullyReturned;
+        }
+        else if (anyReturned)
+        {
+            Status = PurchaseInvoiceStatus.PartiallyReturned;
+        }
+        else if (RemainingPayable <= 0m)
+        {
+            Status = PurchaseInvoiceStatus.Paid;
+        }
+        else if (NetCashOutflow <= 0m)
+        {
+            Status = PurchaseInvoiceStatus.FullCredit;
+        }
+        else
+        {
+            Status = PurchaseInvoiceStatus.PartialCredit;
+        }
+    }
+
+    private void NotifyStatusChanged()
+    {
+        Changed(nameof(StatusTitle));
+        Changed(nameof(IsPaid));
+        Changed(nameof(IsPartialCredit));
+        Changed(nameof(IsFullCredit));
+        Changed(nameof(IsPartiallyReturned));
+        Changed(nameof(IsFullyReturned));
+        Changed(nameof(IsCancelled));
+        Changed(nameof(CanPayRemaining));
+        Changed(nameof(CanEdit));
+        Changed(nameof(CanReturn));
+        Changed(nameof(CanCancel));
+    }
+
     public void NotifyFinancialsChanged()
     {
+        Changed(nameof(TotalLineCount));
         Changed(nameof(TotalUnitsCount));
+        Changed(nameof(TotalReturnedUnitsCount));
+        Changed(nameof(ActiveUnitsCount));
         Changed(nameof(ItemsAndUnitsSummary));
         Changed(nameof(Subtotal));
+        Changed(nameof(ReturnedGoodsTotal));
+        Changed(nameof(HasReturnedGoods));
+        Changed(nameof(ActiveGrossTotal));
         Changed(nameof(EffectiveDiscount));
         Changed(nameof(NetTotal));
         Changed(nameof(TotalPaid));
+        Changed(nameof(NetCashOutflow));
         Changed(nameof(RemainingPayable));
         Changed(nameof(HasDiscount));
         Changed(nameof(HasRemainingPayable));
         Changed(nameof(HasCashPaid));
         Changed(nameof(HasVodafoneCash));
         Changed(nameof(HasInstaPay));
+        Changed(nameof(HasSupplierRefundReceived));
         Changed(nameof(SubtotalDisplay));
+        Changed(nameof(ReturnedGoodsTotalDisplay));
+        Changed(nameof(ActiveGrossTotalDisplay));
         Changed(nameof(EffectiveDiscountDisplay));
         Changed(nameof(NetTotalDisplay));
         Changed(nameof(CashPaidDisplay));
         Changed(nameof(VodafoneCashPaidDisplay));
         Changed(nameof(InstaPayPaidDisplay));
         Changed(nameof(TotalPaidDisplay));
+        Changed(nameof(SupplierRefundReceivedDisplay));
+        Changed(nameof(NetCashOutflowDisplay));
         Changed(nameof(RemainingPayableDisplay));
         Changed(nameof(PaymentMethodSummary));
+        Changed(nameof(CanPayRemaining));
+        Changed(nameof(CanEdit));
+        Changed(nameof(CanReturn));
+        Changed(nameof(CanCancel));
     }
 }
 
@@ -401,8 +707,10 @@ public static class PurchaseDesignSeedData
         var sup1 = supList.FirstOrDefault(s => s.Name == "أحمد علي") ?? supList.First();
         var sup2 = supList.FirstOrDefault(s => s.Name == "محمود كامل") ?? supList.First();
         var sup3 = supList.FirstOrDefault(s => s.Name == "شركة النور للتوزيع") ?? supList.First();
+        var sup4 = supList.FirstOrDefault(s => s.Name == "الفتح للإلكترونيات") ?? supList.First();
 
         var p1 = catalogList.FirstOrDefault(p => p.Id == 1);
+        var p3 = catalogList.FirstOrDefault(p => p.Id == 3);
         var p7 = catalogList.FirstOrDefault(p => p.Id == 7);
 
         if (p1 is not null)
@@ -493,9 +801,60 @@ public static class PurchaseDesignSeedData
             list.Add(pur2);
         }
 
+        if (p3 is not null)
+        {
+            var p3AvailableRegs = regList
+                .Where(r => r.ProductId == p3.Id && r.PurchaseInvoiceId == "INV-103" && r.IsAvailable)
+                .ToList();
+            if (p3AvailableRegs.Count > 0)
+            {
+                var pur4 = new PurchaseInvoiceDesignItem
+                {
+                    Id = 4,
+                    InvoiceNumber = "PUR-2026-0004",
+                    SupplierInvoiceNumber = "FTH-2026-88",
+                    IssuedAt = DateTime.Today.AddDays(-1).AddHours(15),
+                    BuyerName = "المشرف",
+                    SupplierId = sup4.Id,
+                    SupplierName = sup4.Name,
+                    SupplierPhone = sup4.Phone,
+                    SupplierCompany = sup4.CompanyName,
+                    SupplierAddress = sup4.Address,
+                    Status = PurchaseInvoiceStatus.FullCredit,
+                    DiscountAmount = 0m,
+                    Notes = "توريد آجل بالكامل لمدة 7 أيام — بانتظار السداد للمورد."
+                };
+                pur4.Items.Add(new PurchaseInvoiceLineDesignItem
+                {
+                    LineNumber = 1,
+                    ProductId = p3.Id,
+                    Barcode = p3.Barcode,
+                    ProductName = p3.Name,
+                    Category = p3.Category,
+                    Unit = p3.UnitDisplay,
+                    TrackSerialNumber = p3.TrackSerialNumber,
+                    UnitRegistrationIds = p3AvailableRegs.Select(r => r.Id).ToList(),
+                    SerialNumbers = p3AvailableRegs.Where(r => !string.IsNullOrWhiteSpace(r.SerialNumber)).Select(r => r.SerialNumber).ToList(),
+                    Quantity = p3AvailableRegs.Count,
+                    UnitPurchaseCost = p3.CostPrice
+                });
+                pur4.ActivityLog.Add(new PurchaseInvoiceActivityEntry
+                {
+                    Timestamp = pur4.IssuedAt,
+                    ActionTitle = "اعتماد فاتورة شراء (آجل بالكامل)",
+                    Details = $"توريد {p3AvailableRegs.Count} قطعة من المورد {sup4.Name} بقيمة {pur4.NetTotalDisplay} على الحساب الآجل.",
+                    ActorName = "المشرف",
+                    Amount = pur4.NetTotal
+                });
+                sup4.TotalPurchasesCount += 1;
+                sup4.OutstandingPayable += pur4.NetTotal;
+                list.Insert(0, pur4);
+            }
+        }
+
         if (p7 is not null)
         {
-            var p7Regs = regList.Where(r => r.ProductId == p7.Id).Take(3).Select(r => r.Id).ToList();
+            var p7Regs = regList.Where(r => r.ProductId == p7.Id && r.IsAvailable).Take(3).ToList();
             var pur3 = new PurchaseInvoiceDesignItem
             {
                 Id = 3,
@@ -523,8 +882,9 @@ public static class PurchaseDesignSeedData
                 Category = p7.Category,
                 Unit = p7.UnitDisplay,
                 TrackSerialNumber = p7.TrackSerialNumber,
-                UnitRegistrationIds = p7Regs,
-                Quantity = 3,
+                UnitRegistrationIds = p7Regs.Select(r => r.Id).ToList(),
+                SerialNumbers = p7Regs.Where(r => !string.IsNullOrWhiteSpace(r.SerialNumber)).Select(r => r.SerialNumber).ToList(),
+                Quantity = p7Regs.Count,
                 UnitPurchaseCost = 16800m
             });
             pur3.ActivityLog.Add(new PurchaseInvoiceActivityEntry
