@@ -713,6 +713,29 @@ for token in (
 ):
     assert token in customers_xaml, f'Customers UI missing expected token: {token}'
 
+suppliers_xaml_path = root / 'src/ProjectZ/Views/SuppliersView.xaml'
+suppliers_vm_path = root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs'
+assert suppliers_xaml_path.is_file() and suppliers_vm_path.is_file()
+assert 'IsSuppliersSelected' in main_viewmodel and 'SuppliersViewModel' in main_viewmodel
+assert 'views:SuppliersView' in main_xaml
+suppliers_xaml = suppliers_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'TotalSuppliersCountDisplay', 'TotalPurchasesDisplay', 'TotalPaidAllDisplay',
+    'TotalOutstandingAllDisplay', 'FilteredSuppliers', 'SelectedSupplierEntry',
+    'AddSupplierCommand', 'EditSelectedSupplierCommand', 'DeleteSelectedSupplierCommand',
+    'StartPurchaseForSupplierCommand', 'PayOldestInvoiceCommand',
+    'SelectedSupplierInvoices', 'SelectedSupplierStatement', 'PayInvoiceCommand',
+    'ReturnInvoiceCommand', 'OpenInvoiceDetailsCommand', 'PrintInvoiceCommand',
+):
+    assert token in suppliers_xaml, f'Suppliers UI missing expected token: {token}'
+suppliers_vm_text = suppliers_vm_path.read_text(encoding='utf-8')
+for token in ('BuildStatement', 'RunningBalance', 'ReturnedGoodsTotal', 'NetCashOutflow', 'RemainingPayable'):
+    assert token in suppliers_vm_text, f'Suppliers ledger missing expected calculation: {token}'
+supplier_model_text = (root / 'src/ProjectZ/Models/PurchaseDesignModels.cs').read_text(encoding='utf-8')
+for token in ('Specialization', 'VodafoneCashNumber', 'InstaPayAddress'):
+    assert token in supplier_model_text
+print('PASS: Suppliers directory, 360 profile, invoices, payments/returns and chronological debit/credit statement')
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
@@ -727,6 +750,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/CustomersViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddSupplierViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/CategoriesViewModel.cs',
@@ -750,6 +774,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
     root / 'src/ProjectZ/Views/CustomersView.xaml.cs',
     root / 'src/ProjectZ/Views/AddSupplierWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/SuppliersView.xaml.cs',
     root / 'src/ProjectZ/Views/AddProductView.xaml.cs',
     root / 'src/ProjectZ/Views/InventoryView.xaml.cs',
     root / 'src/ProjectZ/Views/CategoriesView.xaml.cs',

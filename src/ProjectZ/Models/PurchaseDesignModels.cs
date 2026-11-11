@@ -28,13 +28,39 @@ public sealed class SupplierDesignItem : ObservableObject
     private int totalPurchasesCount;
     private decimal outstandingPayable;
 
-    public int Id { get; init; }
-    public string Name { get; init; } = "";
-    public string Phone { get; init; } = "";
-    public string SecondaryPhone { get; init; } = "";
-    public string CompanyName { get; init; } = "";
-    public string Address { get; init; } = "";
-    public string Notes { get; init; } = "";
+    private int id;
+    private string name = "";
+    private string phone = "";
+    private string secondaryPhone = "";
+    private string companyName = "";
+    private string specialization = "";
+    private string address = "";
+    private string vodafoneCashNumber = "";
+    private string instaPayAddress = "";
+    private string notes = "";
+
+    public int Id { get => id; init => id = value; }
+    public string Name { get => name; set { if (name == value) return; name = value; Changed(); } }
+    public string Phone { get => phone; set { if (phone == value) return; phone = value; Changed(); Changed(nameof(DisplayPhone)); Changed(nameof(SearchSubtitle)); } }
+    public string SecondaryPhone { get => secondaryPhone; set { if (secondaryPhone == value) return; secondaryPhone = value; Changed(); Changed(nameof(HasSecondaryPhone)); } }
+    public string CompanyName { get => companyName; set { if (companyName == value) return; companyName = value; Changed(); Changed(nameof(DisplayCompany)); Changed(nameof(SearchSubtitle)); } }
+    public string Specialization { get => specialization; set { if (specialization == value) return; specialization = value; Changed(); Changed(nameof(SpecializationDisplay)); } }
+    public string Address { get => address; set { if (address == value) return; address = value; Changed(); Changed(nameof(AddressDisplay)); Changed(nameof(HasAddress)); } }
+    public string VodafoneCashNumber { get => vodafoneCashNumber; set { if (vodafoneCashNumber == value) return; vodafoneCashNumber = value; Changed(); Changed(nameof(HasVodafoneCashNumber)); Changed(nameof(VodafoneCashDisplay)); } }
+    public string InstaPayAddress { get => instaPayAddress; set { if (instaPayAddress == value) return; instaPayAddress = value; Changed(); Changed(nameof(HasInstaPayAddress)); Changed(nameof(InstaPayDisplay)); } }
+    public string Notes { get => notes; set { if (notes == value) return; notes = value; Changed(); Changed(nameof(HasNotes)); } }
+
+    public string SupplierCodeDisplay => $"SUP-{Id:000}";
+    public string InitialBadgeText => string.IsNullOrWhiteSpace(Name) ? "م" : Name.Trim()[0].ToString();
+    public string SpecializationDisplay => string.IsNullOrWhiteSpace(Specialization) ? "توريد عام" : Specialization;
+    public string AddressDisplay => string.IsNullOrWhiteSpace(Address) ? "غير مسجل" : Address;
+    public string VodafoneCashDisplay => string.IsNullOrWhiteSpace(VodafoneCashNumber) ? "غير مسجل" : VodafoneCashNumber;
+    public string InstaPayDisplay => string.IsNullOrWhiteSpace(InstaPayAddress) ? "غير مسجل" : InstaPayAddress;
+    public bool HasSecondaryPhone => !string.IsNullOrWhiteSpace(SecondaryPhone);
+    public bool HasAddress => !string.IsNullOrWhiteSpace(Address);
+    public bool HasVodafoneCashNumber => !string.IsNullOrWhiteSpace(VodafoneCashNumber);
+    public bool HasInstaPayAddress => !string.IsNullOrWhiteSpace(InstaPayAddress);
+    public bool HasNotes => !string.IsNullOrWhiteSpace(Notes);
 
     public int TotalPurchasesCount
     {
@@ -644,7 +670,10 @@ public static class PurchaseDesignSeedData
             Phone = "01015501122",
             SecondaryPhone = "01122003344",
             CompanyName = "مؤسسة أحمد علي للتجارة",
+            Specialization = "شواحن وإكسسوارات",
             Address = "شارع العطارين — القاهرة",
+            VodafoneCashNumber = "01015501122",
+            InstaPayAddress = "ahmed.ali@instapay",
             Notes = "مورد شواحن وإكسسوارات أصلية",
             TotalPurchasesCount = 1,
             OutstandingPayable = 0m
@@ -655,7 +684,9 @@ public static class PurchaseDesignSeedData
             Name = "محمود كامل",
             Phone = "01122334455",
             CompanyName = "كامل جروب للتوزيع",
+            Specialization = "هواتف وقطع غيار",
             Address = "المنصورة — شارع الجلاء",
+            VodafoneCashNumber = "01122334455",
             Notes = "إمكانية السداد المقسم والآجل 15 يوم",
             TotalPurchasesCount = 1,
             OutstandingPayable = 2600m
@@ -667,7 +698,10 @@ public static class PurchaseDesignSeedData
             Phone = "01288990011",
             SecondaryPhone = "01066554433",
             CompanyName = "النور للإلكترونيات والهواتف",
+            Specialization = "هواتف وسماعات",
             Address = "مدينة نصر — القاهرة",
+            VodafoneCashNumber = "01288990011",
+            InstaPayAddress = "alnoor@instapay",
             Notes = "توريد هواتف وسماعات بالضمان",
             TotalPurchasesCount = 1,
             OutstandingPayable = 0m
@@ -678,7 +712,10 @@ public static class PurchaseDesignSeedData
             Name = "الفتح للإلكترونيات",
             Phone = "01099887766",
             CompanyName = "شركة الفتح للتوريد",
+            Specialization = "إلكترونيات",
             Address = "وسط البلد — القاهرة",
+            VodafoneCashNumber = "01099887766",
+            InstaPayAddress = "elfath@instapay",
             TotalPurchasesCount = 0,
             OutstandingPayable = 0m
         },
@@ -688,6 +725,7 @@ public static class PurchaseDesignSeedData
             Name = "الرواد موبايل",
             Phone = "01555443322",
             CompanyName = "الرواد للتوزيع السريع",
+            Specialization = "توزيع هواتف",
             Address = "طنطا — شارع البحر",
             TotalPurchasesCount = 0,
             OutstandingPayable = 0m

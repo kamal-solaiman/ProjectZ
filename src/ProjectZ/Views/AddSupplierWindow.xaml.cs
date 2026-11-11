@@ -8,12 +8,20 @@ public partial class AddSupplierWindow : Window
 {
     public SupplierDesignItem? CreatedSupplier { get; private set; }
 
-    public AddSupplierWindow(string? initialQuery = null, Func<string, bool>? isDuplicateSupplier = null)
+    public AddSupplierWindow(
+        string? initialQuery = null,
+        Func<string, bool>? isDuplicateSupplier = null,
+        SupplierDesignItem? existingSupplier = null,
+        Func<string, int?, string?>? customValidator = null,
+        string? customHeaderSubtitle = null,
+        string? customBannerHint = null,
+        string? customSaveButtonText = null)
     {
         InitializeComponent();
 
-        DataContext = new AddSupplierViewModel(
+        var vm = new AddSupplierViewModel(
             initialQuery,
+            existingSupplier,
             isDuplicateSupplier,
             supplier =>
             {
@@ -25,7 +33,13 @@ public partial class AddSupplierWindow : Window
             {
                 DialogResult = false;
                 Close();
-            });
+            },
+            customValidator,
+            customHeaderSubtitle,
+            customBannerHint,
+            customSaveButtonText);
+        DataContext = vm;
+        Title = vm.WindowTitle;
 
         Loaded += (_, _) => SupplierNameInput.Focus();
         Closed += (_, _) => DataContext = null;
