@@ -358,6 +358,20 @@
                         </Grid.Style>
                         <views:MaintenanceActionsView DataContext="{Binding MaintenanceActions}" />
                     </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMaintenanceSparePartsSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:MaintenanceSparePartsView DataContext="{Binding MaintenanceSpareParts}" />
+                    </Grid>
                 </Grid>
             </Border>
 

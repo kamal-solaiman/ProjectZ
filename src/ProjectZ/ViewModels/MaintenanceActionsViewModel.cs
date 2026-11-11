@@ -9,12 +9,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 {
     private readonly string currentUserName;
     private readonly ObservableCollection<MaintenanceOrderDesignItem> sharedOrders;
-    private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
-    private readonly ObservableCollection<InventoryUnitRegistrationItem> sharedRegistrations;
+    private readonly ObservableCollection<MaintenanceSparePartItem> sharedSpareParts;
     private readonly Action? navigateToIntake;
-    private readonly Action? notifyInventoryChanged;
-    private readonly Action? notifyReturnExchangeChanged;
-    private readonly Action? notifyPurchaseEntryCatalogChanged;
+    private readonly Action? notifySparePartsChanged;
 
     private MaintenanceOrderDesignItem? selectedOrder;
     private string searchText = "";
@@ -32,10 +29,10 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     private string editLaborCostText = "0";
     private string editDiscountText = "0";
 
-    // Spare parts management (catalog + quick manual item)
+    // Spare parts management (maintenance-only spare parts stock + quick manual item)
     private bool isCatalogPartInputMode = true;
     private string partSearchText = "";
-    private PosProductDesignItem? selectedCatalogPart;
+    private MaintenanceSparePartItem? selectedCatalogPart;
     private string catalogPartQuantityText = "1";
     private string manualPartName = "";
     private string manualPartCostText = "0";
@@ -50,7 +47,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     private bool isErrorStatus;
 
     public ObservableCollection<MaintenanceOrderDesignItem> FilteredOrders { get; } = [];
-    public ObservableCollection<PosProductDesignItem> FilteredCatalogParts { get; } = [];
+    public ObservableCollection<MaintenanceSparePartItem> FilteredCatalogParts { get; } = [];
 
     public IReadOnlyList<string> Technicians => MaintenanceDesignSeedData.Technicians;
     public IReadOnlyList<string> DeliverySlotOptions => MaintenanceDesignSeedData.DeliverySlotOptions;
@@ -316,7 +313,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         }
     }
 
-    public PosProductDesignItem? SelectedCatalogPart
+    public MaintenanceSparePartItem? SelectedCatalogPart
     {
         get => selectedCatalogPart;
         set
@@ -455,7 +452,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     public ActionCommand SwitchToCatalogPartModeCommand { get; }
     public ActionCommand SwitchToManualPartModeCommand { get; }
-    public RelayCommand<PosProductDesignItem> AddCatalogPartDirectCommand { get; }
+    public RelayCommand<MaintenanceSparePartItem> AddCatalogPartDirectCommand { get; }
     public ActionCommand AddSelectedCatalogPartCommand { get; }
     public ActionCommand AddManualPartCommand { get; }
     public RelayCommand<MaintenancePartUsageItem> RemoveUsedPartCommand { get; }
@@ -469,10 +466,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         : this(
             "المشرف",
             MaintenanceDesignSeedData.CreateSharedSampleOrders(PosDesignSeedData.CreateSampleCustomers()),
-            PosDesignSeedData.CreateSharedSampleCatalog(),
-            null,
-            null,
-            null,
+            MaintenanceDesignSeedData.CreateSharedSampleSpareParts(),
             null,
             null)
     {
@@ -481,33 +475,26 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     public MaintenanceActionsViewModel(
         string currentUserName,
         ObservableCollection<MaintenanceOrderDesignItem> sharedOrders,
-        ObservableCollection<PosProductDesignItem> sharedCatalog,
-        ObservableCollection<InventoryUnitRegistrationItem>? sharedRegistrations = null,
+        ObservableCollection<MaintenanceSparePartItem> sharedSpareParts,
         Action? navigateToIntake = null,
-        Action? notifyInventoryChanged = null,
-        Action? notifyReturnExchangeChanged = null,
-        Action? notifyPurchaseEntryCatalogChanged = null)
+        Action? notifySparePartsChanged = null)
     {
         this.currentUserName = currentUserName;
         this.sharedOrders = sharedOrders;
-        this.sharedCatalog = sharedCatalog;
-        this.sharedRegistrations = sharedRegistrations
-            ?? InventoryDesignSeedData.CreateSharedSampleRegistrations(this.sharedCatalog);
+        this.sharedSpareParts = sharedSpareParts;
         this.navigateToIntake = navigateToIntake;
-        this.notifyInventoryChanged = notifyInventoryChanged;
-        this.notifyReturnExchangeChanged = notifyReturnExchangeChanged;
-        this.notifyPurchaseEntryCatalogChanged = notifyPurchaseEntryCatalogChanged;
+        this.notifySparePartsChanged = notifySparePartsChanged;
 
         TechnicianFilterOptions = new[] { "كل الفنيين" }.Concat(MaintenanceDesignSeedData.Technicians).ToArray();
 
         this.sharedOrders.CollectionChanged += OnOrdersCollectionChanged;
-        this.sharedCatalog.CollectionChanged += OnCatalogCollectionChanged;
+        this.sharedSpareParts.CollectionChanged += OnSparePartsCollectionChanged;
 
         GoToIntakeCommand = new ActionCommand(() => this.navigateToIntake?.Invoke());
         RefreshDataCommand = new ActionCommand(() =>
         {
             NotifyExternalDataChanged();
-            SetStatus("تم تحديث قائمة أجهزة الصيانة وبيانات المخزون.", false);
+            SetStatus("تم تحديث قائمة أجهزة الصيانة ومخزون قطع الغيار.", false);
         });
         SetStageFilterCommand = new RelayCommand<string>(stage =>
         {
@@ -542,7 +529,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
         SwitchToCatalogPartModeCommand = new ActionCommand(() => IsCatalogPartInputMode = true);
         SwitchToManualPartModeCommand = new ActionCommand(() => IsCatalogPartInputMode = false);
-        AddCatalogPartDirectCommand = new RelayCommand<PosProductDesignItem>(AddCatalogPart);
+        AddCatalogPartDirectCommand = new RelayCommand<MaintenanceSparePartItem>(AddCatalogPart);
         AddSelectedCatalogPartCommand = new ActionCommand(() => AddCatalogPart(SelectedCatalogPart));
         AddManualPartCommand = new ActionCommand(AddManualPart);
         RemoveUsedPartCommand = new RelayCommand<MaintenancePartUsageItem>(RemoveUsedPart);
@@ -555,7 +542,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         RefreshFilteredOrders();
         RefreshFilteredCatalogParts();
         SelectedOrder = FilteredOrders.FirstOrDefault() ?? sharedOrders.FirstOrDefault();
-        SetStatus("شاشة إجراءات الصيانة: تحكم كامل بحالات الأجهزة، تقارير الفحص، قطع الغيار والمخزون، والتسليم والضمان.", false);
+        SetStatus("شاشة إجراءات الصيانة: تحكم كامل بحالات الأجهزة، تقارير الفحص، قطع غيار الصيانة، والتسليم والضمان.", false);
     }
 
     public void NotifyExternalDataChanged()
@@ -597,7 +584,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         RefreshFilteredOrders();
     }
 
-    private void OnCatalogCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void OnSparePartsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         => RefreshFilteredCatalogParts();
 
     private void LoadEditableFieldsFromSelected()
@@ -920,9 +907,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
                     returnedCount += part.Quantity;
                 }
                 order.RecalculateWorkshopTotal();
-                notifyInventoryChanged?.Invoke();
-                notifyReturnExchangeChanged?.Invoke();
-                notifyPurchaseEntryCatalogChanged?.Invoke();
+                RefreshFilteredCatalogParts();
+                notifySparePartsChanged?.Invoke();
             }
 
             if (vm.ConfirmedRefundAmount > 0m)
@@ -933,7 +919,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
             var details = $"السبب: {vm.FinalReasonText}";
             if (returnedCount > 0)
-                details += $" · تم إرجاع {returnedCount} قطعة غيار للمخزون";
+                details += $" · تم إرجاع {returnedCount} قطعة غيار لمخزون الصيانة";
             if (vm.ConfirmedRefundAmount > 0m)
                 details += $" · استرداد عربون: {PosFormatting.FormatCurrency(vm.ConfirmedRefundAmount)}";
 
@@ -982,8 +968,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         SetStatus($"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}».", false);
     }
 
-    // --- Spare Parts Stock Allocation & Release ---
-    private void AddCatalogPart(PosProductDesignItem? product)
+    // --- Spare Parts Stock Allocation & Release (Maintenance Spare Parts Only) ---
+    private void AddCatalogPart(MaintenanceSparePartItem? sparePart)
     {
         var order = SelectedOrder;
         if (order is null) return;
@@ -993,9 +979,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        if (product is null)
+        if (sparePart is null)
         {
-            SetStatus("اختر صنفًا من قائمة قطع الغيار والمخزون أولًا.", true);
+            SetStatus("اختر قطعة غيار من قائمة قطع غيار الصيانة أولًا.", true);
             return;
         }
 
@@ -1005,45 +991,23 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        if (product.AvailableStock < qty)
+        if (sparePart.Quantity < qty)
         {
-            SetStatus($"الكمية المطلوبة ({qty}) تتجاوز الرصيد المتاح في المخزون للصنف «{product.Name}» ({product.AvailableStock}).", true);
+            SetStatus($"الكمية المطلوبة ({qty}) تتجاوز الرصيد المتاح للقطعة «{sparePart.Name}» ({sparePart.Quantity}).", true);
             return;
         }
 
-        var availableUnits = sharedRegistrations
-            .Where(r => r.ProductId == product.Id && r.IsAvailable)
-            .OrderBy(r => r.Id)
-            .Take(qty)
-            .ToList();
-
-        var claimedIds = new List<int>(availableUnits.Count);
-        foreach (var unit in availableUnits)
-        {
-            unit.Status = InventoryUnitStatus.Sold;
-            unit.SaleInvoiceNumber = $"صيانة {order.OrderNumber}";
-            claimedIds.Add(unit.Id);
-        }
-
-        if (availableUnits.Count > 0)
-            product.AvailableStock = sharedRegistrations.Count(r => r.ProductId == product.Id && r.IsAvailable);
-        else
-            product.AvailableStock = Math.Max(0, product.AvailableStock - qty);
-
-        var unitCost = availableUnits.Count > 0
-            ? Math.Round(availableUnits.Average(u => u.PurchasePrice), 2)
-            : product.CostPrice;
+        sparePart.Quantity -= qty;
 
         var partItem = new MaintenancePartUsageItem
         {
-            ProductId = product.Id,
-            Barcode = product.Barcode,
-            ProductName = product.Name,
+            ProductId = sparePart.Id,
+            Barcode = sparePart.CodeDisplay,
+            ProductName = sparePart.Name,
             Quantity = qty,
-            UnitCost = unitCost,
-            UnitSellPrice = product.RetailPrice,
-            IsManualPart = false,
-            UnitRegistrationIds = claimedIds
+            UnitCost = sparePart.CostPrice,
+            UnitSellPrice = sparePart.SellPrice,
+            IsManualPart = false
         };
 
         order.UsedParts.Add(partItem);
@@ -1054,8 +1018,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         order.ActivityLog.Add(new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
-            ActionTitle = "صرف قطعة غيار من المخزون",
-            Details = $"صرف {qty} × {product.Name} ({partItem.LineTotalDisplay}) وخصمها من المخزون.",
+            ActionTitle = "صرف قطعة غيار من مخزون الصيانة",
+            Details = $"صرف {qty} × {sparePart.Name} ({partItem.LineTotalDisplay}) وخصمها من مخزون قطع الغيار.",
             ActorName = currentUserName,
             Amount = partItem.LineTotal
         });
@@ -1063,11 +1027,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         CatalogPartQuantityText = "1";
         RefreshFilteredCatalogParts();
         NotifyStageAndKpiCounts();
-        notifyInventoryChanged?.Invoke();
-        notifyReturnExchangeChanged?.Invoke();
-        notifyPurchaseEntryCatalogChanged?.Invoke();
+        notifySparePartsChanged?.Invoke();
 
-        SetStatus($"تم صرف «{product.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث المخزون.", false);
+        SetStatus($"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.", false);
     }
 
     private void AddManualPart()
@@ -1156,7 +1118,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         order.ActivityLog.Add(new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
-            ActionTitle = part.IsManualPart ? "حذف بند قطعة غيار" : "إرجاع قطعة غيار للمخزون",
+            ActionTitle = part.IsManualPart ? "حذف بند قطعة غيار" : "إرجاع قطعة غيار لمخزون الصيانة",
             Details = $"حذف {part.Quantity} × {part.ProductName} ({part.LineTotalDisplay}).",
             ActorName = currentUserName
         });
@@ -1164,16 +1126,12 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         RefreshFilteredCatalogParts();
         NotifyStageAndKpiCounts();
         if (!part.IsManualPart)
-        {
-            notifyInventoryChanged?.Invoke();
-            notifyReturnExchangeChanged?.Invoke();
-            notifyPurchaseEntryCatalogChanged?.Invoke();
-        }
+            notifySparePartsChanged?.Invoke();
 
         SetStatus(
             part.IsManualPart
                 ? $"تم حذف البند «{part.ProductName}» من التذكرة."
-                : $"تمت إزالة «{part.ProductName}» وإرجاع الكمية للمخزون بنجاح.",
+                : $"تمت إزالة «{part.ProductName}» وإرجاع الكمية لمخزون قطع الغيار بنجاح.",
             false);
     }
 
@@ -1189,25 +1147,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     {
         if (part.IsManualPart || part.ProductId <= 0) return;
 
-        var product = sharedCatalog.FirstOrDefault(p => p.Id == part.ProductId);
-        if (part.UnitRegistrationIds.Count > 0)
-        {
-            foreach (var regId in part.UnitRegistrationIds)
-            {
-                var unit = sharedRegistrations.FirstOrDefault(r => r.Id == regId);
-                if (unit is not null)
-                {
-                    unit.Status = InventoryUnitStatus.Available;
-                    unit.SaleInvoiceNumber = "";
-                }
-            }
-            if (product is not null)
-                product.AvailableStock = sharedRegistrations.Count(r => r.ProductId == product.Id && r.IsAvailable);
-        }
-        else if (product is not null)
-        {
-            product.AvailableStock += part.Quantity;
-        }
+        var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == part.ProductId);
+        if (sparePart is not null)
+            sparePart.Quantity += part.Quantity;
     }
 
     private void SetExtraDepositMode(MaintenanceDepositMode mode)
@@ -1326,12 +1268,12 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         var query = PartSearchText.Trim();
         FilteredCatalogParts.Clear();
 
-        foreach (var item in sharedCatalog)
+        foreach (var item in sharedSpareParts)
         {
             if (string.IsNullOrWhiteSpace(query)
                 || item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || item.Barcode.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || item.Category.Contains(query, StringComparison.OrdinalIgnoreCase))
+                || item.Category.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || item.CodeDisplay.Contains(query, StringComparison.OrdinalIgnoreCase))
             {
                 FilteredCatalogParts.Add(item);
             }

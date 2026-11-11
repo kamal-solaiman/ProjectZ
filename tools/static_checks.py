@@ -648,6 +648,43 @@ for token in (
 ):
     assert token in maintenance_invoice_details_xaml, f'MaintenanceInvoiceDetailsWindow missing expected token: {token}'
 
+maintenance_spare_parts_xaml_path = root / 'src/ProjectZ/Views/MaintenanceSparePartsView.xaml'
+assert maintenance_spare_parts_xaml_path.is_file()
+assert 'IsMaintenanceSparePartsSelected' in main_viewmodel and 'MaintenanceSpareParts' in main_viewmodel
+assert 'views:MaintenanceSparePartsView' in main_xaml
+
+maintenance_spare_parts_xaml = maintenance_spare_parts_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'TotalPartsCountDisplay',
+    'TotalQuantityUnitsDisplay',
+    'TotalCostValueDisplay',
+    'LowOrOutCountDisplay',
+    'FormHeaderTitle',
+    'SaveButtonText',
+    'PartName',
+    'CategoryOptions',
+    'SelectedCategory',
+    'CustomCategoryName',
+    'QuantityText',
+    'CostPriceText',
+    'SellPriceText',
+    'PreviewProfitDisplay',
+    'SavePartCommand',
+    'CancelEditCommand',
+    'BeginEditCommand',
+    'DeletePartCommand',
+    'SearchText',
+    'CategoryFilterOptions',
+    'SelectedCategoryFilter',
+    'FilteredSpareParts',
+    'GoToActionsCommand',
+):
+    assert token in maintenance_spare_parts_xaml, f'MaintenanceSpareParts UI missing expected token: {token}'
+
+maintenance_actions_vm_text = (root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs').read_text(encoding='utf-8')
+assert 'ObservableCollection<MaintenanceSparePartItem>' in maintenance_actions_vm_text
+assert 'InventoryUnitRegistrationItem' not in maintenance_actions_vm_text, 'MaintenanceActions must use dedicated maintenance spare parts, not POS/Inventory registrations'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
@@ -678,6 +715,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/MaintenanceInvoiceDetailsViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceActionsDialogViewModels.cs',
+    root / 'src/ProjectZ/ViewModels/MaintenanceSparePartsViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceReceiptPreviewViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
@@ -698,6 +736,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/MaintenanceInvoicesView.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceActionsView.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceSparePartsView.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceDeliveryWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceCancelOrderWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceReceiptPreviewWindow.xaml.cs',
