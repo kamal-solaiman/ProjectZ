@@ -56,16 +56,27 @@ public partial class App : Application
         // that late result recreate a window or keep an invisible process alive.
         if (isShuttingDown || !liveWindows.Contains(login)) return;
 
-        var main = new Views.MainWindow();
-        main.DataContext = new MainViewModel(user, () => Logout(main));
-        MainWindow = main;
-        TrackWindow(main);
+        Views.MainWindow main;
+        var stage = "تحميل مكونات MainWindow / XAML";
+        try
+        {
+            main = new Views.MainWindow();
+            stage = "إنشاء MainViewModel والشاشات المشتركة";
+            main.DataContext = new MainViewModel(user, () => Logout(main));
+            MainWindow = main;
+            TrackWindow(main);
 
-        // Show the replacement first: closing the old window must not briefly
-        // make the application windowless during a successful login.
-        main.Show();
-        login.ClearPassword();
-        login.Close();
+            // Show the replacement first: closing the old window must not briefly
+            // make the application windowless during a successful login.
+            stage = "عرض MainWindow وإغلاق نافذة تسجيل الدخول";
+            main.Show();
+            login.ClearPassword();
+            login.Close();
+        }
+        catch (Exception ex)
+        {
+            throw new MainWindowInitializationException(stage, ex);
+        }
     }
 
     private void Logout(Window main)
