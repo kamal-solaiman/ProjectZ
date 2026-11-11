@@ -11,7 +11,23 @@ for path in sorted(root.rglob('*')):
     if '.git' in path.parts or not path.is_file():
         continue
     if path.suffix in {'.xaml', '.csproj', '.pubxml', '.manifest'}:
-        ET.parse(path)
+        xml_root = ET.parse(path).getroot()
+        if path.suffix == '.xaml':
+            for element in xml_root.iter():
+                # WPF Thickness accepts 1, 2 or 4 comma-separated lengths, never 3.
+                for attribute in ('Margin', 'Padding', 'BorderThickness'):
+                    value = element.attrib.get(attribute, '')
+                    if value and not value.startswith('{'):
+                        assert len(value.split(',')) in {1, 2, 4}, (
+                            f'{path.relative_to(root)}: invalid {attribute}="{value}"; WPF Thickness needs 1, 2 or 4 lengths'
+                        )
+                if element.tag.endswith('ProgressBar'):
+                    value_binding = element.attrib.get('Value', '')
+                    if value_binding.startswith('{Binding '):
+                        assert 'Mode=OneWay' in value_binding, (
+                            f'{path.relative_to(root)}: ProgressBar.Value must explicitly use Mode=OneWay '
+                            'when bound to read-only usage percentages'
+                        )
         print('PASS XML:', path.relative_to(root))
     elif path.suffix == '.json':
         json.loads(path.read_text(encoding='utf-8'))
