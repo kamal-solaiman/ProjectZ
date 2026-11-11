@@ -59,14 +59,122 @@ public sealed class MaintenancePartUsageItem : ObservableObject
     public decimal UnitCost { get; init; }
     public decimal UnitSellPrice { get; init; }
     public bool IsManualPart { get; init; }
-    public List<int> UnitRegistrationIds { get; init; } = [];
 
     public decimal LineTotal => Quantity * UnitSellPrice;
     public decimal LineCostTotal => Quantity * UnitCost;
     public string QuantityDisplay => $"{Quantity} قطعة";
     public string UnitSellPriceDisplay => PosFormatting.FormatCurrency(UnitSellPrice);
     public string LineTotalDisplay => PosFormatting.FormatCurrency(LineTotal);
-    public string SourceBadgeText => IsManualPart ? "بند يدوي" : "من المخزون";
+    public string SourceBadgeText => IsManualPart ? "بند يدوي" : "قطع الغيار";
+}
+
+public sealed class MaintenanceSparePartItem : ObservableObject
+{
+    private string name = "";
+    private string category = "شاشات";
+    private int quantity;
+    private decimal costPrice;
+    private decimal sellPrice;
+    private bool isSelected;
+
+    public int Id { get; init; }
+
+    public string Name
+    {
+        get => name;
+        set
+        {
+            if (name == value) return;
+            name = value;
+            Changed();
+        }
+    }
+
+    public string Category
+    {
+        get => category;
+        set
+        {
+            if (category == value) return;
+            category = value;
+            Changed();
+        }
+    }
+
+    public int Quantity
+    {
+        get => quantity;
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (quantity == clamped) return;
+            quantity = clamped;
+            Changed();
+            Changed(nameof(QuantityDisplay));
+            Changed(nameof(AvailableStockDisplay));
+            Changed(nameof(TotalCostValue));
+            Changed(nameof(TotalCostValueDisplay));
+            Changed(nameof(IsOutOfStock));
+            Changed(nameof(IsLowStock));
+            Changed(nameof(StockStatusTitle));
+        }
+    }
+
+    public decimal CostPrice
+    {
+        get => costPrice;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (costPrice == clamped) return;
+            costPrice = clamped;
+            Changed();
+            Changed(nameof(CostPriceDisplay));
+            Changed(nameof(UnitProfit));
+            Changed(nameof(UnitProfitDisplay));
+            Changed(nameof(TotalCostValue));
+            Changed(nameof(TotalCostValueDisplay));
+        }
+    }
+
+    public decimal SellPrice
+    {
+        get => sellPrice;
+        set
+        {
+            var clamped = Math.Max(0m, value);
+            if (sellPrice == clamped) return;
+            sellPrice = clamped;
+            Changed();
+            Changed(nameof(SellPriceDisplay));
+            Changed(nameof(UnitProfit));
+            Changed(nameof(UnitProfitDisplay));
+        }
+    }
+
+    public bool IsSelected
+    {
+        get => isSelected;
+        set
+        {
+            if (isSelected == value) return;
+            isSelected = value;
+            Changed();
+        }
+    }
+
+    public string CodeDisplay => $"SPR-{Id:000}";
+    public string QuantityDisplay => $"{Quantity} قطعة";
+    public string AvailableStockDisplay => $"المتاح: {Quantity}";
+    public string CostPriceDisplay => PosFormatting.FormatCurrency(CostPrice);
+    public string SellPriceDisplay => PosFormatting.FormatCurrency(SellPrice);
+    public decimal UnitProfit => Math.Max(0m, SellPrice - CostPrice);
+    public string UnitProfitDisplay => PosFormatting.FormatCurrency(UnitProfit);
+    public decimal TotalCostValue => Quantity * CostPrice;
+    public string TotalCostValueDisplay => PosFormatting.FormatCurrency(TotalCostValue);
+    public bool IsOutOfStock => Quantity <= 0;
+    public bool IsLowStock => Quantity > 0 && Quantity <= 3;
+    public string StockStatusTitle => IsOutOfStock ? "نفد" : (IsLowStock ? "منخفض" : "متاح");
 }
 
 public sealed class MaintenanceOrderDesignItem : ObservableObject
@@ -876,6 +984,95 @@ public static class MaintenanceDesignSeedData
 
     public static IReadOnlyList<int> WarrantyDayOptions { get; } = [0, 7, 14, 30, 90];
 
+    public static IReadOnlyList<string> SparePartCategories { get; } =
+    [
+        "شاشات",
+        "بطاريات",
+        "فلاتات ومداخل شحن",
+        "سماعات ومايك",
+        "كاميرات وحساسات",
+        "آي سي وبوردة",
+        "هاوسنج وظهر",
+        "مستلزمات صيانة",
+        "أخرى"
+    ];
+
+    public static ObservableCollection<MaintenanceSparePartItem> CreateSharedSampleSpareParts() =>
+    [
+        new MaintenanceSparePartItem
+        {
+            Id = 1,
+            Name = "شاشة iPhone 13 Pro OLED أصلية",
+            Category = "شاشات",
+            Quantity = 4,
+            CostPrice = 3100m,
+            SellPrice = 4200m
+        },
+        new MaintenanceSparePartItem
+        {
+            Id = 2,
+            Name = "بطارية Samsung Galaxy A54 أصلية",
+            Category = "بطاريات",
+            Quantity = 6,
+            CostPrice = 520m,
+            SellPrice = 850m
+        },
+        new MaintenanceSparePartItem
+        {
+            Id = 3,
+            Name = "فلاتة وسوكيت شحن Galaxy S23 Ultra",
+            Category = "فلاتات ومداخل شحن",
+            Quantity = 5,
+            CostPrice = 240m,
+            SellPrice = 480m
+        },
+        new MaintenanceSparePartItem
+        {
+            Id = 4,
+            Name = "شاشة OPPO Reno 11 AMOLED أصلية",
+            Category = "شاشات",
+            Quantity = 2,
+            CostPrice = 1850m,
+            SellPrice = 2500m
+        },
+        new MaintenanceSparePartItem
+        {
+            Id = 5,
+            Name = "سماعة خارجية Xiaomi Redmi Note 13 Pro",
+            Category = "سماعات ومايك",
+            Quantity = 8,
+            CostPrice = 110m,
+            SellPrice = 250m
+        },
+        new MaintenanceSparePartItem
+        {
+            Id = 6,
+            Name = "فلاتة باور وبصمة iPhone 11 / 12",
+            Category = "فلاتات ومداخل شحن",
+            Quantity = 3,
+            CostPrice = 160m,
+            SellPrice = 350m
+        },
+        new MaintenanceSparePartItem
+        {
+            Id = 7,
+            Name = "معجون حراري احترافي Arctic MX-4 + وسادات تبريد",
+            Category = "مستلزمات صيانة",
+            Quantity = 10,
+            CostPrice = 140m,
+            SellPrice = 300m
+        },
+        new MaintenanceSparePartItem
+        {
+            Id = 8,
+            Name = "آي سي شحن U2 / Tristar أصلي",
+            Category = "آي سي وبوردة",
+            Quantity = 7,
+            CostPrice = 280m,
+            SellPrice = 650m
+        }
+    ];
+
     public static ObservableCollection<MaintenanceOrderDesignItem> CreateSharedSampleOrders(
         IEnumerable<PosCustomerDesignItem> customers)
     {
@@ -1046,13 +1243,13 @@ public static class MaintenanceDesignSeedData
         };
         ord1.UsedParts.Add(new MaintenancePartUsageItem
         {
-            ProductId = 0,
-            Barcode = "MNT-PART-01",
+            ProductId = 7,
+            Barcode = "SPR-007",
             ProductName = "معجون حراري احترافي Arctic MX-4 + وسادات تبريد",
             Quantity = 1,
             UnitCost = 140m,
             UnitSellPrice = 300m,
-            IsManualPart = true
+            IsManualPart = false
         });
         ord1.RecalculateWorkshopTotal();
         ord1.ActivityLog.Add(new MaintenanceActivityEntry
@@ -1154,13 +1351,13 @@ public static class MaintenanceDesignSeedData
         };
         ord6.UsedParts.Add(new MaintenancePartUsageItem
         {
-            ProductId = 0,
-            Barcode = "MNT-PART-02",
+            ProductId = 2,
+            Barcode = "SPR-002",
             ProductName = "بطارية Samsung Galaxy A54 أصلية",
             Quantity = 1,
             UnitCost = 520m,
             UnitSellPrice = 850m,
-            IsManualPart = true
+            IsManualPart = false
         });
         ord6.RecalculateWorkshopTotal();
         ord6.ActivityLog.Add(new MaintenanceActivityEntry

@@ -728,7 +728,7 @@
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Grid.Column="0" Text="صرف قطع الغيار للورشة" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" FontSize="13.5" FontWeight="Bold" Foreground="#102E48" />
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                        <Button Content="من المخزون المشترك" Command="{Binding SwitchToCatalogPartModeCommand}">
+                                                        <Button Content="من قطع الغيار" Command="{Binding SwitchToCatalogPartModeCommand}">
                                                             <Button.Style>
                                                                 <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
                                                                     <Style.Triggers>
@@ -757,7 +757,7 @@
                                                     </StackPanel>
                                                 </Grid>
 
-                                                <!-- Mode A: Catalog Parts Picker -->
+                                                <!-- Mode A: Maintenance Spare Parts Picker -->
                                                 <StackPanel Visibility="{Binding IsCatalogPartInputMode, Converter={StaticResource BoolToVis}}">
                                                     <Grid Margin="0,0,0,6">
                                                         <Grid.ColumnDefinitions>
@@ -767,7 +767,7 @@
                                                         </Grid.ColumnDefinitions>
                                                         <Grid Grid.Column="0">
                                                             <TextBox Style="{StaticResource PosCompactTextBoxStyle}" MinHeight="32" Padding="9,4" FontSize="12" FlowDirection="RightToLeft" TextAlignment="Left" Text="{Binding PartSearchText, UpdateSourceTrigger=PropertyChanged}" />
-                                                            <TextBlock Text="ابحث في أصناف المخزون بالاسم أو الباركود..." Style="{StaticResource PosRtlTextStyle}" Margin="9,0" VerticalAlignment="Center" FontSize="11.5" Foreground="#94A3B8" IsHitTestVisible="False" Visibility="{Binding PartSearchText, Converter={StaticResource StringEmptyToVis}}" />
+                                                            <TextBlock Text="ابحث في قطع غيار الصيانة بالاسم أو الفئة أو الكود..." Style="{StaticResource PosRtlTextStyle}" Margin="9,0" VerticalAlignment="Center" FontSize="11.5" Foreground="#94A3B8" IsHitTestVisible="False" Visibility="{Binding PartSearchText, Converter={StaticResource StringEmptyToVis}}" />
                                                         </Grid>
                                                         <TextBox Grid.Column="2" Style="{StaticResource PosNumericTextBoxStyle}" MinHeight="32" Padding="6,4" ToolTip="الكمية" Text="{Binding CatalogPartQuantityText, UpdateSourceTrigger=PropertyChanged}" />
                                                     </Grid>
@@ -786,9 +786,13 @@
                                                                             </Grid.ColumnDefinitions>
                                                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                                                                 <TextBlock Text="{Binding Name}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
-                                                                                <TextBlock Text="{Binding AvailableStock, StringFormat='المتاح بالمخزون: {0}'}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#64748B" />
+                                                                                <StackPanel Orientation="Horizontal">
+                                                                                    <TextBlock Text="{Binding Category}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#147D92" FontWeight="SemiBold" />
+                                                                                    <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" Foreground="#94A3B8" />
+                                                                                    <TextBlock Text="{Binding AvailableStockDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#64748B" />
+                                                                                </StackPanel>
                                                                             </StackPanel>
-                                                                            <TextBlock Grid.Column="1" Text="{Binding RetailPriceDisplay}" Style="{StaticResource PosLtrTextStyle}" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="#0F766E" />
+                                                                            <TextBlock Grid.Column="1" Text="{Binding SellPriceDisplay}" Style="{StaticResource PosLtrTextStyle}" VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Foreground="#0F766E" />
                                                                             <Button Grid.Column="3"
                                                                                     Content="+ صرف"
                                                                                     Style="{StaticResource PosOutlineTealButtonStyle}"
