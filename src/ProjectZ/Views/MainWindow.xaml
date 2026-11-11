@@ -400,6 +400,20 @@
                         </Grid.Style>
                         <views:SuppliersView DataContext="{Binding Suppliers}" />
                     </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMyAccountsSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:MyAccountsView DataContext="{Binding MyAccounts}" />
+                    </Grid>
                 </Grid>
             </Border>
 
