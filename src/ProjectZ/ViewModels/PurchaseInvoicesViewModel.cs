@@ -336,6 +336,13 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         NotifyKpis();
     }
 
+    // Shared invoice actions used by the supplier 360° screen. Keeping one implementation
+    // guarantees identical stock, payment, return and audit-log behavior in both screens.
+    internal void OpenDetailsFromSupplier(PurchaseInvoiceDesignItem invoice) => OpenDetails(invoice);
+    internal void OpenPrintFromSupplier(PurchaseInvoiceDesignItem invoice) => OpenPrintPreview(invoice);
+    internal void OpenPaymentFromSupplier(PurchaseInvoiceDesignItem invoice) => OpenPayRemainingDialog(invoice);
+    internal void OpenReturnFromSupplier(PurchaseInvoiceDesignItem invoice) => OpenReturnDialog(invoice);
+
     private void OnSharedInvoicesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         RebuildSupplierFilters();

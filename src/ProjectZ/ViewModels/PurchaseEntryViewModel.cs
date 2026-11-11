@@ -217,6 +217,15 @@ public sealed class PurchaseEntryViewModel : ObservableObject
             LastSavedInvoice = sharedPurchaseInvoices.FirstOrDefault();
     }
 
+    public void StartNewPurchaseForSupplier(SupplierDesignItem supplier)
+    {
+        if (!Suppliers.Contains(supplier)) return;
+        CreateAndSelectNewDraft();
+        ActiveInvoice.SelectSupplier(supplier);
+        SetStatus($"تم فتح فاتورة شراء جديدة للمورد «{supplier.Name}». أضف الأصناف ثم حدد طريقة السداد.", false);
+        FocusBarcodeInputRequested?.Invoke();
+    }
+
     private void OnCatalogCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         RebuildCategoryFilters();
@@ -329,7 +338,10 @@ public sealed class PurchaseEntryViewModel : ObservableObject
                     Phone = newSupplier.Phone,
                     SecondaryPhone = newSupplier.SecondaryPhone,
                     CompanyName = newSupplier.CompanyName,
+                    Specialization = newSupplier.Specialization,
                     Address = newSupplier.Address,
+                    VodafoneCashNumber = newSupplier.VodafoneCashNumber,
+                    InstaPayAddress = newSupplier.InstaPayAddress,
                     Notes = newSupplier.Notes
                 };
 
