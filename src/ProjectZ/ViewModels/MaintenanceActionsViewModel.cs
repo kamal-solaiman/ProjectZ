@@ -569,6 +569,28 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             LoadEditableFieldsFromSelected();
     }
 
+    public void SelectOrderFromExternal(MaintenanceOrderDesignItem order)
+    {
+        if (!sharedOrders.Contains(order)) return;
+
+        if (!FilteredOrders.Contains(order))
+        {
+            searchText = "";
+            selectedStageFilter = "كل الحالات";
+            selectedPriorityFilter = "كل الأولويات";
+            selectedTechnicianFilter = "كل الفنيين";
+            Changed(nameof(SearchText));
+            Changed(nameof(SelectedStageFilter));
+            Changed(nameof(SelectedPriorityFilter));
+            Changed(nameof(SelectedTechnicianFilter));
+            NotifyStageFilterSelection();
+            RefreshFilteredOrders();
+        }
+
+        SelectedOrder = order;
+        SetStatus($"تم فتح الأمر {order.OrderNumber} في إجراءات الصيانة للمتابعة والتعديل.", false);
+    }
+
     private void OnOrdersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         NotifyStageAndKpiCounts();

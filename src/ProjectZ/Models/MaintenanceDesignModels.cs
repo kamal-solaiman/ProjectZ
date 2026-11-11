@@ -96,6 +96,7 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     private string deliveryNotes = "";
     private string cancellationReason = "";
     private bool hasWorkshopPricing;
+    private bool isInvoiceRowSelected;
 
     public int Id { get; init; }
     public string OrderNumber { get; init; } = "";
@@ -606,10 +607,58 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     public string DepositCashPaidDisplay => PosFormatting.FormatCurrency(DepositCashPaid);
     public string DepositVodafonePaidDisplay => PosFormatting.FormatCurrency(DepositVodafonePaid);
     public string DepositInstaPayPaidDisplay => PosFormatting.FormatCurrency(DepositInstaPayPaid);
+    public string FinalPaymentCashPaidDisplay => PosFormatting.FormatCurrency(FinalPaymentCashPaid);
+    public string FinalPaymentVodafonePaidDisplay => PosFormatting.FormatCurrency(FinalPaymentVodafonePaid);
+    public string FinalPaymentInstaPayPaidDisplay => PosFormatting.FormatCurrency(FinalPaymentInstaPayPaid);
+    public string PartsCostTotalDisplay => PosFormatting.FormatCurrency(PartsCostTotal);
     public string EstimatedProfitDisplay => PosFormatting.FormatCurrency(EstimatedProfit);
     public string EstimatedRemainingDisplay => IsPriceStillPending
         ? "يتحدد بعد الفحص"
         : PosFormatting.FormatCurrency(EstimatedRemaining);
+
+    public bool IsInvoiceRowSelected
+    {
+        get => isInvoiceRowSelected;
+        set
+        {
+            if (isInvoiceRowSelected == value) return;
+            isInvoiceRowSelected = value;
+            Changed();
+        }
+    }
+
+    public bool HasDiscount => DiscountAmount > 0m;
+    public bool HasFinalPaymentCash => FinalPaymentCashPaid > 0m;
+    public bool HasFinalPaymentVodafone => FinalPaymentVodafonePaid > 0m || !string.IsNullOrWhiteSpace(FinalPaymentVodafoneReference);
+    public bool HasFinalPaymentInstaPay => FinalPaymentInstaPayPaid > 0m || !string.IsNullOrWhiteSpace(FinalPaymentInstaPayReference);
+    public decimal TotalCashCollected => DepositCashPaid + FinalPaymentCashPaid;
+    public decimal TotalVodafoneCollected => DepositVodafonePaid + FinalPaymentVodafonePaid;
+    public decimal TotalInstaPayCollected => DepositInstaPayPaid + FinalPaymentInstaPayPaid;
+    public bool HasAnyCashCollected => TotalCashCollected > 0m;
+    public bool HasAnyVodafoneCollected => TotalVodafoneCollected > 0m;
+    public bool HasAnyInstaPayCollected => TotalInstaPayCollected > 0m;
+    public bool IsMultiChannelPayment =>
+        (HasAnyCashCollected ? 1 : 0) + (HasAnyVodafoneCollected ? 1 : 0) + (HasAnyInstaPayCollected ? 1 : 0) > 1;
+    public string TotalCashCollectedDisplay => PosFormatting.FormatCurrency(TotalCashCollected);
+    public string TotalVodafoneCollectedDisplay => PosFormatting.FormatCurrency(TotalVodafoneCollected);
+    public string TotalInstaPayCollectedDisplay => PosFormatting.FormatCurrency(TotalInstaPayCollected);
+    public string PartsAndLaborSummaryText =>
+        $"قطع: {PartsTotalDisplay} · مصنعية: {LaborCostDisplay}";
+
+    public string PaymentChannelsSummaryText
+    {
+        get
+        {
+            var channels = new List<string>(3);
+            if (HasAnyCashCollected) channels.Add("كاش");
+            if (HasAnyVodafoneCollected) channels.Add("فودافون كاش");
+            if (HasAnyInstaPayCollected) channels.Add("إنستاباي");
+            if (channels.Count == 0)
+                return RefundedDepositAmount > 0m ? "تم استرداد العربون" : "بدون تحصيل";
+            var joined = string.Join(" + ", channels);
+            return RefundedDepositAmount > 0m ? $"{joined} (بعد خصم مرتجع)" : joined;
+        }
+    }
 
     public string DeliveredAtDisplay => DeliveredAt.HasValue
         ? DeliveredAt.Value.ToString("yyyy-MM-dd · HH:mm", CultureInfo.InvariantCulture)
@@ -701,8 +750,28 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
         Changed(nameof(DepositCashPaidDisplay));
         Changed(nameof(DepositVodafonePaidDisplay));
         Changed(nameof(DepositInstaPayPaidDisplay));
+        Changed(nameof(FinalPaymentCashPaidDisplay));
+        Changed(nameof(FinalPaymentVodafonePaidDisplay));
+        Changed(nameof(FinalPaymentInstaPayPaidDisplay));
+        Changed(nameof(PartsCostTotalDisplay));
         Changed(nameof(EstimatedProfitDisplay));
         Changed(nameof(EstimatedRemainingDisplay));
+        Changed(nameof(HasDiscount));
+        Changed(nameof(HasFinalPaymentCash));
+        Changed(nameof(HasFinalPaymentVodafone));
+        Changed(nameof(HasFinalPaymentInstaPay));
+        Changed(nameof(TotalCashCollected));
+        Changed(nameof(TotalVodafoneCollected));
+        Changed(nameof(TotalInstaPayCollected));
+        Changed(nameof(HasAnyCashCollected));
+        Changed(nameof(HasAnyVodafoneCollected));
+        Changed(nameof(HasAnyInstaPayCollected));
+        Changed(nameof(IsMultiChannelPayment));
+        Changed(nameof(TotalCashCollectedDisplay));
+        Changed(nameof(TotalVodafoneCollectedDisplay));
+        Changed(nameof(TotalInstaPayCollectedDisplay));
+        Changed(nameof(PartsAndLaborSummaryText));
+        Changed(nameof(PaymentChannelsSummaryText));
         Changed(nameof(DepositSummaryText));
         Changed(nameof(FinalPaymentSummaryText));
     }
@@ -1044,6 +1113,132 @@ public static class MaintenanceDesignSeedData
             ActorName = "م. كريم — هاردوير وشاشات"
         });
         list.Add(ord5);
+
+        var ord6 = new MaintenanceOrderDesignItem
+        {
+            Id = 6,
+            OrderNumber = "MNT-2026-0006",
+            ReceivedAt = DateTime.Today.AddDays(-2).AddHours(10).AddMinutes(15),
+            ReceivedByName = "المشرف",
+            ExpectedDeliveryAt = DateTime.Today.AddDays(-1),
+            ExpectedDeliveryLabel = "غدًا",
+            CustomerId = cust1.Id,
+            CustomerName = cust1.Name,
+            CustomerPhone = cust1.Phone,
+            CustomerAddress = cust1.Address,
+            DeviceType = "هاتف ذكي",
+            DeviceBrand = "Samsung",
+            DeviceModel = "Galaxy A54 5G",
+            DeviceColor = "أبيض",
+            SerialOrImei = "356011092233445",
+            PasscodeType = MaintenancePasscodeType.PinOrPassword,
+            PasscodeValue = "7410",
+            ReportedFault = "تغيير بطارية / شحن سريع يفصل — البطارية تفرغ بسرعة وتسخن عند الشحن.",
+            PhysicalCondition = "سليم ظاهريًا",
+            AccessoriesReceived = "جراب",
+            IntakeNotes = "العميل طلب بطارية أصلية مع اختبار الشحن السريع.",
+            DiagnosisNotes = "تم استبدال البطارية الأصلية وفحص دائرة الشحن السريع 25W وتأكد ثبات الفولت.",
+            LaborCost = 300m,
+            DiscountAmount = 50m,
+            Status = MaintenanceOrderStatus.Delivered,
+            Priority = MaintenancePriority.Normal,
+            AssignedTechnician = "م. كريم — هاردوير وشاشات",
+            IsEstimatePendingInspection = false,
+            EstimatedCost = 1150m,
+            DepositCashPaid = 200m,
+            FinalPaymentVodafonePaid = 900m,
+            FinalPaymentVodafoneReference = "VF-993210",
+            DeliveredAt = DateTime.Today.AddDays(-1).AddHours(18).AddMinutes(30),
+            WarrantyDays = 30,
+            DeliveryNotes = "تم اختبار الشحن ونسبة البطارية بحضور العميل."
+        };
+        ord6.UsedParts.Add(new MaintenancePartUsageItem
+        {
+            ProductId = 0,
+            Barcode = "MNT-PART-02",
+            ProductName = "بطارية Samsung Galaxy A54 أصلية",
+            Quantity = 1,
+            UnitCost = 520m,
+            UnitSellPrice = 850m,
+            IsManualPart = true
+        });
+        ord6.RecalculateWorkshopTotal();
+        ord6.ActivityLog.Add(new MaintenanceActivityEntry
+        {
+            Timestamp = ord6.ReceivedAt,
+            ActionTitle = "استلام جهاز صيانة",
+            Details = "استلام Galaxy A54 5G مع تحصيل عربون 200.00 ج.م كاش.",
+            ActorName = "المشرف",
+            Amount = 200m
+        });
+        ord6.ActivityLog.Add(new MaintenanceActivityEntry
+        {
+            Timestamp = ord6.ReceivedAt.AddHours(4),
+            ActionTitle = "صرف قطعة غيار واعتماد التسعير",
+            Details = "تركيب بطارية أصلية واعتماد صافي الفاتورة 1,100.00 ج.م بعد خصم 50.00 ج.م.",
+            ActorName = "م. كريم — هاردوير وشاشات",
+            Amount = 1100m
+        });
+        ord6.ActivityLog.Add(new MaintenanceActivityEntry
+        {
+            Timestamp = ord6.DeliveredAt ?? DateTime.Today,
+            ActionTitle = "تسليم الجهاز وإغلاق التذكرة",
+            Details = "تحصيل نهائي 900.00 ج.م فودافون كاش (VF-993210) مع ضمان 30 يومًا.",
+            ActorName = "المشرف",
+            Amount = 900m
+        });
+        list.Add(ord6);
+
+        var ord7 = new MaintenanceOrderDesignItem
+        {
+            Id = 7,
+            OrderNumber = "MNT-2026-0007",
+            ReceivedAt = DateTime.Today.AddDays(-3).AddHours(12).AddMinutes(10),
+            ReceivedByName = "المشرف",
+            ExpectedDeliveryAt = DateTime.Today.AddDays(-2),
+            ExpectedDeliveryLabel = "بعد الفحص والاتصال بالعميل",
+            CustomerId = cust3.Id,
+            CustomerName = cust3.Name,
+            CustomerPhone = cust3.Phone,
+            CustomerAddress = cust3.Address,
+            DeviceType = "هاتف ذكي",
+            DeviceBrand = "OPPO",
+            DeviceModel = "A78 4G",
+            DeviceColor = "أسود",
+            SerialOrImei = "861223004455661",
+            PasscodeType = MaintenancePasscodeType.None,
+            ReportedFault = "الجهاز فاصل باور (لا يفتح) بعد سقوطه في الماء.",
+            PhysicalCondition = "آثار رطوبة / سوائل",
+            AccessoriesReceived = "الجهاز فقط (بدون ملحقات)",
+            IntakeNotes = "تم التنبيه باحتمال تلف البوردة الرئيسية بسبب السوائل.",
+            DiagnosisNotes = "تلف حاد بالمعالج ومسارات التغذية الرئيسية على البوردة نتيجة تأكسد السوائل.",
+            Status = MaintenanceOrderStatus.Cancelled,
+            Priority = MaintenancePriority.Normal,
+            AssignedTechnician = "م. مصطفى — لابتوب وبوردة",
+            IsEstimatePendingInspection = true,
+            EstimatedCost = 0m,
+            DepositVodafonePaid = 150m,
+            DepositVodafoneReference = "VF-710544",
+            RefundedDepositAmount = 150m,
+            CancellationReason = "الجهاز لا يُصلح (تلف بالمعالج / البوردة)"
+        };
+        ord7.ActivityLog.Add(new MaintenanceActivityEntry
+        {
+            Timestamp = ord7.ReceivedAt,
+            ActionTitle = "استلام جهاز صيانة",
+            Details = "استلام OPPO A78 للفحص مع تحصيل عربون 150.00 ج.م فودافون كاش.",
+            ActorName = "المشرف",
+            Amount = 150m
+        });
+        ord7.ActivityLog.Add(new MaintenanceActivityEntry
+        {
+            Timestamp = ord7.ReceivedAt.AddHours(5),
+            ActionTitle = "إلغاء أمر الصيانة",
+            Details = "السبب: الجهاز لا يُصلح (تلف بالمعالج / البوردة) · استرداد عربون: 150.00 ج.م.",
+            ActorName = "المشرف",
+            Amount = 150m
+        });
+        list.Add(ord7);
 
         return list;
     }

@@ -606,6 +606,48 @@ for token in (
     assert token in maintenance_actions_xaml, f'MaintenanceActions UI missing expected token: {token}'
 assert 'ExtraDepositReference' not in maintenance_actions_xaml, 'Reference input should not appear in extra deposit collection'
 
+maintenance_invoices_xaml_path = root / 'src/ProjectZ/Views/MaintenanceInvoicesView.xaml'
+maintenance_invoice_details_xaml_path = root / 'src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml'
+assert maintenance_invoices_xaml_path.is_file() and maintenance_invoice_details_xaml_path.is_file()
+assert 'IsMaintenanceInvoicesSelected' in main_viewmodel and 'MaintenanceInvoices' in main_viewmodel
+assert 'views:MaintenanceInvoicesView' in main_xaml
+
+maintenance_invoices_xaml = maintenance_invoices_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'InvoicesCountDisplay',
+    'TotalServiceValueDisplay',
+    'TotalNetProfitDisplay',
+    'TotalCollectedAllDisplay',
+    'TotalRemainingDisplay',
+    'SelectDateBasisCommand',
+    'SelectDatePresetCommand',
+    'CustomFromDate',
+    'CustomToDate',
+    'StatusFilterOptions',
+    'PriorityFilterOptions',
+    'TechnicianFilterOptions',
+    'PaymentFilterOptions',
+    'SettlementFilterOptions',
+    'SortOptions',
+    'FilteredOrders',
+    'OpenInvoiceDetailsCommand',
+    'OpenPrintPreviewCommand',
+    'OpenDeliverDialogCommand',
+    'OpenInMaintenanceActionsCommand',
+):
+    assert token in maintenance_invoices_xaml, f'MaintenanceInvoices UI missing expected token: {token}'
+
+maintenance_invoice_details_xaml = maintenance_invoice_details_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'PrintPreviewCommand',
+    'DeliverAndCollectCommand',
+    'OpenInActionsCommand',
+    'Order.UsedParts',
+    'Order.ActivityLog',
+    'ProfitMarginDisplay',
+):
+    assert token in maintenance_invoice_details_xaml, f'MaintenanceInvoiceDetailsWindow missing expected token: {token}'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
@@ -632,6 +674,8 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/PurchaseInvoiceDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/PurchaseInvoicesViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceIntakeViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/MaintenanceInvoicesViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/MaintenanceInvoiceDetailsViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceActionsDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceReceiptPreviewViewModel.cs',
@@ -651,6 +695,8 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/PaySupplierInvoiceWindow.xaml.cs',
     root / 'src/ProjectZ/Views/PurchaseInvoicePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceIntakeView.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceInvoicesView.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceActionsView.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceDeliveryWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceCancelOrderWindow.xaml.cs',
