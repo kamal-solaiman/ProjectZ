@@ -23,6 +23,7 @@ public sealed class MainViewModel : ObservableObject
     public MaintenanceInvoicesViewModel MaintenanceInvoices { get; }
     public MaintenanceActionsViewModel MaintenanceActions { get; }
     public MaintenanceSparePartsViewModel MaintenanceSpareParts { get; }
+    public CustomersViewModel Customers { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
@@ -37,11 +38,12 @@ public sealed class MainViewModel : ObservableObject
     public bool IsMaintenanceInvoicesSelected => ReferenceEquals(selectedItem, Categories[2].Items[1]);
     public bool IsMaintenanceActionsSelected => ReferenceEquals(selectedItem, Categories[2].Items[2]);
     public bool IsMaintenanceSparePartsSelected => ReferenceEquals(selectedItem, Categories[2].Items[3]);
+    public bool IsCustomersSelected => ReferenceEquals(selectedItem, Categories[4].Items[0]);
     public bool IsImplementedScreenSelected =>
         IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
-        || IsMaintenanceSparePartsSelected;
+        || IsMaintenanceSparePartsSelected || IsCustomersSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -181,6 +183,34 @@ public sealed class MainViewModel : ObservableObject
         ProductCategories = new CategoriesViewModel(
             sharedCategories,
             () => SelectItem(Categories[0].Items[1]));
+        Customers = new CustomersViewModel(
+            user.DisplayName,
+            sharedCustomers,
+            sharedSalesInvoices,
+            sharedMaintenanceOrders,
+            customer =>
+            {
+                Pos.StartNewInvoiceForCustomer(customer);
+                SelectItem(Categories[0].Items[0]);
+            },
+            customer =>
+            {
+                MaintenanceIntake.StartNewIntakeForCustomer(customer);
+                SelectItem(Categories[2].Items[0]);
+            },
+            order =>
+            {
+                MaintenanceActions.SelectOrderFromExternal(order);
+                SelectItem(Categories[2].Items[2]);
+            },
+            () =>
+            {
+                Invoices.NotifyExternalInvoicesChanged();
+                ReturnExchange.NotifyExternalDataChanged();
+                MaintenanceIntake.NotifyExternalDataChanged();
+                MaintenanceInvoices.NotifyExternalDataChanged();
+                MaintenanceActions.NotifyExternalDataChanged();
+            });
 
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);
@@ -236,6 +266,8 @@ public sealed class MainViewModel : ObservableObject
             MaintenanceActions.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[2].Items[3]))
             MaintenanceSpareParts.NotifyExternalDataChanged();
+        else if (ReferenceEquals(item, Categories[4].Items[0]))
+            Customers.NotifyExternalDataChanged();
 
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
@@ -249,6 +281,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsMaintenanceInvoicesSelected));
         Changed(nameof(IsMaintenanceActionsSelected));
         Changed(nameof(IsMaintenanceSparePartsSelected));
+        Changed(nameof(IsCustomersSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));
