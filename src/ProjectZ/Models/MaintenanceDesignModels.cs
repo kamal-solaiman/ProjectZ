@@ -199,6 +199,10 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     private string finalPaymentVodafoneReference = "";
     private decimal finalPaymentInstaPayPaid;
     private string finalPaymentInstaPayReference = "";
+    private string customerName = "";
+    private string customerPhone = "";
+    private string customerSecondaryPhone = "";
+    private string customerAddress = "";
     private DateTime? deliveredAt;
     private int warrantyDays;
     private string deliveryNotes = "";
@@ -237,10 +241,52 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
 
     // Customer snapshot
     public int CustomerId { get; init; }
-    public string CustomerName { get; init; } = "";
-    public string CustomerPhone { get; init; } = "";
-    public string CustomerSecondaryPhone { get; init; } = "";
-    public string CustomerAddress { get; init; } = "";
+
+    public string CustomerName
+    {
+        get => customerName;
+        set
+        {
+            if (customerName == value) return;
+            customerName = value;
+            Changed();
+        }
+    }
+
+    public string CustomerPhone
+    {
+        get => customerPhone;
+        set
+        {
+            if (customerPhone == value) return;
+            customerPhone = value;
+            Changed();
+            Changed(nameof(CustomerPhoneDisplay));
+        }
+    }
+
+    public string CustomerSecondaryPhone
+    {
+        get => customerSecondaryPhone;
+        set
+        {
+            if (customerSecondaryPhone == value) return;
+            customerSecondaryPhone = value;
+            Changed();
+        }
+    }
+
+    public string CustomerAddress
+    {
+        get => customerAddress;
+        set
+        {
+            if (customerAddress == value) return;
+            customerAddress = value;
+            Changed();
+        }
+    }
+
     public bool IsWalkInCustomer { get; init; }
 
     // Device & intake check

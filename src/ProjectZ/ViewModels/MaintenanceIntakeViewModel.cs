@@ -733,6 +733,14 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         Changed(nameof(NextOrderNumberDisplay));
     }
 
+    public void StartNewIntakeForCustomer(PosCustomerDesignItem customer)
+    {
+        ResetForm();
+        SelectCustomer(customer);
+        FocusModelInputRequested?.Invoke();
+        SetStatus($"جاهز لاستلام أمر صيانة جديد للعميل «{customer.Name}» ({customer.DisplayPhone}).", false);
+    }
+
     private void OnCustomersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         => RefreshFilteredCustomers();
 

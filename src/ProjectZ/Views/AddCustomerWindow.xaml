@@ -1,7 +1,7 @@
 <Window x:Class="ProjectZ.Views.AddCustomerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ProjectZ | إضافة عميل جديد"
+        Title="{Binding WindowTitle}"
         Width="540"
         Height="640"
         MinWidth="460"
@@ -41,12 +41,12 @@
                           VerticalAlignment="Center" />
                 </Border>
                 <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="إضافة عميل جديد"
+                    <TextBlock Text="{Binding HeaderTitle}"
                                Style="{StaticResource PosRtlTextStyle}"
                                FontSize="19"
                                FontWeight="Bold"
                                Foreground="White" />
-                    <TextBlock Text="إدراج العميل مباشرة في الفاتورة الحالية (مرحلة التصميم)"
+                    <TextBlock Text="{Binding HeaderSubtitle}"
                                Style="{StaticResource PosRtlTextStyle}"
                                Margin="0,3,0,0"
                                FontSize="12"
@@ -73,7 +73,7 @@
                             Background="#F0FDFA"
                             BorderBrush="#99F6E4"
                             BorderThickness="1">
-                        <TextBlock Text="وضع التصميم (بدون Backend): يتم حفظ بيانات العميل مؤقتًا داخل الجلسة الحالية واختياره تلقائيًا في الفاتورة."
+                        <TextBlock Text="{Binding BannerHintText}"
                                    Style="{StaticResource PosRtlTextStyle}"
                                    FontSize="12"
                                    Foreground="#0F766E"
@@ -195,7 +195,7 @@
                     Command="{Binding CancelCommand}" />
 
             <Button Grid.Column="2"
-                    Content="حفظ وإدراج في الفاتورة"
+                    Content="{Binding SaveButtonText}"
                     Style="{StaticResource PosPrimaryCompactButtonStyle}"
                     MinWidth="190"
                     Padding="20,10"

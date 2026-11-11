@@ -5,8 +5,13 @@ namespace ProjectZ.ViewModels;
 
 public sealed class AddCustomerViewModel : ObservableObject
 {
+    private readonly PosCustomerDesignItem? existingCustomer;
     private readonly Action<PosCustomerDesignItem> onSaved;
     private readonly Action onCancelled;
+    private readonly Func<string, int?, string?>? customValidator;
+    private readonly string? customHeaderSubtitle;
+    private readonly string? customBannerHint;
+    private readonly string? customSaveButtonText;
 
     private string name = "";
     private string phone = "";
@@ -17,6 +22,20 @@ public sealed class AddCustomerViewModel : ObservableObject
     private string error = "";
 
     public IReadOnlyList<PriceTierOption> PriceTierOptions => PosFormatting.PriceTierOptions;
+
+    public bool IsEditMode => existingCustomer is not null;
+    public string WindowTitle => IsEditMode ? "ProjectZ | تعديل بيانات العميل" : "ProjectZ | إضافة عميل جديد";
+    public string HeaderTitle => IsEditMode ? "تعديل بيانات العميل" : "إضافة عميل جديد";
+    public string HeaderSubtitle => customHeaderSubtitle
+        ?? (IsEditMode
+            ? $"تحديث ملف العميل ({existingCustomer!.CustomerCodeDisplay})"
+            : "إدراج العميل مباشرة في الفاتورة الحالية (مرحلة التصميم)");
+    public string BannerHintText => customBannerHint
+        ?? (IsEditMode
+            ? "يتم تحديث بيانات العميل ومزامنتها فورًا في شاشات المبيعات والصيانة والفواتير داخل الجلسة الحالية."
+            : "وضع التصميم (بدون Backend): يتم حفظ بيانات العميل مؤقتًا داخل الجلسة الحالية واختياره تلقائيًا في الفاتورة.");
+    public string SaveButtonText => customSaveButtonText
+        ?? (IsEditMode ? "حفظ التعديلات" : "حفظ وإدراج في الفاتورة");
 
     public string Name
     {
@@ -104,11 +123,38 @@ public sealed class AddCustomerViewModel : ObservableObject
         string? initialQuery,
         Action<PosCustomerDesignItem> onSaved,
         Action onCancelled)
+        : this(initialQuery, null, onSaved, onCancelled, null, null, null, null)
     {
+    }
+
+    public AddCustomerViewModel(
+        string? initialQuery,
+        PosCustomerDesignItem? existingCustomer,
+        Action<PosCustomerDesignItem> onSaved,
+        Action onCancelled,
+        Func<string, int?, string?>? customValidator = null,
+        string? customHeaderSubtitle = null,
+        string? customBannerHint = null,
+        string? customSaveButtonText = null)
+    {
+        this.existingCustomer = existingCustomer;
         this.onSaved = onSaved;
         this.onCancelled = onCancelled;
+        this.customValidator = customValidator;
+        this.customHeaderSubtitle = customHeaderSubtitle;
+        this.customBannerHint = customBannerHint;
+        this.customSaveButtonText = customSaveButtonText;
 
-        if (!string.IsNullOrWhiteSpace(initialQuery))
+        if (existingCustomer is not null)
+        {
+            name = existingCustomer.Name;
+            phone = existingCustomer.Phone;
+            secondaryPhone = existingCustomer.SecondaryPhone;
+            address = existingCustomer.Address;
+            notes = existingCustomer.Notes;
+            defaultPriceTier = existingCustomer.DefaultPriceTier;
+        }
+        else if (!string.IsNullOrWhiteSpace(initialQuery))
         {
             var trimmed = initialQuery.Trim();
             if (trimmed.Any(char.IsDigit) && trimmed.All(c => char.IsDigit(c) || c is '+' or '-' or ' '))
@@ -135,6 +181,25 @@ public sealed class AddCustomerViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(trimmedPhone))
         {
             Error = "يرجى إدخال رقم هاتف العميل.";
+            return;
+        }
+
+        var customError = customValidator?.Invoke(trimmedPhone, existingCustomer?.Id);
+        if (!string.IsNullOrWhiteSpace(customError))
+        {
+            Error = customError;
+            return;
+        }
+
+        if (existingCustomer is not null)
+        {
+            existingCustomer.Name = trimmedName;
+            existingCustomer.Phone = trimmedPhone;
+            existingCustomer.SecondaryPhone = SecondaryPhone.Trim();
+            existingCustomer.Address = Address.Trim();
+            existingCustomer.Notes = Notes.Trim();
+            existingCustomer.DefaultPriceTier = DefaultPriceTier;
+            onSaved(existingCustomer);
             return;
         }
 

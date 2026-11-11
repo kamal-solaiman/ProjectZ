@@ -114,6 +114,10 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
 
 public sealed class SalesInvoiceDesignItem : ObservableObject
 {
+    private string customerName = "عميل نقدي (عام)";
+    private string customerPhone = "";
+    private string customerAddress = "";
+    private PriceTier defaultPriceTier = PriceTier.Retail;
     private SalesInvoiceStatus status = SalesInvoiceStatus.Completed;
     private decimal cashPaid;
     private decimal vodafoneCashPaid;
@@ -130,11 +134,56 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     public DateTime IssuedAt { get; init; }
     public string CashierName { get; init; } = "";
     public int CustomerId { get; init; }
-    public string CustomerName { get; init; } = "عميل نقدي (عام)";
-    public string CustomerPhone { get; init; } = "";
-    public string CustomerAddress { get; init; } = "";
+
+    public string CustomerName
+    {
+        get => customerName;
+        set
+        {
+            if (customerName == value) return;
+            customerName = value;
+            Changed();
+        }
+    }
+
+    public string CustomerPhone
+    {
+        get => customerPhone;
+        set
+        {
+            if (customerPhone == value) return;
+            customerPhone = value;
+            Changed();
+            Changed(nameof(CustomerPhoneDisplay));
+        }
+    }
+
+    public string CustomerAddress
+    {
+        get => customerAddress;
+        set
+        {
+            if (customerAddress == value) return;
+            customerAddress = value;
+            Changed();
+            Changed(nameof(CustomerAddressDisplay));
+        }
+    }
+
     public bool IsWalkInCustomer { get; init; } = true;
-    public PriceTier DefaultPriceTier { get; init; } = PriceTier.Retail;
+
+    public PriceTier DefaultPriceTier
+    {
+        get => defaultPriceTier;
+        set
+        {
+            if (defaultPriceTier == value) return;
+            defaultPriceTier = value;
+            Changed();
+            Changed(nameof(DefaultPriceTierTitle));
+        }
+    }
+
     public decimal DiscountAmount { get; init; }
 
     public ObservableCollection<SalesInvoiceLineDesignItem> Items { get; } = [];

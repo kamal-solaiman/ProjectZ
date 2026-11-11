@@ -685,6 +685,34 @@ maintenance_actions_vm_text = (root / 'src/ProjectZ/ViewModels/MaintenanceAction
 assert 'ObservableCollection<MaintenanceSparePartItem>' in maintenance_actions_vm_text
 assert 'InventoryUnitRegistrationItem' not in maintenance_actions_vm_text, 'MaintenanceActions must use dedicated maintenance spare parts, not POS/Inventory registrations'
 
+customers_xaml_path = root / 'src/ProjectZ/Views/CustomersView.xaml'
+assert customers_xaml_path.is_file()
+assert 'IsCustomersSelected' in main_viewmodel and 'Customers' in main_viewmodel
+assert 'views:CustomersView' in main_xaml
+
+customers_xaml = customers_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'TotalCustomersCountDisplay',
+    'TotalBusinessValueDisplay',
+    'TotalCollectedAllDisplay',
+    'TotalRemainingAllDisplay',
+    'FilteredCustomers',
+    'SelectedCustomerEntry',
+    'AddCustomerCommand',
+    'EditSelectedCustomerCommand',
+    'DeleteSelectedCustomerCommand',
+    'StartSaleForCustomerCommand',
+    'StartMaintenanceForCustomerCommand',
+    'SelectedCustomerSalesInvoices',
+    'SelectedCustomerMaintenanceOrders',
+    'CollectSalesInvoiceCommand',
+    'PrintSalesInvoiceCommand',
+    'DeliverAndCollectMaintenanceCommand',
+    'OpenMaintenanceDetailsCommand',
+    'OpenMaintenanceInActionsCommand',
+):
+    assert token in customers_xaml, f'Customers UI missing expected token: {token}'
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
@@ -696,6 +724,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/PosInvoiceViewModel.cs',
     root / 'src/ProjectZ/ViewModels/PosInvoiceItemViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddCustomerViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/CustomersViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddSupplierViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs',
@@ -719,6 +748,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/MaintenanceReceiptPreviewViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/CustomersView.xaml.cs',
     root / 'src/ProjectZ/Views/AddSupplierWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AddProductView.xaml.cs',
     root / 'src/ProjectZ/Views/InventoryView.xaml.cs',

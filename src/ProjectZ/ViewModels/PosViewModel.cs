@@ -187,6 +187,16 @@ public sealed class PosViewModel : ObservableObject
         FocusBarcodeInputRequested?.Invoke();
     }
 
+    public void StartNewInvoiceForCustomer(PosCustomerDesignItem customer)
+    {
+        var invoice = new PosInvoiceViewModel(nextInvoiceNumber++, Customers, SetStatus);
+        Invoices.Add(invoice);
+        ActiveInvoice = invoice;
+        ActiveInvoice.SelectCustomer(customer, applyDefaultTier: true);
+        SetStatus($"تم فتح {invoice.TabTitle} جديدة للعميل «{customer.Name}» ({customer.DefaultPriceTierTitle}).", false);
+        FocusBarcodeInputRequested?.Invoke();
+    }
+
     private void CloseInvoice(PosInvoiceViewModel? invoice)
     {
         if (invoice is null || !Invoices.Contains(invoice)) return;
