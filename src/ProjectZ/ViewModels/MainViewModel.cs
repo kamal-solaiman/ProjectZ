@@ -25,6 +25,7 @@ public sealed class MainViewModel : ObservableObject
     public MaintenanceSparePartsViewModel MaintenanceSpareParts { get; }
     public CustomersViewModel Customers { get; }
     public SuppliersViewModel Suppliers { get; }
+    public MyAccountsViewModel MyAccounts { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
@@ -41,11 +42,12 @@ public sealed class MainViewModel : ObservableObject
     public bool IsMaintenanceSparePartsSelected => ReferenceEquals(selectedItem, Categories[2].Items[3]);
     public bool IsCustomersSelected => ReferenceEquals(selectedItem, Categories[4].Items[0]);
     public bool IsSuppliersSelected => ReferenceEquals(selectedItem, Categories[4].Items[1]);
+    public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, Categories[3].Items[4]);
     public bool IsImplementedScreenSelected =>
         IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
-        || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected;
+        || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -185,6 +187,7 @@ public sealed class MainViewModel : ObservableObject
         ProductCategories = new CategoriesViewModel(
             sharedCategories,
             () => SelectItem(Categories[0].Items[1]));
+        MyAccounts = new MyAccountsViewModel(user.DisplayName);
         Suppliers = new SuppliersViewModel(
             sharedSuppliers,
             sharedPurchaseInvoices,
@@ -302,6 +305,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsMaintenanceSparePartsSelected));
         Changed(nameof(IsCustomersSelected));
         Changed(nameof(IsSuppliersSelected));
+        Changed(nameof(IsMyAccountsSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));

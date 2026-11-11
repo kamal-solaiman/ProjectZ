@@ -736,8 +736,31 @@ for token in ('Specialization', 'VodafoneCashNumber', 'InstaPayAddress'):
     assert token in supplier_model_text
 print('PASS: Suppliers directory, 360 profile, invoices, payments/returns and chronological debit/credit statement')
 
+accounts_xaml_path = root / 'src/ProjectZ/Views/MyAccountsView.xaml'
+accounts_vm_path = root / 'src/ProjectZ/ViewModels/MyAccountsViewModel.cs'
+accounts_model_path = root / 'src/ProjectZ/Models/FinanceDesignModels.cs'
+assert accounts_xaml_path.is_file() and accounts_vm_path.is_file() and accounts_model_path.is_file()
+assert 'IsMyAccountsSelected' in main_viewmodel and 'MyAccountsViewModel' in main_viewmodel
+assert 'views:MyAccountsView' in main_xaml
+accounts_xaml = accounts_xaml_path.read_text(encoding='utf-8')
+for token in (
+    'CashAccount.BalanceDisplay', 'NewCashTransactionCommand', 'TransferFromCashCommand',
+    'AddVodafoneWalletCommand', 'AddInstaPayWalletCommand', 'FilteredWallets',
+    'SelectedAccount.DailyDepositUsagePercent', 'SelectedAccount.DailyWithdrawalUsagePercent',
+    'SelectedAccount.MonthlyDepositUsagePercent', 'SelectedAccount.MonthlyWithdrawalUsagePercent',
+    'SelectedAccountTransactions', 'EditSelectedAccountCommand', 'ToggleSelectedAccountCommand',
+):
+    assert token in accounts_xaml, f'MyAccounts UI missing expected token: {token}'
+accounts_vm_text = accounts_vm_path.read_text(encoding='utf-8')
+accounts_dialogs_text = (root / 'src/ProjectZ/ViewModels/AccountDialogViewModels.cs').read_text(encoding='utf-8')
+for token in ('ValidateLimits', 'DailyDepositLimit', 'DailyWithdrawalLimit', 'MonthlyDepositLimit', 'MonthlyWithdrawalLimit', 'RecalculateUsage'):
+    assert token in accounts_dialogs_text or token in accounts_model_path.read_text(encoding='utf-8')
+assert 'OpenTransferRequested' in accounts_vm_text and 'OpenTransactionRequested' in accounts_vm_text
+print('PASS: MyAccounts cash, independent wallets, four limits, transfers and ledger UI')
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
+    root / 'src/ProjectZ/Models/FinanceDesignModels.cs',
     root / 'src/ProjectZ/Models/InventoryDesignModels.cs',
     root / 'src/ProjectZ/Models/InvoiceDesignModels.cs',
     root / 'src/ProjectZ/Models/ReturnExchangeDesignModels.cs',
@@ -751,6 +774,8 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddSupplierViewModel.cs',
     root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/MyAccountsViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/AccountDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/CategoriesViewModel.cs',
@@ -775,6 +800,10 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/CustomersView.xaml.cs',
     root / 'src/ProjectZ/Views/AddSupplierWindow.xaml.cs',
     root / 'src/ProjectZ/Views/SuppliersView.xaml.cs',
+    root / 'src/ProjectZ/Views/MyAccountsView.xaml.cs',
+    root / 'src/ProjectZ/Views/AccountEditorWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/AccountTransactionWindow.xaml.cs',
+    root / 'src/ProjectZ/Views/AccountTransferWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AddProductView.xaml.cs',
     root / 'src/ProjectZ/Views/InventoryView.xaml.cs',
     root / 'src/ProjectZ/Views/CategoriesView.xaml.cs',

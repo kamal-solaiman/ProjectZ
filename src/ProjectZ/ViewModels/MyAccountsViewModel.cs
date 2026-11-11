@@ -1,0 +1,291 @@
+using System.Collections.ObjectModel;
+using ProjectZ.Helpers;
+using ProjectZ.Models;
+
+namespace ProjectZ.ViewModels;
+
+public sealed class MyAccountsViewModel : ObservableObject
+{
+    private readonly string currentUserName;
+    private FinancialAccountDesignItem? selectedAccount;
+    private string selectedProviderFilter = "كل المحافظ";
+    private string selectedStatusFilter = "كل الحالات";
+    private string walletSearchText = "";
+    private string transactionSearchText = "";
+    private string selectedTransactionType = "كل الحركات";
+    private string statusMessage = "تصميم تفاعلي بدون Backend: البيانات والتعديلات محلية داخل الجلسة الحالية فقط.";
+    private bool isErrorStatus;
+    private int nextAccountId = 100;
+    private int nextTransactionId = 1000;
+
+    public ObservableCollection<FinancialAccountDesignItem> Accounts { get; }
+    public ObservableCollection<FinancialTransactionDesignItem> Transactions { get; }
+    public ObservableCollection<FinancialAccountDesignItem> FilteredWallets { get; } = [];
+    public ObservableCollection<FinancialTransactionDesignItem> SelectedAccountTransactions { get; } = [];
+    public IReadOnlyList<string> ProviderFilterOptions { get; } = ["كل المحافظ", "فودافون كاش", "إنستاباي"];
+    public IReadOnlyList<string> StatusFilterOptions { get; } = ["كل الحالات", "النشطة فقط", "الموقوفة فقط", "تحتاج مراجعة الحدود"];
+    public IReadOnlyList<string> TransactionTypeOptions { get; } = ["كل الحركات", "وارد", "منصرف", "إيداع وسحب", "تحصيل وسداد النظام", "تسويات وتحويلات"];
+
+    public FinancialAccountDesignItem CashAccount => Accounts.First(a => a.IsCash);
+    public FinancialAccountDesignItem? SelectedAccount
+    {
+        get => selectedAccount;
+        set
+        {
+            if (ReferenceEquals(selectedAccount, value)) return;
+            if (selectedAccount is not null) selectedAccount.IsSelected = false;
+            selectedAccount = value;
+            if (selectedAccount is not null) selectedAccount.IsSelected = true;
+            RefreshSelectedTransactions();
+            Changed(); Changed(nameof(HasSelectedAccount)); Changed(nameof(IsCashSelected)); Changed(nameof(SelectedAccountTitle));
+        }
+    }
+    public bool HasSelectedAccount => SelectedAccount is not null;
+    public bool IsCashSelected => SelectedAccount?.IsCash == true;
+    public string SelectedAccountTitle => SelectedAccount is null ? "سجل الحركات" : $"سجل حركات: {SelectedAccount.DisplayName}";
+
+    public string SelectedProviderFilter { get => selectedProviderFilter; set { if (selectedProviderFilter == value) return; selectedProviderFilter = value; Changed(); RefreshFilteredWallets(); } }
+    public string SelectedStatusFilter { get => selectedStatusFilter; set { if (selectedStatusFilter == value) return; selectedStatusFilter = value; Changed(); RefreshFilteredWallets(); } }
+    public string WalletSearchText { get => walletSearchText; set { if (walletSearchText == value) return; walletSearchText = value; Changed(); RefreshFilteredWallets(); } }
+    public string TransactionSearchText { get => transactionSearchText; set { if (transactionSearchText == value) return; transactionSearchText = value; Changed(); RefreshSelectedTransactions(); } }
+    public string SelectedTransactionType { get => selectedTransactionType; set { if (selectedTransactionType == value) return; selectedTransactionType = value; Changed(); RefreshSelectedTransactions(); } }
+    public bool HasNoFilteredWallets => FilteredWallets.Count == 0;
+    public bool HasNoSelectedTransactions => SelectedAccountTransactions.Count == 0;
+
+    public string TotalLiquidityDisplay => PosFormatting.FormatCurrency(Accounts.Sum(a => a.Balance));
+    public string ActiveAccountsSubtext => $"{Accounts.Count(a => a.IsActive)} حسابات نشطة · {Accounts.Count(a => !a.IsCash)} محافظ إلكترونية";
+    public string DigitalBalancesDisplay => PosFormatting.FormatCurrency(Accounts.Where(a => !a.IsCash).Sum(a => a.Balance));
+    public string DigitalBreakdownSubtext => $"فودافون: {PosFormatting.FormatCurrency(Accounts.Where(a => a.Kind == FinancialAccountKind.VodafoneCash).Sum(a => a.Balance))} · إنستاباي: {PosFormatting.FormatCurrency(Accounts.Where(a => a.Kind == FinancialAccountKind.InstaPay).Sum(a => a.Balance))}";
+    public string TodayIncomingDisplay => PosFormatting.FormatCurrency(Transactions.Where(t => t.IsIncoming && t.Timestamp.Date == DateTime.Today).Sum(t => t.Amount));
+    public string TodayOutgoingSubtext => $"منصرف اليوم: {PosFormatting.FormatCurrency(Transactions.Where(t => !t.IsIncoming && t.Timestamp.Date == DateTime.Today).Sum(t => t.Amount))}";
+    public string LimitWarningsCountDisplay => $"{Accounts.Count(a => a.HasLimitWarning)} تنبيهات";
+    public string LimitWarningsSubtext => Accounts.Any(a => a.HasLimitWarning) ? "محافظ اقتربت من الحدود المحددة" : "كل الحدود ضمن النطاق الآمن";
+    public string StatusMessage { get => statusMessage; private set { if (statusMessage == value) return; statusMessage = value; Changed(); Changed(nameof(HasStatusMessage)); } }
+    public bool IsErrorStatus { get => isErrorStatus; private set { if (isErrorStatus == value) return; isErrorStatus = value; Changed(); } }
+    public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+
+    public Action<AccountEditorViewModel>? OpenAccountEditorRequested { get; set; }
+    public Action<AccountTransactionViewModel>? OpenTransactionRequested { get; set; }
+    public Action<AccountTransferViewModel>? OpenTransferRequested { get; set; }
+    public Action<ConfirmActionViewModel, Action>? OpenConfirmDialogRequested { get; set; }
+
+    public RelayCommand<string> AddWalletCommand { get; }
+    public ActionCommand AddVodafoneWalletCommand { get; }
+    public ActionCommand AddInstaPayWalletCommand { get; }
+    public ActionCommand EditSelectedAccountCommand { get; }
+    public ActionCommand ToggleSelectedAccountCommand { get; }
+    public ActionCommand SetSelectedAsDefaultCommand { get; }
+    public ActionCommand DeleteSelectedAccountCommand { get; }
+    public ActionCommand NewSelectedTransactionCommand { get; }
+    public ActionCommand NewCashTransactionCommand { get; }
+    public ActionCommand TransferFromSelectedCommand { get; }
+    public ActionCommand TransferFromCashCommand { get; }
+    public ActionCommand SelectCashCommand { get; }
+    public ActionCommand ClearWalletFiltersCommand { get; }
+    public ActionCommand ClearTransactionFiltersCommand { get; }
+    public ActionCommand RefreshCommand { get; }
+    public RelayCommand<FinancialAccountDesignItem> SelectAccountCommand { get; }
+
+    public MyAccountsViewModel() : this("المشرف") { }
+
+    public MyAccountsViewModel(string currentUserName)
+    {
+        this.currentUserName = currentUserName;
+        Accounts = FinanceDesignSeedData.CreateAccounts();
+        Transactions = FinanceDesignSeedData.CreateTransactions();
+        nextAccountId = Accounts.Max(a => a.Id) + 1;
+        nextTransactionId = Transactions.Max(t => t.Id) + 1;
+
+        AddWalletCommand = new RelayCommand<string>(provider => AddWallet(provider == "إنستاباي" ? FinancialAccountKind.InstaPay : FinancialAccountKind.VodafoneCash));
+        AddVodafoneWalletCommand = new ActionCommand(() => AddWallet(FinancialAccountKind.VodafoneCash));
+        AddInstaPayWalletCommand = new ActionCommand(() => AddWallet(FinancialAccountKind.InstaPay));
+        EditSelectedAccountCommand = new ActionCommand(EditSelectedAccount);
+        ToggleSelectedAccountCommand = new ActionCommand(ToggleSelectedAccount);
+        SetSelectedAsDefaultCommand = new ActionCommand(SetSelectedAsDefault);
+        DeleteSelectedAccountCommand = new ActionCommand(DeleteSelectedAccount);
+        NewSelectedTransactionCommand = new ActionCommand(() => OpenTransaction(SelectedAccount));
+        NewCashTransactionCommand = new ActionCommand(() => OpenTransaction(CashAccount));
+        TransferFromSelectedCommand = new ActionCommand(() => OpenTransfer(SelectedAccount));
+        TransferFromCashCommand = new ActionCommand(() => OpenTransfer(CashAccount));
+        SelectCashCommand = new ActionCommand(() => SelectedAccount = CashAccount);
+        ClearWalletFiltersCommand = new ActionCommand(ClearWalletFilters);
+        ClearTransactionFiltersCommand = new ActionCommand(() => { TransactionSearchText = ""; SelectedTransactionType = "كل الحركات"; });
+        RefreshCommand = new ActionCommand(() => { RecalculateAll(); SetStatus("تم تحديث الأرصدة واستهلاك الحدود وسجل الحركات.", false); });
+        SelectAccountCommand = new RelayCommand<FinancialAccountDesignItem>(account => { if (account is not null) SelectedAccount = account; });
+
+        RecalculateAll();
+        SelectedAccount = FilteredWallets.FirstOrDefault();
+    }
+
+    private void AddWallet(FinancialAccountKind kind)
+    {
+        var vm = new AccountEditorViewModel(kind, null, ValidateIdentifier);
+        OpenAccountEditorRequested?.Invoke(vm);
+        if (vm.Result is not { } result) return;
+        var account = new FinancialAccountDesignItem
+        {
+            Id = nextAccountId++, Kind = result.Kind, Alias = result.Alias, Identifier = result.Identifier, Balance = result.OpeningBalance,
+            DailyDepositLimit = result.DailyDepositLimit, DailyWithdrawalLimit = result.DailyWithdrawalLimit,
+            MonthlyDepositLimit = result.MonthlyDepositLimit, MonthlyWithdrawalLimit = result.MonthlyWithdrawalLimit, Notes = result.Notes,
+            IsDefault = !Accounts.Any(a => a.Kind == result.Kind && a.IsDefault)
+        };
+        Accounts.Add(account);
+        if (result.OpeningBalance > 0m)
+            AddTransaction(account, true, "رصيد افتتاحي", result.OpeningBalance, "إضافة محفظة", "OPENING", result.Notes, false);
+        RecalculateAll(); SelectedAccount = account;
+        SetStatus($"تمت إضافة «{account.Alias}» برصيد مستقل وحدود تشغيل خاصة.", false);
+    }
+
+    private void EditSelectedAccount()
+    {
+        if (SelectedAccount is null) return;
+        if (SelectedAccount.IsCash) { SetStatus("الحساب النقدي موحد وثابت؛ استخدم «تسوية / إيداع / سحب» لتعديل رصيده.", true); return; }
+        var account = SelectedAccount;
+        var vm = new AccountEditorViewModel(account.Kind, account, ValidateIdentifier);
+        OpenAccountEditorRequested?.Invoke(vm);
+        if (vm.Result is not { } result) return;
+        account.Alias = result.Alias; account.Identifier = result.Identifier;
+        account.DailyDepositLimit = result.DailyDepositLimit; account.DailyWithdrawalLimit = result.DailyWithdrawalLimit;
+        account.MonthlyDepositLimit = result.MonthlyDepositLimit; account.MonthlyWithdrawalLimit = result.MonthlyWithdrawalLimit; account.Notes = result.Notes;
+        RecalculateAll(); RefreshSelectedTransactions();
+        SetStatus($"تم حفظ إعدادات «{account.Alias}» وحدود الإيداع والسحب.", false);
+    }
+
+    private void ToggleSelectedAccount()
+    {
+        if (SelectedAccount is null) return;
+        if (SelectedAccount.IsCash) { SetStatus("لا يمكن إيقاف الخزنة النقدية لأنها حساب أساسي مرتبط بالنظام.", true); return; }
+        var account = SelectedAccount;
+        account.IsActive = !account.IsActive;
+        if (!account.IsActive) account.IsDefault = false;
+        NotifyKpis();
+        SetStatus(account.IsActive ? $"تم تفعيل «{account.Alias}» وإتاحة الحركات." : $"تم إيقاف «{account.Alias}» مؤقتًا مع الاحتفاظ بالرصيد والسجل.", false);
+    }
+
+    private void SetSelectedAsDefault()
+    {
+        if (SelectedAccount is null || SelectedAccount.IsCash) return;
+        if (!SelectedAccount.IsActive) { SetStatus("فعّل المحفظة أولًا قبل تعيينها كافتراضية.", true); return; }
+        foreach (var account in Accounts.Where(a => a.Kind == SelectedAccount.Kind)) account.IsDefault = ReferenceEquals(account, SelectedAccount);
+        SetStatus($"تم تعيين «{SelectedAccount.Alias}» كمحفظة {SelectedAccount.ProviderTitle} الافتراضية.", false);
+    }
+
+    private void DeleteSelectedAccount()
+    {
+        if (SelectedAccount is null || SelectedAccount.IsCash) return;
+        var account = SelectedAccount;
+        if (account.Balance != 0m) { SetStatus("لا يمكن حذف محفظة عليها رصيد؛ حوّل أو اسحب الرصيد أولًا.", true); return; }
+        if (Transactions.Any(t => t.AccountId == account.Id)) { SetStatus("لا يمكن حذف محفظة لها سجل حركات؛ يمكنك إيقافها مؤقتًا للحفاظ على الأرشيف.", true); return; }
+        var confirm = new ConfirmActionViewModel("تأكيد حذف المحفظة", account.DisplayName, "المحفظة بلا رصيد أو حركات. سيتم حذفها نهائيًا من التصميم المحلي. هل تريد المتابعة؟", "حذف المحفظة");
+        void Delete() { Accounts.Remove(account); RecalculateAll(); SelectedAccount = FilteredWallets.FirstOrDefault(); SetStatus($"تم حذف «{account.Alias}».", false); }
+        if (OpenConfirmDialogRequested is not null) OpenConfirmDialogRequested(confirm, Delete); else Delete();
+    }
+
+    private void OpenTransaction(FinancialAccountDesignItem? account)
+    {
+        if (account is null) return;
+        if (!account.IsActive) { SetStatus("لا يمكن تسجيل حركة على حساب موقوف.", true); return; }
+        var vm = new AccountTransactionViewModel(account);
+        OpenTransactionRequested?.Invoke(vm);
+        if (vm.Result is not { } result) return;
+        var incoming = result.Kind is FinancialMovementKind.Deposit or FinancialMovementKind.PositiveAdjustment;
+        var counts = result.Kind is FinancialMovementKind.Deposit or FinancialMovementKind.Withdrawal;
+        var category = result.Kind switch { FinancialMovementKind.Deposit => "إيداع", FinancialMovementKind.Withdrawal => "سحب", FinancialMovementKind.PositiveAdjustment => "تسوية بالإضافة", _ => "تسوية بالخصم" };
+        account.Balance += incoming ? result.Amount : -result.Amount;
+        AddTransaction(account, incoming, category, result.Amount, string.IsNullOrWhiteSpace(result.Counterparty) ? category : result.Counterparty, string.IsNullOrWhiteSpace(result.Reference) ? $"MAN-{nextTransactionId}" : result.Reference, result.Note, counts);
+        RecalculateAll(); RefreshSelectedTransactions(); NotifyKpis();
+        SetStatus($"تم تسجيل {category} بقيمة {PosFormatting.FormatCurrency(result.Amount)} على «{account.DisplayName}».", false);
+    }
+
+    private void OpenTransfer(FinancialAccountDesignItem? source)
+    {
+        if (source is null) return;
+        if (!source.IsActive) { SetStatus("فعّل حساب المصدر قبل التحويل.", true); return; }
+        var vm = new AccountTransferViewModel(source, Accounts);
+        OpenTransferRequested?.Invoke(vm);
+        if (vm.Result is not { } result) return;
+        var reference = string.IsNullOrWhiteSpace(result.Reference) ? $"TRF-{nextTransactionId}" : result.Reference;
+        source.Balance -= result.Amount; result.Target.Balance += result.Amount;
+        AddTransaction(source, false, "تحويل صادر", result.Amount, $"إلى {result.Target.DisplayName}", reference, result.Note, true);
+        AddTransaction(result.Target, true, "تحويل وارد", result.Amount, $"من {source.DisplayName}", reference, result.Note, true);
+        RecalculateAll(); RefreshSelectedTransactions();
+        SetStatus($"تم تحويل {PosFormatting.FormatCurrency(result.Amount)} من «{source.DisplayName}» إلى «{result.Target.DisplayName}».", false);
+    }
+
+    private void AddTransaction(FinancialAccountDesignItem account, bool incoming, string category, decimal amount, string counterparty, string reference, string note, bool counts)
+    {
+        Transactions.Insert(0, new FinancialTransactionDesignItem
+        {
+            Id = nextTransactionId++, AccountId = account.Id, Timestamp = DateTime.Now, IsIncoming = incoming, Category = category,
+            Amount = amount, BalanceAfter = account.Balance, Counterparty = counterparty, Reference = reference, Note = note,
+            ActorName = currentUserName, CountsTowardLimits = counts
+        });
+    }
+
+    private string? ValidateIdentifier(FinancialAccountKind kind, string identifier, int? editingId)
+    {
+        var normalized = identifier.Trim();
+        var duplicate = Accounts.FirstOrDefault(a => a.Id != (editingId ?? -1) && a.Kind == kind && a.Identifier.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        return duplicate is null ? null : $"هذا الحساب مسجل بالفعل باسم «{duplicate.Alias}». كل رقم أو عنوان يجب أن يكون مستقلًا.";
+    }
+
+    private void ClearWalletFilters()
+    {
+        SelectedProviderFilter = "كل المحافظ"; SelectedStatusFilter = "كل الحالات"; WalletSearchText = "";
+    }
+
+    private void RefreshFilteredWallets()
+    {
+        var query = WalletSearchText.Trim();
+        IEnumerable<FinancialAccountDesignItem> filtered = Accounts.Where(a => !a.IsCash);
+        if (SelectedProviderFilter != "كل المحافظ") filtered = filtered.Where(a => a.ProviderTitle == SelectedProviderFilter);
+        filtered = SelectedStatusFilter switch
+        {
+            "النشطة فقط" => filtered.Where(a => a.IsActive),
+            "الموقوفة فقط" => filtered.Where(a => !a.IsActive),
+            "تحتاج مراجعة الحدود" => filtered.Where(a => a.HasLimitWarning),
+            _ => filtered
+        };
+        if (query.Length > 0) filtered = filtered.Where(a => a.Alias.Contains(query, StringComparison.OrdinalIgnoreCase) || a.Identifier.Contains(query, StringComparison.OrdinalIgnoreCase) || a.ProviderTitle.Contains(query, StringComparison.OrdinalIgnoreCase));
+        FilteredWallets.Clear(); foreach (var account in filtered.OrderByDescending(a => a.IsDefault).ThenByDescending(a => a.IsActive).ThenBy(a => a.Id)) FilteredWallets.Add(account);
+        Changed(nameof(HasNoFilteredWallets));
+        if (SelectedAccount is not null && !SelectedAccount.IsCash && !FilteredWallets.Contains(SelectedAccount)) SelectedAccount = FilteredWallets.FirstOrDefault();
+    }
+
+    private void RefreshSelectedTransactions()
+    {
+        SelectedAccountTransactions.Clear();
+        if (SelectedAccount is not null)
+        {
+            var query = TransactionSearchText.Trim();
+            IEnumerable<FinancialTransactionDesignItem> rows = Transactions.Where(t => t.AccountId == SelectedAccount.Id);
+            rows = SelectedTransactionType switch
+            {
+                "وارد" => rows.Where(t => t.IsIncoming),
+                "منصرف" => rows.Where(t => !t.IsIncoming),
+                "إيداع وسحب" => rows.Where(t => t.Category is "إيداع" or "سحب"),
+                "تحصيل وسداد النظام" => rows.Where(t => t.Category.Contains("تحصيل") || t.Category.Contains("سداد") || t.Category.Contains("مبيعات") || t.Category.Contains("صيانة")),
+                "تسويات وتحويلات" => rows.Where(t => t.Category.Contains("تسوية") || t.Category.Contains("تحويل")),
+                _ => rows
+            };
+            if (query.Length > 0) rows = rows.Where(t => t.Category.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Counterparty.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Reference.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Note.Contains(query, StringComparison.OrdinalIgnoreCase));
+            foreach (var row in rows.OrderByDescending(t => t.Timestamp).ThenByDescending(t => t.Id)) SelectedAccountTransactions.Add(row);
+        }
+        Changed(nameof(HasNoSelectedTransactions));
+    }
+
+    private void RecalculateAll()
+    {
+        foreach (var account in Accounts) account.RecalculateUsage(Transactions);
+        RefreshFilteredWallets(); RefreshSelectedTransactions(); NotifyKpis();
+    }
+
+    private void NotifyKpis()
+    {
+        Changed(nameof(TotalLiquidityDisplay)); Changed(nameof(ActiveAccountsSubtext)); Changed(nameof(DigitalBalancesDisplay));
+        Changed(nameof(DigitalBreakdownSubtext)); Changed(nameof(TodayIncomingDisplay)); Changed(nameof(TodayOutgoingSubtext));
+        Changed(nameof(LimitWarningsCountDisplay)); Changed(nameof(LimitWarningsSubtext));
+    }
+
+    private void SetStatus(string message, bool error) { IsErrorStatus = error; StatusMessage = message; }
+}
