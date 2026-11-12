@@ -122,7 +122,7 @@ WHERE Id=@Id AND (@RowVersion IS NULL OR RowVersion=@RowVersion);");
             command.Parameters.AddWithValue("@Id", product.Id);
             command.Parameters.Add("@RowVersion", SqlDbType.Timestamp).Value = (object?)product.DatabaseRowVersion ?? DBNull.Value;
             using var reader = command.ExecuteReader();
-            if (!reader.Read()) throw Concurrency<Product>();
+            if (!reader.Read()) throw Concurrency<PosProductDesignItem>();
             product.DatabaseRowVersion = (byte[])reader[0];
             reader.Close();
             Audit(connection, transaction, "UpdateProduct", product.Id, $"تعديل صنف {product.Name}");

@@ -246,7 +246,7 @@ public sealed class InventoryViewModel : ObservableObject
         OpenMarkDamagedCommand = new RelayCommand<PosProductDesignItem>(OpenMarkDamagedDialog);
         DeleteProductCommand = new RelayCommand<PosProductDesignItem>(RequestDeleteProduct);
 
-        RestoreDamagedUnitCommand = new RelayCommand<InventoryUnitRegistrationItem>(RestoreDamagedUnit);
+        RestoreDamagedUnitCommand = new RelayCommand<InventoryUnitRegistrationItem>(unit => RestoreDamagedUnit(unit));
         MarkReturnedToSupplierCommand = new RelayCommand<InventoryUnitRegistrationItem>(MarkReturnedToSupplier);
         DeleteDamagedUnitCommand = new RelayCommand<InventoryUnitRegistrationItem>(RequestDeleteDamagedUnit);
 
