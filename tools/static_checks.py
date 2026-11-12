@@ -899,6 +899,11 @@ for callback in ('repository.Supply(', 'repository.UpdateProduct(', 'repository.
                  'repository.DeleteDamaged(', 'repository.DeleteOrArchiveProduct(', 'repository.SaveNewProduct('):
     assert callback in inventory_vm, f'inventory screen is not wired to SQL operation: {callback}'
 assert 'new InventoryRepository(connectionSettings, user.Id)' in (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
+pos_vm = (root / 'src/ProjectZ/ViewModels/PosViewModel.cs').read_text(encoding='utf-8')
+assert 'useDesignSamples: inventoryRepository is null' in main_viewmodel
+assert 'if (useDesignSamples)' in pos_vm and 'else\n            CreateAndSelectNewInvoice();' in pos_vm
+assert 'if (Catalog.Count < 4 || Customers.Count < 4)' in pos_vm
+print('PASS: SQL startup uses an empty POS invoice; design samples cannot index a short catalog')
 print('PASS: inventory SQL repository, transactions, row-version checks, serials, stock movements and full screen wiring')
 
 app_resource_keys = set()

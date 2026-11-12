@@ -113,7 +113,8 @@ public sealed class PosViewModel : ObservableObject
         string cashierName,
         ObservableCollection<PosProductDesignItem>? sharedCatalog = null,
         Func<PosInvoiceViewModel, string>? onInvoiceCompleted = null,
-        ObservableCollection<PosCustomerDesignItem>? sharedCustomers = null)
+        ObservableCollection<PosCustomerDesignItem>? sharedCustomers = null,
+        bool useDesignSamples = true)
     {
         this.onInvoiceCompleted = onInvoiceCompleted;
         CashierName = cashierName;
@@ -153,13 +154,25 @@ public sealed class PosViewModel : ObservableObject
         CompleteInvoicePreviewCommand = new ActionCommand(CompleteInvoicePreview);
         FocusBarcodeCommand = new ActionCommand(() => FocusBarcodeInputRequested?.Invoke());
 
-        InitializeDesignSampleInvoices();
+        if (useDesignSamples)
+            InitializeDesignSampleInvoices();
+        else
+            CreateAndSelectNewInvoice();
         RefreshFilteredCatalog();
-        SetStatus("مرحلة التصميم (بدون Backend): بيانات الفواتير والمنتجات والعملاء تجريبية لمعاينة الواجهة.", false);
+        SetStatus(useDesignSamples
+            ? "مرحلة التصميم (بدون Backend): بيانات الفواتير والمنتجات والعملاء تجريبية لمعاينة الواجهة."
+            : "تم فتح فاتورة بيع جديدة. اختر المنتجات من كتالوج المخزون.", false);
     }
 
     private void InitializeDesignSampleInvoices()
     {
+        // Design samples require the complete seed catalog; never index an empty/SQL catalog.
+        if (Catalog.Count < 4 || Customers.Count < 4)
+        {
+            CreateAndSelectNewInvoice();
+            return;
+        }
+
         // Sample Invoice #1: demonstrates split payment + per-item price override
         var invoice1 = new PosInvoiceViewModel(nextInvoiceNumber++, Customers, SetStatus);
         invoice1.SelectCustomer(Customers[1], applyDefaultTier: false);
