@@ -299,7 +299,7 @@
                                  FlowDirection="RightToLeft"
                                  TextAlignment="Left"
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="ابحث برقم الفاتورة، اسم/هاتف العميل، الصنف، الباركود، السيريال IMEI، أو رقم المرجع..."
+                        <TextBlock Text="ابحث برقم الفاتورة، اسم/هاتف العميل، الصنف، الباركود، السيريال IMEI..."
                                    Style="{StaticResource PosRtlTextStyle}"
                                    Margin="30,0,10,0"
                                    VerticalAlignment="Center"
@@ -701,12 +701,6 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Orientation="Horizontal">
                                             <TextBlock Text="فودافون كاش:" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#C8102E" FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding SelectedInvoice.VodafoneCashReference, StringFormat=' [مرجع: {0}]'}"
-                                                       Style="{StaticResource PosLtrTextStyle}"
-                                                       FontFamily="Consolas, Segoe UI"
-                                                       FontSize="11"
-                                                       Foreground="#64748B"
-                                                       Visibility="{Binding SelectedInvoice.VodafoneCashReference, Converter={StaticResource StringNotEmptyToVis}}" />
                                         </StackPanel>
                                         <TextBlock Grid.Column="1" Text="{Binding SelectedInvoice.VodafoneCashPaidDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#C8102E" />
                                     </Grid>
@@ -717,12 +711,6 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Orientation="Horizontal">
                                             <TextBlock Text="إنستاباي:" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#6D28D9" FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding SelectedInvoice.InstaPayReference, StringFormat=' [مرجع: {0}]'}"
-                                                       Style="{StaticResource PosLtrTextStyle}"
-                                                       FontFamily="Consolas, Segoe UI"
-                                                       FontSize="11"
-                                                       Foreground="#64748B"
-                                                       Visibility="{Binding SelectedInvoice.InstaPayReference, Converter={StaticResource StringNotEmptyToVis}}" />
                                         </StackPanel>
                                         <TextBlock Grid.Column="1" Text="{Binding SelectedInvoice.InstaPayPaidDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#6D28D9" />
                                     </Grid>

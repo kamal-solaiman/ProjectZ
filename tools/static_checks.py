@@ -901,7 +901,7 @@ for removed_summary in ('أرصدة خطوط فودافون', 'إيداعات ا
     assert removed_summary not in vodafone_view, f'removed Vodafone summary card is still present: {removed_summary}'
 for field in ('CustomerNumber', 'AmountText', 'CommissionText', 'WalletBalanceAfterPreview', 'CashBalanceAfterPreview'):
     assert field in vodafone_window, f'missing operation window field: {field}'
-for field in ('DailyDepositLimitDisplay', 'DailyWithdrawalLimitDisplay', 'MonthlyDepositLimitDisplay', 'MonthlyWithdrawalLimitDisplay', 'WalletBalanceAfterDisplay', 'ActorName', 'Reference'):
+for field in ('DailyDepositLimitDisplay', 'DailyWithdrawalLimitDisplay', 'MonthlyDepositLimitDisplay', 'MonthlyWithdrawalLimitDisplay', 'WalletBalanceAfterDisplay', 'ActorName'):
     assert field in vodafone_view, f'missing wallet/history field: {field}'
 assert 'new VodafoneTransferViewModel(MyAccounts, user.DisplayName)' in main_viewmodel
 assert 'views:VodafoneTransferView' in main_xaml
@@ -920,7 +920,7 @@ for forbidden_reference in ('Vodafone', 'فودافون', 'VF-'):
 for field in ('CustomerNumber', 'AmountText', 'CommissionText', 'WalletBalanceAfterPreview', 'CashBalanceAfterPreview'):
     assert field in instapay_window, f'missing InstaPay operation field: {field}'
 assert 'projectz@instapay' in instapay_models and 'reserve@instapay' in instapay_models
-assert 'IP-' in instapay_vm and 'IP-' in instapay_models
+assert 'IP-' not in instapay_vm and 'IP-' not in instapay_models
 assert 'new InstapayTransferViewModel(MyAccounts, user.DisplayName)' in main_viewmodel
 assert 'views:InstapayTransferView' in main_xaml
 print('PASS: independent InstaPay customer transfers, accounts, history, limits, and cash/commission deltas')
@@ -930,7 +930,7 @@ vodafone_records_view = (root / 'src/ProjectZ/Views/VodafoneRecordsView.xaml').r
 assert '<DataGrid' not in vodafone_records_view, 'Vodafone records use detailed RTL cards rather than a DataGrid'
 assert 'ItemsControl ItemsSource="{Binding FilteredOperations}" FlowDirection="RightToLeft"' in vodafone_records_view
 assert 'RecordCard_MouseLeftButtonUp' in vodafone_records_view
-for filter_name in ('FromDate', 'ToDate', 'SelectedWalletId', 'SelectedKind', 'SelectedStatus', 'CustomerFilter', 'ReferenceFilter', 'UserFilter', 'MinimumAmountText', 'MaximumAmountText', 'MinimumCommissionText', 'MaximumCommissionText'):
+for filter_name in ('FromDate', 'ToDate', 'SelectedWalletId', 'SelectedKind', 'SelectedStatus', 'CustomerFilter', 'UserFilter', 'MinimumAmountText', 'MaximumAmountText', 'MinimumCommissionText', 'MaximumCommissionText'):
     assert filter_name in vodafone_records_vm and filter_name in vodafone_records_view, f'missing Vodafone record filter: {filter_name}'
 for control in ('ShowOperationDetailsCommand', 'BeginOperationEditCommand', 'ReverseOperationCommand', 'DeleteOperationCommand', 'CreateCsvLines', 'ApplyEffect', 'CanUndo', 'ApplyEdit'):
     assert control in vodafone_records_vm, f'missing Vodafone record control: {control}'
@@ -939,6 +939,22 @@ for file_name in ('VodafoneRecordDetailsWindow.xaml', 'VodafoneRecordEditWindow.
 assert 'new VodafoneRecordsViewModel(VodafoneTransfer, MyAccounts, user.DisplayName)' in main_viewmodel
 assert 'views:VodafoneRecordsView' in main_xaml
 print('PASS: detailed Vodafone records, comprehensive filters, edit/reverse/delete controls, CSV and print UI')
+
+transfer_implementation = '\n'.join((root / relative).read_text(encoding='utf-8') for relative in (
+    'src/ProjectZ/Models/VodafoneTransferDesignModels.cs', 'src/ProjectZ/Models/InstapayTransferDesignModels.cs',
+    'src/ProjectZ/ViewModels/VodafoneTransferViewModel.cs', 'src/ProjectZ/ViewModels/InstapayTransferViewModel.cs',
+    'src/ProjectZ/ViewModels/VodafoneRecordsViewModel.cs', 'src/ProjectZ/Views/VodafoneTransferView.xaml',
+    'src/ProjectZ/Views/VodafoneOperationWindow.xaml', 'src/ProjectZ/Views/InstapayTransferView.xaml',
+    'src/ProjectZ/Views/InstapayOperationWindow.xaml', 'src/ProjectZ/Views/VodafoneRecordsView.xaml',
+    'src/ProjectZ/Views/VodafoneRecordDetailsWindow.xaml', 'src/ProjectZ/Views/VodafoneRecordEditWindow.xaml'))
+for removed_reference in ('Reference =', 'Binding Reference', 'ReferenceFilter', 'EditReference', 'ReversalReference', 'المرجع', 'VF-', 'IP-'):
+    assert removed_reference not in transfer_implementation, f'transfer reference must stay removed: {removed_reference}'
+print('PASS: Vodafone and InstaPay transfer references removed from models, UI, filters, CSV, and audit movements')
+all_transfer_sources = '\n'.join(path.read_text(encoding='utf-8') for path in (root / 'src/ProjectZ').rglob('*') if path.suffix in ('.cs', '.xaml'))
+for removed_reference in ('VodafoneCashReference', 'InstaPayReference', 'DepositVodafoneReference', 'DepositInstaPayReference', 'FinalPaymentVodafoneReference', 'FinalPaymentInstaPayReference', 'VodafoneReference', 'DiffVodafoneReference', 'DiffInstaPayReference', 'DepositVodafoneRef', 'DepositInstaPayRef', 'RefundReference'):
+    assert removed_reference not in all_transfer_sources, f'wallet reference must stay removed globally: {removed_reference}'
+assert 'VF-' not in all_transfer_sources and 'IP-' not in all_transfer_sources
+print('PASS: wallet references removed globally from sales, purchases, maintenance, returns, details and printing')
 
 print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry, PurchaseInvoices, MaintenanceIntake & MaintenanceActions UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

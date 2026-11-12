@@ -676,10 +676,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
                           || order.ReportedFault.Contains(query, StringComparison.OrdinalIgnoreCase)
                           || order.DiagnosisNotes.Contains(query, StringComparison.OrdinalIgnoreCase)
                           || order.AssignedTechnician.Contains(query, StringComparison.OrdinalIgnoreCase)
-                          || order.DepositVodafoneReference.Contains(query, StringComparison.OrdinalIgnoreCase)
-                          || order.DepositInstaPayReference.Contains(query, StringComparison.OrdinalIgnoreCase)
-                          || order.FinalPaymentVodafoneReference.Contains(query, StringComparison.OrdinalIgnoreCase)
-                          || order.FinalPaymentInstaPayReference.Contains(query, StringComparison.OrdinalIgnoreCase)
                           || order.UsedParts.Any(p =>
                               p.ProductName.Contains(query, StringComparison.OrdinalIgnoreCase)
                               || p.Barcode.Contains(query, StringComparison.OrdinalIgnoreCase));

@@ -132,7 +132,6 @@ public sealed class FinancialTransactionDesignItem
     public string DirectionTitle => IsIncoming ? "وارد" : "منصرف";
     public string SignedAmountDisplay => $"{(IsIncoming ? "+" : "−")} {PosFormatting.FormatCurrency(Amount)}";
     public string BalanceAfterDisplay => PosFormatting.FormatCurrency(BalanceAfter);
-    public string ReferenceDisplay => string.IsNullOrWhiteSpace(Reference) ? "—" : Reference;
     public string DetailsDisplay => string.IsNullOrWhiteSpace(Note) ? Counterparty : $"{Counterparty} · {Note}";
 }
 
@@ -153,15 +152,15 @@ public static class FinanceDesignSeedData
         return
         [
             new() { Id = 1, AccountId = 1, Timestamp = now.AddHours(-1), IsIncoming = true, Category = "تحصيل مبيعات", Amount = 4250m, BalanceAfter = 68450m, Counterparty = "فاتورة INV-2026-1042", Reference = "POS-1042", ActorName = "المشرف" },
-            new() { Id = 2, AccountId = 2, Timestamp = now.AddHours(-2), IsIncoming = true, Category = "تحصيل مبيعات", Amount = 3500m, BalanceAfter = 23750m, Counterparty = "عميل — أحمد سامي", Reference = "VF-991204", ActorName = "المشرف" },
-            new() { Id = 3, AccountId = 2, Timestamp = now.AddHours(-3), IsIncoming = false, Category = "سحب", Amount = 8000m, BalanceAfter = 20250m, Counterparty = "سحب من المحفظة", Reference = "WD-1008", Note = "سحب نقدي من وكيل", ActorName = "المشرف", CountsTowardLimits = true },
-            new() { Id = 4, AccountId = 2, Timestamp = now.AddHours(-4), IsIncoming = true, Category = "إيداع", Amount = 9000m, BalanceAfter = 28250m, Counterparty = "إيداع في المحفظة", Reference = "DP-1044", ActorName = "المشرف", CountsTowardLimits = true },
-            new() { Id = 5, AccountId = 4, Timestamp = now.AddHours(-2.5), IsIncoming = false, Category = "سداد مورد", Amount = 12000m, BalanceAfter = 42100m, Counterparty = "شركة النور للتوزيع", Reference = "IP-771022", ActorName = "المشرف" },
-            new() { Id = 6, AccountId = 3, Timestamp = now.AddDays(-1), IsIncoming = true, Category = "إيداع", Amount = 12000m, BalanceAfter = 8900m, Counterparty = "إيداع في المحفظة", Reference = "DP-1031", ActorName = "المشرف", CountsTowardLimits = true },
+            new() { Id = 2, AccountId = 2, Timestamp = now.AddHours(-2), IsIncoming = true, Category = "تحصيل مبيعات", Amount = 3500m, BalanceAfter = 23750m, Counterparty = "عميل — أحمد سامي", ActorName = "المشرف" },
+            new() { Id = 3, AccountId = 2, Timestamp = now.AddHours(-3), IsIncoming = false, Category = "سحب", Amount = 8000m, BalanceAfter = 20250m, Counterparty = "سحب من المحفظة", Note = "سحب نقدي من وكيل", ActorName = "المشرف", CountsTowardLimits = true },
+            new() { Id = 4, AccountId = 2, Timestamp = now.AddHours(-4), IsIncoming = true, Category = "إيداع", Amount = 9000m, BalanceAfter = 28250m, Counterparty = "إيداع في المحفظة", ActorName = "المشرف", CountsTowardLimits = true },
+            new() { Id = 5, AccountId = 4, Timestamp = now.AddHours(-2.5), IsIncoming = false, Category = "سداد مورد", Amount = 12000m, BalanceAfter = 42100m, Counterparty = "شركة النور للتوزيع", ActorName = "المشرف" },
+            new() { Id = 6, AccountId = 3, Timestamp = now.AddDays(-1), IsIncoming = true, Category = "إيداع", Amount = 12000m, BalanceAfter = 8900m, Counterparty = "إيداع في المحفظة", ActorName = "المشرف", CountsTowardLimits = true },
             new() { Id = 7, AccountId = 1, Timestamp = now.AddDays(-1), IsIncoming = false, Category = "سداد مورد", Amount = 6000m, BalanceAfter = 64200m, Counterparty = "محمود كامل", Reference = "PUR-2026-0002", ActorName = "المشرف" },
-            new() { Id = 8, AccountId = 4, Timestamp = now.AddDays(-2), IsIncoming = true, Category = "تحصيل صيانة", Amount = 2750m, BalanceAfter = 54100m, Counterparty = "تذكرة MNT-208", Reference = "IP-770811", ActorName = "المشرف" },
-            new() { Id = 9, AccountId = 2, Timestamp = now.AddDays(-3), IsIncoming = false, Category = "سحب", Amount = 15000m, BalanceAfter = 19250m, Counterparty = "سحب من المحفظة", Reference = "WD-0992", ActorName = "المشرف", CountsTowardLimits = true },
-            new() { Id = 10, AccountId = 5, Timestamp = now.AddDays(-5), IsIncoming = true, Category = "إيداع", Amount = 12500m, BalanceAfter = 12500m, Counterparty = "رصيد افتتاحي", Reference = "OPEN-005", ActorName = "المشرف", CountsTowardLimits = true }
+            new() { Id = 8, AccountId = 4, Timestamp = now.AddDays(-2), IsIncoming = true, Category = "تحصيل صيانة", Amount = 2750m, BalanceAfter = 54100m, Counterparty = "تذكرة MNT-208", ActorName = "المشرف" },
+            new() { Id = 9, AccountId = 2, Timestamp = now.AddDays(-3), IsIncoming = false, Category = "سحب", Amount = 15000m, BalanceAfter = 19250m, Counterparty = "سحب من المحفظة", ActorName = "المشرف", CountsTowardLimits = true },
+            new() { Id = 10, AccountId = 5, Timestamp = now.AddDays(-5), IsIncoming = true, Category = "إيداع", Amount = 12500m, BalanceAfter = 12500m, Counterparty = "رصيد افتتاحي", ActorName = "المشرف", CountsTowardLimits = true }
         ];
     }
 }

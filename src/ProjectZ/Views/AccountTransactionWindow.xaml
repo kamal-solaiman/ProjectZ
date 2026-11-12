@@ -15,8 +15,6 @@
             <TextBox x:Name="AmountInput" Style="{StaticResource PosNumericTextBoxStyle}" FontSize="18" FontWeight="Bold" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}" />
             <TextBlock Text="الطرف الآخر / الجهة" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,12,0,6" />
             <TextBox Style="{StaticResource PosCompactTextBoxStyle}" FlowDirection="RightToLeft" Text="{Binding Counterparty, UpdateSourceTrigger=PropertyChanged}" MaxLength="140" />
-            <TextBlock Text="الرقم المرجعي" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,12,0,6" />
-            <TextBox Style="{StaticResource PosCompactTextBoxStyle}" FlowDirection="LeftToRight" Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" MaxLength="100" />
             <TextBlock Text="ملاحظات" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,12,0,6" />
             <TextBox Style="{StaticResource PosCompactTextBoxStyle}" FlowDirection="RightToLeft" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" Height="60" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" MaxLength="300" />
             <TextBlock Text="{Binding Error}" Style="{StaticResource PosRtlTextStyle}" Foreground="#B42318" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="{Binding Error, Converter={StaticResource StringNotEmptyToVis}}" />

@@ -251,9 +251,7 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
     private decimal discountAmount;
     private decimal cashPaid;
     private decimal vodafoneCashPaid;
-    private string vodafoneCashReference = "";
     private decimal instaPayPaid;
-    private string instaPayReference = "";
     private decimal supplierRefundReceived;
     private string notes = "";
     private bool isSelected;
@@ -411,18 +409,6 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
         }
     }
 
-    public string VodafoneCashReference
-    {
-        get => vodafoneCashReference;
-        set
-        {
-            if (vodafoneCashReference == value) return;
-            vodafoneCashReference = value;
-            Changed();
-            Changed(nameof(HasVodafoneCash));
-        }
-    }
-
     public decimal InstaPayPaid
     {
         get => instaPayPaid;
@@ -432,18 +418,6 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
             instaPayPaid = Math.Max(0m, value);
             Changed();
             NotifyFinancialsChanged();
-        }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set
-        {
-            if (instaPayReference == value) return;
-            instaPayReference = value;
-            Changed();
-            Changed(nameof(HasInstaPay));
         }
     }
 
@@ -509,8 +483,8 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
     public bool HasDiscount => EffectiveDiscount > 0m;
     public bool HasRemainingPayable => RemainingPayable > 0m;
     public bool HasCashPaid => CashPaid > 0m;
-    public bool HasVodafoneCash => VodafoneCashPaid > 0m || !string.IsNullOrWhiteSpace(VodafoneCashReference);
-    public bool HasInstaPay => InstaPayPaid > 0m || !string.IsNullOrWhiteSpace(InstaPayReference);
+    public bool HasVodafoneCash => VodafoneCashPaid > 0m;
+    public bool HasInstaPay => InstaPayPaid > 0m;
     public bool HasSupplierRefundReceived => SupplierRefundReceived > 0m;
 
     public string SubtotalDisplay => PosFormatting.FormatCurrency(Subtotal);
@@ -769,9 +743,7 @@ public static class PurchaseDesignSeedData
                 Status = PurchaseInvoiceStatus.Paid,
                 CashPaid = 550m,
                 VodafoneCashPaid = 500m,
-                VodafoneCashReference = "VF-994120",
                 InstaPayPaid = 500m,
-                InstaPayReference = "IP-771022",
                 Notes = "توريد دفعة شواحن سريعة — دفع مقسم بين كاش وفودافون وإنستاباي."
             };
             pur1.Items.Add(new PurchaseInvoiceLineDesignItem
@@ -908,7 +880,6 @@ public static class PurchaseDesignSeedData
                 Status = PurchaseInvoiceStatus.Paid,
                 DiscountAmount = 400m,
                 InstaPayPaid = 50000m,
-                InstaPayReference = "IP-998123",
                 Notes = "دفعة هواتف سامسونج — تحويل إنستاباي."
             };
             pur3.Items.Add(new PurchaseInvoiceLineDesignItem

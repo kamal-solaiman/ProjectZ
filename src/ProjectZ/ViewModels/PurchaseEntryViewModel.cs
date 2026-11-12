@@ -435,9 +435,7 @@ public sealed class PurchaseEntryViewModel : ObservableObject
             DiscountAmount = ActiveInvoice.EffectiveDiscount,
             CashPaid = ActiveInvoice.CashAmount,
             VodafoneCashPaid = ActiveInvoice.VodafoneCashAmount,
-            VodafoneCashReference = ActiveInvoice.VodafoneCashReference.Trim(),
             InstaPayPaid = ActiveInvoice.InstaPayAmount,
-            InstaPayReference = ActiveInvoice.InstaPayReference.Trim(),
             Notes = ActiveInvoice.Notes.Trim()
         };
 

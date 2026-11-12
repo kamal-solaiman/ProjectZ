@@ -13,7 +13,6 @@ public sealed class VodafoneTransferViewModel : ObservableObject
     private string customerNumber = "";
     private string amountText = "";
     private string commissionText = "0";
-    private string reference = "";
     private string note = "";
     private string walletSearchText = "";
     private bool showSelectedWalletOperationsOnly;
@@ -49,7 +48,6 @@ public sealed class VodafoneTransferViewModel : ObservableObject
     public string CustomerNumber { get => customerNumber; set { if (customerNumber == value) return; customerNumber = value; Changed(); } }
     public string AmountText { get => amountText; set { if (amountText == value) return; amountText = value; Changed(); NotifyPreviewChanged(); } }
     public string CommissionText { get => commissionText; set { if (commissionText == value) return; commissionText = value; Changed(); NotifyPreviewChanged(); } }
-    public string Reference { get => reference; set { if (reference == value) return; reference = value; Changed(); } }
     public string Note { get => note; set { if (note == value) return; note = value; Changed(); } }
     public string WalletSearchText { get => walletSearchText; set { if (walletSearchText == value) return; walletSearchText = value; Changed(); RefreshWallets(); } }
     public bool ShowSelectedWalletOperationsOnly { get => showSelectedWalletOperationsOnly; set { if (showSelectedWalletOperationsOnly == value) return; showSelectedWalletOperationsOnly = value; Changed(); RefreshFilteredOperations(); } }
@@ -146,40 +144,39 @@ public sealed class VodafoneTransferViewModel : ObservableObject
         var wallet = SelectedWallet;
         wallet.Balance += IsDepositSelected ? -amount : amount;
         accounts.CashAccount.Balance += cashDelta;
-        var operationReference = string.IsNullOrWhiteSpace(Reference) ? $"VF-{(IsDepositSelected ? "DP" : "WD")}-{nextOperationId:0000}" : Reference.Trim();
         var operation = new VodafoneTransferOperation
         {
             Id = nextOperationId++, WalletId = wallet.Id, WalletAlias = wallet.Alias, WalletNumber = wallet.Identifier,
             Kind = IsDepositSelected ? VodafoneOperationKind.DepositToCustomer : VodafoneOperationKind.WithdrawForCustomer,
             CustomerNumber = normalizedCustomer, Amount = amount, Commission = commission, CashDelta = cashDelta,
-            WalletBalanceAfter = wallet.Balance, Reference = operationReference, Note = Note.Trim(), Timestamp = DateTime.Now, ActorName = currentUserName
+            WalletBalanceAfter = wallet.Balance, Note = Note.Trim(), Timestamp = DateTime.Now, ActorName = currentUserName
         };
         Operations.Insert(0, operation);
-        AddFinancialTransaction(wallet, !IsDepositSelected, IsDepositSelected ? "فودافون — إيداع للعميل" : "فودافون — سحب للعميل", amount, normalizedCustomer, operationReference, Note.Trim(), true);
+        AddFinancialTransaction(wallet, !IsDepositSelected, IsDepositSelected ? "فودافون — إيداع للعميل" : "فودافون — سحب للعميل", amount, normalizedCustomer, Note.Trim(), true);
         if (IsDepositSelected)
         {
-            AddFinancialTransaction(accounts.CashAccount, true, "نقدية إيداع فودافون", amount, normalizedCustomer, operationReference, Note.Trim(), false);
-            if (commission > 0m) AddFinancialTransaction(accounts.CashAccount, true, "عمولة فودافون كاش", commission, normalizedCustomer, operationReference, "عمولة عملية إيداع", false);
+            AddFinancialTransaction(accounts.CashAccount, true, "نقدية إيداع فودافون", amount, normalizedCustomer, Note.Trim(), false);
+            if (commission > 0m) AddFinancialTransaction(accounts.CashAccount, true, "عمولة فودافون كاش", commission, normalizedCustomer, "عمولة عملية إيداع", false);
         }
         else
         {
-            AddFinancialTransaction(accounts.CashAccount, false, "نقدية سحب فودافون", amount, normalizedCustomer, operationReference, Note.Trim(), false);
-            if (commission > 0m) AddFinancialTransaction(accounts.CashAccount, true, "عمولة فودافون كاش", commission, normalizedCustomer, operationReference, "عمولة عملية سحب", false);
+            AddFinancialTransaction(accounts.CashAccount, false, "نقدية سحب فودافون", amount, normalizedCustomer, Note.Trim(), false);
+            if (commission > 0m) AddFinancialTransaction(accounts.CashAccount, true, "عمولة فودافون كاش", commission, normalizedCustomer, "عمولة عملية سحب", false);
         }
 
         accounts.NotifyExternalDataChanged();
         RefreshWallets(); RefreshFilteredOperations(); NotifyPreviewChanged();
-        SetStatus($"تم تنفيذ {operation.OperationTitle} بمبلغ {operation.AmountDisplay} وعمولة {operation.CommissionDisplay}. المرجع: {operationReference}.", false);
-        CustomerNumber = ""; AmountText = ""; CommissionText = "0"; Reference = ""; Note = "";
+        SetStatus($"تم تنفيذ {operation.OperationTitle} بمبلغ {operation.AmountDisplay} وعمولة {operation.CommissionDisplay} بنجاح.", false);
+        CustomerNumber = ""; AmountText = ""; CommissionText = "0"; Note = "";
     }
 
-    private void AddFinancialTransaction(FinancialAccountDesignItem account, bool incoming, string category, decimal amount, string counterparty, string operationReference, string note, bool counts)
+    private void AddFinancialTransaction(FinancialAccountDesignItem account, bool incoming, string category, decimal amount, string counterparty, string note, bool counts)
     {
         accounts.Transactions.Insert(0, new FinancialTransactionDesignItem
         {
             Id = nextFinancialTransactionId++, AccountId = account.Id, Timestamp = DateTime.Now, IsIncoming = incoming,
             Category = category, Amount = amount, BalanceAfter = account.Balance, Counterparty = counterparty,
-            Reference = operationReference, Note = note, ActorName = currentUserName, CountsTowardLimits = counts
+            Note = note, ActorName = currentUserName, CountsTowardLimits = counts
         });
     }
 
@@ -193,7 +190,7 @@ public sealed class VodafoneTransferViewModel : ObservableObject
 
     private void ClearForm()
     {
-        CustomerNumber = ""; AmountText = ""; CommissionText = "0"; Reference = ""; Note = "";
+        CustomerNumber = ""; AmountText = ""; CommissionText = "0"; Note = "";
         SetStatus("تم تفريغ بيانات العملية مع الاحتفاظ بالخط المحدد.", false);
     }
 

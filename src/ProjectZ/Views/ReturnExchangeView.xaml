@@ -769,18 +769,14 @@
                                                     <TextBlock Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#C8102E">
                                                         <Run Text="فودافون: " />
                                                         <Run Text="{Binding SelectedInvoice.VodafoneCashPaidDisplay, Mode=OneWay}" />
-                                                        <Run Text=" " />
-                                                        <Run Text="{Binding SelectedInvoice.VodafoneCashReference, Mode=OneWay}" />
-                                                    </TextBlock>
+                                                                </TextBlock>
                                                 </Border>
                                                 <Border Background="#F5F3FF" BorderBrush="#DDD6FE" BorderThickness="1" CornerRadius="6" Padding="7,3" Margin="0,0,5,3"
                                                         Visibility="{Binding SelectedInvoice.HasInstaPay, Converter={StaticResource BoolToVis}}">
                                                     <TextBlock Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#6D28D9">
                                                         <Run Text="إنستاباي: " />
                                                         <Run Text="{Binding SelectedInvoice.InstaPayPaidDisplay, Mode=OneWay}" />
-                                                        <Run Text=" " />
-                                                        <Run Text="{Binding SelectedInvoice.InstaPayReference, Mode=OneWay}" />
-                                                    </TextBlock>
+                                                                </TextBlock>
                                                 </Border>
                                                 <Border Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="6" Padding="7,3" Margin="0,0,5,3"
                                                         Visibility="{Binding SelectedInvoice.HasReturnedAmount, Converter={StaticResource BoolToVis}}">
@@ -1285,14 +1281,7 @@
                                                               ItemsSource="{Binding RefundMethods}"
                                                               SelectedItem="{Binding RefundMethod}"
                                                               Style="{StaticResource PosComboBoxStyle}" />
-                                                    <TextBox Grid.Column="2"
-                                                             Text="{Binding RefundReference, UpdateSourceTrigger=PropertyChanged}"
-                                                             Style="{StaticResource PosCompactTextBoxStyle}"
-                                                             FlowDirection="LeftToRight"
-                                                             TextAlignment="Left"
-                                                             Margin="8,0,0,0"
-                                                             ToolTip="رقم مرجع التحويل (اختياري)"
-                                                             Visibility="{Binding NeedsRefundReference, Converter={StaticResource BoolToVis}}" />
+
                                                 </Grid>
                                             </Border>
 
@@ -1331,15 +1320,13 @@
                                                         </StackPanel>
 
                                                         <StackPanel Grid.Column="1" Margin="5,0">
-                                                            <TextBlock Text="فودافون كاش + رقم المرجع" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#C8102E" FontWeight="Bold" Margin="0,0,0,3" />
+                                                            <TextBlock Text="فودافون كاش" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#C8102E" FontWeight="Bold" Margin="0,0,0,3" />
                                                             <TextBox Text="{Binding DiffVodafoneText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PosNumericTextBoxStyle}" Margin="0,0,0,4" />
-                                                            <TextBox Text="{Binding DiffVodafoneReference, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PosCompactTextBoxStyle}" FlowDirection="LeftToRight" TextAlignment="Left" FontSize="11.5" ToolTip="مرجع فودافون كاش" />
                                                         </StackPanel>
 
                                                         <StackPanel Grid.Column="2" Margin="5,0,0,0">
-                                                            <TextBlock Text="إنستاباي + رقم المرجع" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#6D28D9" FontWeight="Bold" Margin="0,0,0,3" />
+                                                            <TextBlock Text="إنستاباي" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#6D28D9" FontWeight="Bold" Margin="0,0,0,3" />
                                                             <TextBox Text="{Binding DiffInstaPayText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PosNumericTextBoxStyle}" Margin="0,0,0,4" />
-                                                            <TextBox Text="{Binding DiffInstaPayReference, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PosCompactTextBoxStyle}" FlowDirection="LeftToRight" TextAlignment="Left" FontSize="11.5" ToolTip="مرجع إنستاباي" />
                                                         </StackPanel>
                                                     </Grid>
 

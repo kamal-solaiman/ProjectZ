@@ -895,23 +895,6 @@
                                                        Foreground="#C8102E" />
                                         </CheckBox>
                                     </Grid>
-                                    <Grid Margin="0,6,0,0"
-                                          Visibility="{Binding ActiveInvoice.IsVodafoneCashEnabled, Converter={StaticResource BoolToVis}}">
-                                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
-                                                 MinHeight="30"
-                                                 Padding="8,4"
-                                                 FontSize="12"
-                                                 FontWeight="Normal"
-                                                 Text="{Binding ActiveInvoice.VodafoneCashReference, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBlock Text="رقم محفظة العميل / مرجع التحويل (اختياري)"
-                                                   Style="{StaticResource PosRtlTextStyle}"
-                                                   Margin="10,0,10,0"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="11.5"
-                                                   Foreground="#94A3B8"
-                                                   IsHitTestVisible="False"
-                                                   Visibility="{Binding ActiveInvoice.VodafoneCashReference, Converter={StaticResource StringEmptyToVis}}" />
-                                    </Grid>
                                 </StackPanel>
                             </Border>
 
@@ -958,23 +941,6 @@
                                                        FontWeight="Bold"
                                                        Foreground="#6D28D9" />
                                         </CheckBox>
-                                    </Grid>
-                                    <Grid Margin="0,6,0,0"
-                                          Visibility="{Binding ActiveInvoice.IsInstaPayEnabled, Converter={StaticResource BoolToVis}}">
-                                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
-                                                 MinHeight="30"
-                                                 Padding="8,4"
-                                                 FontSize="12"
-                                                 FontWeight="Normal"
-                                                 Text="{Binding ActiveInvoice.InstaPayReference, UpdateSourceTrigger=PropertyChanged}" />
-                                        <TextBlock Text="عنوان / مرجع انستاباي (اختياري)"
-                                                   Style="{StaticResource PosRtlTextStyle}"
-                                                   Margin="10,0,10,0"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="11.5"
-                                                   Foreground="#94A3B8"
-                                                   IsHitTestVisible="False"
-                                                   Visibility="{Binding ActiveInvoice.InstaPayReference, Converter={StaticResource StringEmptyToVis}}" />
                                     </Grid>
                                 </StackPanel>
                             </Border>

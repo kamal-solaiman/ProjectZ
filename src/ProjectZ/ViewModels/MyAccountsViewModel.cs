@@ -133,7 +133,7 @@ public sealed class MyAccountsViewModel : ObservableObject
         };
         Accounts.Add(account);
         if (result.OpeningBalance > 0m)
-            AddTransaction(account, true, "رصيد افتتاحي", result.OpeningBalance, "إضافة محفظة", "OPENING", result.Notes, false);
+            AddTransaction(account, true, "رصيد افتتاحي", result.OpeningBalance, "إضافة محفظة", result.Notes, false);
         RecalculateAll(); SelectedAccount = account;
         SetStatus($"تمت إضافة «{account.Alias}» برصيد مستقل وحدود تشغيل خاصة.", false);
     }
@@ -194,7 +194,7 @@ public sealed class MyAccountsViewModel : ObservableObject
         var counts = result.Kind is FinancialMovementKind.Deposit or FinancialMovementKind.Withdrawal;
         var category = result.Kind switch { FinancialMovementKind.Deposit => "إيداع", FinancialMovementKind.Withdrawal => "سحب", FinancialMovementKind.PositiveAdjustment => "تسوية بالإضافة", _ => "تسوية بالخصم" };
         account.Balance += incoming ? result.Amount : -result.Amount;
-        AddTransaction(account, incoming, category, result.Amount, string.IsNullOrWhiteSpace(result.Counterparty) ? category : result.Counterparty, string.IsNullOrWhiteSpace(result.Reference) ? $"MAN-{nextTransactionId}" : result.Reference, result.Note, counts);
+        AddTransaction(account, incoming, category, result.Amount, string.IsNullOrWhiteSpace(result.Counterparty) ? category : result.Counterparty, result.Note, counts);
         RecalculateAll(); RefreshSelectedTransactions(); NotifyKpis();
         SetStatus($"تم تسجيل {category} بقيمة {PosFormatting.FormatCurrency(result.Amount)} على «{account.DisplayName}».", false);
     }
@@ -206,20 +206,19 @@ public sealed class MyAccountsViewModel : ObservableObject
         var vm = new AccountTransferViewModel(source, Accounts);
         OpenTransferRequested?.Invoke(vm);
         if (vm.Result is not { } result) return;
-        var reference = string.IsNullOrWhiteSpace(result.Reference) ? $"TRF-{nextTransactionId}" : result.Reference;
         source.Balance -= result.Amount; result.Target.Balance += result.Amount;
-        AddTransaction(source, false, "تحويل صادر", result.Amount, $"إلى {result.Target.DisplayName}", reference, result.Note, true);
-        AddTransaction(result.Target, true, "تحويل وارد", result.Amount, $"من {source.DisplayName}", reference, result.Note, true);
+        AddTransaction(source, false, "تحويل صادر", result.Amount, $"إلى {result.Target.DisplayName}", result.Note, true);
+        AddTransaction(result.Target, true, "تحويل وارد", result.Amount, $"من {source.DisplayName}", result.Note, true);
         RecalculateAll(); RefreshSelectedTransactions();
         SetStatus($"تم تحويل {PosFormatting.FormatCurrency(result.Amount)} من «{source.DisplayName}» إلى «{result.Target.DisplayName}».", false);
     }
 
-    private void AddTransaction(FinancialAccountDesignItem account, bool incoming, string category, decimal amount, string counterparty, string reference, string note, bool counts)
+    private void AddTransaction(FinancialAccountDesignItem account, bool incoming, string category, decimal amount, string counterparty, string note, bool counts)
     {
         Transactions.Insert(0, new FinancialTransactionDesignItem
         {
             Id = nextTransactionId++, AccountId = account.Id, Timestamp = DateTime.Now, IsIncoming = incoming, Category = category,
-            Amount = amount, BalanceAfter = account.Balance, Counterparty = counterparty, Reference = reference, Note = note,
+            Amount = amount, BalanceAfter = account.Balance, Counterparty = counterparty, Note = note,
             ActorName = currentUserName, CountsTowardLimits = counts
         });
     }
@@ -270,7 +269,7 @@ public sealed class MyAccountsViewModel : ObservableObject
                 "تسويات وتحويلات" => rows.Where(t => t.Category.Contains("تسوية") || t.Category.Contains("تحويل")),
                 _ => rows
             };
-            if (query.Length > 0) rows = rows.Where(t => t.Category.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Counterparty.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Reference.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Note.Contains(query, StringComparison.OrdinalIgnoreCase));
+            if (query.Length > 0) rows = rows.Where(t => t.Category.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Counterparty.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Note.Contains(query, StringComparison.OrdinalIgnoreCase));
             foreach (var row in rows.OrderByDescending(t => t.Timestamp).ThenByDescending(t => t.Id)) SelectedAccountTransactions.Add(row);
         }
         Changed(nameof(HasNoSelectedTransactions));

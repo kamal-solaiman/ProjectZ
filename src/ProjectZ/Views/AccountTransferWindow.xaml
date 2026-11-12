@@ -8,15 +8,13 @@
             <TextBlock Text="{Binding SourceSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#99F6E4" TextWrapping="Wrap" Margin="0,4,0,0" />
         </StackPanel></Border>
         <Border Grid.Row="1" Padding="20" CornerRadius="16" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,14"><StackPanel>
-            <Border Padding="10,8" CornerRadius="8" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1" Margin="0,0,0,14"><TextBlock Text="يُسجل طرفا التحويل بمرجع واحد: منصرف من المصدر ووارد للمستلم، مع مراجعة حدود المحافظ الإلكترونية." Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#0F766E" TextWrapping="Wrap" /></Border>
+            <Border Padding="10,8" CornerRadius="8" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1" Margin="0,0,0,14"><TextBlock Text="يُسجل طرفا التحويل: منصرف من المصدر ووارد للمستلم، مع مراجعة حدود المحافظ الإلكترونية." Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#0F766E" TextWrapping="Wrap" /></Border>
             <TextBlock Text="إلى الحساب *" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6" />
             <ComboBox Style="{StaticResource PosComboBoxStyle}" ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}" FlowDirection="RightToLeft">
                 <ComboBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding DisplayName}" Style="{StaticResource PosRtlTextStyle}" FontWeight="SemiBold" /><TextBlock Text="{Binding DisplayIdentifier}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="10.5" Foreground="#64748B" /></StackPanel></DataTemplate></ComboBox.ItemTemplate>
             </ComboBox>
             <TextBlock Text="مبلغ التحويل *" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,14,0,6" />
             <TextBox x:Name="AmountInput" Style="{StaticResource PosNumericTextBoxStyle}" FontSize="18" FontWeight="Bold" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}" />
-            <TextBlock Text="الرقم المرجعي" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,12,0,6" />
-            <TextBox Style="{StaticResource PosCompactTextBoxStyle}" FlowDirection="LeftToRight" Text="{Binding Reference, UpdateSourceTrigger=PropertyChanged}" MaxLength="100" />
             <TextBlock Text="ملاحظات" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,12,0,6" />
             <TextBox Style="{StaticResource PosCompactTextBoxStyle}" FlowDirection="RightToLeft" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" Height="70" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" MaxLength="300" />
             <TextBlock Text="{Binding Error}" Style="{StaticResource PosRtlTextStyle}" Foreground="#B42318" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="{Binding Error, Converter={StaticResource StringNotEmptyToVis}}" />
