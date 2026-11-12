@@ -897,7 +897,8 @@ assert 'incoming: !IsDepositSelected' in vodafone_vm
 assert 'ValidateLimits(SelectedWallet' in vodafone_vm
 assert 'accounts.CashAccount.Balance += cashDelta;' in vodafone_vm
 assert 'normalizedCustomer.Length != 11' in vodafone_vm
-assert 'Wallets().Count()}' in vodafone_vm and 'Wallets().Count}' not in vodafone_vm, 'LINQ Count must be invoked, not interpolated as a method group'
+for removed_summary in ('أرصدة خطوط فودافون', 'إيداعات العملاء اليوم', 'سحوبات العملاء اليوم', 'عمولات اليوم', 'VfKpi'):
+    assert removed_summary not in vodafone_view, f'removed Vodafone summary card is still present: {removed_summary}'
 for field in ('CustomerNumber', 'AmountText', 'CommissionText', 'WalletBalanceAfterPreview', 'CashBalanceAfterPreview'):
     assert field in vodafone_window, f'missing operation window field: {field}'
 for field in ('DailyDepositLimitDisplay', 'DailyWithdrawalLimitDisplay', 'MonthlyDepositLimitDisplay', 'MonthlyWithdrawalLimitDisplay', 'WalletBalanceAfterDisplay', 'ActorName', 'Reference'):

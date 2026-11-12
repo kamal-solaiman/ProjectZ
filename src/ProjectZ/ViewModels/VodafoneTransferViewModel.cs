@@ -56,14 +56,6 @@ public sealed class VodafoneTransferViewModel : ObservableObject
     public bool HasNoFilteredWallets => FilteredWallets.Count == 0;
     public bool HasNoFilteredOperations => FilteredOperations.Count == 0;
 
-    public string TotalWalletBalancesDisplay => PosFormatting.FormatCurrency(Wallets().Sum(w => w.Balance));
-    public string ActiveWalletsSubtext => $"{Wallets().Count(w => w.IsActive)} خطوط نشطة من أصل {Wallets().Count()}";
-    public string TodayDepositsDisplay => PosFormatting.FormatCurrency(Operations.Where(o => o.IsDeposit && o.Timestamp.Date == DateTime.Today).Sum(o => o.Amount));
-    public string TodayDepositsCountSubtext => $"{Operations.Count(o => o.IsDeposit && o.Timestamp.Date == DateTime.Today)} عمليات إيداع للعملاء";
-    public string TodayWithdrawalsDisplay => PosFormatting.FormatCurrency(Operations.Where(o => !o.IsDeposit && o.Timestamp.Date == DateTime.Today).Sum(o => o.Amount));
-    public string TodayWithdrawalsCountSubtext => $"{Operations.Count(o => !o.IsDeposit && o.Timestamp.Date == DateTime.Today)} عمليات سحب للعملاء";
-    public string TodayCommissionsDisplay => PosFormatting.FormatCurrency(Operations.Where(o => o.Timestamp.Date == DateTime.Today).Sum(o => o.Commission));
-    public string CommissionsCashSubtext => "تُسجل العمولات ضمن حركة النقدي";
     public string OperationButtonText => IsDepositSelected ? "تنفيذ الإيداع للعميل" : "تنفيذ السحب للعميل";
     public string OperationExplanation => IsDepositSelected
         ? "يقل رصيد الخط بالمبلغ، ويزيد النقدي بالمبلغ + العمولة. يُراجع حد السحب اليومي والشهري."
@@ -113,7 +105,7 @@ public sealed class VodafoneTransferViewModel : ObservableObject
     public void NotifyExternalDataChanged()
     {
         accounts.NotifyExternalDataChanged();
-        RefreshWallets(); RefreshFilteredOperations(); NotifyKpis(); NotifyPreviewChanged();
+        RefreshWallets(); RefreshFilteredOperations(); NotifyPreviewChanged();
     }
 
     private IEnumerable<FinancialAccountDesignItem> Wallets() => accounts.Accounts.Where(a => a.Kind == FinancialAccountKind.VodafoneCash);
@@ -176,7 +168,7 @@ public sealed class VodafoneTransferViewModel : ObservableObject
         }
 
         accounts.NotifyExternalDataChanged();
-        RefreshWallets(); RefreshFilteredOperations(); NotifyKpis(); NotifyPreviewChanged();
+        RefreshWallets(); RefreshFilteredOperations(); NotifyPreviewChanged();
         SetStatus($"تم تنفيذ {operation.OperationTitle} بمبلغ {operation.AmountDisplay} وعمولة {operation.CommissionDisplay}. المرجع: {operationReference}.", false);
         CustomerNumber = ""; AmountText = ""; CommissionText = "0"; Reference = ""; Note = "";
     }
@@ -210,14 +202,6 @@ public sealed class VodafoneTransferViewModel : ObservableObject
         FilteredOperations.Clear();
         foreach (var operation in Operations.Where(o => !ShowSelectedWalletOperationsOnly || SelectedWallet is null || o.WalletId == SelectedWallet.Id).OrderByDescending(o => o.Timestamp).ThenByDescending(o => o.Id)) FilteredOperations.Add(operation);
         Changed(nameof(HasNoFilteredOperations));
-    }
-
-    private void NotifyKpis()
-    {
-        Changed(nameof(TotalWalletBalancesDisplay)); Changed(nameof(ActiveWalletsSubtext));
-        Changed(nameof(TodayDepositsDisplay)); Changed(nameof(TodayDepositsCountSubtext));
-        Changed(nameof(TodayWithdrawalsDisplay)); Changed(nameof(TodayWithdrawalsCountSubtext));
-        Changed(nameof(TodayCommissionsDisplay)); Changed(nameof(CommissionsCashSubtext));
     }
 
     private void NotifyPreviewChanged()
