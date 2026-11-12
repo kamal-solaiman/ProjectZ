@@ -41,7 +41,7 @@ END;
 ALTER LOGIN [ProjectZClient] ENABLE;
 GO
 
--- 3. Map the login to [ProjectZ] and grant SELECT-only access on dbo.Users
+-- 3. Map the login to [ProjectZ] and grant only login + inventory permissions
 USE [ProjectZ];
 GO
 
@@ -56,6 +56,19 @@ END;
 
 GRANT CONNECT TO [ProjectZClient];
 GRANT SELECT ON OBJECT::dbo.Users TO [ProjectZClient];
+GRANT SELECT, INSERT ON OBJECT::dbo.Categories TO [ProjectZClient];
+GRANT SELECT, INSERT ON OBJECT::dbo.Suppliers TO [ProjectZClient];
+GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Products TO [ProjectZClient];
+GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.InventoryUnits TO [ProjectZClient];
+GRANT SELECT, INSERT, DELETE ON OBJECT::dbo.StockMovements TO [ProjectZClient];
+GRANT INSERT ON OBJECT::dbo.AuditLog TO [ProjectZClient];
+-- Read-only history checks prevent deleting units/products referenced by documents.
+GRANT SELECT ON OBJECT::dbo.SalesInvoiceLineUnits TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.PurchaseInvoiceLineUnits TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.SalesInvoiceLines TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.PurchaseInvoiceLines TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
 GO
 
 PRINT N'SUCCESS: ProjectZClient login/user configured and Mixed Mode enabled.';

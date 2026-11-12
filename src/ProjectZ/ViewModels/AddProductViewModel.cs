@@ -10,7 +10,8 @@ public sealed class AddProductViewModel : ObservableObject
 {
     private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
     private readonly Action? navigateToPos;
-    private readonly Action<PosProductDesignItem>? onProductCreated;
+    private readonly Func<PosProductDesignItem, bool>? onProductCreated;
+    private readonly Func<string>? persistenceError;
     private int nextProductId = 100;
 
     private string productName = "";
@@ -32,7 +33,7 @@ public sealed class AddProductViewModel : ObservableObject
     private string notes = "";
 
     private string catalogSearchText = "";
-    private string statusMessage = "مرحلة التصميم (بدون Backend): سجّل صنفًا جديدًا مع أسعار القطاعي والجملة والمميز وسيظهر فورًا في المعاينة ونقطة البيع.";
+    private string statusMessage = "سجّل صنفًا جديدًا مع أسعار القطاعي والجملة والمميز وسيظهر في المعاينة ونقطة البيع بعد نجاح الحفظ.";
     private bool isErrorStatus;
 
     public ObservableCollection<string> Categories { get; }
@@ -305,12 +306,14 @@ public sealed class AddProductViewModel : ObservableObject
     public AddProductViewModel(
         ObservableCollection<PosProductDesignItem> sharedCatalog,
         Action? navigateToPos = null,
-        Action<PosProductDesignItem>? onProductCreated = null,
-        ObservableCollection<string>? sharedCategories = null)
+        Func<PosProductDesignItem, bool>? onProductCreated = null,
+        ObservableCollection<string>? sharedCategories = null,
+        Func<string>? persistenceError = null)
     {
         this.sharedCatalog = sharedCatalog;
         this.navigateToPos = navigateToPos;
         this.onProductCreated = onProductCreated;
+        this.persistenceError = persistenceError;
 
         Categories = sharedCategories ?? PosDesignSeedData.CreateSharedCategories();
         if (sharedCategories is null)
@@ -484,11 +487,17 @@ public sealed class AddProductViewModel : ObservableObject
             IsNewlyAdded = true
         };
 
-        sharedCatalog.Add(created);
-        onProductCreated?.Invoke(created);
+        if (onProductCreated is not null && !onProductCreated(created))
+        {
+            SetStatus(persistenceError?.Invoke() is { Length: > 0 } error
+                ? error
+                : "لم يُحفظ الصنف. راجع اتصال قاعدة البيانات ثم أعد المحاولة.", true);
+            return;
+        }
+        if (created.DatabaseRowVersion is null && !sharedCatalog.Contains(created)) sharedCatalog.Add(created);
         ResetForm(keepCategoryAndUnit, clearStatus: false);
         SetStatus(
-            $"وضع التصميم (بدون Backend): تم تسجيل «{created.Name}» ({created.Barcode}) — قطاعي {created.RetailPriceDisplay} | جملة {created.WholesalePriceDisplay} | مميز {created.SpecialPriceDisplay} وإضافته لنقطة البيع.",
+            $"تم تسجيل «{created.Name}» ({created.Barcode}) — قطاعي {created.RetailPriceDisplay} | جملة {created.WholesalePriceDisplay} | مميز {created.SpecialPriceDisplay} وإضافته لنقطة البيع.",
             false);
         FocusProductNameRequested?.Invoke();
     }
@@ -582,6 +591,14 @@ public sealed class AddProductViewModel : ObservableObject
         var pct = Math.Round((diff / costPrice) * 100m, 1);
         var sign = diff >= 0m ? "+" : "";
         return $"{sign}{PosFormatting.FormatPlainNumber(diff)} ج.م ({sign}{pct.ToString("0.#", CultureInfo.InvariantCulture)}%)";
+    }
+
+    public void NotifyInventoryLoaded()
+    {
+        if (string.IsNullOrWhiteSpace(ProductName)) Barcode = GenerateNextAvailableBarcode();
+        if (string.IsNullOrWhiteSpace(SelectedCategory) || !Categories.Contains(SelectedCategory))
+            SelectedCategory = Categories.FirstOrDefault() ?? "";
+        RefreshFilteredProducts();
     }
 
     private void OnSharedCategoriesChanged(object? sender, NotifyCollectionChangedEventArgs e)

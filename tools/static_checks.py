@@ -279,7 +279,7 @@ for path in (root / 'src/ProjectZ').rglob('*'):
         assert legacy_product_name not in path.read_text(encoding='utf-8'), f'old product name remains in {path}'
 print('PASS: executable, assembly, namespaces, database and SQL login use ProjectZ')
 
-# --- POS UI Design Phase (no backend/SQL) ---
+# --- POS UI and SQL-backed inventory phase ---
 pos_xaml_path = root / 'src/ProjectZ/Views/PosView.xaml'
 add_customer_xaml_path = root / 'src/ProjectZ/Views/AddCustomerWindow.xaml'
 pos_styles_path = root / 'src/ProjectZ/Resources/PosStyles.xaml'
@@ -824,7 +824,6 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MyAccountsViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AccountDialogViewModels.cs',
-    root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/CategoriesViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InvoicesViewModel.cs',
@@ -884,7 +883,23 @@ pos_code_paths = [
 ]
 for p in pos_code_paths:
     text = p.read_text(encoding='utf-8')
-    assert 'SqlClient' not in text and 'SqlConnection' not in text, f'POS/Inventory design phase must not include backend SQL code: {p}'
+    assert 'SqlClient' not in text and 'SqlConnection' not in text, f'UI code must keep SQL in repositories: {p}'
+
+inventory_repository = (root / 'src/ProjectZ/Data/InventoryRepository.cs').read_text(encoding='utf-8')
+inventory_vm = (root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs').read_text(encoding='utf-8')
+for operation in ('LoadInto', 'SaveNewProduct', 'UpdateProduct', 'Supply', 'MarkDamaged', 'MarkSingleDamaged',
+                  'RegisterSerial', 'RestoreDamaged', 'MarkReturnedToSupplier', 'DeleteDamaged', 'DeleteOrArchiveProduct'):
+    assert f'public void {operation}' in inventory_repository or f'public bool {operation}' in inventory_repository, f'missing inventory SQL operation: {operation}'
+for transaction_use in ('BeginTransaction(IsolationLevel.Serializable)', 'transaction.Commit()', 'transaction.Rollback()', 'RowVersion=@RowVersion'):
+    assert transaction_use in inventory_repository, f'missing inventory persistence guard: {transaction_use}'
+for schema_column in ('PurchaseInvoiceNumber', 'SaleInvoiceNumber'):
+    assert schema_column in inventory_repository and schema_column in full_schema
+for callback in ('repository.Supply(', 'repository.UpdateProduct(', 'repository.MarkDamaged(', 'repository.MarkSingleDamaged(',
+                 'repository.RegisterSerial(', 'repository.RestoreDamaged(', 'repository.MarkReturnedToSupplier(',
+                 'repository.DeleteDamaged(', 'repository.DeleteOrArchiveProduct(', 'repository.SaveNewProduct('):
+    assert callback in inventory_vm, f'inventory screen is not wired to SQL operation: {callback}'
+assert 'new InventoryRepository(connectionSettings, user.Id)' in (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
+print('PASS: inventory SQL repository, transactions, row-version checks, serials, stock movements and full screen wiring')
 
 app_resource_keys = set()
 for rf in (
@@ -1005,5 +1020,5 @@ for removed_reference in ('VodafoneCashReference', 'InstaPayReference', 'Deposit
 assert 'VF-' not in all_transfer_sources and 'IP-' not in all_transfer_sources
 print('PASS: wallet references removed globally from sales, purchases, maintenance, returns, details and printing')
 
-print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry, PurchaseInvoices, MaintenanceIntake & MaintenanceActions UI design views, full audit, returns, print preview, no backend')
+print('PASS: POS, SQL-backed AddProduct/Inventory, Categories, Invoices, ReturnExchange, purchases, maintenance, returns and print preview')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

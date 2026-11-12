@@ -28,6 +28,12 @@ FROM (VALUES (N'vwProductStock'), (N'vwSalesInvoiceSummary'), (N'vwPurchaseInvoi
 LEFT JOIN sys.views AS sv ON sv.name = expected.v AND sv.schema_id = SCHEMA_ID(N'dbo')
 WHERE sv.object_id IS NULL;
 
+SELECT expected.ColumnName AS MissingInventoryColumn
+FROM (VALUES (N'PurchaseInvoiceNumber'), (N'SaleInvoiceNumber')) AS expected(ColumnName)
+LEFT JOIN sys.columns AS c
+ ON c.object_id = OBJECT_ID(N'dbo.InventoryUnits') AND c.name = expected.ColumnName
+WHERE c.object_id IS NULL;
+
 SELECT fk.name, fk.is_disabled, fk.is_not_trusted
 FROM sys.foreign_keys AS fk
 WHERE fk.is_disabled = 1 OR fk.is_not_trusted = 1;
