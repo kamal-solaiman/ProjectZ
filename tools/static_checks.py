@@ -73,6 +73,9 @@ assert 'TransferGroupId UNIQUEIDENTIFIER' in full_schema
 transfer_table = full_schema.split('CREATE TABLE dbo.CustomerTransfers', 1)[1].split('CREATE TABLE dbo.FinancialTransactions', 1)[0]
 assert 'Reference' not in transfer_table and 'المرجع' not in transfer_table
 assert '01_CreateDatabase.sql' in (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
+schema_verification = (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8')
+assert 'SELECT expected.v AS MissingView' in schema_verification
+assert 'SELECT v.name AS MissingView' not in schema_verification
 print('PASS: complete ProjectZ database schema, 36 related tables, five reporting views, compatibility 130')
 
 # --- Application shutdown: closing the UI must terminate the WPF process ---
