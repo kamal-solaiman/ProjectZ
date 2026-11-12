@@ -925,5 +925,17 @@ assert 'new InstapayTransferViewModel(MyAccounts, user.DisplayName)' in main_vie
 assert 'views:InstapayTransferView' in main_xaml
 print('PASS: independent InstaPay customer transfers, accounts, history, limits, and cash/commission deltas')
 
+vodafone_records_vm = (root / 'src/ProjectZ/ViewModels/VodafoneRecordsViewModel.cs').read_text(encoding='utf-8')
+vodafone_records_view = (root / 'src/ProjectZ/Views/VodafoneRecordsView.xaml').read_text(encoding='utf-8')
+for filter_name in ('FromDate', 'ToDate', 'SelectedWalletId', 'SelectedKind', 'SelectedStatus', 'CustomerFilter', 'ReferenceFilter', 'UserFilter', 'MinimumAmountText', 'MaximumAmountText', 'MinimumCommissionText', 'MaximumCommissionText'):
+    assert filter_name in vodafone_records_vm and filter_name in vodafone_records_view, f'missing Vodafone record filter: {filter_name}'
+for control in ('ShowDetailsCommand', 'BeginEditCommand', 'ReverseCommand', 'DeleteCommand', 'CreateCsvLines', 'ApplyEffect', 'CanUndo', 'ApplyEdit'):
+    assert control in vodafone_records_vm, f'missing Vodafone record control: {control}'
+for file_name in ('VodafoneRecordDetailsWindow.xaml', 'VodafoneRecordEditWindow.xaml'):
+    assert (root / 'src/ProjectZ/Views' / file_name).is_file(), f'missing Vodafone record dialog: {file_name}'
+assert 'new VodafoneRecordsViewModel(VodafoneTransfer, MyAccounts, user.DisplayName)' in main_viewmodel
+assert 'views:VodafoneRecordsView' in main_xaml
+print('PASS: detailed Vodafone records, comprehensive filters, edit/reverse/delete controls, CSV and print UI')
+
 print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry, PurchaseInvoices, MaintenanceIntake & MaintenanceActions UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

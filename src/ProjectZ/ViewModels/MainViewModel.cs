@@ -28,6 +28,7 @@ public sealed class MainViewModel : ObservableObject
     public MyAccountsViewModel MyAccounts { get; }
     public VodafoneTransferViewModel VodafoneTransfer { get; }
     public InstapayTransferViewModel InstapayTransfer { get; }
+    public VodafoneRecordsViewModel VodafoneRecords { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
@@ -47,12 +48,13 @@ public sealed class MainViewModel : ObservableObject
     public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, Categories[3].Items[0]);
     public bool IsVodafoneTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[1]);
     public bool IsInstapayTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[2]);
+    public bool IsVodafoneRecordsSelected => ReferenceEquals(selectedItem, Categories[3].Items[3]);
     public bool IsImplementedScreenSelected =>
         IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
-        || IsVodafoneTransferSelected || IsInstapayTransferSelected;
+        || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -195,6 +197,7 @@ public sealed class MainViewModel : ObservableObject
         MyAccounts = new MyAccountsViewModel(user.DisplayName);
         VodafoneTransfer = new VodafoneTransferViewModel(MyAccounts, user.DisplayName);
         InstapayTransfer = new InstapayTransferViewModel(MyAccounts, user.DisplayName);
+        VodafoneRecords = new VodafoneRecordsViewModel(VodafoneTransfer, MyAccounts, user.DisplayName);
         Suppliers = new SuppliersViewModel(
             sharedSuppliers,
             sharedPurchaseInvoices,
@@ -279,6 +282,8 @@ public sealed class MainViewModel : ObservableObject
             VodafoneTransfer.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[3].Items[2]))
             InstapayTransfer.NotifyExternalDataChanged();
+        else if (ReferenceEquals(item, Categories[3].Items[3]))
+            VodafoneRecords.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[0].Items[5]))
             ReturnExchange.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[0].Items[4]))
@@ -319,6 +324,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsMyAccountsSelected));
         Changed(nameof(IsVodafoneTransferSelected));
         Changed(nameof(IsInstapayTransferSelected));
+        Changed(nameof(IsVodafoneRecordsSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));
