@@ -10,9 +10,13 @@
 
 - `ProjectZ.sln`: الحل، افتحه ببرنامج Visual Studio يدعم .NET 10 وعبء عمل **.NET desktop development**.
 - `src/ProjectZ/`: Models / Data / Services / Views / ViewModels / Resources / Helpers.
-- `sql/01_CreateDatabase.sql`: القاعدة والجدول الوحيد `dbo.Users`.
+- `sql/01_CreateDatabase.sql`: إنشاء القاعدة وجدول الدخول الأصلي `dbo.Users`.
 - `sql/02_SeedAdmin.sql`: إضافة admin دون إعادة تعيين حساب موجود.
-- `sql/03_VerifyEnvironment.sql`: استعلامات التحقق فقط.
+- `sql/06_CreateFullSchema.sql`: مخطط الأعمال الكامل والعلاقات والقيود والفهارس دون تعديل ربط التطبيق الحالي.
+- `sql/07_CreateReportingViews.sql`: طرق عرض المخزون والأرباح والمتبقي والمدفوعات واستخدام الحدود.
+- `sql/08_VerifyFullSchema.sql`: تحقق قراءة فقط من الجداول والعلاقات وطرق العرض.
+- [تصميم قاعدة البيانات](docs/DATABASE.md): خريطة الجداول وقرارات الاتساق وترتيب التنفيذ.
+- `sql/03_VerifyEnvironment.sql`: استعلامات التحقق من البيئة فقط.
 - `sql/04_SetupLanSqlAuth.sql`: تفعيل Mixed Mode وإنشاء حساب اتصال الشبكة `ProjectZClient` بصلاحية `SELECT` فقط.
 - `src/ProjectZ/connectionsettings.json`: إعدادات خارجية؛ يلزم استبدال عنوان الخادم.
 - [تجهيز الجهاز الرئيسي](docs/SERVER.md) · [العملاء وتغيير الخادم والنشر](docs/CLIENTS.md).

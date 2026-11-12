@@ -43,11 +43,33 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 1
+assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 36
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
 assert 'CREATE DATABASE [ProjectZ]' in sql
 assert '[ProjectZClient]' in (root / 'sql/04_SetupLanSqlAuth.sql').read_text(encoding='utf-8')
-print('PASS: ProjectZ database scripts; exactly one CREATE TABLE; compatibility 130')
+full_schema = (root / 'sql/06_CreateFullSchema.sql').read_text(encoding='utf-8')
+reporting_views = (root / 'sql/07_CreateReportingViews.sql').read_text(encoding='utf-8')
+expected_tables = {
+    'Users', 'Roles', 'Permissions', 'UserRoles', 'RolePermissions', 'SystemSettings', 'DocumentSequences',
+    'Customers', 'Suppliers', 'Categories', 'Products', 'FinancialAccounts', 'CustomerTransfers',
+    'FinancialTransactions', 'InventoryUnits', 'StockMovements', 'PurchaseInvoices', 'PurchaseInvoiceLines',
+    'PurchaseInvoiceLineUnits', 'PurchaseReturns', 'PurchaseReturnLines', 'PurchasePayments',
+    'PurchaseInvoiceActivities', 'SalesInvoices', 'SalesInvoiceLines', 'SalesInvoiceLineUnits', 'SalesPayments',
+    'SalesInvoiceActivities', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits',
+    'MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments', 'MaintenanceActivities', 'AuditLog'
+}
+created_tables = set(re.findall(r'CREATE\s+TABLE\s+dbo\.([A-Za-z0-9_]+)', sql, re.I))
+assert created_tables == expected_tables, f'schema table mismatch: missing={expected_tables-created_tables}, extra={created_tables-expected_tables}'
+assert len(re.findall(r'CREATE\s+OR\s+ALTER\s+VIEW\s+dbo\.', reporting_views, re.I)) == 5
+for required_relation in ('SalesInvoiceId', 'PurchaseInvoiceId', 'MaintenanceOrderId', 'FinancialAccountId', 'ProductId', 'ActorUserId'):
+    assert required_relation in full_schema, f'missing relational key: {required_relation}'
+assert 'ON DELETE CASCADE' not in full_schema.upper(), 'financial and inventory history must not be cascade-deleted'
+assert 'CurrentBalance DECIMAL(19,2)' in full_schema and 'BalanceAfter DECIMAL(19,2)' in full_schema
+assert 'TransferGroupId UNIQUEIDENTIFIER' in full_schema
+transfer_table = full_schema.split('CREATE TABLE dbo.CustomerTransfers', 1)[1].split('CREATE TABLE dbo.FinancialTransactions', 1)[0]
+assert 'Reference' not in transfer_table and 'المرجع' not in transfer_table
+assert '01_CreateDatabase.sql' in (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
+print('PASS: complete ProjectZ database schema, 36 related tables, five reporting views, compatibility 130')
 
 # --- Application shutdown: closing the UI must terminate the WPF process ---
 app_xaml = (root / 'src/ProjectZ/App.xaml').read_text(encoding='utf-8')
