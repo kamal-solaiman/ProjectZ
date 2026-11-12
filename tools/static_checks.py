@@ -927,9 +927,9 @@ print('PASS: independent InstaPay customer transfers, accounts, history, limits,
 
 vodafone_records_vm = (root / 'src/ProjectZ/ViewModels/VodafoneRecordsViewModel.cs').read_text(encoding='utf-8')
 vodafone_records_view = (root / 'src/ProjectZ/Views/VodafoneRecordsView.xaml').read_text(encoding='utf-8')
-for element in ET.fromstring(vodafone_records_view).iter():
-    if element.tag.endswith('DataGridTemplateColumn'):
-        assert 'Binding' not in element.attrib, 'DataGridTemplateColumn bindings belong inside its CellTemplate'
+assert '<DataGrid' not in vodafone_records_view, 'Vodafone records use detailed RTL cards rather than a DataGrid'
+assert 'ItemsControl ItemsSource="{Binding FilteredOperations}" FlowDirection="RightToLeft"' in vodafone_records_view
+assert 'RecordCard_MouseLeftButtonUp' in vodafone_records_view
 for filter_name in ('FromDate', 'ToDate', 'SelectedWalletId', 'SelectedKind', 'SelectedStatus', 'CustomerFilter', 'ReferenceFilter', 'UserFilter', 'MinimumAmountText', 'MaximumAmountText', 'MinimumCommissionText', 'MaximumCommissionText'):
     assert filter_name in vodafone_records_vm and filter_name in vodafone_records_view, f'missing Vodafone record filter: {filter_name}'
 for control in ('ShowOperationDetailsCommand', 'BeginOperationEditCommand', 'ReverseOperationCommand', 'DeleteOperationCommand', 'CreateCsvLines', 'ApplyEffect', 'CanUndo', 'ApplyEdit'):
