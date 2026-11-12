@@ -121,9 +121,7 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     private SalesInvoiceStatus status = SalesInvoiceStatus.Completed;
     private decimal cashPaid;
     private decimal vodafoneCashPaid;
-    private string vodafoneCashReference = "";
     private decimal instaPayPaid;
-    private string instaPayReference = "";
     private decimal refundedAmount;
     private string notes = "";
     private bool isSelected;
@@ -235,18 +233,6 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
         }
     }
 
-    public string VodafoneCashReference
-    {
-        get => vodafoneCashReference;
-        set
-        {
-            if (vodafoneCashReference == value) return;
-            vodafoneCashReference = value;
-            Changed();
-            Changed(nameof(HasVodafoneCash));
-        }
-    }
-
     public decimal InstaPayPaid
     {
         get => instaPayPaid;
@@ -256,18 +242,6 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
             instaPayPaid = Math.Max(0m, value);
             Changed();
             NotifyFinancialsChanged();
-        }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set
-        {
-            if (instaPayReference == value) return;
-            instaPayReference = value;
-            Changed();
-            Changed(nameof(HasInstaPay));
         }
     }
 
@@ -372,8 +346,8 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     public bool HasRemaining => RemainingAmount > 0m;
     public bool HasChange => ChangeAmount > 0m;
     public bool HasCashPaid => CashPaid > 0m;
-    public bool HasVodafoneCash => VodafoneCashPaid > 0m || !string.IsNullOrWhiteSpace(VodafoneCashReference);
-    public bool HasInstaPay => InstaPayPaid > 0m || !string.IsNullOrWhiteSpace(InstaPayReference);
+    public bool HasVodafoneCash => VodafoneCashPaid > 0m;
+    public bool HasInstaPay => InstaPayPaid > 0m;
 
     public string SubtotalDisplay => PosFormatting.FormatCurrency(Subtotal);
     public string EffectiveDiscountDisplay => PosFormatting.FormatCurrency(EffectiveDiscount);
@@ -560,9 +534,7 @@ public static class InvoiceDesignSeedData
             DiscountAmount = 45m,
             CashPaid = 620m,
             VodafoneCashPaid = 700m,
-            VodafoneCashReference = "VF-884210",
             InstaPayPaid = 550m,
-            InstaPayReference = "IP-309412",
             Notes = "تسليم فوري بالمحل — العميل اختبر السماعة والشواحن."
         };
         inv6.Items.Add(new SalesInvoiceLineDesignItem
@@ -690,7 +662,6 @@ public static class InvoiceDesignSeedData
             Status = SalesInvoiceStatus.Completed,
             DiscountAmount = 100m,
             InstaPayPaid = 17400m,
-            InstaPayReference = "IP-220194",
             Notes = "هاتف سامسونج A55 بضمان محلي سنة — تم تفعيل الضمان بالسيريال."
         };
         inv4.Items.Add(new SalesInvoiceLineDesignItem
@@ -713,7 +684,7 @@ public static class InvoiceDesignSeedData
         {
             Timestamp = inv4.IssuedAt,
             ActionTitle = "إصدار فاتورة بيع هاتف",
-            Details = "سداد كامل عبر إنستاباي (#IP-220194) مع تسجيل سيريال IMEI.",
+            Details = "سداد كامل عبر إنستاباي مع تسجيل سيريال IMEI.",
             ActorName = inv4.CashierName,
             Amount = inv4.NetTotal
         });
@@ -738,7 +709,6 @@ public static class InvoiceDesignSeedData
             DiscountAmount = 50m,
             CashPaid = 1200m,
             VodafoneCashPaid = 1120m,
-            VodafoneCashReference = "VF-771203",
             Notes = "طلبية جملة أسبوعية لمحل النور."
         };
         inv3.Items.Add(new SalesInvoiceLineDesignItem
@@ -872,7 +842,6 @@ public static class InvoiceDesignSeedData
             Status = SalesInvoiceStatus.Cancelled,
             DiscountAmount = 0m,
             VodafoneCashPaid = 950m,
-            VodafoneCashReference = "VF-640119",
             RefundedAmount = 950m,
             Notes = "ألغى العميل الطلب قبل التسليم لعدم توفر اللون الأسود."
         };
@@ -893,7 +862,7 @@ public static class InvoiceDesignSeedData
         {
             Timestamp = inv1.IssuedAt,
             ActionTitle = "إصدار فاتورة بيع",
-            Details = "سداد مبدئي عبر فودافون كاش (#VF-640119).",
+            Details = "سداد مبدئي عبر فودافون كاش.",
             ActorName = inv1.CashierName,
             Amount = 950m
         });

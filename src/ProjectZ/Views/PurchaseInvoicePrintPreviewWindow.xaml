@@ -438,14 +438,10 @@
                                         <TextBlock Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11" Foreground="#C8102E" Visibility="{Binding Invoice.HasVodafoneCash, Converter={StaticResource BoolToVis}}">
                                             <Run Text="فودافون كاش: " />
                                             <Run Text="{Binding Invoice.VodafoneCashPaidDisplay, Mode=OneWay}" />
-                                            <Run Text=" " />
-                                            <Run Text="{Binding Invoice.VodafoneCashReference, Mode=OneWay}" />
                                         </TextBlock>
                                         <TextBlock Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11" Foreground="#6D28D9" Visibility="{Binding Invoice.HasInstaPay, Converter={StaticResource BoolToVis}}">
                                             <Run Text="إنستاباي: " />
                                             <Run Text="{Binding Invoice.InstaPayPaidDisplay, Mode=OneWay}" />
-                                            <Run Text=" " />
-                                            <Run Text="{Binding Invoice.InstaPayReference, Mode=OneWay}" />
                                         </TextBlock>
                                         <TextBlock Text="{Binding Invoice.TotalPaidDisplay, StringFormat='إجمالي المدفوع: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,4,0,0" FontSize="11.5" FontWeight="Bold" Foreground="#0F766E" />
                                         <TextBlock Text="{Binding Invoice.SupplierRefundReceivedDisplay, StringFormat='مسترد من المورد: {0}'}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11" FontWeight="Bold" Foreground="#7C3AED" Visibility="{Binding Invoice.HasSupplierRefundReceived, Converter={StaticResource BoolToVis}}" />

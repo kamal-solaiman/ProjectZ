@@ -363,9 +363,7 @@ public sealed class InvoicesViewModel : ObservableObject
             DiscountAmount = posInvoice.EffectiveDiscount,
             CashPaid = posInvoice.CashAmount,
             VodafoneCashPaid = posInvoice.VodafoneCashAmount,
-            VodafoneCashReference = posInvoice.VodafoneCashReference.Trim(),
             InstaPayPaid = posInvoice.InstaPayAmount,
-            InstaPayReference = posInvoice.InstaPayReference.Trim(),
             Notes = posInvoice.HasChange
                 ? $"تم تسليم الباقي للعميل ({posInvoice.ChangeAmountDisplay})."
                 : ""
@@ -639,21 +637,7 @@ public sealed class InvoicesViewModel : ObservableObject
             var paidNow = submission.CashAmount + submission.VodafoneAmount + submission.InstaPayAmount;
             invoice.CashPaid += submission.CashAmount;
             invoice.VodafoneCashPaid += submission.VodafoneAmount;
-            if (!string.IsNullOrWhiteSpace(submission.VodafoneReference))
-            {
-                invoice.VodafoneCashReference = string.IsNullOrWhiteSpace(invoice.VodafoneCashReference)
-                    ? submission.VodafoneReference
-                    : $"{invoice.VodafoneCashReference} / {submission.VodafoneReference}";
-            }
-
             invoice.InstaPayPaid += submission.InstaPayAmount;
-            if (!string.IsNullOrWhiteSpace(submission.InstaPayReference))
-            {
-                invoice.InstaPayReference = string.IsNullOrWhiteSpace(invoice.InstaPayReference)
-                    ? submission.InstaPayReference
-                    : $"{invoice.InstaPayReference} / {submission.InstaPayReference}";
-            }
-
             if (invoice.RemainingAmount <= 0m && invoice.IsPartialCredit)
                 invoice.Status = SalesInvoiceStatus.Completed;
 
@@ -827,8 +811,6 @@ public sealed class InvoicesViewModel : ObservableObject
                    || inv.CustomerName.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.CustomerPhone.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.CashierName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                   || inv.VodafoneCashReference.Contains(query, StringComparison.OrdinalIgnoreCase)
-                   || inv.InstaPayReference.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.Items.Any(line =>
                        line.ProductName.Contains(query, StringComparison.OrdinalIgnoreCase)
                        || line.Barcode.Contains(query, StringComparison.OrdinalIgnoreCase)

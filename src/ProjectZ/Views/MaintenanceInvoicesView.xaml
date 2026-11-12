@@ -356,7 +356,7 @@
                                  FlowDirection="RightToLeft"
                                  TextAlignment="Left"
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="بحث برقم الفاتورة، العميل، الهاتف، الجهاز، السيريال IMEI، العطل، قطعة الغيار أو المرجع..."
+                        <TextBlock Text="بحث برقم الفاتورة، العميل، الهاتف، الجهاز، السيريال IMEI، العطل، قطعة الغيار..."
                                    Style="{StaticResource PosRtlTextStyle}"
                                    Margin="30,0,10,0"
                                    VerticalAlignment="Center"

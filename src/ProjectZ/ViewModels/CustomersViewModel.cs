@@ -676,21 +676,7 @@ public sealed class CustomersViewModel : ObservableObject
             var paidNow = submission.CashAmount + submission.VodafoneAmount + submission.InstaPayAmount;
             invoice.CashPaid += submission.CashAmount;
             invoice.VodafoneCashPaid += submission.VodafoneAmount;
-            if (!string.IsNullOrWhiteSpace(submission.VodafoneReference))
-            {
-                invoice.VodafoneCashReference = string.IsNullOrWhiteSpace(invoice.VodafoneCashReference)
-                    ? submission.VodafoneReference
-                    : $"{invoice.VodafoneCashReference} / {submission.VodafoneReference}";
-            }
-
             invoice.InstaPayPaid += submission.InstaPayAmount;
-            if (!string.IsNullOrWhiteSpace(submission.InstaPayReference))
-            {
-                invoice.InstaPayReference = string.IsNullOrWhiteSpace(invoice.InstaPayReference)
-                    ? submission.InstaPayReference
-                    : $"{invoice.InstaPayReference} / {submission.InstaPayReference}";
-            }
-
             if (invoice.RemainingAmount <= 0m && invoice.IsPartialCredit)
                 invoice.Status = SalesInvoiceStatus.Completed;
 

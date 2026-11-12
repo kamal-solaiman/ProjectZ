@@ -454,17 +454,6 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         }
     }
 
-    public string DepositVodafoneRef
-    {
-        get => depositVodafoneRef;
-        set
-        {
-            if (depositVodafoneRef == value) return;
-            depositVodafoneRef = value;
-            Changed();
-        }
-    }
-
     public string DepositInstaPayText
     {
         get => depositInstaPayText;
@@ -474,17 +463,6 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             depositInstaPayText = value;
             Changed();
             NotifyFinancialSummary();
-        }
-    }
-
-    public string DepositInstaPayRef
-    {
-        get => depositInstaPayRef;
-        set
-        {
-            if (depositInstaPayRef == value) return;
-            depositInstaPayRef = value;
-            Changed();
         }
     }
 
@@ -827,9 +805,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         {
             DepositCashText = "";
             DepositVodafoneText = "";
-            DepositVodafoneRef = "";
             DepositInstaPayText = "";
-            DepositInstaPayRef = "";
         }
         NotifyFinancialSummary();
     }
@@ -949,9 +925,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             AssignedTechnician = AssignedTechnician,
             DepositCashPaid = DepositCashAmount,
             DepositVodafonePaid = DepositVodafoneAmount,
-            DepositVodafoneReference = DepositVodafoneRef.Trim(),
             DepositInstaPayPaid = DepositInstaPayAmount,
-            DepositInstaPayReference = DepositInstaPayRef.Trim()
         };
 
         var depositDetail = order.HasDeposit ? $" · تحصيل مقدم: {order.DepositSummaryText}" : " · بدون مقدم";

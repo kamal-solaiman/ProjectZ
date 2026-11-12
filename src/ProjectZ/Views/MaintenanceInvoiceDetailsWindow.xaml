@@ -438,7 +438,6 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="عربون فودافون كاش:" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#C8102E" />
-                                        <TextBlock Text="{Binding Order.DepositVodafoneReference}" Style="{StaticResource PosLtrTextStyle}" FontSize="9.5" Foreground="#64748B" Visibility="{Binding Order.DepositVodafoneReference, Converter={StaticResource StringNotEmptyToVis}}" />
                                     </StackPanel>
                                     <TextBlock Grid.Column="1" Text="{Binding Order.DepositVodafonePaidDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#C8102E" />
                                 </Grid>
@@ -450,7 +449,6 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="عربون إنستاباي:" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#6D28D9" />
-                                        <TextBlock Text="{Binding Order.DepositInstaPayReference}" Style="{StaticResource PosLtrTextStyle}" FontSize="9.5" Foreground="#64748B" Visibility="{Binding Order.DepositInstaPayReference, Converter={StaticResource StringNotEmptyToVis}}" />
                                     </StackPanel>
                                     <TextBlock Grid.Column="1" Text="{Binding Order.DepositInstaPayPaidDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#6D28D9" />
                                 </Grid>
@@ -474,7 +472,6 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="نهائي فودافون كاش:" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#C8102E" />
-                                        <TextBlock Text="{Binding Order.FinalPaymentVodafoneReference}" Style="{StaticResource PosLtrTextStyle}" FontSize="9.5" Foreground="#64748B" Visibility="{Binding Order.FinalPaymentVodafoneReference, Converter={StaticResource StringNotEmptyToVis}}" />
                                     </StackPanel>
                                     <TextBlock Grid.Column="1" Text="{Binding Order.FinalPaymentVodafonePaidDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#C8102E" />
                                 </Grid>
@@ -486,7 +483,6 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="نهائي إنستاباي:" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#6D28D9" />
-                                        <TextBlock Text="{Binding Order.FinalPaymentInstaPayReference}" Style="{StaticResource PosLtrTextStyle}" FontSize="9.5" Foreground="#64748B" Visibility="{Binding Order.FinalPaymentInstaPayReference, Converter={StaticResource StringNotEmptyToVis}}" />
                                     </StackPanel>
                                     <TextBlock Grid.Column="1" Text="{Binding Order.FinalPaymentInstaPayPaidDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#6D28D9" />
                                 </Grid>

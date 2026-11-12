@@ -299,18 +299,14 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
 public sealed record PaySupplierSubmission(
     decimal CashPaid,
     decimal VodafoneCashPaid,
-    string VodafoneCashReference,
     decimal InstaPayPaid,
-    string InstaPayReference,
     string Notes);
 
 public sealed class PaySupplierInvoiceViewModel : ObservableObject
 {
     private string cashAmountText = "";
     private string vodafoneCashAmountText = "";
-    private string vodafoneCashReference = "";
     private string instaPayAmountText = "";
-    private string instaPayReference = "";
     private string notes = "";
     private string errorMessage = "";
 
@@ -341,17 +337,6 @@ public sealed class PaySupplierInvoiceViewModel : ObservableObject
         }
     }
 
-    public string VodafoneCashReference
-    {
-        get => vodafoneCashReference;
-        set
-        {
-            if (vodafoneCashReference == value) return;
-            vodafoneCashReference = value;
-            Changed();
-        }
-    }
-
     public string InstaPayAmountText
     {
         get => instaPayAmountText;
@@ -361,17 +346,6 @@ public sealed class PaySupplierInvoiceViewModel : ObservableObject
             instaPayAmountText = value;
             Changed();
             NotifyCalculations();
-        }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set
-        {
-            if (instaPayReference == value) return;
-            instaPayReference = value;
-            Changed();
         }
     }
 
@@ -479,9 +453,7 @@ public sealed class PaySupplierInvoiceViewModel : ObservableObject
         Result = new PaySupplierSubmission(
             CashAmount,
             VodafoneCashAmount,
-            VodafoneCashReference.Trim(),
             InstaPayAmount,
-            InstaPayReference.Trim(),
             Notes.Trim());
         RequestCloseWithSuccess?.Invoke();
     }
@@ -966,9 +938,7 @@ public sealed record EditPurchaseSubmission(
     decimal DiscountAmount,
     decimal CashPaid,
     decimal VodafoneCashPaid,
-    string VodafoneCashReference,
     decimal InstaPayPaid,
-    string InstaPayReference,
     IReadOnlyList<EditPurchaseLineSubmission> Lines);
 
 public sealed class EditPurchaseInvoiceViewModel : ObservableObject
@@ -1112,17 +1082,6 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
         }
     }
 
-    public string VodafoneCashReference
-    {
-        get => vodafoneCashReference;
-        set
-        {
-            if (vodafoneCashReference == value) return;
-            vodafoneCashReference = value;
-            Changed();
-        }
-    }
-
     public string InstaPayAmountText
     {
         get => instaPayAmountText;
@@ -1132,17 +1091,6 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
             instaPayAmountText = value;
             Changed();
             NotifyFinancials();
-        }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set
-        {
-            if (instaPayReference == value) return;
-            instaPayReference = value;
-            Changed();
         }
     }
 
@@ -1225,9 +1173,7 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
         discountAmountText = invoice.DiscountAmount > 0m ? invoice.DiscountAmount.ToString("0.##", CultureInfo.InvariantCulture) : "0";
         cashAmountText = invoice.CashPaid > 0m ? invoice.CashPaid.ToString("0.##", CultureInfo.InvariantCulture) : "0";
         vodafoneCashAmountText = invoice.VodafoneCashPaid > 0m ? invoice.VodafoneCashPaid.ToString("0.##", CultureInfo.InvariantCulture) : "0";
-        vodafoneCashReference = invoice.VodafoneCashReference;
         instaPayAmountText = invoice.InstaPayPaid > 0m ? invoice.InstaPayPaid.ToString("0.##", CultureInfo.InvariantCulture) : "0";
-        instaPayReference = invoice.InstaPayReference;
 
         foreach (var line in invoice.Items)
         {
@@ -1445,9 +1391,7 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
             DiscountAmount,
             CashAmount,
             VodafoneCashAmount,
-            VodafoneCashReference.Trim(),
             InstaPayAmount,
-            InstaPayReference.Trim(),
             Lines.Select(l => new EditPurchaseLineSubmission(l.ExistingLine, l.Product, l.Quantity, l.UnitPurchaseCost)).ToList());
         RequestCloseWithSuccess?.Invoke();
     }

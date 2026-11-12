@@ -255,18 +255,14 @@ public sealed class InvoiceReturnViewModel : ObservableObject
 public sealed record CollectPaymentSubmission(
     decimal CashAmount,
     decimal VodafoneAmount,
-    string VodafoneReference,
     decimal InstaPayAmount,
-    string InstaPayReference,
     string Note);
 
 public sealed class CollectInvoicePaymentViewModel : ObservableObject
 {
     private string cashAmountText;
     private string vodafoneAmountText = "";
-    private string vodafoneReference = "";
     private string instaPayAmountText = "";
-    private string instaPayReference = "";
     private string note = "";
     private string error = "";
 
@@ -284,22 +280,10 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
         set { vodafoneAmountText = value; Changed(); NotifySummary(); }
     }
 
-    public string VodafoneReference
-    {
-        get => vodafoneReference;
-        set { vodafoneReference = value; Changed(); Error = ""; }
-    }
-
     public string InstaPayAmountText
     {
         get => instaPayAmountText;
         set { instaPayAmountText = value; Changed(); NotifySummary(); }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set { instaPayReference = value; Changed(); Error = ""; }
     }
 
     public string Note
@@ -373,9 +357,7 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
             onConfirm(new CollectPaymentSubmission(
                 ParsedCash,
                 ParsedVodafone,
-                VodafoneReference.Trim(),
                 ParsedInstaPay,
-                InstaPayReference.Trim(),
                 Note.Trim()));
             RequestCloseWithResult?.Invoke(true);
         });

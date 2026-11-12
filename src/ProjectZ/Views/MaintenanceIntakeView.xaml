@@ -1067,8 +1067,6 @@
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="فودافون:" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12" FontWeight="Bold" Foreground="#C8102E" />
                                                         <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Width="90" MinHeight="28" Padding="6,3" Text="{Binding DepositVodafoneText, UpdateSourceTrigger=PropertyChanged}" />
-                                                        <TextBlock Text="مرجع:" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="6,0,4,0" FontSize="11" Foreground="#991B1B" />
-                                                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Width="90" MinHeight="28" Padding="6,3" FontSize="11.5" Text="{Binding DepositVodafoneRef, UpdateSourceTrigger=PropertyChanged}" />
                                                     </StackPanel>
                                                 </Border>
 
@@ -1082,8 +1080,6 @@
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="إنستاباي:" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12" FontWeight="Bold" Foreground="#6D28D9" />
                                                         <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Width="90" MinHeight="28" Padding="6,3" Text="{Binding DepositInstaPayText, UpdateSourceTrigger=PropertyChanged}" />
-                                                        <TextBlock Text="مرجع:" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="6,0,4,0" FontSize="11" Foreground="#5B21B6" />
-                                                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Width="90" MinHeight="28" Padding="6,3" FontSize="11.5" Text="{Binding DepositInstaPayRef, UpdateSourceTrigger=PropertyChanged}" />
                                                     </StackPanel>
                                                 </Border>
                                             </WrapPanel>

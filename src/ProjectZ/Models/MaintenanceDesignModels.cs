@@ -190,15 +190,11 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     private decimal? finalServiceCost;
     private decimal depositCashPaid;
     private decimal depositVodafonePaid;
-    private string depositVodafoneReference = "";
     private decimal depositInstaPayPaid;
-    private string depositInstaPayReference = "";
     private decimal refundedDepositAmount;
     private decimal finalPaymentCashPaid;
     private decimal finalPaymentVodafonePaid;
-    private string finalPaymentVodafoneReference = "";
     private decimal finalPaymentInstaPayPaid;
-    private string finalPaymentInstaPayReference = "";
     private string customerName = "";
     private string customerPhone = "";
     private string customerSecondaryPhone = "";
@@ -466,17 +462,6 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
         }
     }
 
-    public string FinalPaymentVodafoneReference
-    {
-        get => finalPaymentVodafoneReference;
-        set
-        {
-            if (finalPaymentVodafoneReference == value) return;
-            finalPaymentVodafoneReference = value;
-            Changed();
-        }
-    }
-
     public decimal FinalPaymentInstaPayPaid
     {
         get => finalPaymentInstaPayPaid;
@@ -487,17 +472,6 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
             finalPaymentInstaPayPaid = clamped;
             Changed();
             NotifyFinancialsChanged();
-        }
-    }
-
-    public string FinalPaymentInstaPayReference
-    {
-        get => finalPaymentInstaPayReference;
-        set
-        {
-            if (finalPaymentInstaPayReference == value) return;
-            finalPaymentInstaPayReference = value;
-            Changed();
         }
     }
 
@@ -580,18 +554,6 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
         }
     }
 
-    public string DepositVodafoneReference
-    {
-        get => depositVodafoneReference;
-        set
-        {
-            if (depositVodafoneReference == value) return;
-            depositVodafoneReference = value;
-            Changed();
-            Changed(nameof(HasDepositVodafone));
-        }
-    }
-
     public decimal DepositInstaPayPaid
     {
         get => depositInstaPayPaid;
@@ -602,18 +564,6 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
             depositInstaPayPaid = clamped;
             Changed();
             NotifyFinancialsChanged();
-        }
-    }
-
-    public string DepositInstaPayReference
-    {
-        get => depositInstaPayReference;
-        set
-        {
-            if (depositInstaPayReference == value) return;
-            depositInstaPayReference = value;
-            Changed();
-            Changed(nameof(HasDepositInstaPay));
         }
     }
 
@@ -720,8 +670,8 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     public bool HasRefundedDeposit => RefundedDepositAmount > 0m;
     public bool HasFinalPayment => TotalFinalPaymentPaid > 0m;
     public bool HasDepositCash => DepositCashPaid > 0m;
-    public bool HasDepositVodafone => DepositVodafonePaid > 0m || !string.IsNullOrWhiteSpace(DepositVodafoneReference);
-    public bool HasDepositInstaPay => DepositInstaPayPaid > 0m || !string.IsNullOrWhiteSpace(DepositInstaPayReference);
+    public bool HasDepositVodafone => DepositVodafonePaid > 0m;
+    public bool HasDepositInstaPay => DepositInstaPayPaid > 0m;
 
     public decimal PartsTotal => UsedParts.Sum(p => p.LineTotal);
     public decimal PartsCostTotal => UsedParts.Sum(p => p.LineCostTotal);
@@ -783,8 +733,8 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
 
     public bool HasDiscount => DiscountAmount > 0m;
     public bool HasFinalPaymentCash => FinalPaymentCashPaid > 0m;
-    public bool HasFinalPaymentVodafone => FinalPaymentVodafonePaid > 0m || !string.IsNullOrWhiteSpace(FinalPaymentVodafoneReference);
-    public bool HasFinalPaymentInstaPay => FinalPaymentInstaPayPaid > 0m || !string.IsNullOrWhiteSpace(FinalPaymentInstaPayReference);
+    public bool HasFinalPaymentVodafone => FinalPaymentVodafonePaid > 0m;
+    public bool HasFinalPaymentInstaPay => FinalPaymentInstaPayPaid > 0m;
     public decimal TotalCashCollected => DepositCashPaid + FinalPaymentCashPaid;
     public decimal TotalVodafoneCollected => DepositVodafonePaid + FinalPaymentVodafonePaid;
     public decimal TotalInstaPayCollected => DepositInstaPayPaid + FinalPaymentInstaPayPaid;
@@ -1205,7 +1155,6 @@ public static class MaintenanceDesignSeedData
             IsEstimatePendingInspection = true,
             EstimatedCost = 0m,
             DepositVodafonePaid = 100m,
-            DepositVodafoneReference = "VF-441022"
         };
         ord3.ActivityLog.Add(new MaintenanceActivityEntry
         {
@@ -1285,7 +1234,6 @@ public static class MaintenanceDesignSeedData
             IsEstimatePendingInspection = false,
             EstimatedCost = 750m,
             DepositInstaPayPaid = 300m,
-            DepositInstaPayReference = "IP-882014"
         };
         ord1.UsedParts.Add(new MaintenancePartUsageItem
         {
@@ -1390,7 +1338,6 @@ public static class MaintenanceDesignSeedData
             EstimatedCost = 1150m,
             DepositCashPaid = 200m,
             FinalPaymentVodafonePaid = 900m,
-            FinalPaymentVodafoneReference = "VF-993210",
             DeliveredAt = DateTime.Today.AddDays(-1).AddHours(18).AddMinutes(30),
             WarrantyDays = 30,
             DeliveryNotes = "تم اختبار الشحن ونسبة البطارية بحضور العميل."
@@ -1426,7 +1373,7 @@ public static class MaintenanceDesignSeedData
         {
             Timestamp = ord6.DeliveredAt ?? DateTime.Today,
             ActionTitle = "تسليم الجهاز وإغلاق التذكرة",
-            Details = "تحصيل نهائي 900.00 ج.م فودافون كاش (VF-993210) مع ضمان 30 يومًا.",
+            Details = "تحصيل نهائي 900.00 ج.م فودافون كاش مع ضمان 30 يومًا.",
             ActorName = "المشرف",
             Amount = 900m
         });
@@ -1461,7 +1408,6 @@ public static class MaintenanceDesignSeedData
             IsEstimatePendingInspection = true,
             EstimatedCost = 0m,
             DepositVodafonePaid = 150m,
-            DepositVodafoneReference = "VF-710544",
             RefundedDepositAmount = 150m,
             CancellationReason = "الجهاز لا يُصلح (تلف بالمعالج / البوردة)"
         };

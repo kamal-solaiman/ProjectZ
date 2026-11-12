@@ -88,14 +88,13 @@ public sealed class AccountEditorViewModel : ObservableObject
     private void ClearError() { if (Error.Length > 0) Error = ""; }
 }
 
-public sealed record AccountTransactionResult(FinancialMovementKind Kind, decimal Amount, string Reference, string Counterparty, string Note);
+public sealed record AccountTransactionResult(FinancialMovementKind Kind, decimal Amount, string Counterparty, string Note);
 
 public sealed class AccountTransactionViewModel : ObservableObject
 {
     private readonly FinancialAccountDesignItem account;
     private string selectedMovement = "إيداع رصيد";
     private string amountText = "";
-    private string reference = "";
     private string counterparty = "";
     private string note = "";
     private string error = "";
@@ -105,7 +104,6 @@ public sealed class AccountTransactionViewModel : ObservableObject
     public IReadOnlyList<string> MovementOptions { get; } = ["إيداع رصيد", "سحب رصيد", "تسوية بالإضافة", "تسوية بالخصم"];
     public string SelectedMovement { get => selectedMovement; set { if (selectedMovement == value) return; selectedMovement = value; Changed(); ClearError(); } }
     public string AmountText { get => amountText; set { if (amountText == value) return; amountText = value; Changed(); ClearError(); } }
-    public string Reference { get => reference; set { if (reference == value) return; reference = value; Changed(); } }
     public string Counterparty { get => counterparty; set { if (counterparty == value) return; counterparty = value; Changed(); } }
     public string Note { get => note; set { if (note == value) return; note = value; Changed(); } }
     public string Error { get => error; private set { if (error == value) return; error = value; Changed(); } }
@@ -133,7 +131,7 @@ public sealed class AccountTransactionViewModel : ObservableObject
             var limitError = ValidateLimits(account, incoming, amount);
             if (limitError is not null) { Error = limitError; return; }
         }
-        Result = new AccountTransactionResult(kind, amount, Reference.Trim(), Counterparty.Trim(), Note.Trim());
+        Result = new AccountTransactionResult(kind, amount, Counterparty.Trim(), Note.Trim());
         RequestClose?.Invoke();
     }
 
@@ -156,14 +154,13 @@ public sealed class AccountTransactionViewModel : ObservableObject
     private void ClearError() { if (Error.Length > 0) Error = ""; }
 }
 
-public sealed record AccountTransferResult(FinancialAccountDesignItem Target, decimal Amount, string Reference, string Note);
+public sealed record AccountTransferResult(FinancialAccountDesignItem Target, decimal Amount, string Note);
 
 public sealed class AccountTransferViewModel : ObservableObject
 {
     private readonly FinancialAccountDesignItem source;
     private FinancialAccountDesignItem? selectedTarget;
     private string amountText = "";
-    private string reference = "";
     private string note = "";
     private string error = "";
     public string WindowTitle => "ProjectZ | تحويل بين الحسابات";
@@ -171,7 +168,6 @@ public sealed class AccountTransferViewModel : ObservableObject
     public IReadOnlyList<FinancialAccountDesignItem> Targets { get; }
     public FinancialAccountDesignItem? SelectedTarget { get => selectedTarget; set { if (ReferenceEquals(selectedTarget, value)) return; selectedTarget = value; Changed(); ClearError(); } }
     public string AmountText { get => amountText; set { if (amountText == value) return; amountText = value; Changed(); ClearError(); } }
-    public string Reference { get => reference; set { if (reference == value) return; reference = value; Changed(); } }
     public string Note { get => note; set { if (note == value) return; note = value; Changed(); } }
     public string Error { get => error; private set { if (error == value) return; error = value; Changed(); } }
     public AccountTransferResult? Result { get; private set; }
@@ -198,7 +194,7 @@ public sealed class AccountTransferViewModel : ObservableObject
         if (sourceError is not null) { Error = $"المصدر: {sourceError}"; return; }
         var targetError = AccountTransactionViewModel.ValidateLimits(SelectedTarget, true, amount);
         if (targetError is not null) { Error = $"المستلم: {targetError}"; return; }
-        Result = new AccountTransferResult(SelectedTarget, amount, Reference.Trim(), Note.Trim());
+        Result = new AccountTransferResult(SelectedTarget, amount, Note.Trim());
         RequestClose?.Invoke();
     }
 

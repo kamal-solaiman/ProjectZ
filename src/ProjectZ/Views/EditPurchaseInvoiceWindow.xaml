@@ -272,13 +272,10 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="84" />
-                                        <ColumnDefinition Width="4" />
-                                        <ColumnDefinition Width="75" />
                                     </Grid.ColumnDefinitions>
                                     <Button Grid.Column="0" Content="باقي" Style="{StaticResource PosOutlineTealButtonStyle}" Padding="7,3" FontSize="10.5" Command="{Binding FillRemainingVodafoneCommand}" />
                                     <TextBlock Grid.Column="1" Text="فودافون" Style="{StaticResource PosRtlTextStyle}" Margin="6,0" VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold" Foreground="#C8102E" />
                                     <TextBox Grid.Column="2" Style="{StaticResource PosNumericTextBoxStyle}" MinHeight="28" Padding="6,3" FontSize="12" Text="{Binding VodafoneCashAmountText, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBox Grid.Column="4" Style="{StaticResource PosNumericTextBoxStyle}" MinHeight="28" Padding="5,3" FontSize="11" Text="{Binding VodafoneCashReference, UpdateSourceTrigger=PropertyChanged}" ToolTip="رقم المرجع" />
                                 </Grid>
 
                                 <!-- InstaPay -->
@@ -287,13 +284,10 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="84" />
-                                        <ColumnDefinition Width="4" />
-                                        <ColumnDefinition Width="75" />
                                     </Grid.ColumnDefinitions>
                                     <Button Grid.Column="0" Content="باقي" Style="{StaticResource PosOutlineTealButtonStyle}" Padding="7,3" FontSize="10.5" Command="{Binding FillRemainingInstaPayCommand}" />
                                     <TextBlock Grid.Column="1" Text="إنستاباي" Style="{StaticResource PosRtlTextStyle}" Margin="6,0" VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold" Foreground="#6D28D9" />
                                     <TextBox Grid.Column="2" Style="{StaticResource PosNumericTextBoxStyle}" MinHeight="28" Padding="6,3" FontSize="12" Text="{Binding InstaPayAmountText, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBox Grid.Column="4" Style="{StaticResource PosNumericTextBoxStyle}" MinHeight="28" Padding="5,3" FontSize="11" Text="{Binding InstaPayReference, UpdateSourceTrigger=PropertyChanged}" ToolTip="رقم المرجع" />
                                 </Grid>
 
                                 <Border Padding="8" CornerRadius="8" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1">

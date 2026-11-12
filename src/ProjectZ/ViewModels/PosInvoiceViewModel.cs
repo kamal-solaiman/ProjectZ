@@ -28,10 +28,8 @@ public sealed class PosInvoiceViewModel : ObservableObject
     private decimal cashAmount;
     private string vodafoneCashAmountText = "";
     private decimal vodafoneCashAmount;
-    private string vodafoneCashReference = "";
     private string instaPayAmountText = "";
     private decimal instaPayAmount;
-    private string instaPayReference = "";
 
     private bool isUpdatingPayments;
     private bool hasManualSinglePaymentEdit;
@@ -284,17 +282,6 @@ public sealed class PosInvoiceViewModel : ObservableObject
         }
     }
 
-    public string VodafoneCashReference
-    {
-        get => vodafoneCashReference;
-        set
-        {
-            if (vodafoneCashReference == value) return;
-            vodafoneCashReference = value;
-            Changed();
-        }
-    }
-
     public string InstaPayAmountText
     {
         get => instaPayAmountText;
@@ -315,17 +302,6 @@ public sealed class PosInvoiceViewModel : ObservableObject
                 UpdatePresetFromEnabledChannels();
             }
             NotifyPaymentSummaryChanged();
-        }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set
-        {
-            if (instaPayReference == value) return;
-            instaPayReference = value;
-            Changed();
         }
     }
 
@@ -625,9 +601,7 @@ public sealed class PosInvoiceViewModel : ObservableObject
         Items.Clear();
         discountAmountText = "";
         discountAmount = 0m;
-        Changed(nameof(DiscountAmountText));
-        VodafoneCashReference = "";
-        InstaPayReference = "";
+        Changed(nameof(DiscountAmountText));;;
         hasManualSinglePaymentEdit = false;
 
         var walkIn = allCustomers.FirstOrDefault(c => c.IsWalkIn);

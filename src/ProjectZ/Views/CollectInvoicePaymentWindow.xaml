@@ -97,8 +97,6 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="رقم المرجع / التحويل" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,5" FontSize="12" FontWeight="SemiBold" Foreground="#991B1B" />
-                            <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Text="{Binding VodafoneReference, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="فودافون كاش" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,5" FontSize="12.5" FontWeight="Bold" Foreground="#C8102E" />
@@ -116,8 +114,6 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="رقم المرجع (InstaPay)" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,5" FontSize="12" FontWeight="SemiBold" Foreground="#5B21B6" />
-                            <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Text="{Binding InstaPayReference, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="إنستاباي (InstaPay)" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,5" FontSize="12.5" FontWeight="Bold" Foreground="#6D28D9" />

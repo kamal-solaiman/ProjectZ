@@ -46,13 +46,6 @@ public partial class VodafoneRecordsView : UserControl
             ViewModel.SelectedOperation = operation;
     }
 
-    private void CopyRowReference_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement { DataContext: VodafoneTransferOperation operation }) return;
-        if (ViewModel is not null) ViewModel.SelectedOperation = operation;
-        Clipboard.SetText(operation.Reference);
-    }
-
     private void ExportCsv_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel is null) return;

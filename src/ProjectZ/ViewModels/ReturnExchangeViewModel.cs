@@ -210,9 +210,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     private string refundReference = "";
     private string diffCashText = "";
     private string diffVodafoneText = "";
-    private string diffVodafoneReference = "";
     private string diffInstaPayText = "";
-    private string diffInstaPayReference = "";
 
     private string historySearchText = "";
     private string selectedHistoryTypeFilter = "الكل";
@@ -432,17 +430,9 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             if (refundMethod == value || value is null) return;
             refundMethod = value;
             Changed();
-            Changed(nameof(NeedsRefundReference));
         }
     }
 
-    public bool NeedsRefundReference => RefundMethod is "فودافون كاش" or "إنستاباي";
-
-    public string RefundReference
-    {
-        get => refundReference;
-        set { refundReference = value; Changed(); }
-    }
 
     public string DiffCashText
     {
@@ -456,22 +446,10 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         set { diffVodafoneText = value; Changed(); NotifyPaymentDiffInputs(); }
     }
 
-    public string DiffVodafoneReference
-    {
-        get => diffVodafoneReference;
-        set { diffVodafoneReference = value; Changed(); }
-    }
-
     public string DiffInstaPayText
     {
         get => diffInstaPayText;
         set { diffInstaPayText = value; Changed(); NotifyPaymentDiffInputs(); }
-    }
-
-    public string DiffInstaPayReference
-    {
-        get => diffInstaPayReference;
-        set { diffInstaPayReference = value; Changed(); }
     }
 
     // Settlement computations
@@ -774,12 +752,9 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         InvoiceLines.Clear();
         ReplacementItems.Clear();
         OperationReason = "";
-        RefundReference = "";
         DiffCashText = "";
         DiffVodafoneText = "";
-        DiffVodafoneReference = "";
         DiffInstaPayText = "";
-        DiffInstaPayReference = "";
 
         if (SelectedInvoice is not null)
         {
@@ -787,7 +762,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             Changed(nameof(ReplacementDefaultTier));
             refundMethod = SelectedInvoice.HasRemaining ? "خصم من المتبقي الآجل" : "كاش (نقدي)";
             Changed(nameof(RefundMethod));
-            Changed(nameof(NeedsRefundReference));
 
             foreach (var line in SelectedInvoice.Items.Where(i => i.RemainingQuantity > 0))
                 InvoiceLines.Add(new ReturnExchangeInvoiceLineViewModel(line, NotifySettlementChanged));
@@ -1081,31 +1055,14 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             else
             {
                 invoice.RefundedAmount += refundAmount;
-                var refSuffix = NeedsRefundReference && !string.IsNullOrWhiteSpace(RefundReference)
-                    ? $" [مرجع: {RefundReference.Trim()}]"
-                    : "";
-                settlementDesc = $"رد للعميل: {PosFormatting.FormatCurrency(refundAmount)} ({RefundMethod}{refSuffix})";
+                settlementDesc = $"رد للعميل: {PosFormatting.FormatCurrency(refundAmount)} ({RefundMethod})";
             }
         }
         else if (NeedsCustomerPayment)
         {
             invoice.CashPaid += ParsedDiffCash;
             invoice.VodafoneCashPaid += ParsedDiffVodafone;
-            if (!string.IsNullOrWhiteSpace(DiffVodafoneReference))
-            {
-                invoice.VodafoneCashReference = string.IsNullOrWhiteSpace(invoice.VodafoneCashReference)
-                    ? DiffVodafoneReference.Trim()
-                    : $"{invoice.VodafoneCashReference} / {DiffVodafoneReference.Trim()}";
-            }
-
             invoice.InstaPayPaid += ParsedDiffInstaPay;
-            if (!string.IsNullOrWhiteSpace(DiffInstaPayReference))
-            {
-                invoice.InstaPayReference = string.IsNullOrWhiteSpace(invoice.InstaPayReference)
-                    ? DiffInstaPayReference.Trim()
-                    : $"{invoice.InstaPayReference} / {DiffInstaPayReference.Trim()}";
-            }
-
             var payParts = new List<string>(3);
             if (ParsedDiffCash > 0m) payParts.Add($"كاش {PosFormatting.FormatCurrency(ParsedDiffCash)}");
             if (ParsedDiffVodafone > 0m) payParts.Add($"فودافون {PosFormatting.FormatCurrency(ParsedDiffVodafone)}");
@@ -1240,8 +1197,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
                    || inv.CustomerName.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.CustomerPhone.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.CashierName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                   || inv.VodafoneCashReference.Contains(query, StringComparison.OrdinalIgnoreCase)
-                   || inv.InstaPayReference.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.Items.Any(line =>
                        line.ProductName.Contains(query, StringComparison.OrdinalIgnoreCase)
                        || line.Barcode.Contains(query, StringComparison.OrdinalIgnoreCase)

@@ -455,21 +455,7 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         var oldRemaining = invoice.RemainingPayable;
         invoice.CashPaid += sub.CashPaid;
         invoice.VodafoneCashPaid += sub.VodafoneCashPaid;
-        if (!string.IsNullOrWhiteSpace(sub.VodafoneCashReference))
-        {
-            invoice.VodafoneCashReference = string.IsNullOrWhiteSpace(invoice.VodafoneCashReference)
-                ? sub.VodafoneCashReference
-                : $"{invoice.VodafoneCashReference} / {sub.VodafoneCashReference}";
-        }
-
         invoice.InstaPayPaid += sub.InstaPayPaid;
-        if (!string.IsNullOrWhiteSpace(sub.InstaPayReference))
-        {
-            invoice.InstaPayReference = string.IsNullOrWhiteSpace(invoice.InstaPayReference)
-                ? sub.InstaPayReference
-                : $"{invoice.InstaPayReference} / {sub.InstaPayReference}";
-        }
-
         invoice.RecalculateStatusFromBalances();
         invoice.NotifyFinancialsChanged();
 
@@ -537,9 +523,7 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         invoice.DiscountAmount = sub.DiscountAmount;
         invoice.CashPaid = sub.CashPaid;
         invoice.VodafoneCashPaid = sub.VodafoneCashPaid;
-        invoice.VodafoneCashReference = sub.VodafoneCashReference;
         invoice.InstaPayPaid = sub.InstaPayPaid;
-        invoice.InstaPayReference = sub.InstaPayReference;
 
         // 2. Remove deleted lines (guaranteed CanRemove = no sold/damaged/returned units)
         var keptExistingLines = new HashSet<PurchaseInvoiceLineDesignItem>(

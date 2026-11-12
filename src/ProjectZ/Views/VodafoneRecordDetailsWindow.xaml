@@ -3,7 +3,7 @@
         Title="تفاصيل عملية فودافون كاش" Width="570" SizeToContent="Height" MaxHeight="780" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" FlowDirection="RightToLeft">
     <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/Resources/PosStyles.xaml" /></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="22">
-        <Border Padding="16" CornerRadius="12" Background="#102E48"><StackPanel><TextBlock Text="تفاصيل عملية فودافون كاش" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="White" /><TextBlock Text="{Binding Reference}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" Foreground="#B7CFDD" Margin="0,4,0,0" /></StackPanel></Border>
+        <Border Padding="16" CornerRadius="12" Background="#102E48"><StackPanel><TextBlock Text="تفاصيل عملية فودافون كاش" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="White" /></StackPanel></Border>
         <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <TextBlock Text="الحالة" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Column="1" Text="{Binding StatusTitle}" Margin="0,6" />
             <TextBlock Grid.Row="1" Text="نوع العملية" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding OperationTitle}" Margin="0,6" />
@@ -16,9 +16,8 @@
             <TextBlock Grid.Row="8" Text="رصيد الخط بعدها" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding WalletBalanceAfterDisplay}" Margin="0,6" />
             <TextBlock Grid.Row="9" Text="التاريخ والوقت" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding Timestamp, StringFormat='dd/MM/yyyy hh:mm:ss tt'}" Margin="0,6" />
             <TextBlock Grid.Row="10" Text="المستخدم" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="10" Grid.Column="1" Text="{Binding ActorName}" Margin="0,6" />
-            <TextBlock Grid.Row="11" Text="مرجع العكس" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="11" Grid.Column="1" Text="{Binding ReversalReference}" FlowDirection="LeftToRight" Margin="0,6" />
-            <TextBlock Grid.Row="12" Text="عكسها بواسطة" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="12" Grid.Column="1" Text="{Binding ReversedBy}" Margin="0,6" />
-            <TextBlock Grid.Row="13" Text="ملاحظات" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="13" Grid.Column="1" Text="{Binding Note}" TextWrapping="Wrap" Margin="0,6" />
+            <TextBlock Grid.Row="11" Text="عكسها بواسطة" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="11" Grid.Column="1" Text="{Binding ReversedBy}" Margin="0,6" />
+            <TextBlock Grid.Row="12" Text="ملاحظات" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="12" Grid.Column="1" Text="{Binding Note}" TextWrapping="Wrap" Margin="0,6" />
         </Grid>
         <Button Content="إغلاق" Style="{StaticResource PosSecondaryButtonStyle}" HorizontalAlignment="Left" Margin="0,18,0,0" Padding="22,9" Click="Close_Click" />
     </StackPanel></ScrollViewer>

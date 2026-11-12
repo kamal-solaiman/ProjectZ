@@ -11,9 +11,7 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
     private string discountText;
     private string cashAmountText = "0";
     private string vodafoneAmountText = "0";
-    private string vodafoneReference = "";
     private string instaPayAmountText = "0";
-    private string instaPayReference = "";
     private bool refundExcessDeposit = true;
     private int warrantyDays = 14;
     private string customWarrantyDaysText = "14";
@@ -112,17 +110,6 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
         }
     }
 
-    public string VodafoneReference
-    {
-        get => vodafoneReference;
-        set
-        {
-            if (vodafoneReference == value) return;
-            vodafoneReference = value;
-            Changed();
-        }
-    }
-
     public string InstaPayAmountText
     {
         get => instaPayAmountText;
@@ -132,17 +119,6 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
             instaPayAmountText = value;
             Changed();
             NotifyCollectedChanged();
-        }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set
-        {
-            if (instaPayReference == value) return;
-            instaPayReference = value;
-            Changed();
         }
     }
 
@@ -403,18 +379,6 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
                 return;
             }
 
-            if (vodafone > 0m && string.IsNullOrWhiteSpace(VodafoneReference))
-            {
-                ErrorMessage = "أدخل رقم مرجع / عملية فودافون كاش.";
-                return;
-            }
-
-            if (instaPay > 0m && string.IsNullOrWhiteSpace(InstaPayReference))
-            {
-                ErrorMessage = "أدخل رقم مرجع / عملية إنستاباي.";
-                return;
-            }
-
             var totalEntered = cash + vodafone + instaPay;
             if (totalEntered > RemainingBeforeFinalPayment)
             {
@@ -435,11 +399,7 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
 
         Order.FinalPaymentCashPaid += cash;
         Order.FinalPaymentVodafonePaid += vodafone;
-        if (!string.IsNullOrWhiteSpace(VodafoneReference))
-            Order.FinalPaymentVodafoneReference = VodafoneReference.Trim();
         Order.FinalPaymentInstaPayPaid += instaPay;
-        if (!string.IsNullOrWhiteSpace(InstaPayReference))
-            Order.FinalPaymentInstaPayReference = InstaPayReference.Trim();
 
         if (HasExcessDeposit && RefundExcessDeposit)
             Order.RefundedDepositAmount += ExcessDepositOverTotal;
