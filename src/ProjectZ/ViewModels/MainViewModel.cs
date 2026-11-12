@@ -195,7 +195,8 @@ public sealed class MainViewModel : ObservableObject
             user.DisplayName,
             sharedCatalog,
             posInvoice => Invoices.RecordCompletedPosSale(posInvoice).InvoiceNumber,
-            sharedCustomers);
+            sharedCustomers,
+            useDesignSamples: inventoryRepository is null);
         AddProduct = new AddProductViewModel(
             sharedCatalog,
             () => SelectItem(Categories[0].Items[0]),
