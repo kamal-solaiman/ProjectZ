@@ -414,6 +414,9 @@
                         </Grid.Style>
                         <views:MyAccountsView DataContext="{Binding MyAccounts}" />
                     </Grid>
+                    <Grid Visibility="{Binding IsVodafoneTransferSelected, Converter={StaticResource BoolToVis}}">
+                        <views:VodafoneTransferView DataContext="{Binding VodafoneTransfer}" />
+                    </Grid>
                 </Grid>
             </Border>
 
