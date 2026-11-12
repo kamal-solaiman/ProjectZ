@@ -26,6 +26,7 @@ public sealed class MainViewModel : ObservableObject
     public CustomersViewModel Customers { get; }
     public SuppliersViewModel Suppliers { get; }
     public MyAccountsViewModel MyAccounts { get; }
+    public VodafoneTransferViewModel VodafoneTransfer { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
     public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
@@ -42,12 +43,13 @@ public sealed class MainViewModel : ObservableObject
     public bool IsMaintenanceSparePartsSelected => ReferenceEquals(selectedItem, Categories[2].Items[3]);
     public bool IsCustomersSelected => ReferenceEquals(selectedItem, Categories[4].Items[0]);
     public bool IsSuppliersSelected => ReferenceEquals(selectedItem, Categories[4].Items[1]);
-    public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, Categories[3].Items[4]);
+    public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, Categories[3].Items[0]);
+    public bool IsVodafoneTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[1]);
     public bool IsImplementedScreenSelected =>
         IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
-        || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected;
+        || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected || IsVodafoneTransferSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -83,7 +85,7 @@ public sealed class MainViewModel : ObservableObject
             new NavigationMenuCategoryViewModel("الصيانة", "\U0001F527",
                 "امر صيانة", "فواتير الصيانة", "اجراءات الصيانة", "قطع الغيار"),
             new NavigationMenuCategoryViewModel("المالية", "\U0001F4B0",
-                "تحويل فودافون كاش", "تحويل انستاباي", "سجلات فودافون كاش", "سجلات انستاباي", "حساباتي"),
+                "حساباتي", "تحويل فودافون كاش", "تحويل انستاباي", "سجلات فودافون كاش", "سجلات انستاباي"),
             new NavigationMenuCategoryViewModel("العملاء والموردين", "\U0001F465",
                 "العملاء", "الموردين"),
             new NavigationMenuCategoryViewModel("المستخدمين", "\U0001F464",
@@ -188,6 +190,7 @@ public sealed class MainViewModel : ObservableObject
             sharedCategories,
             () => SelectItem(Categories[0].Items[1]));
         MyAccounts = new MyAccountsViewModel(user.DisplayName);
+        VodafoneTransfer = new VodafoneTransferViewModel(MyAccounts, user.DisplayName);
         Suppliers = new SuppliersViewModel(
             sharedSuppliers,
             sharedPurchaseInvoices,
@@ -268,7 +271,9 @@ public sealed class MainViewModel : ObservableObject
         }
 
         selectedItem = item;
-        if (ReferenceEquals(item, Categories[0].Items[5]))
+        if (ReferenceEquals(item, Categories[3].Items[1]))
+            VodafoneTransfer.NotifyExternalDataChanged();
+        else if (ReferenceEquals(item, Categories[0].Items[5]))
             ReturnExchange.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[0].Items[4]))
             Invoices.NotifyExternalInvoicesChanged();
@@ -306,6 +311,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsCustomersSelected));
         Changed(nameof(IsSuppliersSelected));
         Changed(nameof(IsMyAccountsSelected));
+        Changed(nameof(IsVodafoneTransferSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));

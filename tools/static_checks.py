@@ -188,7 +188,7 @@ expected_menu = [
     ('المبيعات', ['نقطة البيع', 'اضافة منتج', 'المخزون', 'التصنيفات', 'الفواتير', 'المرتجع والاستبدال']),
     ('المشتريات', ['شراء فاتورة', 'فواتير المشتريات']),
     ('الصيانة', ['امر صيانة', 'فواتير الصيانة', 'اجراءات الصيانة', 'قطع الغيار']),
-    ('المالية', ['تحويل فودافون كاش', 'تحويل انستاباي', 'سجلات فودافون كاش', 'سجلات انستاباي', 'حساباتي']),
+    ('المالية', ['حساباتي', 'تحويل فودافون كاش', 'تحويل انستاباي', 'سجلات فودافون كاش', 'سجلات انستاباي']),
     ('العملاء والموردين', ['العملاء', 'الموردين']),
     ('المستخدمين', ['المستخدمين', 'الصلاحيات']),
     ('الاعدادات', ['اعدادات عامة', 'المظهر', 'النسخ الاحتياطي']),
@@ -886,6 +886,24 @@ for xf in (root / 'src/ProjectZ').rglob('*.xaml'):
     for m in re.finditer(r'\{StaticResource\s+([^\}\s]+)\}', xf.read_text(encoding='utf-8')):
         res = m.group(1)
         assert res in local_keys or res.startswith('{x:Type'), f'Undefined StaticResource {res} in {xf}'
+
+vodafone_vm = (root / 'src/ProjectZ/ViewModels/VodafoneTransferViewModel.cs').read_text(encoding='utf-8')
+vodafone_view = (root / 'src/ProjectZ/Views/VodafoneTransferView.xaml').read_text(encoding='utf-8')
+vodafone_window = (root / 'src/ProjectZ/Views/VodafoneOperationWindow.xaml').read_text(encoding='utf-8')
+assert 'a.Kind == FinancialAccountKind.VodafoneCash' in vodafone_vm
+assert 'wallet.Balance += IsDepositSelected ? -amount : amount;' in vodafone_vm
+assert 'IsDepositSelected ? amount + commission : commission - amount' in vodafone_vm
+assert 'incoming: !IsDepositSelected' in vodafone_vm
+assert 'ValidateLimits(SelectedWallet' in vodafone_vm
+assert 'accounts.CashAccount.Balance += cashDelta;' in vodafone_vm
+assert 'normalizedCustomer.Length != 11' in vodafone_vm
+for field in ('CustomerNumber', 'AmountText', 'CommissionText', 'WalletBalanceAfterPreview', 'CashBalanceAfterPreview'):
+    assert field in vodafone_window, f'missing operation window field: {field}'
+for field in ('DailyDepositLimitDisplay', 'DailyWithdrawalLimitDisplay', 'MonthlyDepositLimitDisplay', 'MonthlyWithdrawalLimitDisplay', 'WalletBalanceAfterDisplay', 'ActorName', 'Reference'):
+    assert field in vodafone_view, f'missing wallet/history field: {field}'
+assert 'new VodafoneTransferViewModel(MyAccounts, user.DisplayName)' in main_viewmodel
+assert 'views:VodafoneTransferView' in main_xaml
+print('PASS: Vodafone customer transfers share wallet state, enforce limits, and apply cash/commission deltas')
 
 print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry, PurchaseInvoices, MaintenanceIntake & MaintenanceActions UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

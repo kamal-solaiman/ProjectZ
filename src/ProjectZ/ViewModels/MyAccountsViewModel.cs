@@ -117,6 +117,8 @@ public sealed class MyAccountsViewModel : ObservableObject
         SelectedAccount = FilteredWallets.FirstOrDefault();
     }
 
+    public void NotifyExternalDataChanged() => RecalculateAll();
+
     private void AddWallet(FinancialAccountKind kind)
     {
         var vm = new AccountEditorViewModel(kind, null, ValidateIdentifier);
