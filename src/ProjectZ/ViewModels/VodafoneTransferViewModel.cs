@@ -57,7 +57,7 @@ public sealed class VodafoneTransferViewModel : ObservableObject
     public bool HasNoFilteredOperations => FilteredOperations.Count == 0;
 
     public string TotalWalletBalancesDisplay => PosFormatting.FormatCurrency(Wallets().Sum(w => w.Balance));
-    public string ActiveWalletsSubtext => $"{Wallets().Count(w => w.IsActive)} خطوط نشطة من أصل {Wallets().Count}";
+    public string ActiveWalletsSubtext => $"{Wallets().Count(w => w.IsActive)} خطوط نشطة من أصل {Wallets().Count()}";
     public string TodayDepositsDisplay => PosFormatting.FormatCurrency(Operations.Where(o => o.IsDeposit && o.Timestamp.Date == DateTime.Today).Sum(o => o.Amount));
     public string TodayDepositsCountSubtext => $"{Operations.Count(o => o.IsDeposit && o.Timestamp.Date == DateTime.Today)} عمليات إيداع للعملاء";
     public string TodayWithdrawalsDisplay => PosFormatting.FormatCurrency(Operations.Where(o => !o.IsDeposit && o.Timestamp.Date == DateTime.Today).Sum(o => o.Amount));
