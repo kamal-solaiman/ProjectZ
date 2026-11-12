@@ -307,7 +307,8 @@ public sealed class SupplyStockViewModel : ObservableObject
         PosProductDesignItem product,
         IReadOnlyList<string> knownSuppliers,
         string suggestedInvoiceId,
-        Action<SupplyStockSubmission> onConfirm)
+        Func<SupplyStockSubmission, bool> onConfirm,
+        Func<string>? persistenceError = null)
     {
         Product = product;
         SuggestedSuppliers = knownSuppliers;
@@ -343,8 +344,10 @@ public sealed class SupplyStockViewModel : ObservableObject
             }
 
             var trimmedInvoice = string.IsNullOrWhiteSpace(InvoiceId) ? suggestedInvoiceId : InvoiceId.Trim();
-            onConfirm(new SupplyStockSubmission(qty, trimmedSupplier, price, trimmedInvoice));
-            RequestCloseWithResult?.Invoke(true);
+            if (onConfirm(new SupplyStockSubmission(qty, trimmedSupplier, price, trimmedInvoice)))
+                RequestCloseWithResult?.Invoke(true);
+            else
+                Error = persistenceError?.Invoke() is { Length: > 0 } error ? error : "تعذر حفظ التوريد.";
         });
 
         CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));
@@ -501,7 +504,8 @@ public sealed class EditProductViewModel : ObservableObject
         PosProductDesignItem product,
         IReadOnlyCollection<PosProductDesignItem> allProducts,
         IReadOnlyList<string> categories,
-        Action<EditProductSubmission> onSave)
+        Func<EditProductSubmission, bool> onSave,
+        Func<string>? persistenceError = null)
     {
         this.product = product;
         this.allProducts = allProducts;
@@ -598,7 +602,7 @@ public sealed class EditProductViewModel : ObservableObject
                 return;
             }
 
-            onSave(new EditProductSubmission(
+            if (onSave(new EditProductSubmission(
                 trimmedName,
                 trimmedBarcode,
                 string.IsNullOrWhiteSpace(SelectedCategory) ? product.Category : SelectedCategory.Trim(),
@@ -610,8 +614,10 @@ public sealed class EditProductViewModel : ObservableObject
                 minAlert,
                 IsActiveForSale,
                 TrackSerialNumber,
-                Notes.Trim()));
-            RequestCloseWithResult?.Invoke(true);
+                Notes.Trim())))
+                RequestCloseWithResult?.Invoke(true);
+            else
+                Error = persistenceError?.Invoke() is { Length: > 0 } error ? error : "تعذر تحديث الصنف.";
         });
 
         CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));
@@ -711,7 +717,8 @@ public sealed class MarkDamagedViewModel : ObservableObject
     public MarkDamagedViewModel(
         PosProductDesignItem product,
         IEnumerable<InventoryUnitRegistrationItem> productRegistrations,
-        Action<MarkDamagedSubmission> onConfirm)
+        Func<MarkDamagedSubmission, bool> onConfirm,
+        Func<string>? persistenceError = null)
     {
         Product = product;
         availableUnits = productRegistrations
@@ -760,8 +767,10 @@ public sealed class MarkDamagedViewModel : ObservableObject
                 return;
             }
 
-            onConfirm(new MarkDamagedSubmission(qty, SelectedSourceOption.SupplierFilter, SelectedSourceOption.SpecificUnitId, trimmedReason));
-            RequestCloseWithResult?.Invoke(true);
+            if (onConfirm(new MarkDamagedSubmission(qty, SelectedSourceOption.SupplierFilter, SelectedSourceOption.SpecificUnitId, trimmedReason)))
+                RequestCloseWithResult?.Invoke(true);
+            else
+                Error = persistenceError?.Invoke() is { Length: > 0 } error ? error : "تعذر تسجيل الهالك.";
         });
 
         CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));

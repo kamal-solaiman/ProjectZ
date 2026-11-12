@@ -359,9 +359,9 @@ public sealed class InventoryViewModel : ObservableObject
                         repository.Supply(product, submission.Quantity, submission.SupplierName, submission.PurchasePrice, submission.InvoiceId);
                         RefreshFromDatabase();
                         SetStatus($"تم حفظ توريد {submission.Quantity} قطعة من «{product.Name}» في قاعدة البيانات.", false);
+                        return true;
                     }
-                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حفظ التوريد في قاعدة البيانات."), true); }
-                    return;
+                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حفظ التوريد في قاعدة البيانات."), true); return false; }
                 }
                 nextSupplyInvoiceNumber++;
                 var now = DateTime.Today;
@@ -389,7 +389,9 @@ public sealed class InventoryViewModel : ObservableObject
                 RefreshCatalogFilter();
                 NotifyKpis();
                 SetStatus($"تم توريد {submission.Quantity} قطعة من «{product.Name}» بواسطة المورد «{submission.SupplierName}» (فاتورة {submission.InvoiceId}).", false);
-            });
+                return true;
+            },
+            () => StatusMessage);
 
         OpenSupplyDialogRequested?.Invoke(vm);
     }
@@ -427,9 +429,9 @@ public sealed class InventoryViewModel : ObservableObject
                         repository.UpdateProduct(updated);
                         RefreshFromDatabase();
                         SetStatus($"تم تحديث الصنف «{product.Name}» في قاعدة البيانات.", false);
+                        return true;
                     }
-                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر تحديث الصنف في قاعدة البيانات."), true); }
-                    return;
+                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر تحديث الصنف في قاعدة البيانات."), true); return false; }
                 }
                 product.Name = submission.Name;
                 product.Barcode = submission.Barcode;
@@ -455,7 +457,9 @@ public sealed class InventoryViewModel : ObservableObject
                 RefreshDamagedFilter();
                 NotifyKpis();
                 SetStatus($"تم تحديث بيانات الصنف «{product.Name}» بنجاح.", false);
-            });
+                return true;
+            },
+            () => StatusMessage);
 
         OpenEditDialogRequested?.Invoke(vm);
     }
@@ -493,9 +497,9 @@ public sealed class InventoryViewModel : ObservableObject
                         repository.MarkDamaged(product, submission.Quantity, submission.SupplierFilter, submission.SpecificUnitId, submission.Reason);
                         RefreshFromDatabase();
                         SetStatus($"تم تسجيل {submission.Quantity} قطعة هالك من «{product.Name}» وحفظ حركات المخزون.", false);
+                        return true;
                     }
-                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر تسجيل الهالك في قاعدة البيانات."), true); }
-                    return;
+                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر تسجيل الهالك في قاعدة البيانات."), true); return false; }
                 }
                 var candidates = sharedRegistrations
                     .Where(r => r.ProductId == product.Id && r.IsAvailable)
@@ -529,7 +533,9 @@ public sealed class InventoryViewModel : ObservableObject
                 RefreshDamagedFilter();
                 NotifyKpis();
                 SetStatus($"تم تسجيل {submission.Quantity} قطعة هالك من «{product.Name}» ({submission.Reason}) وإدراجها في قائمة مخزون الهالك.", false);
-            });
+                return true;
+            },
+            () => StatusMessage);
 
         OpenMarkDamagedDialogRequested?.Invoke(vm);
     }

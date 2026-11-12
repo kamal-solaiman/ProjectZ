@@ -255,6 +255,7 @@ public sealed class MainViewModel : ObservableObject
             });
 
         Inventory.RefreshFromDatabase();
+        AddProduct.NotifyInventoryLoaded();
 
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);

@@ -593,6 +593,14 @@ public sealed class AddProductViewModel : ObservableObject
         return $"{sign}{PosFormatting.FormatPlainNumber(diff)} ج.م ({sign}{pct.ToString("0.#", CultureInfo.InvariantCulture)}%)";
     }
 
+    public void NotifyInventoryLoaded()
+    {
+        if (string.IsNullOrWhiteSpace(ProductName)) Barcode = GenerateNextAvailableBarcode();
+        if (string.IsNullOrWhiteSpace(SelectedCategory) || !Categories.Contains(SelectedCategory))
+            SelectedCategory = Categories.FirstOrDefault() ?? "";
+        RefreshFilteredProducts();
+    }
+
     private void OnSharedCategoriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.Action == NotifyCollectionChangedAction.Replace
