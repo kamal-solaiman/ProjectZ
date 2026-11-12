@@ -40,9 +40,10 @@ public partial class VodafoneRecordsView : UserControl
         return dialog.ShowDialog();
     }
 
-    private void Records_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private void RecordCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (ViewModel?.SelectedOperation is { } operation) ViewModel.DetailsRequested?.Invoke(operation);
+        if (ViewModel is not null && sender is FrameworkElement { DataContext: VodafoneTransferOperation operation })
+            ViewModel.SelectedOperation = operation;
     }
 
     private void CopyRowReference_Click(object sender, RoutedEventArgs e)
