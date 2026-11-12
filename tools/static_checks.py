@@ -65,6 +65,10 @@ for required_relation in ('SalesInvoiceId', 'PurchaseInvoiceId', 'MaintenanceOrd
     assert required_relation in full_schema, f'missing relational key: {required_relation}'
 assert 'ON DELETE CASCADE' not in full_schema.upper(), 'financial and inventory history must not be cascade-deleted'
 assert 'CurrentBalance DECIMAL(19,2)' in full_schema and 'BalanceAfter DECIMAL(19,2)' in full_schema
+assert 'Id BIGINT IDENTITY' not in full_schema and 'InvoiceId BIGINT' not in full_schema
+assert 'LastValue BIGINT NOT NULL' in full_schema
+assert "ALTER TABLE dbo.Products ADD Sku NVARCHAR(100) NULL" in full_schema
+assert "THROW 50012" in full_schema and "THROW 50015" in full_schema
 assert 'TransferGroupId UNIQUEIDENTIFIER' in full_schema
 transfer_table = full_schema.split('CREATE TABLE dbo.CustomerTransfers', 1)[1].split('CREATE TABLE dbo.FinancialTransactions', 1)[0]
 assert 'Reference' not in transfer_table and 'المرجع' not in transfer_table

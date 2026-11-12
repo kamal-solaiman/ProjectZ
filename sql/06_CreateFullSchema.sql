@@ -12,6 +12,24 @@ GO
 IF OBJECT_ID(N'dbo.Users', N'U') IS NULL
     THROW 50010, N'dbo.Users is required. Run 01_CreateDatabase.sql first.', 1;
 GO
+/* Fail before DDL if an older business table uses incompatible identifier types. */
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.tables AS t
+    JOIN sys.columns AS c ON c.object_id = t.object_id AND c.name = N'Id'
+    JOIN sys.types AS ty ON ty.user_type_id = c.user_type_id
+    WHERE t.schema_id = SCHEMA_ID(N'dbo') AND ty.name <> N'int'
+      AND t.name IN
+      (N'Customers', N'Suppliers', N'Categories', N'Products', N'FinancialAccounts', N'CustomerTransfers',
+       N'FinancialTransactions', N'InventoryUnits', N'StockMovements', N'PurchaseInvoices',
+       N'PurchaseInvoiceLines', N'PurchaseReturns', N'PurchaseReturnLines', N'PurchasePayments',
+       N'PurchaseInvoiceActivities', N'SalesInvoices', N'SalesInvoiceLines', N'SalesPayments',
+       N'SalesInvoiceActivities', N'ReturnExchanges', N'ReturnExchangeLines', N'MaintenanceOrders',
+       N'MaintenanceOrderParts', N'MaintenancePayments', N'MaintenanceActivities', N'AuditLog')
+)
+    THROW 50011, N'An existing business table has a non-INT Id. Back up the database and migrate its identifiers before rerunning this schema.', 1;
+GO
 BEGIN TRANSACTION;
 
 /* Security and application configuration. dbo.Users remains unchanged. */
@@ -182,7 +200,7 @@ CREATE TABLE dbo.FinancialAccounts
 IF OBJECT_ID(N'dbo.CustomerTransfers', N'U') IS NULL
 CREATE TABLE dbo.CustomerTransfers
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_CustomerTransfers PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_CustomerTransfers PRIMARY KEY,
     FinancialAccountId INT NOT NULL CONSTRAINT FK_CustomerTransfers_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id),
     OperationKind TINYINT NOT NULL,
     CustomerNumber NVARCHAR(30) NOT NULL,
@@ -206,7 +224,7 @@ CREATE TABLE dbo.CustomerTransfers
 IF OBJECT_ID(N'dbo.FinancialTransactions', N'U') IS NULL
 CREATE TABLE dbo.FinancialTransactions
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FinancialTransactions PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_FinancialTransactions PRIMARY KEY,
     FinancialAccountId INT NOT NULL CONSTRAINT FK_FinancialTransactions_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id),
     TransferGroupId UNIQUEIDENTIFIER NULL,
     OccurredAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_FinancialTransactions_OccurredAtUtc DEFAULT SYSUTCDATETIME(),
@@ -219,7 +237,7 @@ CREATE TABLE dbo.FinancialTransactions
     ActorUserId INT NOT NULL CONSTRAINT FK_FinancialTransactions_Actor FOREIGN KEY REFERENCES dbo.Users(Id),
     CountsTowardLimits BIT NOT NULL CONSTRAINT DF_FinancialTransactions_CountsTowardLimits DEFAULT 1,
     SourceEntityType NVARCHAR(50) NULL,
-    SourceEntityId BIGINT NULL,
+    SourceEntityId INT NULL,
     CreatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_FinancialTransactions_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
     CONSTRAINT CK_FinancialTransactions_Amount CHECK (Amount > 0),
     CONSTRAINT CK_FinancialTransactions_Source CHECK ((SourceEntityType IS NULL AND SourceEntityId IS NULL) OR (SourceEntityType IS NOT NULL AND SourceEntityId IS NOT NULL))
@@ -229,7 +247,7 @@ CREATE TABLE dbo.FinancialTransactions
 IF OBJECT_ID(N'dbo.InventoryUnits', N'U') IS NULL
 CREATE TABLE dbo.InventoryUnits
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_InventoryUnits PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_InventoryUnits PRIMARY KEY,
     ProductId INT NOT NULL CONSTRAINT FK_InventoryUnits_Products FOREIGN KEY REFERENCES dbo.Products(Id),
     SupplierId INT NULL CONSTRAINT FK_InventoryUnits_Suppliers FOREIGN KEY REFERENCES dbo.Suppliers(Id),
     SerialNumber NVARCHAR(150) NULL,
@@ -249,16 +267,16 @@ CREATE TABLE dbo.InventoryUnits
 IF OBJECT_ID(N'dbo.StockMovements', N'U') IS NULL
 CREATE TABLE dbo.StockMovements
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_StockMovements PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_StockMovements PRIMARY KEY,
     ProductId INT NOT NULL CONSTRAINT FK_StockMovements_Products FOREIGN KEY REFERENCES dbo.Products(Id),
-    InventoryUnitId BIGINT NULL CONSTRAINT FK_StockMovements_Units FOREIGN KEY REFERENCES dbo.InventoryUnits(Id),
+    InventoryUnitId INT NULL CONSTRAINT FK_StockMovements_Units FOREIGN KEY REFERENCES dbo.InventoryUnits(Id),
     MovementType NVARCHAR(40) NOT NULL,
     QuantityDelta INT NOT NULL,
     UnitCost DECIMAL(19,2) NOT NULL CONSTRAINT DF_StockMovements_UnitCost DEFAULT 0,
     OccurredAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_StockMovements_OccurredAtUtc DEFAULT SYSUTCDATETIME(),
     ActorUserId INT NOT NULL CONSTRAINT FK_StockMovements_Actor FOREIGN KEY REFERENCES dbo.Users(Id),
     SourceEntityType NVARCHAR(50) NULL,
-    SourceEntityId BIGINT NULL,
+    SourceEntityId INT NULL,
     Reason NVARCHAR(1000) NOT NULL CONSTRAINT DF_StockMovements_Reason DEFAULT N'',
     CONSTRAINT CK_StockMovements_QuantityDelta CHECK (QuantityDelta <> 0),
     CONSTRAINT CK_StockMovements_UnitCost CHECK (UnitCost >= 0),
@@ -269,7 +287,7 @@ CREATE TABLE dbo.StockMovements
 IF OBJECT_ID(N'dbo.PurchaseInvoices', N'U') IS NULL
 CREATE TABLE dbo.PurchaseInvoices
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseInvoices PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseInvoices PRIMARY KEY,
     InvoiceNumber NVARCHAR(50) NOT NULL CONSTRAINT UQ_PurchaseInvoices_Number UNIQUE,
     SupplierInvoiceNumber NVARCHAR(100) NOT NULL CONSTRAINT DF_PurchaseInvoices_SupplierNumber DEFAULT N'',
     SupplierId INT NOT NULL CONSTRAINT FK_PurchaseInvoices_Suppliers FOREIGN KEY REFERENCES dbo.Suppliers(Id),
@@ -292,8 +310,8 @@ CREATE TABLE dbo.PurchaseInvoices
 IF OBJECT_ID(N'dbo.PurchaseInvoiceLines', N'U') IS NULL
 CREATE TABLE dbo.PurchaseInvoiceLines
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseInvoiceLines PRIMARY KEY,
-    PurchaseInvoiceId BIGINT NOT NULL CONSTRAINT FK_PurchaseInvoiceLines_Invoices FOREIGN KEY REFERENCES dbo.PurchaseInvoices(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseInvoiceLines PRIMARY KEY,
+    PurchaseInvoiceId INT NOT NULL CONSTRAINT FK_PurchaseInvoiceLines_Invoices FOREIGN KEY REFERENCES dbo.PurchaseInvoices(Id),
     LineNumber INT NOT NULL,
     ProductId INT NOT NULL CONSTRAINT FK_PurchaseInvoiceLines_Products FOREIGN KEY REFERENCES dbo.Products(Id),
     BarcodeSnapshot NVARCHAR(100) NOT NULL CONSTRAINT DF_PurchaseInvoiceLines_Barcode DEFAULT N'',
@@ -312,8 +330,8 @@ CREATE TABLE dbo.PurchaseInvoiceLines
 IF OBJECT_ID(N'dbo.PurchaseInvoiceLineUnits', N'U') IS NULL
 CREATE TABLE dbo.PurchaseInvoiceLineUnits
 (
-    PurchaseInvoiceLineId BIGINT NOT NULL CONSTRAINT FK_PurchaseLineUnits_Lines FOREIGN KEY REFERENCES dbo.PurchaseInvoiceLines(Id),
-    InventoryUnitId BIGINT NOT NULL CONSTRAINT FK_PurchaseLineUnits_Units FOREIGN KEY REFERENCES dbo.InventoryUnits(Id),
+    PurchaseInvoiceLineId INT NOT NULL CONSTRAINT FK_PurchaseLineUnits_Lines FOREIGN KEY REFERENCES dbo.PurchaseInvoiceLines(Id),
+    InventoryUnitId INT NOT NULL CONSTRAINT FK_PurchaseLineUnits_Units FOREIGN KEY REFERENCES dbo.InventoryUnits(Id),
     CONSTRAINT PK_PurchaseInvoiceLineUnits PRIMARY KEY (PurchaseInvoiceLineId, InventoryUnitId),
     CONSTRAINT UQ_PurchaseInvoiceLineUnits_Unit UNIQUE (InventoryUnitId)
 );
@@ -321,9 +339,9 @@ CREATE TABLE dbo.PurchaseInvoiceLineUnits
 IF OBJECT_ID(N'dbo.PurchaseReturns', N'U') IS NULL
 CREATE TABLE dbo.PurchaseReturns
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseReturns PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseReturns PRIMARY KEY,
     ReturnNumber NVARCHAR(50) NOT NULL CONSTRAINT UQ_PurchaseReturns_Number UNIQUE,
-    PurchaseInvoiceId BIGINT NOT NULL CONSTRAINT FK_PurchaseReturns_Invoices FOREIGN KEY REFERENCES dbo.PurchaseInvoices(Id),
+    PurchaseInvoiceId INT NOT NULL CONSTRAINT FK_PurchaseReturns_Invoices FOREIGN KEY REFERENCES dbo.PurchaseInvoices(Id),
     ReturnedAtUtc DATETIME2(7) NOT NULL,
     Reason NVARCHAR(1000) NOT NULL CONSTRAINT DF_PurchaseReturns_Reason DEFAULT N'',
     ActorUserId INT NOT NULL CONSTRAINT FK_PurchaseReturns_Actor FOREIGN KEY REFERENCES dbo.Users(Id),
@@ -333,9 +351,9 @@ CREATE TABLE dbo.PurchaseReturns
 IF OBJECT_ID(N'dbo.PurchaseReturnLines', N'U') IS NULL
 CREATE TABLE dbo.PurchaseReturnLines
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseReturnLines PRIMARY KEY,
-    PurchaseReturnId BIGINT NOT NULL CONSTRAINT FK_PurchaseReturnLines_Returns FOREIGN KEY REFERENCES dbo.PurchaseReturns(Id),
-    PurchaseInvoiceLineId BIGINT NOT NULL CONSTRAINT FK_PurchaseReturnLines_Lines FOREIGN KEY REFERENCES dbo.PurchaseInvoiceLines(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseReturnLines PRIMARY KEY,
+    PurchaseReturnId INT NOT NULL CONSTRAINT FK_PurchaseReturnLines_Returns FOREIGN KEY REFERENCES dbo.PurchaseReturns(Id),
+    PurchaseInvoiceLineId INT NOT NULL CONSTRAINT FK_PurchaseReturnLines_Lines FOREIGN KEY REFERENCES dbo.PurchaseInvoiceLines(Id),
     Quantity INT NOT NULL,
     UnitPurchaseCost DECIMAL(19,2) NOT NULL,
     CONSTRAINT UQ_PurchaseReturnLines_Line UNIQUE (PurchaseReturnId, PurchaseInvoiceLineId),
@@ -345,8 +363,8 @@ CREATE TABLE dbo.PurchaseReturnLines
 IF OBJECT_ID(N'dbo.PurchasePayments', N'U') IS NULL
 CREATE TABLE dbo.PurchasePayments
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchasePayments PRIMARY KEY,
-    PurchaseInvoiceId BIGINT NOT NULL CONSTRAINT FK_PurchasePayments_Invoices FOREIGN KEY REFERENCES dbo.PurchaseInvoices(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchasePayments PRIMARY KEY,
+    PurchaseInvoiceId INT NOT NULL CONSTRAINT FK_PurchasePayments_Invoices FOREIGN KEY REFERENCES dbo.PurchaseInvoices(Id),
     FinancialAccountId INT NOT NULL CONSTRAINT FK_PurchasePayments_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id),
     PaymentKind TINYINT NOT NULL,
     Amount DECIMAL(19,2) NOT NULL,
@@ -361,8 +379,8 @@ CREATE TABLE dbo.PurchasePayments
 IF OBJECT_ID(N'dbo.PurchaseInvoiceActivities', N'U') IS NULL
 CREATE TABLE dbo.PurchaseInvoiceActivities
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseInvoiceActivities PRIMARY KEY,
-    PurchaseInvoiceId BIGINT NOT NULL CONSTRAINT FK_PurchaseActivities_Invoices FOREIGN KEY REFERENCES dbo.PurchaseInvoices(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PurchaseInvoiceActivities PRIMARY KEY,
+    PurchaseInvoiceId INT NOT NULL CONSTRAINT FK_PurchaseActivities_Invoices FOREIGN KEY REFERENCES dbo.PurchaseInvoices(Id),
     OccurredAtUtc DATETIME2(7) NOT NULL,
     ActionTitle NVARCHAR(200) NOT NULL,
     Details NVARCHAR(1500) NOT NULL CONSTRAINT DF_PurchaseActivities_Details DEFAULT N'',
@@ -374,7 +392,7 @@ CREATE TABLE dbo.PurchaseInvoiceActivities
 IF OBJECT_ID(N'dbo.SalesInvoices', N'U') IS NULL
 CREATE TABLE dbo.SalesInvoices
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SalesInvoices PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SalesInvoices PRIMARY KEY,
     InvoiceNumber NVARCHAR(50) NOT NULL CONSTRAINT UQ_SalesInvoices_Number UNIQUE,
     CustomerId INT NULL CONSTRAINT FK_SalesInvoices_Customers FOREIGN KEY REFERENCES dbo.Customers(Id),
     CustomerNameSnapshot NVARCHAR(200) NOT NULL,
@@ -399,8 +417,8 @@ CREATE TABLE dbo.SalesInvoices
 IF OBJECT_ID(N'dbo.SalesInvoiceLines', N'U') IS NULL
 CREATE TABLE dbo.SalesInvoiceLines
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SalesInvoiceLines PRIMARY KEY,
-    SalesInvoiceId BIGINT NOT NULL CONSTRAINT FK_SalesInvoiceLines_Invoices FOREIGN KEY REFERENCES dbo.SalesInvoices(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SalesInvoiceLines PRIMARY KEY,
+    SalesInvoiceId INT NOT NULL CONSTRAINT FK_SalesInvoiceLines_Invoices FOREIGN KEY REFERENCES dbo.SalesInvoices(Id),
     LineNumber INT NOT NULL,
     ProductId INT NOT NULL CONSTRAINT FK_SalesInvoiceLines_Products FOREIGN KEY REFERENCES dbo.Products(Id),
     BarcodeSnapshot NVARCHAR(100) NOT NULL CONSTRAINT DF_SalesInvoiceLines_Barcode DEFAULT N'',
@@ -423,8 +441,8 @@ CREATE TABLE dbo.SalesInvoiceLines
 IF OBJECT_ID(N'dbo.SalesInvoiceLineUnits', N'U') IS NULL
 CREATE TABLE dbo.SalesInvoiceLineUnits
 (
-    SalesInvoiceLineId BIGINT NOT NULL CONSTRAINT FK_SalesLineUnits_Lines FOREIGN KEY REFERENCES dbo.SalesInvoiceLines(Id),
-    InventoryUnitId BIGINT NOT NULL CONSTRAINT FK_SalesLineUnits_Units FOREIGN KEY REFERENCES dbo.InventoryUnits(Id),
+    SalesInvoiceLineId INT NOT NULL CONSTRAINT FK_SalesLineUnits_Lines FOREIGN KEY REFERENCES dbo.SalesInvoiceLines(Id),
+    InventoryUnitId INT NOT NULL CONSTRAINT FK_SalesLineUnits_Units FOREIGN KEY REFERENCES dbo.InventoryUnits(Id),
     AllocationStatus TINYINT NOT NULL CONSTRAINT DF_SalesInvoiceLineUnits_Status DEFAULT 0,
     CONSTRAINT PK_SalesInvoiceLineUnits PRIMARY KEY (SalesInvoiceLineId, InventoryUnitId),
     CONSTRAINT CK_SalesInvoiceLineUnits_Status CHECK (AllocationStatus IN (0, 1)) -- 0 current sale, 1 returned to stock
@@ -433,8 +451,8 @@ CREATE TABLE dbo.SalesInvoiceLineUnits
 IF OBJECT_ID(N'dbo.SalesPayments', N'U') IS NULL
 CREATE TABLE dbo.SalesPayments
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SalesPayments PRIMARY KEY,
-    SalesInvoiceId BIGINT NOT NULL CONSTRAINT FK_SalesPayments_Invoices FOREIGN KEY REFERENCES dbo.SalesInvoices(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SalesPayments PRIMARY KEY,
+    SalesInvoiceId INT NOT NULL CONSTRAINT FK_SalesPayments_Invoices FOREIGN KEY REFERENCES dbo.SalesInvoices(Id),
     FinancialAccountId INT NOT NULL CONSTRAINT FK_SalesPayments_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id),
     PaymentKind TINYINT NOT NULL,
     Amount DECIMAL(19,2) NOT NULL,
@@ -449,8 +467,8 @@ CREATE TABLE dbo.SalesPayments
 IF OBJECT_ID(N'dbo.SalesInvoiceActivities', N'U') IS NULL
 CREATE TABLE dbo.SalesInvoiceActivities
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SalesInvoiceActivities PRIMARY KEY,
-    SalesInvoiceId BIGINT NOT NULL CONSTRAINT FK_SalesActivities_Invoices FOREIGN KEY REFERENCES dbo.SalesInvoices(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SalesInvoiceActivities PRIMARY KEY,
+    SalesInvoiceId INT NOT NULL CONSTRAINT FK_SalesActivities_Invoices FOREIGN KEY REFERENCES dbo.SalesInvoices(Id),
     OccurredAtUtc DATETIME2(7) NOT NULL,
     ActionTitle NVARCHAR(200) NOT NULL,
     Details NVARCHAR(1500) NOT NULL CONSTRAINT DF_SalesActivities_Details DEFAULT N'',
@@ -462,9 +480,9 @@ CREATE TABLE dbo.SalesInvoiceActivities
 IF OBJECT_ID(N'dbo.ReturnExchanges', N'U') IS NULL
 CREATE TABLE dbo.ReturnExchanges
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ReturnExchanges PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ReturnExchanges PRIMARY KEY,
     OperationNumber NVARCHAR(50) NOT NULL CONSTRAINT UQ_ReturnExchanges_Number UNIQUE,
-    SalesInvoiceId BIGINT NOT NULL CONSTRAINT FK_ReturnExchanges_Invoices FOREIGN KEY REFERENCES dbo.SalesInvoices(Id),
+    SalesInvoiceId INT NOT NULL CONSTRAINT FK_ReturnExchanges_Invoices FOREIGN KEY REFERENCES dbo.SalesInvoices(Id),
     OperationType TINYINT NOT NULL,
     CreatedAtUtc DATETIME2(7) NOT NULL,
     ActorUserId INT NOT NULL CONSTRAINT FK_ReturnExchanges_Actor FOREIGN KEY REFERENCES dbo.Users(Id),
@@ -476,10 +494,10 @@ CREATE TABLE dbo.ReturnExchanges
 IF OBJECT_ID(N'dbo.ReturnExchangeLines', N'U') IS NULL
 CREATE TABLE dbo.ReturnExchangeLines
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ReturnExchangeLines PRIMARY KEY,
-    ReturnExchangeId BIGINT NOT NULL CONSTRAINT FK_ReturnExchangeLines_Operations FOREIGN KEY REFERENCES dbo.ReturnExchanges(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ReturnExchangeLines PRIMARY KEY,
+    ReturnExchangeId INT NOT NULL CONSTRAINT FK_ReturnExchangeLines_Operations FOREIGN KEY REFERENCES dbo.ReturnExchanges(Id),
     LineKind TINYINT NOT NULL,
-    SalesInvoiceLineId BIGINT NULL CONSTRAINT FK_ReturnExchangeLines_SalesLines FOREIGN KEY REFERENCES dbo.SalesInvoiceLines(Id),
+    SalesInvoiceLineId INT NULL CONSTRAINT FK_ReturnExchangeLines_SalesLines FOREIGN KEY REFERENCES dbo.SalesInvoiceLines(Id),
     ProductId INT NOT NULL CONSTRAINT FK_ReturnExchangeLines_Products FOREIGN KEY REFERENCES dbo.Products(Id),
     ProductNameSnapshot NVARCHAR(250) NOT NULL,
     Quantity INT NOT NULL,
@@ -496,8 +514,8 @@ CREATE TABLE dbo.ReturnExchangeLines
 IF OBJECT_ID(N'dbo.ReturnExchangeUnits', N'U') IS NULL
 CREATE TABLE dbo.ReturnExchangeUnits
 (
-    ReturnExchangeLineId BIGINT NOT NULL CONSTRAINT FK_ReturnExchangeUnits_Lines FOREIGN KEY REFERENCES dbo.ReturnExchangeLines(Id),
-    InventoryUnitId BIGINT NOT NULL CONSTRAINT FK_ReturnExchangeUnits_Units FOREIGN KEY REFERENCES dbo.InventoryUnits(Id),
+    ReturnExchangeLineId INT NOT NULL CONSTRAINT FK_ReturnExchangeUnits_Lines FOREIGN KEY REFERENCES dbo.ReturnExchangeLines(Id),
+    InventoryUnitId INT NOT NULL CONSTRAINT FK_ReturnExchangeUnits_Units FOREIGN KEY REFERENCES dbo.InventoryUnits(Id),
     CONSTRAINT PK_ReturnExchangeUnits PRIMARY KEY (ReturnExchangeLineId, InventoryUnitId)
 );
 
@@ -505,7 +523,7 @@ CREATE TABLE dbo.ReturnExchangeUnits
 IF OBJECT_ID(N'dbo.MaintenanceOrders', N'U') IS NULL
 CREATE TABLE dbo.MaintenanceOrders
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceOrders PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceOrders PRIMARY KEY,
     OrderNumber NVARCHAR(50) NOT NULL CONSTRAINT UQ_MaintenanceOrders_Number UNIQUE,
     CustomerId INT NULL CONSTRAINT FK_MaintenanceOrders_Customers FOREIGN KEY REFERENCES dbo.Customers(Id),
     CustomerNameSnapshot NVARCHAR(200) NOT NULL,
@@ -556,8 +574,8 @@ CREATE TABLE dbo.MaintenanceOrders
 IF OBJECT_ID(N'dbo.MaintenanceOrderParts', N'U') IS NULL
 CREATE TABLE dbo.MaintenanceOrderParts
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceOrderParts PRIMARY KEY,
-    MaintenanceOrderId BIGINT NOT NULL CONSTRAINT FK_MaintenanceParts_Orders FOREIGN KEY REFERENCES dbo.MaintenanceOrders(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceOrderParts PRIMARY KEY,
+    MaintenanceOrderId INT NOT NULL CONSTRAINT FK_MaintenanceParts_Orders FOREIGN KEY REFERENCES dbo.MaintenanceOrders(Id),
     ProductId INT NULL CONSTRAINT FK_MaintenanceParts_Products FOREIGN KEY REFERENCES dbo.Products(Id),
     LineNumber INT NOT NULL,
     BarcodeSnapshot NVARCHAR(100) NOT NULL CONSTRAINT DF_MaintenanceParts_Barcode DEFAULT N'',
@@ -575,8 +593,8 @@ CREATE TABLE dbo.MaintenanceOrderParts
 IF OBJECT_ID(N'dbo.MaintenancePayments', N'U') IS NULL
 CREATE TABLE dbo.MaintenancePayments
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenancePayments PRIMARY KEY,
-    MaintenanceOrderId BIGINT NOT NULL CONSTRAINT FK_MaintenancePayments_Orders FOREIGN KEY REFERENCES dbo.MaintenanceOrders(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenancePayments PRIMARY KEY,
+    MaintenanceOrderId INT NOT NULL CONSTRAINT FK_MaintenancePayments_Orders FOREIGN KEY REFERENCES dbo.MaintenanceOrders(Id),
     FinancialAccountId INT NOT NULL CONSTRAINT FK_MaintenancePayments_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id),
     PaymentStage TINYINT NOT NULL,
     PaymentKind TINYINT NOT NULL,
@@ -593,8 +611,8 @@ CREATE TABLE dbo.MaintenancePayments
 IF OBJECT_ID(N'dbo.MaintenanceActivities', N'U') IS NULL
 CREATE TABLE dbo.MaintenanceActivities
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceActivities PRIMARY KEY,
-    MaintenanceOrderId BIGINT NOT NULL CONSTRAINT FK_MaintenanceActivities_Orders FOREIGN KEY REFERENCES dbo.MaintenanceOrders(Id),
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceActivities PRIMARY KEY,
+    MaintenanceOrderId INT NOT NULL CONSTRAINT FK_MaintenanceActivities_Orders FOREIGN KEY REFERENCES dbo.MaintenanceOrders(Id),
     OccurredAtUtc DATETIME2(7) NOT NULL,
     ActionTitle NVARCHAR(200) NOT NULL,
     Details NVARCHAR(1500) NOT NULL CONSTRAINT DF_MaintenanceActivities_Details DEFAULT N'',
@@ -606,7 +624,7 @@ CREATE TABLE dbo.MaintenanceActivities
 IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NULL
 CREATE TABLE dbo.AuditLog
 (
-    Id BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_AuditLog PRIMARY KEY,
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_AuditLog PRIMARY KEY,
     OccurredAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_AuditLog_OccurredAtUtc DEFAULT SYSUTCDATETIME(),
     ActorUserId INT NULL CONSTRAINT FK_AuditLog_Actor FOREIGN KEY REFERENCES dbo.Users(Id),
     Module NVARCHAR(100) NOT NULL,
@@ -620,7 +638,19 @@ CREATE TABLE dbo.AuditLog
     CONSTRAINT CK_AuditLog_NewValuesJson CHECK (NewValuesJson IS NULL OR ISJSON(NewValuesJson) = 1)
 );
 
+/* Additive compatibility for an existing Products table from an earlier schema. */
+IF OBJECT_ID(N'dbo.Products', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Products', N'Sku') IS NULL
+    ALTER TABLE dbo.Products ADD Sku NVARCHAR(100) NULL;
+
 COMMIT TRANSACTION;
+GO
+
+/* Do not continue into indexes/seeds if a previous table could not be created. */
+IF (SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID(N'dbo') AND is_ms_shipped = 0) < 36
+    THROW 50012, N'The business schema is incomplete. Review the earlier SQL error; no success was confirmed.', 1;
+GO
+IF COL_LENGTH(N'dbo.Products', N'Sku') IS NULL
+    THROW 50013, N'dbo.Products.Sku is missing. Review the earlier ALTER TABLE error.', 1;
 GO
 
 /* Idempotent indexes: operational lookups, history ordering and balance queries. */
@@ -697,5 +727,11 @@ IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'SchemaVersi
     INSERT dbo.SystemSettings(SettingKey, SettingValue, ValueType, Description) VALUES (N'SchemaVersion', N'1', N'integer', N'ProjectZ business schema version');
 GO
 
+IF OBJECT_ID(N'dbo.Roles', N'U') IS NULL OR OBJECT_ID(N'dbo.UserRoles', N'U') IS NULL OR OBJECT_ID(N'dbo.SystemSettings', N'U') IS NULL
+    THROW 50014, N'Core schema objects are missing; schema setup did not complete successfully.', 1;
+GO
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE is_disabled = 1 OR is_not_trusted = 1)
+    THROW 50015, N'Disabled or untrusted foreign keys remain; schema setup did not complete successfully.', 1;
+GO
 PRINT N'ProjectZ full business schema created/verified successfully.';
 GO
