@@ -73,12 +73,11 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
 
     public ActionCommand ClearFiltersCommand { get; }
     public ActionCommand RefreshCommand { get; }
-    public ActionCommand ShowDetailsCommand { get; }
-    public ActionCommand BeginEditCommand { get; }
-    public ActionCommand ReverseCommand { get; }
-    public ActionCommand DeleteCommand { get; }
     public RelayCommand<VodafoneTransferOperation> SelectOperationCommand { get; }
     public RelayCommand<VodafoneTransferOperation> ShowOperationDetailsCommand { get; }
+    public RelayCommand<VodafoneTransferOperation> BeginOperationEditCommand { get; }
+    public RelayCommand<VodafoneTransferOperation> ReverseOperationCommand { get; }
+    public RelayCommand<VodafoneTransferOperation> DeleteOperationCommand { get; }
     public Action<VodafoneTransferOperation>? DetailsRequested { get; set; }
     public Action? EditRequested { get; set; }
     public Action<ConfirmActionViewModel, Action>? ConfirmRequested { get; set; }
@@ -92,12 +91,11 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
         this.currentUserName = currentUserName;
         ClearFiltersCommand = new ActionCommand(ClearFilters);
         RefreshCommand = new ActionCommand(NotifyExternalDataChanged);
-        ShowDetailsCommand = new ActionCommand(() => { if (SelectedOperation is not null) DetailsRequested?.Invoke(SelectedOperation); });
-        BeginEditCommand = new ActionCommand(BeginEdit);
-        ReverseCommand = new ActionCommand(RequestReverse);
-        DeleteCommand = new ActionCommand(RequestDelete);
         SelectOperationCommand = new RelayCommand<VodafoneTransferOperation>(operation => SelectedOperation = operation);
         ShowOperationDetailsCommand = new RelayCommand<VodafoneTransferOperation>(operation => { if (operation is not null) { SelectedOperation = operation; DetailsRequested?.Invoke(operation); } });
+        BeginOperationEditCommand = new RelayCommand<VodafoneTransferOperation>(operation => { if (operation is not null) { SelectedOperation = operation; BeginEdit(); } });
+        ReverseOperationCommand = new RelayCommand<VodafoneTransferOperation>(operation => { if (operation is not null) { SelectedOperation = operation; RequestReverse(); } });
+        DeleteOperationCommand = new RelayCommand<VodafoneTransferOperation>(operation => { if (operation is not null) { SelectedOperation = operation; RequestDelete(); } });
         NotifyExternalDataChanged();
     }
 

@@ -45,13 +45,10 @@ public partial class VodafoneRecordsView : UserControl
         if (ViewModel?.SelectedOperation is { } operation) ViewModel.DetailsRequested?.Invoke(operation);
     }
 
-    private void CopyReference_Click(object sender, RoutedEventArgs e)
+    private void CopyRowReference_Click(object sender, RoutedEventArgs e)
     {
-        if (ViewModel?.SelectedOperation is not { } operation)
-        {
-            MessageBox.Show("اختر عملية أولًا.", "نسخ المرجع", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
+        if (sender is not FrameworkElement { DataContext: VodafoneTransferOperation operation }) return;
+        if (ViewModel is not null) ViewModel.SelectedOperation = operation;
         Clipboard.SetText(operation.Reference);
     }
 
