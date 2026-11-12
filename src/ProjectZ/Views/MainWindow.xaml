@@ -417,6 +417,9 @@
                     <Grid Visibility="{Binding IsVodafoneTransferSelected, Converter={StaticResource BoolToVis}}">
                         <views:VodafoneTransferView DataContext="{Binding VodafoneTransfer}" />
                     </Grid>
+                    <Grid Visibility="{Binding IsInstapayTransferSelected, Converter={StaticResource BoolToVis}}">
+                        <views:InstapayTransferView DataContext="{Binding InstapayTransfer}" />
+                    </Grid>
                 </Grid>
             </Border>
 
