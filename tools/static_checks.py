@@ -907,5 +907,23 @@ assert 'new VodafoneTransferViewModel(MyAccounts, user.DisplayName)' in main_vie
 assert 'views:VodafoneTransferView' in main_xaml
 print('PASS: Vodafone customer transfers share wallet state, enforce limits, and apply cash/commission deltas')
 
+instapay_vm = (root / 'src/ProjectZ/ViewModels/InstapayTransferViewModel.cs').read_text(encoding='utf-8')
+instapay_view = (root / 'src/ProjectZ/Views/InstapayTransferView.xaml').read_text(encoding='utf-8')
+instapay_window = (root / 'src/ProjectZ/Views/InstapayOperationWindow.xaml').read_text(encoding='utf-8')
+instapay_models = (root / 'src/ProjectZ/Models/InstapayTransferDesignModels.cs').read_text(encoding='utf-8')
+assert 'a.Kind == FinancialAccountKind.InstaPay' in instapay_vm
+assert 'SelectedWallet.Kind != FinancialAccountKind.InstaPay' in instapay_vm
+for required_rule in ('wallet.Balance += IsDepositSelected ? -amount : amount;', 'IsDepositSelected ? amount + commission : commission - amount', 'incoming: !IsDepositSelected', 'ValidateLimits(SelectedWallet', 'accounts.CashAccount.Balance += cashDelta;'):
+    assert required_rule in instapay_vm, f'missing InstaPay transfer rule: {required_rule}'
+for forbidden_reference in ('Vodafone', 'فودافون', 'VF-'):
+    assert forbidden_reference not in instapay_vm + instapay_view + instapay_window + instapay_models, f'InstaPay screen must not depend on Vodafone: {forbidden_reference}'
+for field in ('CustomerNumber', 'AmountText', 'CommissionText', 'WalletBalanceAfterPreview', 'CashBalanceAfterPreview'):
+    assert field in instapay_window, f'missing InstaPay operation field: {field}'
+assert 'projectz@instapay' in instapay_models and 'reserve@instapay' in instapay_models
+assert 'IP-' in instapay_vm and 'IP-' in instapay_models
+assert 'new InstapayTransferViewModel(MyAccounts, user.DisplayName)' in main_viewmodel
+assert 'views:InstapayTransferView' in main_xaml
+print('PASS: independent InstaPay customer transfers, accounts, history, limits, and cash/commission deltas')
+
 print('PASS: POS, AddProduct, Inventory, Categories, Invoices, ReturnExchange, PurchaseEntry, PurchaseInvoices, MaintenanceIntake & MaintenanceActions UI design views, full audit, returns, print preview, no backend')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
