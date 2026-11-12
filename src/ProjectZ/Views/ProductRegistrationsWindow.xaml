@@ -276,15 +276,34 @@
                                                        FontWeight="Bold"
                                                        Foreground="#102E48" />
 
-                                            <!-- Product Name -->
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding ProductName}"
-                                                       Style="{StaticResource PosRtlTextStyle}"
-                                                       Margin="6,0"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="12.5"
-                                                       FontWeight="SemiBold"
-                                                       TextTrimming="CharacterEllipsis" />
+                                            <!-- Product Name and serial persistence -->
+                                            <StackPanel Grid.Column="1" Margin="6,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ProductName}"
+                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                           FontSize="12.5"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <StackPanel Orientation="Horizontal"
+                                                            Margin="0,5,0,0"
+                                                            Visibility="{Binding DataContext.Product.TrackSerialNumber, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                                                    <TextBox Text="{Binding SerialNumber, UpdateSourceTrigger=PropertyChanged}"
+                                                             Style="{StaticResource PosCompactTextBoxStyle}"
+                                                             Width="145"
+                                                             MinHeight="28"
+                                                             Padding="5,2"
+                                                             FontSize="11"
+                                                             ToolTip="أدخل السيريال ثم اضغط حفظ"
+                                                             IsEnabled="{Binding IsAvailable}" />
+                                                    <Button Content="حفظ السيريال"
+                                                            Margin="5,0,0,0"
+                                                            Padding="6,2"
+                                                            FontSize="10.5"
+                                                            Style="{StaticResource PosOutlineTealButtonStyle}"
+                                                            IsEnabled="{Binding IsAvailable}"
+                                                            Command="{Binding DataContext.SaveSerialCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}" />
+                                                </StackPanel>
+                                            </StackPanel>
 
                                             <!-- Purchase Price -->
                                             <TextBlock Grid.Column="2"

@@ -8,8 +8,10 @@ namespace ProjectZ.ViewModels;
 public sealed class ProductRegistrationsViewModel : ObservableObject
 {
     private readonly ObservableCollection<InventoryUnitRegistrationItem> allRegistrations;
-    private readonly Action<InventoryUnitRegistrationItem, string> markUnitDamaged;
-    private readonly Action<InventoryUnitRegistrationItem> restoreUnitToAvailable;
+    private readonly Func<InventoryUnitRegistrationItem, string, bool> markUnitDamaged;
+    private readonly Func<InventoryUnitRegistrationItem, bool> restoreUnitToAvailable;
+    private readonly Func<InventoryUnitRegistrationItem, string, bool>? saveSerialNumber;
+    private readonly Func<string>? persistenceError;
 
     private InventoryUnitStatus? statusFilter;
     private string searchText = "";
@@ -99,18 +101,23 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
     public RelayCommand<string> PickDamageReasonCommand { get; }
     public RelayCommand<InventoryUnitRegistrationItem> MarkUnitDamagedCommand { get; }
     public RelayCommand<InventoryUnitRegistrationItem> RestoreUnitCommand { get; }
+    public RelayCommand<InventoryUnitRegistrationItem> SaveSerialCommand { get; }
     public ActionCommand CloseCommand { get; }
 
     public ProductRegistrationsViewModel(
         PosProductDesignItem product,
         ObservableCollection<InventoryUnitRegistrationItem> allRegistrations,
-        Action<InventoryUnitRegistrationItem, string> markUnitDamaged,
-        Action<InventoryUnitRegistrationItem> restoreUnitToAvailable)
+        Func<InventoryUnitRegistrationItem, string, bool> markUnitDamaged,
+        Func<InventoryUnitRegistrationItem, bool> restoreUnitToAvailable,
+        Func<InventoryUnitRegistrationItem, string, bool>? saveSerialNumber = null,
+        Func<string>? persistenceError = null)
     {
         Product = product;
         this.allRegistrations = allRegistrations;
         this.markUnitDamaged = markUnitDamaged;
         this.restoreUnitToAvailable = restoreUnitToAvailable;
+        this.saveSerialNumber = saveSerialNumber;
+        this.persistenceError = persistenceError;
 
         SelectAllFilterCommand = new ActionCommand(() => StatusFilter = null);
         SelectAvailableFilterCommand = new ActionCommand(() => StatusFilter = InventoryUnitStatus.Available);
@@ -126,21 +133,34 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
         {
             if (unit is null || !unit.IsAvailable) return;
             var reason = string.IsNullOrWhiteSpace(QuickDamageReason) ? "تالف عند الفحص" : QuickDamageReason.Trim();
-            this.markUnitDamaged(unit, reason);
-            StatusMessage = $"تم تحويل التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى مخزون الهالك.";
+            StatusMessage = this.markUnitDamaged(unit, reason)
+                ? $"تم تحويل التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى مخزون الهالك."
+                : PersistenceError("لم يُحفظ الهالك. حدّث البيانات وأعد المحاولة.");
             Refresh();
         });
         RestoreUnitCommand = new RelayCommand<InventoryUnitRegistrationItem>(unit =>
         {
             if (unit is null || !unit.IsDamaged) return;
-            this.restoreUnitToAvailable(unit);
-            StatusMessage = $"تم استرجاع التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى المخزون المتاح.";
+            StatusMessage = this.restoreUnitToAvailable(unit)
+                ? $"تم استرجاع التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى المخزون المتاح."
+                : PersistenceError("لم يُحفظ الاسترجاع. حدّث البيانات وأعد المحاولة.");
+            Refresh();
+        });
+        SaveSerialCommand = new RelayCommand<InventoryUnitRegistrationItem>(unit =>
+        {
+            if (unit is null || !unit.IsAvailable || saveSerialNumber is null) return;
+            StatusMessage = saveSerialNumber(unit, unit.SerialNumber)
+                ? $"تم حفظ سيريال التسجيل {unit.IdDisplay}."
+                : PersistenceError("لم يُحفظ السيريال. تأكد من عدم تكراره وراجع اتصال قاعدة البيانات.");
             Refresh();
         });
         CloseCommand = new ActionCommand(() => RequestClose?.Invoke());
 
         Refresh();
     }
+
+    private string PersistenceError(string fallback) =>
+        persistenceError?.Invoke() is { Length: > 0 } error ? error : fallback;
 
     public void Refresh()
     {

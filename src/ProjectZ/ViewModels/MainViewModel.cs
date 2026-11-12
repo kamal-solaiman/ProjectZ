@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
+using ProjectZ.Data;
 
 namespace ProjectZ.ViewModels;
 
@@ -78,7 +79,7 @@ public sealed class MainViewModel : ObservableObject
     }
     public RelayCommand ToggleSidebarCommand { get; }
 
-    public MainViewModel(UserSession user, Action logout)
+    public MainViewModel(UserSession user, Action logout, InventoryRepository? inventoryRepository = null)
     {
         this.user = user;
         LogoutCommand = new RelayCommand(logout);
@@ -101,11 +102,17 @@ public sealed class MainViewModel : ObservableObject
                 "اعدادات عامة", "المظهر", "النسخ الاحتياطي")
         };
 
-        var sharedCatalog = PosDesignSeedData.CreateSharedSampleCatalog();
-        var sharedCategories = PosDesignSeedData.CreateSharedCategories();
+        var sharedCatalog = inventoryRepository is null
+            ? PosDesignSeedData.CreateSharedSampleCatalog()
+            : new ObservableCollection<PosProductDesignItem>();
+        var sharedCategories = inventoryRepository is null
+            ? PosDesignSeedData.CreateSharedCategories()
+            : new ObservableCollection<string>();
         var sharedCustomers = new ObservableCollection<PosCustomerDesignItem>(
             PosDesignSeedData.CreateSampleCustomers());
-        var sharedRegistrations = InventoryDesignSeedData.CreateSharedSampleRegistrations(sharedCatalog);
+        var sharedRegistrations = inventoryRepository is null
+            ? InventoryDesignSeedData.CreateSharedSampleRegistrations(sharedCatalog)
+            : new ObservableCollection<InventoryUnitRegistrationItem>();
         var sharedSalesInvoices = InvoiceDesignSeedData.CreateSharedSampleInvoices(sharedCatalog, sharedRegistrations);
         var sharedReturnOperations = ReturnExchangeDesignSeedData.CreateSharedSampleOperations(sharedSalesInvoices);
         var sharedSuppliers = PurchaseDesignSeedData.CreateSharedSampleSuppliers();
@@ -120,7 +127,8 @@ public sealed class MainViewModel : ObservableObject
             sharedCatalog,
             sharedRegistrations,
             () => SelectItem(Categories[0].Items[1]),
-            sharedCategories);
+            sharedCategories,
+            inventoryRepository);
         Invoices = new InvoicesViewModel(
             sharedSalesInvoices,
             sharedCatalog,
@@ -192,7 +200,8 @@ public sealed class MainViewModel : ObservableObject
             sharedCatalog,
             () => SelectItem(Categories[0].Items[0]),
             Inventory.RegisterInitialStockForNewProduct,
-            sharedCategories);
+            sharedCategories,
+            () => Inventory.StatusMessage);
         ProductCategories = new CategoriesViewModel(
             sharedCategories,
             () => SelectItem(Categories[0].Items[1]));
@@ -244,6 +253,8 @@ public sealed class MainViewModel : ObservableObject
                 MaintenanceInvoices.NotifyExternalDataChanged();
                 MaintenanceActions.NotifyExternalDataChanged();
             });
+
+        Inventory.RefreshFromDatabase();
 
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);

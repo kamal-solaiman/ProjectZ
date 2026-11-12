@@ -32,9 +32,10 @@ public sealed class InventoryUnitRegistrationItem : ObservableObject
     private DateTime? damagedAt;
     private string damageSettlementStatus = "";
 
-    public int Id { get; init; }
+    public int Id { get; set; }
     public int ProductId { get; init; }
     public DateTime RegisteredAt { get; init; }
+    public byte[]? DatabaseRowVersion { get; set; }
 
     public string ProductName
     {

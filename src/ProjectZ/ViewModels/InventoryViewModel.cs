@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Globalization;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
+using ProjectZ.Data;
 
 namespace ProjectZ.ViewModels;
 
@@ -12,6 +13,7 @@ public sealed class InventoryViewModel : ObservableObject
     private readonly ObservableCollection<InventoryUnitRegistrationItem> sharedRegistrations;
     private readonly ObservableCollection<string>? sharedCategories;
     private readonly Action? navigateToAddProduct;
+    private readonly InventoryRepository? repository;
 
     private int nextRegistrationId = 2001;
     private int nextSupplyInvoiceNumber = 130;
@@ -25,7 +27,7 @@ public sealed class InventoryViewModel : ObservableObject
     private string damagedSearchText = "";
     private string selectedSettlementFilter = "الكل";
 
-    private string statusMessage = "مرحلة التصميم (بدون Backend): اضغط على أي صنف أو زر «التسجيلات» لعرض تسجيلات الموردين وأرقام الـ ID، وتحكّم بالتوريد والتعديل والباركود والهالك والحذف.";
+    private string statusMessage = "اضغط على أي صنف أو زر «التسجيلات» لعرض الوحدات والموردين، وتحكّم بالتوريد والتعديل والسيريال والباركود والهالك والحذف.";
     private bool isErrorStatus;
 
     public ObservableCollection<PosProductDesignItem> FilteredProducts { get; } = [];
@@ -206,8 +208,10 @@ public sealed class InventoryViewModel : ObservableObject
         ObservableCollection<PosProductDesignItem> sharedCatalog,
         ObservableCollection<InventoryUnitRegistrationItem> sharedRegistrations,
         Action? navigateToAddProduct = null,
-        ObservableCollection<string>? sharedCategories = null)
+        ObservableCollection<string>? sharedCategories = null,
+        InventoryRepository? repository = null)
     {
+        this.repository = repository;
         this.sharedCatalog = sharedCatalog;
         this.sharedRegistrations = sharedRegistrations;
         this.sharedCategories = sharedCategories;
@@ -255,9 +259,36 @@ public sealed class InventoryViewModel : ObservableObject
         NotifyKpis();
     }
 
-    public void RegisterInitialStockForNewProduct(PosProductDesignItem product)
+    public void RefreshFromDatabase()
     {
-        if (product.AvailableStock <= 0) return;
+        if (repository is null) return;
+        try
+        {
+            var categories = sharedCategories ?? new ObservableCollection<string>();
+            repository.LoadInto(sharedCatalog, sharedRegistrations, categories);
+            NotifyExternalInventoryChanged();
+            SetStatus("تم تحميل المخزون والتسجيلات من قاعدة البيانات.", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(DatabaseError(ex, "تعذر تحميل المخزون من قاعدة البيانات. تحقق من تنفيذ مخطط قاعدة البيانات والاتصال."), true);
+        }
+    }
+
+    public bool RegisterInitialStockForNewProduct(PosProductDesignItem product)
+    {
+        if (repository is not null)
+        {
+            try
+            {
+                repository.SaveNewProduct(product, "رصيد افتتاحي", $"OPEN-{Guid.NewGuid():N}");
+                RefreshFromDatabase();
+                SetStatus($"تم حفظ الصنف «{product.Name}» ورصيده الافتتاحي في قاعدة البيانات.", false);
+                return true;
+            }
+            catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حفظ الصنف الجديد في قاعدة البيانات."), true); return false; }
+        }
+        if (product.AvailableStock <= 0) return true;
 
         var invoiceId = $"OPEN-{product.Id}";
         var now = DateTime.Today;
@@ -280,6 +311,7 @@ public sealed class InventoryViewModel : ObservableObject
         RebuildFilterLookups();
         RefreshCatalogFilter();
         NotifyKpis();
+        return true;
     }
 
     public void NotifyExternalInventoryChanged()
@@ -298,7 +330,9 @@ public sealed class InventoryViewModel : ObservableObject
             product,
             sharedRegistrations,
             MarkSingleUnitDamaged,
-            RestoreDamagedUnit);
+            RestoreDamagedUnit,
+            SaveSerialNumber,
+            () => StatusMessage);
 
         OpenRegistrationsDialogRequested?.Invoke(vm);
     }
@@ -308,7 +342,9 @@ public sealed class InventoryViewModel : ObservableObject
         if (product is null) return;
 
         var knownSuppliers = GetKnownSuppliers();
-        var suggestedInvoice = $"PUR-{nextSupplyInvoiceNumber}";
+        var suggestedInvoice = repository is null
+            ? $"PUR-{nextSupplyInvoiceNumber}"
+            : $"PUR-{DateTime.Now:yyyyMMdd-HHmmss}-{product.Id}";
 
         var vm = new SupplyStockViewModel(
             product,
@@ -316,6 +352,17 @@ public sealed class InventoryViewModel : ObservableObject
             suggestedInvoice,
             submission =>
             {
+                if (repository is not null)
+                {
+                    try
+                    {
+                        repository.Supply(product, submission.Quantity, submission.SupplierName, submission.PurchasePrice, submission.InvoiceId);
+                        RefreshFromDatabase();
+                        SetStatus($"تم حفظ توريد {submission.Quantity} قطعة من «{product.Name}» في قاعدة البيانات.", false);
+                    }
+                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حفظ التوريد في قاعدة البيانات."), true); }
+                    return;
+                }
                 nextSupplyInvoiceNumber++;
                 var now = DateTime.Today;
                 for (var i = 0; i < submission.Quantity; i++)
@@ -364,6 +411,26 @@ public sealed class InventoryViewModel : ObservableObject
             categoryList,
             submission =>
             {
+                if (repository is not null)
+                {
+                    try
+                    {
+                        var updated = new PosProductDesignItem
+                        {
+                            Id = product.Id, DatabaseRowVersion = product.DatabaseRowVersion,
+                            Name = submission.Name, Barcode = submission.Barcode, Category = submission.Category,
+                            Unit = submission.Unit, CostPrice = submission.CostPrice, RetailPrice = submission.RetailPrice,
+                            WholesalePrice = submission.WholesalePrice, SpecialPrice = submission.SpecialPrice,
+                            MinStockAlert = submission.MinStockAlert, IsActiveForSale = submission.IsActiveForSale,
+                            TrackSerialNumber = submission.TrackSerialNumber, Notes = submission.Notes
+                        };
+                        repository.UpdateProduct(updated);
+                        RefreshFromDatabase();
+                        SetStatus($"تم تحديث الصنف «{product.Name}» في قاعدة البيانات.", false);
+                    }
+                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر تحديث الصنف في قاعدة البيانات."), true); }
+                    return;
+                }
                 product.Name = submission.Name;
                 product.Barcode = submission.Barcode;
                 product.Category = submission.Category;
@@ -419,6 +486,17 @@ public sealed class InventoryViewModel : ObservableObject
             sharedRegistrations,
             submission =>
             {
+                if (repository is not null)
+                {
+                    try
+                    {
+                        repository.MarkDamaged(product, submission.Quantity, submission.SupplierFilter, submission.SpecificUnitId, submission.Reason);
+                        RefreshFromDatabase();
+                        SetStatus($"تم تسجيل {submission.Quantity} قطعة هالك من «{product.Name}» وحفظ حركات المخزون.", false);
+                    }
+                    catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر تسجيل الهالك في قاعدة البيانات."), true); }
+                    return;
+                }
                 var candidates = sharedRegistrations
                     .Where(r => r.ProductId == product.Id && r.IsAvailable)
                     .AsEnumerable();
@@ -463,11 +541,24 @@ public sealed class InventoryViewModel : ObservableObject
         var vm = new ConfirmActionViewModel(
             "تأكيد حذف المنتج",
             product.Name,
-            $"هل تريد حذف الصنف «{product.Name}» ({product.Barcode}) من المخزون ونقطة البيع؟\nسيتم حذف الصنف وتسجيلاته في وضع التصميم الحالي.",
+            $"هل تريد حذف الصنف «{product.Name}» ({product.Barcode}) من المخزون ونقطة البيع؟\nإذا كان له تاريخ فواتير أو حركات فستتم أرشفته بدل حذف التاريخ.",
             "نعم، حذف المنتج");
 
         OpenConfirmDialogRequested?.Invoke(vm, () =>
         {
+            if (repository is not null)
+            {
+                try
+                {
+                    var deleted = repository.DeleteOrArchiveProduct(product);
+                    RefreshFromDatabase();
+                    SetStatus(deleted
+                        ? $"تم حذف الصنف «{product.Name}» من قاعدة البيانات."
+                        : $"للصنف «{product.Name}» حركات أو فواتير؛ تمت أرشفته بدل حذف تاريخه.", false);
+                }
+                catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حذف أو أرشفة الصنف."), true); }
+                return;
+            }
             var toRemoveRegs = sharedRegistrations.Where(r => r.ProductId == product.Id).ToList();
             foreach (var reg in toRemoveRegs)
                 sharedRegistrations.Remove(reg);
@@ -481,10 +572,21 @@ public sealed class InventoryViewModel : ObservableObject
         });
     }
 
-    private void MarkSingleUnitDamaged(InventoryUnitRegistrationItem unit, string reason)
+    private bool MarkSingleUnitDamaged(InventoryUnitRegistrationItem unit, string reason)
     {
-        if (!unit.IsAvailable) return;
+        if (!unit.IsAvailable) return false;
 
+        if (repository is not null)
+        {
+            try
+            {
+                repository.MarkSingleDamaged(unit, reason);
+                RefreshFromDatabase();
+                SetStatus($"تم حفظ هالك التسجيل {unit.IdDisplay} وحركة المخزون في قاعدة البيانات.", false);
+            }
+            catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر تسجيل هالك الوحدة."), true); return false; }
+            return true;
+        }
         MarkUnitAsDamagedInternal(unit, reason);
         var product = sharedCatalog.FirstOrDefault(p => p.Id == unit.ProductId);
         if (product is not null)
@@ -494,12 +596,37 @@ public sealed class InventoryViewModel : ObservableObject
         RefreshDamagedFilter();
         NotifyKpis();
         SetStatus($"تم تحويل التسجيل {unit.IdDisplay} من «{unit.ProductName}» (المورد: {unit.SupplierName}) إلى مخزون الهالك.", false);
+        return true;
     }
 
-    private void RestoreDamagedUnit(InventoryUnitRegistrationItem? unit)
+    private bool SaveSerialNumber(InventoryUnitRegistrationItem unit, string serial)
     {
-        if (unit is null || !unit.IsDamaged) return;
+        if (repository is null) { unit.SerialNumber = serial; return true; }
+        try
+        {
+            repository.RegisterSerial(unit, serial);
+            RefreshFromDatabase();
+            SetStatus($"تم حفظ السيريال للتسجيل {unit.IdDisplay} في قاعدة البيانات.", false);
+        }
+        catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حفظ السيريال. تأكد من عدم تكراره."), true); return false; }
+        return true;
+    }
 
+    private bool RestoreDamagedUnit(InventoryUnitRegistrationItem? unit)
+    {
+        if (unit is null || !unit.IsDamaged) return false;
+
+        if (repository is not null)
+        {
+            try
+            {
+                repository.RestoreDamaged(unit);
+                RefreshFromDatabase();
+                SetStatus($"تم استرجاع {unit.IdDisplay} وحفظ حركة المخزون في قاعدة البيانات.", false);
+            }
+            catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر استرجاع الوحدة إلى المخزون."), true); return false; }
+            return true;
+        }
         unit.Status = InventoryUnitStatus.Available;
         unit.DamageReason = "";
         unit.DamagedAt = null;
@@ -513,12 +640,24 @@ public sealed class InventoryViewModel : ObservableObject
         RefreshDamagedFilter();
         NotifyKpis();
         SetStatus($"تم استرجاع {unit.IdDisplay} ({unit.ProductName}) إلى المخزون المتاح.", false);
+        return true;
     }
 
     private void MarkReturnedToSupplier(InventoryUnitRegistrationItem? unit)
     {
         if (unit is null || !unit.IsDamaged) return;
 
+        if (repository is not null)
+        {
+            try
+            {
+                repository.MarkReturnedToSupplier(unit);
+                RefreshFromDatabase();
+                SetStatus($"تم حفظ تسوية الهالك {unit.IdDisplay} مع المورد في قاعدة البيانات.", false);
+            }
+            catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حفظ إرجاع الهالك للمورد."), true); }
+            return;
+        }
         unit.DamageSettlementStatus = "مرتجع للمورد";
         RefreshDamagedFilter();
         SetStatus($"تم تحديث حالة التسجيل الهالك {unit.IdDisplay} إلى «مرتجع للمورد: {unit.SupplierName}».", false);
@@ -536,6 +675,17 @@ public sealed class InventoryViewModel : ObservableObject
 
         OpenConfirmDialogRequested?.Invoke(vm, () =>
         {
+            if (repository is not null)
+            {
+                try
+                {
+                    repository.DeleteDamaged(unit);
+                    RefreshFromDatabase();
+                    SetStatus($"تم حذف سجل الهالك {unit.IdDisplay} وحركاته غير المرتبطة بفاتورة.", false);
+                }
+                catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حذف سجل الهالك."), true); }
+                return;
+            }
             sharedRegistrations.Remove(unit);
             var product = sharedCatalog.FirstOrDefault(p => p.Id == unit.ProductId);
             if (product is not null)
@@ -696,6 +846,21 @@ public sealed class InventoryViewModel : ObservableObject
         Changed(nameof(TotalDamagedCount));
         Changed(nameof(CatalogTabLabel));
         Changed(nameof(DamagedTabLabel));
+    }
+
+    private static string DatabaseError(Exception exception, string fallback)
+    {
+        if (exception is InventoryDataException) return exception.Message;
+        if (exception is Microsoft.Data.SqlClient.SqlException sql)
+            return sql.Number switch
+            {
+                2601 or 2627 => "الباركود أو السيريال مستخدم بالفعل. أدخل قيمة مختلفة.",
+                547 => "السجل مرتبط بفاتورة أو حركة أخرى ولا يمكن حذفه.",
+                1205 => "تعارضت العملية مع تحديث آخر. أعد المحاولة بعد تحديث الشاشة.",
+                >= 50000 => sql.Message,
+                _ => fallback
+            };
+        return fallback;
     }
 
     private void SetStatus(string message, bool isError)

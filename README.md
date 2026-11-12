@@ -17,7 +17,7 @@
 - `sql/08_VerifyFullSchema.sql`: تحقق قراءة فقط من الجداول والعلاقات وطرق العرض.
 - [تصميم قاعدة البيانات](docs/DATABASE.md): خريطة الجداول وقرارات الاتساق وترتيب التنفيذ.
 - `sql/03_VerifyEnvironment.sql`: استعلامات التحقق من البيئة فقط.
-- `sql/04_SetupLanSqlAuth.sql`: تفعيل Mixed Mode وإنشاء حساب اتصال الشبكة `ProjectZClient` بصلاحية `SELECT` فقط.
+- `sql/04_SetupLanSqlAuth.sql`: تفعيل Mixed Mode وإنشاء حساب اتصال الشبكة `ProjectZClient` بصلاحيات الدخول والمخزون المحددة فقط، دون منحه ملكية القاعدة.
 - `src/ProjectZ/connectionsettings.json`: إعدادات خارجية؛ يلزم استبدال عنوان الخادم.
 - [تجهيز الجهاز الرئيسي](docs/SERVER.md) · [العملاء وتغيير الخادم والنشر](docs/CLIENTS.md).
 - `.github/workflows/windows-build.yml`: بناء Windows واختبارات hashing ونشر artifact؛ لا يحل محل اختبار SQL/WPF الفعلي.

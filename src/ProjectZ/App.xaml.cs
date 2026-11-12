@@ -15,6 +15,7 @@ public partial class App : Application
     private readonly List<Window> liveWindows = new();
     private readonly List<CancellationTokenSource> loginLifetimes = new();
     private AuthenticationService service = null!;
+    private readonly ConnectionSettingsProvider connectionSettings = new();
     private bool isShuttingDown;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -26,7 +27,7 @@ public partial class App : Application
         Thread.CurrentThread.CurrentUICulture = arabicCulture;
 
         base.OnStartup(e);
-        service = new AuthenticationService(new UserRepository(new ConnectionSettingsProvider()));
+        service = new AuthenticationService(new UserRepository(connectionSettings));
         ShowLogin();
     }
 
@@ -62,7 +63,10 @@ public partial class App : Application
         {
             main = new Views.MainWindow();
             stage = "إنشاء MainViewModel والشاشات المشتركة";
-            main.DataContext = new MainViewModel(user, () => Logout(main));
+            main.DataContext = new MainViewModel(
+                user,
+                () => Logout(main),
+                new InventoryRepository(connectionSettings, user.Id));
             MainWindow = main;
             TrackWindow(main);
 

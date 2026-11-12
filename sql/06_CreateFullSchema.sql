@@ -250,6 +250,8 @@ CREATE TABLE dbo.InventoryUnits
     Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_InventoryUnits PRIMARY KEY,
     ProductId INT NOT NULL CONSTRAINT FK_InventoryUnits_Products FOREIGN KEY REFERENCES dbo.Products(Id),
     SupplierId INT NULL CONSTRAINT FK_InventoryUnits_Suppliers FOREIGN KEY REFERENCES dbo.Suppliers(Id),
+    PurchaseInvoiceNumber NVARCHAR(100) NOT NULL CONSTRAINT DF_InventoryUnits_PurchaseInvoiceNumber DEFAULT N'',
+    SaleInvoiceNumber NVARCHAR(100) NOT NULL CONSTRAINT DF_InventoryUnits_SaleInvoiceNumber DEFAULT N'',
     SerialNumber NVARCHAR(150) NULL,
     PurchaseCost DECIMAL(19,2) NOT NULL CONSTRAINT DF_InventoryUnits_PurchaseCost DEFAULT 0,
     UnitStatus TINYINT NOT NULL CONSTRAINT DF_InventoryUnits_UnitStatus DEFAULT 0,
@@ -641,6 +643,10 @@ CREATE TABLE dbo.AuditLog
 /* Additive compatibility for an existing Products table from an earlier schema. */
 IF OBJECT_ID(N'dbo.Products', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.Products', N'Sku') IS NULL
     ALTER TABLE dbo.Products ADD Sku NVARCHAR(100) NULL;
+IF OBJECT_ID(N'dbo.InventoryUnits', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.InventoryUnits', N'PurchaseInvoiceNumber') IS NULL
+    ALTER TABLE dbo.InventoryUnits ADD PurchaseInvoiceNumber NVARCHAR(100) NOT NULL CONSTRAINT DF_InventoryUnits_PurchaseInvoiceNumber DEFAULT N'';
+IF OBJECT_ID(N'dbo.InventoryUnits', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.InventoryUnits', N'SaleInvoiceNumber') IS NULL
+    ALTER TABLE dbo.InventoryUnits ADD SaleInvoiceNumber NVARCHAR(100) NOT NULL CONSTRAINT DF_InventoryUnits_SaleInvoiceNumber DEFAULT N'';
 
 COMMIT TRANSACTION;
 GO

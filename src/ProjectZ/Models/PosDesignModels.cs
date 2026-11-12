@@ -38,7 +38,8 @@ public sealed class PosProductDesignItem : ObservableObject
     private string notes = "";
     private bool isNewlyAdded;
 
-    public int Id { get; init; }
+    public int Id { get; set; }
+    public byte[]? DatabaseRowVersion { get; set; }
 
     public string Barcode
     {
