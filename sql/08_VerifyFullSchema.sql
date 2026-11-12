@@ -22,7 +22,7 @@ FROM @ExpectedTables AS e
 LEFT JOIN sys.tables AS t ON t.name = e.name AND t.schema_id = SCHEMA_ID(N'dbo')
 WHERE t.object_id IS NULL;
 
-SELECT v.name AS MissingView
+SELECT expected.v AS MissingView
 FROM (VALUES (N'vwProductStock'), (N'vwSalesInvoiceSummary'), (N'vwPurchaseInvoiceSummary'),
              (N'vwMaintenanceOrderSummary'), (N'vwFinancialAccountDailyUsage')) AS expected(v)
 LEFT JOIN sys.views AS sv ON sv.name = expected.v AND sv.schema_id = SCHEMA_ID(N'dbo')
