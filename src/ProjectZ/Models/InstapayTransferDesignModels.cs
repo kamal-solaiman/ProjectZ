@@ -10,23 +10,40 @@ public enum InstapayOperationKind
     WithdrawForCustomer
 }
 
-public sealed class InstapayTransferOperation
+public sealed class InstapayTransferOperation : ObservableObject
 {
+    private int walletId;
+    private string walletAlias = "";
+    private string walletNumber = "";
+    private InstapayOperationKind kind;
+    private string customerNumber = "";
+    private decimal amount;
+    private decimal commission;
+    private decimal cashDelta;
+    private decimal walletBalanceAfter;
+    private string note = "";
+    private bool isReversed;
+
     public int Id { get; init; }
-    public int WalletId { get; init; }
-    public string WalletAlias { get; init; } = "";
-    public string WalletNumber { get; init; } = "";
-    public InstapayOperationKind Kind { get; init; }
-    public string CustomerNumber { get; init; } = "";
-    public decimal Amount { get; init; }
-    public decimal Commission { get; init; }
-    public decimal CashDelta { get; init; }
-    public decimal WalletBalanceAfter { get; init; }
-    public string Note { get; init; } = "";
+    public int WalletId { get => walletId; set { walletId = value; Changed(); } }
+    public string WalletAlias { get => walletAlias; set { walletAlias = value; Changed(); } }
+    public string WalletNumber { get => walletNumber; set { walletNumber = value; Changed(); } }
+    public InstapayOperationKind Kind { get => kind; set { kind = value; Changed(); Changed(nameof(IsDeposit)); Changed(nameof(OperationTitle)); Changed(nameof(WalletEffectDisplay)); } }
+    public string CustomerNumber { get => customerNumber; set { customerNumber = value; Changed(); } }
+    public decimal Amount { get => amount; set { amount = value; Changed(); Changed(nameof(AmountDisplay)); Changed(nameof(WalletEffectDisplay)); } }
+    public decimal Commission { get => commission; set { commission = value; Changed(); Changed(nameof(CommissionDisplay)); } }
+    public decimal CashDelta { get => cashDelta; set { cashDelta = value; Changed(); Changed(nameof(TotalCashDisplay)); } }
+    public decimal WalletBalanceAfter { get => walletBalanceAfter; set { walletBalanceAfter = value; Changed(); Changed(nameof(WalletBalanceAfterDisplay)); } }
+    public string Note { get => note; set { note = value; Changed(); } }
     public DateTime Timestamp { get; init; }
     public string ActorName { get; init; } = "";
+    public bool IsReversed { get => isReversed; set { isReversed = value; Changed(); Changed(nameof(StatusTitle)); Changed(nameof(CanEditOrDelete)); } }
+    public string ReversedBy { get; set; } = "";
+    public DateTime? ReversedAt { get; set; }
 
     public bool IsDeposit => Kind == InstapayOperationKind.DepositToCustomer;
+    public bool CanEditOrDelete => !IsReversed;
+    public string StatusTitle => IsReversed ? "معكوسة" : "ناجحة";
     public string OperationTitle => IsDeposit ? "إيداع للعميل" : "سحب للعميل";
     public string DateDisplay => Timestamp.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     public string TimeDisplay => Timestamp.ToString("HH:mm", CultureInfo.InvariantCulture);
@@ -35,6 +52,7 @@ public sealed class InstapayTransferOperation
     public string TotalCashDisplay => $"{(CashDelta >= 0m ? "+" : "−")} {PosFormatting.FormatCurrency(Math.Abs(CashDelta))}";
     public string WalletBalanceAfterDisplay => PosFormatting.FormatCurrency(WalletBalanceAfter);
     public string WalletEffectDisplay => IsDeposit ? $"− {AmountDisplay}" : $"+ {AmountDisplay}";
+    public string DetailsDisplay => $"{OperationTitle} · {WalletAlias} · {CustomerNumber} · {AmountDisplay} · عمولة {CommissionDisplay}";
 }
 
 public static class InstapayTransferDesignSeedData

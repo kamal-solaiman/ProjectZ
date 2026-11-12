@@ -940,13 +940,33 @@ assert 'new VodafoneRecordsViewModel(VodafoneTransfer, MyAccounts, user.DisplayN
 assert 'views:VodafoneRecordsView' in main_xaml
 print('PASS: detailed Vodafone records, comprehensive filters, edit/reverse/delete controls, CSV and print UI')
 
+instapay_records_vm = (root / 'src/ProjectZ/ViewModels/InstapayRecordsViewModel.cs').read_text(encoding='utf-8')
+instapay_records_view = (root / 'src/ProjectZ/Views/InstapayRecordsView.xaml').read_text(encoding='utf-8')
+instapay_records_code = (root / 'src/ProjectZ/Views/InstapayRecordsView.xaml.cs').read_text(encoding='utf-8')
+assert '<DataGrid' not in instapay_records_view
+assert 'ItemsControl ItemsSource="{Binding FilteredOperations}" FlowDirection="RightToLeft"' in instapay_records_view
+assert 'Grid.Column="10"' in instapay_records_view and 'Width="210"' in instapay_records_view
+for filter_name in ('FromDate', 'ToDate', 'SelectedWalletId', 'SelectedKind', 'SelectedStatus', 'CustomerFilter', 'UserFilter', 'MinimumAmountText', 'MaximumAmountText', 'MinimumCommissionText', 'MaximumCommissionText'):
+    assert filter_name in instapay_records_vm and filter_name in instapay_records_view, f'missing InstaPay record filter: {filter_name}'
+for control in ('ShowOperationDetailsCommand', 'BeginOperationEditCommand', 'ReverseOperationCommand', 'DeleteOperationCommand', 'CreateCsvLines', 'ApplyEffect', 'CanUndo', 'ApplyEdit'):
+    assert control in instapay_records_vm, f'missing InstaPay record control: {control}'
+for file_name in ('InstapayRecordDetailsWindow.xaml', 'InstapayRecordEditWindow.xaml'):
+    assert (root / 'src/ProjectZ/Views' / file_name).is_file(), f'missing InstaPay record dialog: {file_name}'
+assert 'FinancialAccountKind.InstaPay' in instapay_records_vm
+assert 'new InstapayRecordsViewModel(InstapayTransfer, MyAccounts, user.DisplayName)' in main_viewmodel
+assert 'views:InstapayRecordsView' in main_xaml
+for forbidden_reference in ('Vodafone', 'فودافون'):
+    assert forbidden_reference not in instapay_records_vm + instapay_records_view + instapay_records_code, f'InstaPay records must remain independent: {forbidden_reference}'
+print('PASS: independent InstaPay records with compact rows, leftmost actions, filters, edit/reverse/delete, CSV and print')
+
 transfer_implementation = '\n'.join((root / relative).read_text(encoding='utf-8') for relative in (
     'src/ProjectZ/Models/VodafoneTransferDesignModels.cs', 'src/ProjectZ/Models/InstapayTransferDesignModels.cs',
     'src/ProjectZ/ViewModels/VodafoneTransferViewModel.cs', 'src/ProjectZ/ViewModels/InstapayTransferViewModel.cs',
-    'src/ProjectZ/ViewModels/VodafoneRecordsViewModel.cs', 'src/ProjectZ/Views/VodafoneTransferView.xaml',
+    'src/ProjectZ/ViewModels/VodafoneRecordsViewModel.cs', 'src/ProjectZ/ViewModels/InstapayRecordsViewModel.cs', 'src/ProjectZ/Views/VodafoneTransferView.xaml',
     'src/ProjectZ/Views/VodafoneOperationWindow.xaml', 'src/ProjectZ/Views/InstapayTransferView.xaml',
     'src/ProjectZ/Views/InstapayOperationWindow.xaml', 'src/ProjectZ/Views/VodafoneRecordsView.xaml',
-    'src/ProjectZ/Views/VodafoneRecordDetailsWindow.xaml', 'src/ProjectZ/Views/VodafoneRecordEditWindow.xaml'))
+    'src/ProjectZ/Views/VodafoneRecordDetailsWindow.xaml', 'src/ProjectZ/Views/VodafoneRecordEditWindow.xaml',
+    'src/ProjectZ/Views/InstapayRecordsView.xaml', 'src/ProjectZ/Views/InstapayRecordDetailsWindow.xaml', 'src/ProjectZ/Views/InstapayRecordEditWindow.xaml'))
 for removed_reference in ('Reference =', 'Binding Reference', 'ReferenceFilter', 'EditReference', 'ReversalReference', 'المرجع', 'VF-', 'IP-'):
     assert removed_reference not in transfer_implementation, f'transfer reference must stay removed: {removed_reference}'
 print('PASS: Vodafone and InstaPay transfer references removed from models, UI, filters, CSV, and audit movements')

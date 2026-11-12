@@ -423,6 +423,9 @@
                     <Grid Visibility="{Binding IsVodafoneRecordsSelected, Converter={StaticResource BoolToVis}}">
                         <views:VodafoneRecordsView DataContext="{Binding VodafoneRecords}" />
                     </Grid>
+                    <Grid Visibility="{Binding IsInstapayRecordsSelected, Converter={StaticResource BoolToVis}}">
+                        <views:InstapayRecordsView DataContext="{Binding InstapayRecords}" />
+                    </Grid>
                 </Grid>
             </Border>
 
