@@ -765,6 +765,9 @@ for token in (
     'SelectedAccount.DailyDepositUsagePercent', 'SelectedAccount.DailyWithdrawalUsagePercent',
     'SelectedAccount.MonthlyDepositUsagePercent', 'SelectedAccount.MonthlyWithdrawalUsagePercent',
     'SelectedAccountTransactions', 'EditSelectedAccountCommand', 'ToggleSelectedAccountCommand',
+    'Scrollable workspace for small laptop screens', 'MinHeight="620"',
+    'Grid.Column="1" Text="{Binding DailyDepositUsagePercent',
+    'Grid.Column="1" Text="{Binding DailyWithdrawalUsagePercent',
 ):
     assert token in accounts_xaml, f'MyAccounts UI missing expected token: {token}'
 accounts_vm_text = accounts_vm_path.read_text(encoding='utf-8')
