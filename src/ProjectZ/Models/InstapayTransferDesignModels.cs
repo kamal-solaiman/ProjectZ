@@ -21,7 +21,7 @@ public sealed class InstapayTransferOperation
     public decimal Amount { get; init; }
     public decimal Commission { get; init; }
     public decimal CashDelta { get; init; }
-    public decimal WalletBalanceAfter { get; init; } = "";
+    public decimal WalletBalanceAfter { get; init; }
     public string Note { get; init; } = "";
     public DateTime Timestamp { get; init; }
     public string ActorName { get; init; } = "";

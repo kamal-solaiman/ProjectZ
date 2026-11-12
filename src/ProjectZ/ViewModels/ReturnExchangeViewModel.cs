@@ -207,7 +207,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     private PriceTier replacementDefaultTier = PriceTier.Retail;
 
     private string refundMethod = "كاش (نقدي)";
-    private string refundReference = "";
     private string diffCashText = "";
     private string diffVodafoneText = "";
     private string diffInstaPayText = "";

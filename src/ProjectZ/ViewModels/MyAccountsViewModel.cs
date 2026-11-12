@@ -133,7 +133,7 @@ public sealed class MyAccountsViewModel : ObservableObject
         };
         Accounts.Add(account);
         if (result.OpeningBalance > 0m)
-            AddTransaction(account, true, "رصيد افتتاحي", result.OpeningBalance, "إضافة محفظة", "OPENING", result.Notes, false);
+            AddTransaction(account, true, "رصيد افتتاحي", result.OpeningBalance, "إضافة محفظة", result.Notes, false);
         RecalculateAll(); SelectedAccount = account;
         SetStatus($"تمت إضافة «{account.Alias}» برصيد مستقل وحدود تشغيل خاصة.", false);
     }

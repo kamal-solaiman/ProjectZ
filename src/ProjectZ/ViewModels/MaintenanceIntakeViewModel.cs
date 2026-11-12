@@ -74,9 +74,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     private MaintenanceDepositMode depositMode = MaintenanceDepositMode.NoDeposit;
     private string depositCashText = "";
     private string depositVodafoneText = "";
-    private string depositVodafoneRef = "";
     private string depositInstaPayText = "";
-    private string depositInstaPayRef = "";
 
     // Recent orders sidebar
     private MaintenanceOrderDesignItem? lastSavedOrder;

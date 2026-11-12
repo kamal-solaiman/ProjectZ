@@ -956,9 +956,7 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
     private string discountAmountText;
     private string cashAmountText;
     private string vodafoneCashAmountText;
-    private string vodafoneCashReference;
     private string instaPayAmountText;
-    private string instaPayReference;
     private string errorMessage = "";
 
     public PurchaseInvoiceDesignItem Invoice { get; }
