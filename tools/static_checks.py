@@ -819,7 +819,6 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/PosInvoiceItemViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddCustomerViewModel.cs',
     root / 'src/ProjectZ/ViewModels/CustomersViewModel.cs',
-    root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AddSupplierViewModel.cs',
     root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MyAccountsViewModel.cs',
@@ -899,6 +898,13 @@ for callback in ('repository.Supply(', 'repository.UpdateProduct(', 'repository.
                  'repository.DeleteDamaged(', 'repository.DeleteOrArchiveProduct(', 'repository.SaveNewProduct('):
     assert callback in inventory_vm, f'inventory screen is not wired to SQL operation: {callback}'
 assert 'new InventoryRepository(connectionSettings, user.Id)' in (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
+assert 'public string AddCategory(string name)' in inventory_repository
+for operation in ('repository.SaveNewProduct(', 'repository.AddCategory(', 'repository.DeleteOrArchiveProduct(', 'reloadInventory()'):
+    assert operation in add_product_vm_text, f'AddProduct is not wired to SQL operation: {operation}'
+assert 'AddProduct.RefreshFromDatabase();' in main_viewmodel
+assert 'Command="{Binding RefreshCatalogCommand}"' in add_product_xaml
+assert 'CanDeleteFromCatalog' in add_product_xaml and 'OpenConfirmDialogRequested' in add_product_vm_text
+print('PASS: AddProduct persists products/categories, refreshes SQL data, and confirms delete/archive')
 pos_vm = (root / 'src/ProjectZ/ViewModels/PosViewModel.cs').read_text(encoding='utf-8')
 assert 'useDesignSamples: inventoryRepository is null' in main_viewmodel
 assert 'if (useDesignSamples)' in pos_vm and 'else\n            CreateAndSelectNewInvoice();' in pos_vm

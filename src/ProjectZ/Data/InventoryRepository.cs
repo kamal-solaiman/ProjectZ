@@ -8,7 +8,7 @@ namespace ProjectZ.Data;
 
 public sealed class InventoryDataException(string message, Exception? inner = null) : InvalidOperationException(message, inner);
 
-/// <summary>SQL Server persistence for the inventory screen only.</summary>
+/// <summary>SQL Server persistence for inventory and product-registration screens.</summary>
 public sealed class InventoryRepository(ConnectionSettingsProvider settings, int actorUserId)
 {
     public void LoadInto(
@@ -77,6 +77,23 @@ SELECT Name FROM dbo.Categories WHERE IsActive=1 ORDER BY Name;";
         foreach (var product in loadedProducts) catalog.Add(product);
         foreach (var unit in loadedUnits) registrations.Add(unit);
         foreach (var category in loadedCategories) categories.Add(category);
+    }
+
+    public string AddCategory(string name)
+    {
+        name = name.Trim();
+        if (string.IsNullOrWhiteSpace(name)) throw new InventoryDataException("أدخل اسم التصنيف الجديد أولًا.");
+        if (name.Length > 150) throw new InventoryDataException("اسم التصنيف يجب ألا يتجاوز 150 حرفًا.");
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+        try
+        {
+            var categoryId = EnsureCategory(connection, transaction, name);
+            Audit(connection, transaction, "EnsureCategory", categoryId, $"إضافة أو اختيار تصنيف {name}", "Category");
+            transaction.Commit();
+            return name;
+        }
+        catch { transaction.Rollback(); throw; }
     }
 
     public void SaveNewProduct(PosProductDesignItem product, string supplierName, string invoiceNumber)
@@ -340,13 +357,14 @@ VALUES(@ProductId,@UnitId,@Type,@Delta,@Cost,@Actor,N'InventoryUnit',@UnitId,@Re
         command.Parameters.AddWithValue("@Reason", reason); command.ExecuteNonQuery();
     }
 
-    private void Audit(SqlConnection connection, SqlTransaction transaction, string action, int productId, string details)
+    private void Audit(SqlConnection connection, SqlTransaction transaction, string action, int entityId, string details, string entityType = "Product")
     {
         using var command = CreateCommand(connection, transaction, @"
 INSERT dbo.AuditLog(ActorUserId,Module,ActionName,EntityType,EntityId,NewValuesJson)
-VALUES(@Actor,N'Inventory',@Action,N'Product',@EntityId,JSON_MODIFY(N'{}',N'$.details',@Details));");
+VALUES(@Actor,N'Inventory',@Action,@EntityType,@EntityId,JSON_MODIFY(N'{}',N'$.details',@Details));");
         command.Parameters.AddWithValue("@Actor", actorUserId); command.Parameters.AddWithValue("@Action", action);
-        command.Parameters.AddWithValue("@EntityId", productId.ToString()); command.Parameters.AddWithValue("@Details", details);
+        command.Parameters.AddWithValue("@EntityType", entityType);
+        command.Parameters.AddWithValue("@EntityId", entityId.ToString()); command.Parameters.AddWithValue("@Details", details);
         command.ExecuteNonQuery();
     }
 

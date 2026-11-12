@@ -21,10 +21,21 @@ public partial class AddProductView : UserControl
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (e.OldValue is AddProductViewModel oldViewModel)
+        {
             oldViewModel.FocusProductNameRequested = null;
+            oldViewModel.OpenConfirmDialogRequested = null;
+        }
 
         if (e.NewValue is AddProductViewModel newViewModel)
+        {
             newViewModel.FocusProductNameRequested = FocusProductNameInput;
+            newViewModel.OpenConfirmDialogRequested = (confirm, onConfirmed) =>
+            {
+                var dialog = new ConfirmActionWindow(confirm);
+                if (Window.GetWindow(this) is { } owner) dialog.Owner = owner;
+                if (dialog.ShowDialog() == true) onConfirmed();
+            };
+        }
     }
 
     private void FocusProductNameInput()

@@ -27,6 +27,12 @@
                         Padding="12,7"
                         FontSize="12.5"
                         Command="{Binding GoToPosCommand}" />
+                <Button Content="تحديث الأصناف"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource PosSecondaryButtonStyle}"
+                        Padding="12,7"
+                        FontSize="12.5"
+                        Command="{Binding RefreshCatalogCommand}" />
                 <Button Content="تفريغ الحقول"
                         Margin="8,0,0,0"
                         Style="{StaticResource PosSecondaryButtonStyle}"
@@ -53,7 +59,7 @@
                         BorderBrush="#BAE6FD"
                         BorderThickness="1"
                         VerticalAlignment="Center">
-                    <TextBlock Text="تصميم الواجهة — بدون Backend"
+                    <TextBlock Text="مرتبط بقاعدة بيانات SQL Server"
                                Style="{StaticResource PosCenterTextStyle}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
@@ -257,8 +263,8 @@
                                                                             Height="22"
                                                                             Margin="4,0,0,0"
                                                                             Style="{StaticResource PosDangerIconButtonStyle}"
-                                                                            ToolTip="حذف الصنف من المعاينة"
-                                                                            Visibility="{Binding IsNewlyAdded, Converter={StaticResource BoolToVis}}"
+                                                                            ToolTip="حذف الصنف أو أرشفته مع حفظ تاريخه"
+                                                                            Visibility="{Binding CanDeleteFromCatalog, Converter={StaticResource BoolToVis}}"
                                                                             Command="{Binding DataContext.RemoveProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}" />
                                                                 </StackPanel>

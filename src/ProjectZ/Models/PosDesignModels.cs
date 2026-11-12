@@ -40,6 +40,7 @@ public sealed class PosProductDesignItem : ObservableObject
 
     public int Id { get; set; }
     public byte[]? DatabaseRowVersion { get; set; }
+    public bool CanDeleteFromCatalog => IsNewlyAdded || DatabaseRowVersion is not null;
 
     public string Barcode
     {
