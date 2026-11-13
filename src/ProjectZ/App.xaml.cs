@@ -70,7 +70,8 @@ public partial class App : Application
                 new SalesRepository(connectionSettings, user.Id),
                 new CategoryRepository(connectionSettings, user.Id),
                 new PurchaseRepository(connectionSettings, user.Id),
-                new FinancialRepository(connectionSettings, user.Id));
+                new FinancialRepository(connectionSettings, user.Id),
+                new MaintenanceRepository(connectionSettings, user.Id));
             MainWindow = main;
             TrackWindow(main);
 

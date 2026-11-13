@@ -592,6 +592,32 @@ CREATE TABLE dbo.MaintenanceOrderParts
     CONSTRAINT CK_MaintenanceOrderParts_Source CHECK ((IsManualPart = 1 AND ProductId IS NULL) OR (IsManualPart = 0 AND ProductId IS NOT NULL))
 );
 
+/* Spare parts inventory for maintenance (separate from the POS Products/catalog). */
+IF OBJECT_ID(N'dbo.MaintenanceSpareParts', N'U') IS NULL
+CREATE TABLE dbo.MaintenanceSpareParts
+(
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceSpareParts PRIMARY KEY,
+    Name NVARCHAR(250) NOT NULL,
+    Category NVARCHAR(100) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Category DEFAULT N'شاشات',
+    Quantity INT NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Quantity DEFAULT 0,
+    MinimumStockAlert INT NOT NULL CONSTRAINT DF_MaintenanceSpareParts_MinStock DEFAULT 5,
+    CostPrice DECIMAL(19,2) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_CostPrice DEFAULT 0,
+    SellPrice DECIMAL(19,2) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_SellPrice DEFAULT 0,
+    IsActive BIT NOT NULL CONSTRAINT DF_MaintenanceSpareParts_IsActive DEFAULT 1,
+    CreatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Created DEFAULT SYSUTCDATETIME(),
+    UpdatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Updated DEFAULT SYSUTCDATETIME(),
+    RowVersion ROWVERSION NOT NULL,
+    CONSTRAINT UQ_MaintenanceSpareParts_Name UNIQUE (Name),
+    CONSTRAINT CK_MaintenanceSpareParts_Quantity CHECK (Quantity >= 0),
+    CONSTRAINT CK_MaintenanceSpareParts_MinStock CHECK (MinimumStockAlert >= 0),
+    CONSTRAINT CK_MaintenanceSpareParts_Values CHECK (CostPrice >= 0 AND SellPrice >= 0)
+);
+
+/* Backfill order-part lines to the spare-part they reference. Idempotent: the column is
+   added only when missing. Spare-part lines created before this column kept ProductId NULL. */
+IF COL_LENGTH(N'dbo.MaintenanceOrderParts', N'SparePartId') IS NULL
+    ALTER TABLE dbo.MaintenanceOrderParts ADD SparePartId INT NULL CONSTRAINT FK_MaintenanceParts_SpareParts FOREIGN KEY REFERENCES dbo.MaintenanceSpareParts(Id);
+
 IF OBJECT_ID(N'dbo.MaintenancePayments', N'U') IS NULL
 CREATE TABLE dbo.MaintenancePayments
 (

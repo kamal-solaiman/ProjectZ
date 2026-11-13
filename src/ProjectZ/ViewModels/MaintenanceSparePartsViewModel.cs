@@ -10,12 +10,14 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
     private readonly ObservableCollection<MaintenanceSparePartItem> sharedSpareParts;
     private readonly Action? navigateToActions;
     private readonly Action? notifySparePartsChanged;
+    private readonly Data.MaintenanceRepository? repository;
 
     private MaintenanceSparePartItem? editingPart;
     private string partName = "";
     private string selectedCategory = "شاشات";
     private string customCategoryName = "";
     private string quantityText = "1";
+    private string minimumStockText = "3";
     private string costPriceText = "0";
     private string sellPriceText = "0";
 
@@ -108,6 +110,17 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         }
     }
 
+    public string MinimumStockText
+    {
+        get => minimumStockText;
+        set
+        {
+            if (minimumStockText == value) return;
+            minimumStockText = value;
+            Changed();
+        }
+    }
+
     public string PreviewProfitDisplay
     {
         get
@@ -180,18 +193,20 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
     public RelayCommand<MaintenanceSparePartItem> DeletePartCommand { get; }
 
     public MaintenanceSparePartsViewModel()
-        : this(MaintenanceDesignSeedData.CreateSharedSampleSpareParts(), null, null)
+        : this(MaintenanceDesignSeedData.CreateSharedSampleSpareParts(), null, null, null)
     {
     }
 
     public MaintenanceSparePartsViewModel(
         ObservableCollection<MaintenanceSparePartItem> sharedSpareParts,
         Action? navigateToActions = null,
-        Action? notifySparePartsChanged = null)
+        Action? notifySparePartsChanged = null,
+        Data.MaintenanceRepository? repository = null)
     {
         this.sharedSpareParts = sharedSpareParts;
         this.navigateToActions = navigateToActions;
         this.notifySparePartsChanged = notifySparePartsChanged;
+        this.repository = repository;
 
         foreach (var cat in MaintenanceDesignSeedData.SparePartCategories)
             CategoryOptions.Add(cat);
@@ -224,6 +239,17 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
 
     public void NotifyExternalDataChanged()
     {
+        if (repository is not null)
+        {
+            try
+            {
+                repository.LoadSparePartsInto(sharedSpareParts);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر إعادة تحميل مخزون قطع الغيار: {ex.Message}", true);
+            }
+        }
         RebuildCategoryFilterOptions();
         RefreshFilteredSpareParts();
     }
@@ -268,6 +294,34 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
             return;
         }
 
+        if (!PosFormatting.TryParseNonNegativeInt(MinimumStockText, out var minStock))
+        {
+            SetStatus("أدخل مؤشر رصيد منخفض صحيحًا (صفر أو أكثر).", true);
+            return;
+        }
+
+        if (repository is not null)
+        {
+            try
+            {
+                var saved = repository.SaveSparePart(
+                    editingPart?.Id, trimmedName, category, qty, minStock, cost, sell);
+                ClearFormFields();
+                RebuildCategoryFilterOptions();
+                RefreshFilteredSpareParts();
+                notifySparePartsChanged?.Invoke();
+                SetStatus(editingPart is not null
+                    ? $"تم حفظ تعديلات قطعة الغيار «{saved.Name}» (SPR-{saved.Id:000}) ومزامنتها مع قاعدة البيانات.",
+                    : $"تم تسجيل قطعة الغيار «{saved.Name}» (SPR-{saved.Id:000}) بنجاح في قاعدة البيانات.", false);
+                return;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر حفظ قطعة الغيار: {ex.Message}", true);
+                return;
+            }
+        }
+
         if (!CategoryOptions.Contains(category))
         {
             var otherIdx = CategoryOptions.IndexOf("أخرى");
@@ -292,6 +346,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
             target.Name = trimmedName;
             target.Category = category;
             target.Quantity = qty;
+            target.MinimumStockAlert = minStock;
             target.CostPrice = cost;
             target.SellPrice = sell;
 
@@ -317,6 +372,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         var newPart = new MaintenanceSparePartItem
         {
             Id = nextId,
+            MinimumStockAlert = minStock,
             Name = trimmedName,
             Category = category,
             Quantity = qty,
@@ -351,6 +407,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
             customCategoryName = item.Category;
         }
         quantityText = item.Quantity.ToString();
+        minimumStockText = item.MinimumStockAlert.ToString();
         costPriceText = PosFormatting.FormatPlainNumber(item.CostPrice);
         sellPriceText = PosFormatting.FormatPlainNumber(item.SellPrice);
 
@@ -363,6 +420,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         Changed(nameof(IsCustomCategorySelected));
         Changed(nameof(CustomCategoryName));
         Changed(nameof(QuantityText));
+        Changed(nameof(MinimumStockText));
         Changed(nameof(CostPriceText));
         Changed(nameof(SellPriceText));
         Changed(nameof(PreviewProfitDisplay));
@@ -385,6 +443,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         selectedCategory = CategoryOptions.FirstOrDefault() ?? "شاشات";
         customCategoryName = "";
         quantityText = "1";
+        minimumStockText = "3";
         costPriceText = "0";
         sellPriceText = "0";
 
@@ -397,6 +456,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         Changed(nameof(IsCustomCategorySelected));
         Changed(nameof(CustomCategoryName));
         Changed(nameof(QuantityText));
+        Changed(nameof(MinimumStockText));
         Changed(nameof(CostPriceText));
         Changed(nameof(SellPriceText));
         Changed(nameof(PreviewProfitDisplay));
@@ -426,6 +486,23 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
     {
         if (ReferenceEquals(editingPart, item))
             ClearFormFields();
+
+        if (repository is not null)
+        {
+            try
+            {
+                var (deleted, message) = repository.DeleteSparePart(item.Id, item.Name);
+                sharedSpareParts.Remove(item);
+                notifySparePartsChanged?.Invoke();
+                SetStatus(message, false);
+                return;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر حذف قطعة الغيار: {ex.Message}", true);
+                return;
+            }
+        }
 
         if (!sharedSpareParts.Remove(item))
             return;

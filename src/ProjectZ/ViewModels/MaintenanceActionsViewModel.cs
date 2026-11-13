@@ -12,6 +12,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     private readonly ObservableCollection<MaintenanceSparePartItem> sharedSpareParts;
     private readonly Action? navigateToIntake;
     private readonly Action? notifySparePartsChanged;
+    private readonly Data.MaintenanceRepository? repository;
 
     private MaintenanceOrderDesignItem? selectedOrder;
     private string searchText = "";
@@ -477,13 +478,15 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         ObservableCollection<MaintenanceOrderDesignItem> sharedOrders,
         ObservableCollection<MaintenanceSparePartItem> sharedSpareParts,
         Action? navigateToIntake = null,
-        Action? notifySparePartsChanged = null)
+        Action? notifySparePartsChanged = null,
+        Data.MaintenanceRepository? repository = null)
     {
         this.currentUserName = currentUserName;
         this.sharedOrders = sharedOrders;
         this.sharedSpareParts = sharedSpareParts;
         this.navigateToIntake = navigateToIntake;
         this.notifySparePartsChanged = notifySparePartsChanged;
+        this.repository = repository;
 
         TechnicianFilterOptions = new[] { "كل الفنيين" }.Concat(MaintenanceDesignSeedData.Technicians).ToArray();
 
@@ -997,6 +1000,22 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
+        if (repository is not null)
+        {
+            try
+            {
+                var lineNumber = order.UsedParts.Count + 1;
+                repository.DeductSparePartStock(
+                    sparePart.Id, qty, order.Id, sparePart.Name, sparePart.CodeDisplay,
+                    sparePart.CostPrice, sparePart.SellPrice, lineNumber);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر صرف قطعة الغيار: {ex.Message}", true);
+                return;
+            }
+        }
+
         sparePart.Quantity -= qty;
 
         var partItem = new MaintenancePartUsageItem
@@ -1149,7 +1168,21 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
         var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == part.ProductId);
         if (sparePart is not null)
+        {
+            if (repository is not null)
+            {
+                try
+                {
+                    repository.RestoreSparePartStock(sparePart.Id, part.Quantity);
+                }
+                catch (Exception ex)
+                {
+                    SetStatus($"تعذّر استرجاع رصيد قطعة الغيار: {ex.Message}", true);
+                    return;
+                }
+            }
             sparePart.Quantity += part.Quantity;
+        }
     }
 
     private void SetExtraDepositMode(MaintenanceDepositMode mode)
