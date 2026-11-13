@@ -130,11 +130,11 @@
                             BorderBrush="#7DD3FC"
                             BorderThickness="1"
                             VerticalAlignment="Center">
-                        <TextBlock Text="عملاء المبيعات والصيانة · تصميم الواجهة"
-                                   Style="{StaticResource PosRtlTextStyle}"
+                        <TextBlock Text="{Binding DataSourceLabel}"
+                                   Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="11.5"
                                    FontWeight="SemiBold"
-                                   Foreground="#0369A1" />
+                                   Foreground="#0F766E" />
                     </Border>
                 </StackPanel>
                 <TextBlock Text="دليل عملاء موحد بين نقطة البيع والصيانة: متابعة فواتير المبيعات وتذاكر الصيانة، الأرصدة المتبقية، والتحصيل المباشر."
@@ -860,7 +860,7 @@
                                     </ItemsControl>
                                 </ScrollViewer>
 
-                                <TextBlock Text="لا توجد تذاكر صيانة مسجلة لهذا العميل حتى الآن."
+                                <TextBlock Text="{Binding MaintenanceEmptyMessage}"
                                            Style="{StaticResource PosCenterTextStyle}"
                                            VerticalAlignment="Center"
                                            HorizontalAlignment="Center"

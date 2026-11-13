@@ -592,6 +592,10 @@ for token in (
 ):
     assert token in purchase_repository, f'PurchaseRepository missing SQL token: {token}'
 
+for customer_sql in ('UPDATE dbo.Customers', 'DELETE dbo.Customers',
+                     'UPDATE dbo.Customers SET IsActive=0'):
+    assert customer_sql in sales_repository, f'SalesRepository must persist customers: {customer_sql}'
+
 # Every money parameter must be DECIMAL(19,2): implicit metadata is rejected by SQL Server.
 assert 'SqlDbType.Decimal' in purchase_repository and 'Precision = 19' in purchase_repository
 assert 'AddWithValue' not in purchase_repository, 'PurchaseRepository must declare explicit parameter types'
@@ -607,6 +611,8 @@ for token in (
     'PurchaseInvoices.RefreshFromDatabase()',
     'Suppliers.RefreshFromDatabase()',
     'SuppliesChanged()',
+    'Customers.RefreshFromDatabase()',
+    'CustomersChanged()',
 ):
     assert token in main_viewmodel, f'MainViewModel is not wired to the purchase repository: {token}'
 assert 'new PurchaseRepository(connectionSettings, user.Id)' in app_cs, 'App.xaml.cs must build the purchase repository'
@@ -630,6 +636,14 @@ assert 'مرحلة التصميم (بدون Backend)' not in purchase_invoices_v
 for command in ('repository.CreateSupplier', 'repository.UpdateSupplier', 'repository.DeleteSupplier',
                 'repository.LoadSuppliersInto'):
     assert command in suppliers_vm, f'the supplier directory must use {command}'
+
+customers_vm = (root / 'src/ProjectZ/ViewModels/CustomersViewModel.cs').read_text(encoding='utf-8')
+assert 'using ProjectZ.Data;' in customers_vm, 'CustomersViewModel must import the data layer'
+assert 'IsConnectedToDatabase' in customers_vm, 'CustomersViewModel must report its data source'
+for command in ('repository.CreateCustomer', 'repository.UpdateCustomer', 'repository.DeleteCustomer',
+                'repository.LoadCustomersInto', 'repository.CollectPayment'):
+    assert command in customers_vm, f'the customer directory must use {command}'
+assert 'مرحلة التصميم (بدون Backend)' not in customers_vm, 'the customer screen still announces design-only mode'
 
 # The screens must no longer advertise a design-only mode, and must offer an explicit SQL refresh.
 purchase_invoices_xaml_text = (root / 'src/ProjectZ/Views/PurchaseInvoicesView.xaml').read_text(encoding='utf-8')
@@ -902,6 +916,9 @@ assert 'IsCustomersSelected' in main_viewmodel and 'Customers' in main_viewmodel
 assert 'views:CustomersView' in main_xaml
 
 customers_xaml = customers_xaml_path.read_text(encoding='utf-8')
+assert 'DataSourceLabel' in customers_xaml, 'the customer screen must show its live data source'
+assert 'تصميم الواجهة — بدون Backend' not in customers_xaml, 'the customer screen still advertises a design-only badge'
+assert 'MaintenanceEmptyMessage' in customers_xaml, 'the customer screen must explain the empty maintenance tab'
 for token in (
     'FilteredCustomers',
     'SelectedCustomerEntry',

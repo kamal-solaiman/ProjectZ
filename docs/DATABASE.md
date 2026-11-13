@@ -108,6 +108,26 @@
 
 `08_VerifyFullSchema.sql` يعرض الجداول أو طرق العرض الناقصة، ومفاتيح أجنبية معطلة أو غير موثوقة، وأي عمود Reference داخل تحويلات العملاء أو دفترها، وتفاصيل العلاقات. الفحص النصي في CI لا يساوي تشغيل المخطط على SQL Server؛ يلزم تنفيذ السكربتات على نسخة اختبار SQL Server 2016 SP1 ثم اختبار قيود الإدخال والفهارس قبل الاعتماد الإنتاجي.
 
+## العملاء: كيف تُكتب البيانات فعليًا
+
+شاشة **العملاء** وشاشة **نقطة البيع** وشاشة **الفواتير** تشترك في مجموعة العملاء الموحدة
+(`sharedCustomers`) التي تُملأ من `dbo.Customers` عبر `SalesRepository.LoadCustomersInto`.
+
+- **الإضافة** (`CustomersViewModel.OpenAddCustomer` → `SalesRepository.CreateCustomer`):
+  `INSERT dbo.Customers(...)` مع `OUTPUT inserted.Id`؛ يُعاد العميل المحمل بـ `Id` الحقيقي ورمز
+  `CUS-000`. العميل النقدي (`IsWalkIn`) لا يُنشأ من هنا — يُعاد بناؤه محليًا دائمًا.
+- **التعديل** (`UpdateCustomer`): يُحدّث `dbo.Customers` فقط. الفواتير القديمة تحتفظ بلقطات الاسم/الهاتف
+  وقت البيع (قرار المستخدم: لا تحديث للفواتير السابقة)، والفاتورة الجديدة تأخذ البيانات الحالية.
+- **الحذف** (`DeleteCustomer`): يفحص وجود فواتير بيع أو تذاكر صيانة مرتبطة:
+  - بلا سجل ⇒ `DELETE dbo.Customers` (حذف نهائي).
+  - مع سجل ⇒ `UPDATE dbo.Customers SET IsActive=0` (أرشفة) مع سجل في `AuditLog`، وتبقى الفواتير
+    محفوظة ومرجعية عبر `CustomerId`.
+  - وجود مستحقات متبقية ⇒ يُرفض الحذف من الواجهة قبل الوصول للقاعدة.
+- **التحصيل** من ملف العميل (`OpenCollectSalesPayment` → `SalesRepository.CollectPayment`):
+  يُكتب في `SalesPayments` و`FinancialTransactions` و`SalesInvoiceActivities` ويُحدّث حالة الفاتورة.
+- **المزامنة**: بعد أي تغيير يجري `CustomersChanged()` في `MainViewModel` الذي يعيد تحميل
+  `dbo.Customers` إلى المجموعة المشتركة، فتُرى التغييرات فورًا في نقطة البيع والفواتير والمالية.
+
 ## مشتريات: كيف تُكتب البيانات فعليًا
 
 شاشتا «شراء فاتورة» و«فواتير المشتريات» و«الموردين» تتحدث مباشرة إلى SQL Server عبر `src/ProjectZ/Data/PurchaseRepository.cs`. الجداول كلها موجودة مسبقًا في `sql/06_CreateFullSchema.sql`، ولم يُضف جدول جديد؛ أُضيف سكربت صلاحيات واحد فقط (`sql/12_EnablePurchasing.sql`).

@@ -16,9 +16,10 @@ IF DATABASE_PRINCIPAL_ID(N'ProjectZClient') IS NULL
     THROW 50042, N'ProjectZClient database user is missing. Run sql/04_SetupLanSqlAuth.sql first.', 1;
 GO
 
-/* Customers: POS reads the directory, saves a new customer and can refresh snapshots. */
+/* Customers: POS reads the directory, saves/updates a customer, and the customer screen
+   deletes (hard) or archives (IsActive=0) a customer. */
 IF OBJECT_ID(N'dbo.Customers', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.Customers TO [ProjectZClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Customers TO [ProjectZClient];
 GO
 
 /* Document numbering: the invoice/return number comes from DocumentSequences, never from IDENTITY. */

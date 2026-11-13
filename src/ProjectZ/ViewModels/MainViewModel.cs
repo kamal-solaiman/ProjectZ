@@ -141,7 +141,11 @@ public sealed class MainViewModel : ObservableObject
         var sharedPurchaseInvoices = purchaseRepository is null
             ? PurchaseDesignSeedData.CreateSharedSamplePurchaseInvoices(sharedCatalog, sharedRegistrations, sharedSuppliers)
             : new ObservableCollection<PurchaseInvoiceDesignItem>();
-        var sharedMaintenanceOrders = MaintenanceDesignSeedData.CreateSharedSampleOrders(sharedCustomers);
+        // With SQL the maintenance screens are a separate future task: no sample orders, so the
+        // customer-screen maintenance tab shows an explicit "not in the database yet" message.
+        var sharedMaintenanceOrders = salesRepository is null
+            ? MaintenanceDesignSeedData.CreateSharedSampleOrders(sharedCustomers)
+            : new ObservableCollection<MaintenanceOrderDesignItem>();
         var sharedMaintenanceSpareParts = MaintenanceDesignSeedData.CreateSharedSampleSpareParts();
 
         Inventory = new InventoryViewModel(
@@ -295,7 +299,8 @@ public sealed class MainViewModel : ObservableObject
                 MaintenanceIntake.NotifyExternalDataChanged();
                 MaintenanceInvoices.NotifyExternalDataChanged();
                 MaintenanceActions.NotifyExternalDataChanged();
-            });
+            },
+            salesRepository);
 
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
@@ -328,6 +333,7 @@ public sealed class MainViewModel : ObservableObject
             catch (SalesDataException) { /* The POS status strip explains the failure on first sale. */ }
 
             Invoices.RefreshInvoicesFromDatabase();
+            Customers.RefreshFromDatabase();
         }
 
         // Start at the first available destination; all other categories stay closed.
@@ -366,6 +372,15 @@ public sealed class MainViewModel : ObservableObject
     {
         PurchaseInvoices.RefreshFromDatabase();
         Suppliers.RefreshFromDatabase();
+    }
+
+    /// <summary>
+    /// A customer was added, renamed or archived in SQL. The customer screen reloaded the shared
+    /// customer collection already, so the other screens only need to re-read their rows.
+    /// </summary>
+    private void CustomersChanged()
+    {
+        Customers.RefreshFromDatabase();
     }
 
     /// <summary>Late-bound notifier: the spare-parts screen may call it before MaintenanceActions exists.</summary>
@@ -429,7 +444,7 @@ public sealed class MainViewModel : ObservableObject
             customer.Notes,
             customer.DefaultPriceTier);
 
-        Customers.NotifyExternalDataChanged();
+        CustomersChanged();
         return saved;
     }
 

@@ -138,6 +138,120 @@ VALUES(@Name,@Phone,@Secondary,@Address,@Notes,@Tier,0);";
         }
     }
 
+    public void UpdateCustomer(PosCustomerDesignItem customer)
+    {
+        if (customer.Id <= 0) throw new SalesDataException("لا يمكن تعديل عميل غير محفوظ في قاعدة البيانات.");
+        if (customer.IsWalkIn) throw new SalesDataException("العميل النقدي (العام) هو حساب افتراضي ثابت ولا يمكن تعديله.");
+
+        var name = customer.Name.Trim();
+        var phone = customer.Phone.Trim();
+        if (string.IsNullOrWhiteSpace(name)) throw new SalesDataException("يرجى إدخال اسم العميل.");
+        if (string.IsNullOrWhiteSpace(phone)) throw new SalesDataException("يرجى إدخال رقم هاتف العميل.");
+        if (name.Length > 200) throw new SalesDataException("اسم العميل يجب ألا يتجاوز 200 حرف.");
+        if (phone.Length > 30) throw new SalesDataException("رقم الهاتف يجب ألا يتجاوز 30 حرفًا.");
+        if (customer.SecondaryPhone.Trim().Length > 30) throw new SalesDataException("الهاتف الإضافي يجب ألا يتجاوز 30 حرفًا.");
+        if (customer.Address.Trim().Length > 500) throw new SalesDataException("العنوان يجب ألا يتجاوز 500 حرف.");
+        if (customer.Notes.Trim().Length > 1000) throw new SalesDataException("الملاحظات يجب ألا تتجاوز 1000 حرف.");
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            try
+            {
+                using (var command = CreateCommand(connection, transaction, @"
+UPDATE dbo.Customers
+SET Name=@Name, Phone=@Phone, SecondaryPhone=@Secondary, Address=@Address, Notes=@Notes,
+    DefaultPriceTier=@Tier, UpdatedAtUtc=SYSUTCDATETIME()
+WHERE Id=@Id;"))
+                {
+                    command.Parameters.Add("@Name", SqlDbType.NVarChar, 200).Value = name;
+                    command.Parameters.Add("@Phone", SqlDbType.NVarChar, 30).Value = phone;
+                    command.Parameters.Add("@Secondary", SqlDbType.NVarChar, 30).Value = customer.SecondaryPhone.Trim();
+                    command.Parameters.Add("@Address", SqlDbType.NVarChar, 500).Value = customer.Address.Trim();
+                    command.Parameters.Add("@Notes", SqlDbType.NVarChar, 1000).Value = customer.Notes.Trim();
+                    command.Parameters.Add("@Tier", SqlDbType.TinyInt).Value = (byte)customer.DefaultPriceTier;
+                    command.Parameters.Add("@Id", SqlDbType.Int).Value = customer.Id;
+                    if (command.ExecuteNonQuery() != 1)
+                        throw new SalesDataException("العميل غير موجود في قاعدة البيانات؛ حدّث شاشة العملاء ثم أعد المحاولة.");
+                }
+
+                // Snapshots on already-issued invoices stay as captured at sale time; only dbo.Customers is updated.
+                Audit(connection, transaction, "UpdateCustomer", customer.Id,
+                    $"تعديل بيانات العميل {name}", "Customer");
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+        catch (SqlException ex) when (ex.Number is 2601 or 2627)
+        {
+            throw new SalesDataException("رقم الهاتف مسجل بالفعل لعميل آخر. أدخل رقمًا مختلفًا أو ابحث عن العميل الحالي.", ex);
+        }
+        catch (Exception ex) when (ex is SqlException or (InvalidOperationException and not SalesDataException))
+        {
+            throw Describe(ex, "تعذر حفظ تعديلات العميل في قاعدة البيانات.");
+        }
+    }
+
+    /// <summary>Deletes a customer with no history; archives (IsActive=0) one that has invoices or orders.</summary>
+    public bool DeleteCustomer(int customerId)
+    {
+        if (customerId <= 0) throw new SalesDataException("لا يمكن حذف العميل النقدي (العام).");
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            try
+            {
+                bool hasHistory;
+                using (var check = CreateCommand(connection, transaction, @"
+SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.SalesInvoices WHERE CustomerId=@Id)
+              OR EXISTS (SELECT 1 FROM dbo.MaintenanceOrders WHERE CustomerId=@Id)
+            THEN 1 ELSE 0 END;"))
+                {
+                    check.Parameters.Add("@Id", SqlDbType.Int).Value = customerId;
+                    hasHistory = Convert.ToInt32(check.ExecuteScalar()) == 1;
+                }
+
+                if (hasHistory)
+                {
+                    using var archive = CreateCommand(connection, transaction,
+                        "UPDATE dbo.Customers SET IsActive=0, UpdatedAtUtc=SYSUTCDATETIME() WHERE Id=@Id;");
+                    archive.Parameters.Add("@Id", SqlDbType.Int).Value = customerId;
+                    archive.ExecuteNonQuery();
+                    Audit(connection, transaction, "ArchiveCustomer", customerId,
+                        "أرشفة العميل بعد وجود فواتير بيع أو تذاكر صيانة", "Customer");
+                    transaction.Commit();
+                    return false;
+                }
+
+                using (var delete = CreateCommand(connection, transaction, "DELETE dbo.Customers WHERE Id=@Id;"))
+                {
+                    delete.Parameters.Add("@Id", SqlDbType.Int).Value = customerId;
+                    delete.ExecuteNonQuery();
+                }
+
+                Audit(connection, transaction, "DeleteCustomer", customerId, "حذف عميل بدون سجل مبيعات أو صيانة", "Customer");
+                transaction.Commit();
+                return true;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+        catch (Exception ex) when (ex is SqlException or (InvalidOperationException and not SalesDataException))
+        {
+            throw Describe(ex, "تعذر حذف العميل من قاعدة البيانات.");
+        }
+    }
+
     // ------------------------------------------------------------------- sales
 
     public SavedSale CompleteSale(PosSaleRequest request)
