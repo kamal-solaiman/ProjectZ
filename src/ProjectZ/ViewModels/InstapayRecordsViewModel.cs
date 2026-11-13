@@ -168,13 +168,30 @@ public sealed class InstapayRecordsViewModel : ObservableObject
         var oldDeposit = operation.IsDeposit; var oldAmount = operation.Amount; var oldCommission = operation.Commission;
         var newDeposit = EditKind == "إيداع للعميل";
         if (!CanUndo(operation, out var undoError)) { SetStatus(undoError, true); return false; }
-        ApplyEffect(oldWallet, operation.CustomerNumber, oldAmount, oldCommission, oldDeposit, true, "عكس قبل تعديل");
         var validationError = ValidateNewEffect(EditWallet, newDeposit, amount, commission);
-        if (validationError is not null)
+        if (validationError is not null) { SetStatus(validationError, true); return false; }
+        if (accounts.Repository is not null)
         {
-            ApplyEffect(oldWallet, operation.CustomerNumber, oldAmount, oldCommission, oldDeposit, false, "استرجاع بعد فشل التعديل");
-            FinalizeFinancialChanges(); SetStatus(validationError, true); return false;
+            try
+            {
+                accounts.Repository.UpdateCustomerTransfer(
+                    operation.Id, operation.WalletId, FinancialAccountKind.InstaPay,
+                    oldAmount, oldCommission, oldDeposit, operation.CustomerNumber,
+                    EditWallet.Id, newDeposit ? "DepositToCustomer" : "WithdrawForCustomer",
+                    customer, amount, commission, EditNote.Trim());
+                accounts.NotifyExternalDataChanged();
+                transfers.NotifyExternalDataChanged();
+                ApplyFilters();
+                SetStatus($"تم تعديل العملية رقم {operation.Id} وتسوية الأرصدة في قاعدة البيانات.", false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر تعديل السجل: {ex.Message}", true);
+                return false;
+            }
         }
+        ApplyEffect(oldWallet, operation.CustomerNumber, oldAmount, oldCommission, oldDeposit, true, "عكس قبل تعديل");
         ApplyEffect(EditWallet, customer, amount, commission, newDeposit, false, "تطبيق تعديل السجل");
         operation.WalletId = EditWallet.Id; operation.WalletAlias = EditWallet.Alias; operation.WalletNumber = EditWallet.Identifier;
         operation.Kind = newDeposit ? InstapayOperationKind.DepositToCustomer : InstapayOperationKind.WithdrawForCustomer;
