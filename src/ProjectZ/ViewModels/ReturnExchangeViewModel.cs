@@ -577,9 +577,24 @@ public sealed class ReturnExchangeViewModel : ObservableObject
 
         try
         {
+            // Keep the operator on the same invoice: the reloaded rows are new instances.
+            var previousId = SelectedInvoice?.Id ?? 0;
+            var previousNumber = SelectedInvoice?.InvoiceNumber ?? "";
+
             repository.LoadInvoicesInto(sharedInvoices);
             LoadOperationsFromDatabase();
-            NotifyExternalDataChanged();
+            RefreshFilteredInvoices();
+            RefreshReplacementCatalog();
+            RefreshFilteredOperations();
+            NotifyOperationKpis();
+
+            var restored = sharedInvoices.FirstOrDefault(i => i.Id == previousId)
+                           ?? sharedInvoices.FirstOrDefault(i => i.InvoiceNumber == previousNumber);
+            if (restored is not null)
+            {
+                selectedInvoice = null;      // the previous instance no longer exists in the reloaded list
+                SelectedInvoice = restored;
+            }
             SetStatus($"تم تحميل {sharedInvoices.Count} فاتورة و{sharedOperations.Count} عملية مرتجع/استبدال من قاعدة البيانات.", false);
             return true;
         }
