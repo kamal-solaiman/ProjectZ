@@ -572,7 +572,7 @@ VALUES(@Number,@SupplierNumber,@Supplier,@Name,@Phone,@Company,@Address,@Issued,
                 var unitCount = 0;
                 foreach (var line in request.Lines)
                 {
-                    int lineId;
+                    int lineId = 0;
                     using (var insert = CreateCommand(connection, transaction, @"
 INSERT dbo.PurchaseInvoiceLines(PurchaseInvoiceId,LineNumber,ProductId,BarcodeSnapshot,ProductNameSnapshot,
  CategoryNameSnapshot,UnitNameSnapshot,TrackSerialNumber,Quantity,ReturnedQuantity,UnitPurchaseCost)
@@ -1116,7 +1116,7 @@ WHERE Id=@Id;"))
                     }
                     else
                     {
-                        int newLineId;
+                        int newLineId = 0;
                         using (var insert = CreateCommand(connection, transaction, @"
 INSERT dbo.PurchaseInvoiceLines(PurchaseInvoiceId,LineNumber,ProductId,BarcodeSnapshot,ProductNameSnapshot,
  CategoryNameSnapshot,UnitNameSnapshot,TrackSerialNumber,Quantity,ReturnedQuantity,UnitPurchaseCost)
@@ -1504,7 +1504,7 @@ ORDER BY CASE WHEN @DamagedFirst = 1
         }
     }
 
-    private static void InsertPayment(SqlConnection connection, SqlTransaction transaction, int invoiceId,
+    private void InsertPayment(SqlConnection connection, SqlTransaction transaction, int invoiceId,
         int accountId, int paymentKind, decimal amount, string note)
     {
         using var command = CreateCommand(connection, transaction, @"
@@ -1579,8 +1579,8 @@ WHERE Id = @Id;");
     private static CollectedPurchaseAmounts LoadCollectedAmounts(
         SqlConnection connection, SqlTransaction transaction, int invoiceId)
     {
-        var paid = new Dictionary<byte, decimal>();
-        var refunded = new Dictionary<byte, decimal>();
+        Dictionary<byte, decimal> paid = [];
+        Dictionary<byte, decimal> refunded = [];
 
         using (var command = CreateCommand(connection, transaction, @"
 SELECT a.AccountKind, p.PaymentKind, SUM(p.Amount)
