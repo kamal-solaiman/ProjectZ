@@ -127,6 +127,9 @@ public sealed class PurchaseInvoiceLineDesignItem : ObservableObject
         }
     }
 
+    /// <summary>dbo.PurchaseInvoiceLines.Id for a saved invoice; 0 for a draft that has never been persisted.</summary>
+    public int DatabaseLineId { get; init; }
+
     public int ProductId { get; init; }
     public string Barcode { get; init; } = "";
     public string ProductName { get; init; } = "";

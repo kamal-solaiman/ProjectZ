@@ -49,7 +49,7 @@
                 <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
                     <TextBlock Text="الموردين — الحسابات ودورة التوريد" Style="{StaticResource PosRtlTextStyle}" FontSize="22" FontWeight="Bold" Foreground="#102E48" />
                     <Border Margin="10,0,0,0" Padding="10,4" CornerRadius="8" Background="#ECFEFF" BorderBrush="#67E8F9" BorderThickness="1" VerticalAlignment="Center">
-                        <TextBlock Text="ملف مورد 360° · حساب تلقائي" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0E7490" />
+                        <TextBlock Text="{Binding DataSourceLabel}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0E7490" />
                     </Border>
                 </StackPanel>
                 <TextBlock Text="إدارة بيانات التوريد والتحويل، فواتير المشتريات والمرتجعات، والسداد مع كشف حساب مدين / دائن تراكمي." Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" Foreground="#64748B" Margin="0,2,0,0" />

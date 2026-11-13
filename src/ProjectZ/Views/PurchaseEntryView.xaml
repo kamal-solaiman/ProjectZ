@@ -123,6 +123,20 @@
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
+                        Background="#ECFDF5"
+                        BorderBrush="#A7F3D0"
+                        BorderThickness="1"
+                        VerticalAlignment="Center"
+                        ToolTip="{Binding SupplierSourceLabel}">
+                    <TextBlock Text="{Binding DataSourceLabel}"
+                               Style="{StaticResource PosCenterTextStyle}"
+                               FontSize="11.5"
+                               FontWeight="SemiBold"
+                               Foreground="#0F766E" />
+                </Border>
+                <Border Margin="8,0,0,0"
+                        Padding="10,4"
+                        CornerRadius="12"
                         Background="#F0FDFA"
                         BorderBrush="#99F6E4"
                         BorderThickness="1"

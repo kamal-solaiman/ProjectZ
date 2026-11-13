@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using ProjectZ.Data;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 
@@ -13,6 +14,9 @@ public sealed class PurchaseEntryViewModel : ObservableObject
     private readonly Action? navigateToAddProduct;
     private readonly Action? notifyInventoryChanged;
     private readonly Action? notifyReturnExchangeChanged;
+    /// <summary>Raised when the SQL supplier directory changed so the supplier screen reloads it.</summary>
+    private readonly Action? notifySuppliersChanged;
+    private readonly PurchaseRepository? repository;
 
     private int nextDraftNumber = 1;
     private int nextSupplierId = 100;
@@ -22,7 +26,7 @@ public sealed class PurchaseEntryViewModel : ObservableObject
     private PurchaseInvoiceDesignItem? lastSavedInvoice;
     private string productSearchText = "";
     private string selectedCategoryFilter = "الكل";
-    private string statusMessage = "مرحلة التصميم (بدون Backend): اختر المورد وأضف الأصناف مع تحديد سعر الشراء والكمية، وقسّم الدفع بين كاش وفودافون كاش وإنستاباي أو الآجل.";
+    private string statusMessage = "اختر المورد وأضف الأصناف مع تحديد سعر الشراء والكمية، وقسّم الدفع بين كاش وفودافون كاش وإنستاباي أو الآجل.";
     private bool isErrorStatus;
 
     public string BuyerName { get; }
@@ -160,7 +164,9 @@ public sealed class PurchaseEntryViewModel : ObservableObject
         ObservableCollection<string>? sharedCategories = null,
         Action? navigateToAddProduct = null,
         Action? notifyInventoryChanged = null,
-        Action? notifyReturnExchangeChanged = null)
+        Action? notifyReturnExchangeChanged = null,
+        PurchaseRepository? repository = null,
+        Action? notifySuppliersChanged = null)
     {
         BuyerName = buyerName;
         Catalog = sharedCatalog;
@@ -171,6 +177,8 @@ public sealed class PurchaseEntryViewModel : ObservableObject
         this.navigateToAddProduct = navigateToAddProduct;
         this.notifyInventoryChanged = notifyInventoryChanged;
         this.notifyReturnExchangeChanged = notifyReturnExchangeChanged;
+        this.repository = repository;
+        this.notifySuppliersChanged = notifySuppliersChanged;
 
         nextSupplierId = Suppliers.Count > 0 ? Suppliers.Max(s => s.Id) + 1 : 100;
         nextPurchaseInvoiceId = this.sharedPurchaseInvoices.Count > 0 ? this.sharedPurchaseInvoices.Max(i => i.Id) + 1 : 1;
@@ -209,6 +217,49 @@ public sealed class PurchaseEntryViewModel : ObservableObject
         CreateAndSelectNewDraft();
     }
 
+    /// <summary>True when the screen reads and writes SQL Server instead of the design sample data.</summary>
+    public bool IsConnectedToDatabase => repository is not null;
+
+    public string DataSourceLabel => repository is null
+        ? "معاينة تصميم — بدون قاعدة بيانات"
+        : "متصل بقاعدة البيانات — SQL Server";
+
+    public string SupplierSourceLabel => repository is null
+        ? "الموردون التجريبيون (بدون قاعدة بيانات)"
+        : $"الموردون من dbo.Suppliers ({Suppliers.Count.ToString(CultureInfo.InvariantCulture)})";
+
+    /// <summary>Reloads the supplier directory from SQL so the picker never shows a stale row.</summary>
+    public bool RefreshSuppliersFromDatabase()
+    {
+        if (repository is null) return false;
+
+        try
+        {
+            var selectedId = ActiveInvoice.SelectedSupplier?.Id ?? 0;
+            repository.LoadSuppliersInto(Suppliers);
+
+            if (selectedId > 0)
+            {
+                var restored = Suppliers.FirstOrDefault(s => s.Id == selectedId);
+                if (restored is not null)
+                {
+                    ActiveInvoice.SelectSupplier(restored);
+                }
+                else
+                {
+                    ActiveInvoice.ClearSupplierSelection();
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر تحميل دليل الموردين من قاعدة البيانات.", true);
+            return false;
+        }
+    }
+
     public void NotifyExternalCatalogChanged()
     {
         RebuildCategoryFilters();
@@ -219,10 +270,14 @@ public sealed class PurchaseEntryViewModel : ObservableObject
 
     public void StartNewPurchaseForSupplier(SupplierDesignItem supplier)
     {
-        if (!Suppliers.Contains(supplier)) return;
+        // A SQL reload replaces the supplier instances, so the id is the stable identity.
+        var tracked = Suppliers.FirstOrDefault(s => ReferenceEquals(s, supplier))
+                      ?? Suppliers.FirstOrDefault(s => s.Id == supplier.Id);
+        if (tracked is null) return;
+
         CreateAndSelectNewDraft();
-        ActiveInvoice.SelectSupplier(supplier);
-        SetStatus($"تم فتح فاتورة شراء جديدة للمورد «{supplier.Name}». أضف الأصناف ثم حدد طريقة السداد.", false);
+        ActiveInvoice.SelectSupplier(tracked);
+        SetStatus($"تم فتح فاتورة شراء جديدة للمورد «{tracked.Name}». أضف الأصناف ثم حدد طريقة السداد.", false);
         FocusBarcodeInputRequested?.Invoke();
     }
 
@@ -328,9 +383,41 @@ public sealed class PurchaseEntryViewModel : ObservableObject
         var initialQuery = ActiveInvoice.SupplierSearchText;
         OpenAddSupplierRequested?.Invoke(
             initialQuery,
-            name => Suppliers.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)),
+            name => repository is not null
+                ? repository.LoadSupplierNames().Contains(name)
+                : Suppliers.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)),
             newSupplier =>
             {
+                if (repository is not null)
+                {
+                    SupplierDesignItem createdFromSql;
+                    try
+                    {
+                        createdFromSql = repository.CreateSupplier(
+                            newSupplier.Name,
+                            newSupplier.Phone,
+                            newSupplier.SecondaryPhone,
+                            newSupplier.CompanyName,
+                            newSupplier.Specialization,
+                            newSupplier.Address,
+                            newSupplier.VodafoneCashNumber,
+                            newSupplier.InstaPayAddress,
+                            newSupplier.Notes);
+                    }
+                    catch (Exception ex)
+                    {
+                        SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر حفظ المورد في قاعدة البيانات.", true);
+                        return;
+                    }
+
+                    RefreshSuppliersFromDatabase();
+                    var tracked = Suppliers.FirstOrDefault(s => s.Id == createdFromSql.Id) ?? createdFromSql;
+                    ActiveInvoice.SelectSupplier(tracked);
+                    notifySuppliersChanged?.Invoke();
+                    SetStatus($"تم حفظ المورد «{tracked.Name}» ({tracked.SupplierCodeDisplay}) في قاعدة البيانات وربطه بفاتورة الشراء الحالية.", false);
+                    return;
+                }
+
                 var assigned = new SupplierDesignItem
                 {
                     Id = nextSupplierId++,
@@ -406,6 +493,13 @@ public sealed class PurchaseEntryViewModel : ObservableObject
         }
 
         var supplier = ActiveInvoice.SelectedSupplier;
+
+        if (repository is not null)
+        {
+            SavePurchaseInvoiceToDatabase(openPrintAfter);
+            return;
+        }
+
         var maxExistingId = sharedPurchaseInvoices.Count > 0 ? sharedPurchaseInvoices.Max(i => i.Id) : 0;
         var invoiceId = Math.Max(nextPurchaseInvoiceId, maxExistingId + 1);
         nextPurchaseInvoiceId = invoiceId + 1;
@@ -546,6 +640,73 @@ public sealed class PurchaseEntryViewModel : ObservableObject
             FilteredCatalog.Add(item);
 
         Changed(nameof(HasNoFilteredProducts));
+    }
+
+    /// <summary>
+    /// Persists the active draft through PurchaseRepository: header, lines, stock units, payments and
+    /// the activity trail are written in one transaction, then every screen is re-read from SQL.
+    /// </summary>
+    private void SavePurchaseInvoiceToDatabase(bool openPrintAfter)
+    {
+        if (repository is null) return;
+
+        var supplier = ActiveInvoice.SelectedSupplier!;
+        var request = new PurchaseInvoiceRequest(
+            supplier.Id,
+            ActiveInvoice.SupplierInvoiceNumber.Trim(),
+            ActiveInvoice.PurchaseDate.Date.Add(DateTime.Now.TimeOfDay),
+            ActiveInvoice.EffectiveDiscount,
+            ActiveInvoice.Items.Select(item => new PurchaseLineRequest(
+                item.Product.Id,
+                item.Product.Barcode,
+                item.Product.Name,
+                item.Product.Category,
+                item.Product.UnitDisplay,
+                item.Product.TrackSerialNumber,
+                item.Quantity,
+                item.UnitPurchaseCost)).ToList(),
+            ActiveInvoice.CashAmount,
+            ActiveInvoice.VodafoneCashAmount,
+            ActiveInvoice.InstaPayAmount,
+            ActiveInvoice.Notes.Trim());
+
+        SavedPurchase saved;
+        try
+        {
+            saved = repository.CreateInvoice(request);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر حفظ فاتورة الشراء في قاعدة البيانات.", true);
+            return;
+        }
+
+        // Re-read from SQL: the invoice rows, the stock units and the cash balances all changed.
+        repository.LoadSuppliersInto(Suppliers);
+        repository.LoadInvoicesInto(sharedPurchaseInvoices);
+        notifySuppliersChanged?.Invoke();
+        notifyInventoryChanged?.Invoke();
+        notifyReturnExchangeChanged?.Invoke();
+        NotifyExternalCatalogChanged();
+
+        LastSavedInvoice = sharedPurchaseInvoices.FirstOrDefault(i => i.Id == saved.InvoiceId)
+                           ?? sharedPurchaseInvoices.FirstOrDefault();
+
+        var creditSuffix = saved.RemainingPayable > 0m
+            ? $" | متبقي آجل للمورد: {PosFormatting.FormatCurrency(saved.RemainingPayable)}"
+            : "";
+
+        ActiveInvoice.ClearInvoice();
+        var keepSupplier = Suppliers.FirstOrDefault(s => s.Id == supplier.Id) ?? Suppliers.FirstOrDefault();
+        if (keepSupplier is not null)
+            ActiveInvoice.SelectSupplier(keepSupplier);
+
+        SetStatus(
+            $"تم حفظ فاتورة الشراء {saved.InvoiceNumber} للمورد «{supplier.Name}» في قاعدة البيانات وتوريد الأصناف للمخزون (الصافي {PosFormatting.FormatCurrency(saved.NetTotal)}{creditSuffix}).",
+            false);
+
+        if (openPrintAfter && LastSavedInvoice is not null)
+            OpenPrintPreviewRequested?.Invoke(new PurchaseInvoicePrintPreviewViewModel(LastSavedInvoice));
     }
 
     private void SetStatus(string message, bool isError)

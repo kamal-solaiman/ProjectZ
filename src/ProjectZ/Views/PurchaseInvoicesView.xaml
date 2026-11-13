@@ -91,6 +91,12 @@
                         Padding="12,7"
                         FontSize="12"
                         Command="{Binding ClearFiltersCommand}" />
+                <Button Content="تحديث من قاعدة البيانات"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource PosOutlineTealButtonStyle}"
+                        Padding="12,7"
+                        FontSize="12"
+                        Command="{Binding RefreshFromDatabaseCommand}" />
             </StackPanel>
 
             <StackPanel Grid.Column="1"
@@ -107,15 +113,16 @@
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
-                        Background="#E0F2FE"
-                        BorderBrush="#BAE6FD"
+                        Background="#ECFDF5"
+                        BorderBrush="#A7F3D0"
                         BorderThickness="1"
-                        VerticalAlignment="Center">
-                    <TextBlock Text="تصميم الواجهة — بدون Backend"
+                        VerticalAlignment="Center"
+                        ToolTip="{Binding HistorySourceLabel}">
+                    <TextBlock Text="{Binding DataSourceLabel}"
                                Style="{StaticResource PosCenterTextStyle}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
-                               Foreground="#0369A1" />
+                               Foreground="#0F766E" />
                 </Border>
             </StackPanel>
         </Grid>
