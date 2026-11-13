@@ -205,53 +205,10 @@ public sealed class InvoicesViewModel : ObservableObject
 
     public bool HasNoFilteredInvoices => FilteredInvoices.Count == 0;
 
-    // KPI Summaries (computed on FilteredInvoices so date/cashier/status filters reflect live)
-    public string InvoicesCountDisplay => $"{FilteredInvoices.Count} فاتورة";
-    public string InvoicesBreakdownSummary
-    {
-        get
-        {
-            var completed = FilteredInvoices.Count(i => i.IsCompleted);
-            var credit = FilteredInvoices.Count(i => i.HasRemaining);
-            var returned = FilteredInvoices.Count(i => i.IsPartiallyReturned || i.IsFullyReturned);
-            return $"مكتملة: {completed} · آجل: {credit} · مرتجع: {returned}";
-        }
-    }
-
-    public decimal TotalNetSales => FilteredInvoices.Sum(i => i.EffectiveNetSales);
-    public string TotalNetSalesDisplay => PosFormatting.FormatCurrency(TotalNetSales);
-    public string TotalDiscountsSubtext => $"الخصومات: {PosFormatting.FormatCurrency(FilteredInvoices.Where(i => !i.IsCancelled && !i.IsFullyReturned).Sum(i => i.EffectiveDiscount))}";
-
-    public decimal TotalCost => FilteredInvoices.Sum(i => i.TotalCost);
-    public decimal TotalProfit => FilteredInvoices.Sum(i => i.NetProfit);
-    public string TotalProfitDisplay => PosFormatting.FormatCurrency(TotalProfit);
-    public string TotalCostAndMarginDisplay
-    {
-        get
-        {
-            var margin = TotalNetSales > 0m ? Math.Round((TotalProfit / TotalNetSales) * 100m, 1) : 0m;
-            return $"التكلفة: {PosFormatting.FormatCurrency(TotalCost)} · هامش {margin.ToString("0.#", CultureInfo.InvariantCulture)}%";
-        }
-    }
-
-    public decimal TotalCashCollected => FilteredInvoices.Where(i => !i.IsCancelled).Sum(i => Math.Max(0m, i.CashPaid - Math.Min(i.CashPaid, i.RefundedAmount)));
-    public decimal TotalVodafoneCollected => FilteredInvoices.Where(i => !i.IsCancelled).Sum(i => i.VodafoneCashPaid);
-    public decimal TotalInstaPayCollected => FilteredInvoices.Where(i => !i.IsCancelled).Sum(i => i.InstaPayPaid);
-    public decimal TotalCollectedAll => FilteredInvoices.Sum(i => i.NetCollected);
-    public string TotalCollectedAllDisplay => PosFormatting.FormatCurrency(TotalCollectedAll);
-    public string ChannelsBreakdownDisplay =>
-        $"كاش: {PosFormatting.FormatNumber(TotalCashCollected)} · فودافون: {PosFormatting.FormatNumber(TotalVodafoneCollected)} · إنستاباي: {PosFormatting.FormatNumber(TotalInstaPayCollected)}";
-
-    public decimal TotalRemaining => FilteredInvoices.Sum(i => i.RemainingAmount);
-    public decimal TotalReturned => FilteredInvoices.Sum(i => i.ReturnedTotal);
-    public string TotalRemainingDisplay => PosFormatting.FormatCurrency(TotalRemaining);
-    public string TotalReturnedSubtext => $"المرتجعات: {PosFormatting.FormatCurrency(TotalReturned)}";
-
     public ActionCommand GoToPosCommand { get; }
     public ActionCommand ClearFiltersCommand { get; }
     public ActionCommand ClearSearchCommand { get; }
     public RelayCommand<string> SelectDatePresetCommand { get; }
-    public ActionCommand FilterCreditOnlyCommand { get; }
     public RelayCommand<SalesInvoiceDesignItem> SelectInvoiceCommand { get; }
     public RelayCommand<SalesInvoiceDesignItem> OpenPrintPreviewCommand { get; }
     public RelayCommand<SalesInvoiceDesignItem> OpenReturnDialogCommand { get; }
@@ -322,10 +279,6 @@ public sealed class InvoicesViewModel : ObservableObject
         {
             if (!string.IsNullOrWhiteSpace(preset))
                 SelectedDatePreset = preset;
-        });
-        FilterCreditOnlyCommand = new ActionCommand(() =>
-        {
-            SelectedStatusFilter = SelectedStatusFilter == "آجل / متبقي" ? "الكل" : "آجل / متبقي";
         });
 
         SelectInvoiceCommand = new RelayCommand<SalesInvoiceDesignItem>(inv =>
@@ -582,7 +535,6 @@ public sealed class InvoicesViewModel : ObservableObject
             nextInvoiceId = sharedInvoices.Count > 0 ? sharedInvoices.Max(i => i.Id) + 1 : 1;
             RebuildCashierFilters();
             RefreshFilteredInvoices();
-            NotifyKpis();
             SetStatus("تم تحميل فواتير البيع المحفوظة من قاعدة البيانات.", false);
             return true;
         }
@@ -602,7 +554,6 @@ public sealed class InvoicesViewModel : ObservableObject
     {
         RebuildCashierFilters();
         RefreshFilteredInvoices();
-        NotifyKpis();
     }
 
     private void SaveSelectedNotes()
@@ -785,7 +736,6 @@ public sealed class InvoicesViewModel : ObservableObject
             notifyInventoryChanged?.Invoke();
             notifyReturnExchangeChanged?.Invoke();
             RefreshFilteredInvoices();
-            NotifyKpis();
             SetStatus($"تم تسجيل مرتجع على الفاتورة {invoice.InvoiceNumber} ({returnedUnitsCount} قطعة) وتحديث المخزون.", false);
             return null;
         });
@@ -847,7 +797,6 @@ public sealed class InvoicesViewModel : ObservableObject
             });
 
             RefreshFilteredInvoices();
-            NotifyKpis();
             notifyReturnExchangeChanged?.Invoke();
             notifyInventoryChanged?.Invoke();
             SetStatus($"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber} وحفظها في قاعدة البيانات.", false);
@@ -924,7 +873,6 @@ public sealed class InvoicesViewModel : ObservableObject
             notifyInventoryChanged?.Invoke();
             notifyReturnExchangeChanged?.Invoke();
             RefreshFilteredInvoices();
-            NotifyKpis();
             SetStatus($"تم إلغاء الفاتورة {invoice.InvoiceNumber} وإعادة أصنافها للمخزون.", false);
         });
     }
@@ -981,7 +929,6 @@ public sealed class InvoicesViewModel : ObservableObject
 
         notifyReturnExchangeChanged?.Invoke();
         RefreshFilteredInvoices();
-        NotifyKpis();
 
         // Reload the invoice rows after the SQL write so returned quantities and new activity come from the database.
         if (!RefreshInvoicesFromDatabase())
@@ -1023,7 +970,6 @@ public sealed class InvoicesViewModel : ObservableObject
 
         notifyReturnExchangeChanged?.Invoke();
         RefreshFilteredInvoices();
-        NotifyKpis();
 
         if (!RefreshInvoicesFromDatabase())
             KeepInvoiceSelection(invoice.Id);
@@ -1145,30 +1091,6 @@ public sealed class InvoicesViewModel : ObservableObject
             SelectedInvoice = FilteredInvoices.FirstOrDefault();
 
         Changed(nameof(HasNoFilteredInvoices));
-        NotifyKpis();
-    }
-
-    private void NotifyKpis()
-    {
-        Changed(nameof(InvoicesCountDisplay));
-        Changed(nameof(InvoicesBreakdownSummary));
-        Changed(nameof(TotalNetSales));
-        Changed(nameof(TotalNetSalesDisplay));
-        Changed(nameof(TotalDiscountsSubtext));
-        Changed(nameof(TotalCost));
-        Changed(nameof(TotalProfit));
-        Changed(nameof(TotalProfitDisplay));
-        Changed(nameof(TotalCostAndMarginDisplay));
-        Changed(nameof(TotalCashCollected));
-        Changed(nameof(TotalVodafoneCollected));
-        Changed(nameof(TotalInstaPayCollected));
-        Changed(nameof(TotalCollectedAll));
-        Changed(nameof(TotalCollectedAllDisplay));
-        Changed(nameof(ChannelsBreakdownDisplay));
-        Changed(nameof(TotalRemaining));
-        Changed(nameof(TotalReturned));
-        Changed(nameof(TotalRemainingDisplay));
-        Changed(nameof(TotalReturnedSubtext));
     }
 
     private void SetStatus(string message, bool isError)
