@@ -215,7 +215,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
                     accounts.Repository.ReverseCustomerTransfer(
                         operation.Id, operation.WalletId, FinancialAccountKind.VodafoneCash,
                         operation.IsDeposit ? -operation.Amount : operation.Amount, operation.CashDelta,
-                        $"عكس عملية فودافون رقم {operation.Id}");
+                        operation.CustomerNumber, $"عكس عملية فودافون رقم {operation.Id}");
                     accounts.NotifyExternalDataChanged();
                     transfers.NotifyExternalDataChanged();
                     ApplyFilters();
@@ -251,7 +251,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
                         accounts.Repository.ReverseCustomerTransfer(
                             operation.Id, operation.WalletId, FinancialAccountKind.VodafoneCash,
                             operation.IsDeposit ? -operation.Amount : operation.Amount, operation.CashDelta,
-                            $"تسوية حذف سجل فودافون رقم {operation.Id}");
+                            operation.CustomerNumber, $"تسوية حذف سجل فودافون رقم {operation.Id}");
                     }
                     accounts.NotifyExternalDataChanged();
                     transfers.NotifyExternalDataChanged();
