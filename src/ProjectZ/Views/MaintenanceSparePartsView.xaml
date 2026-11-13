@@ -34,7 +34,6 @@
     <Grid FlowDirection="LeftToRight" Margin="20,16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -85,49 +84,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- ══════════ ROW 1: KPI CARDS ══════════ -->
-        <Grid Grid.Row="1" FlowDirection="RightToLeft" Margin="0,0,0,14">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0" Style="{StaticResource SpareKpiCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="إجمالي الأصناف المسجلة" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#64748B" />
-                    <TextBlock Text="{Binding TotalPartsCountDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="#102E48" Margin="0,4,0,0" />
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Column="2" Style="{StaticResource SpareKpiCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="إجمالي القطع المتاحة" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#64748B" />
-                    <TextBlock Text="{Binding TotalQuantityUnitsDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="#147D92" Margin="0,4,0,0" />
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Column="4" Style="{StaticResource SpareKpiCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="إجمالي قيمة المخزون (بالتكلفة)" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#64748B" />
-                    <TextBlock Text="{Binding TotalCostValueDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="20" FontWeight="Bold" Foreground="#0F766E" Margin="0,4,0,0" />
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Column="6" Style="{StaticResource SpareKpiCardStyle}" BorderBrush="#FCD34D" Background="#FFFBEB">
-                <StackPanel>
-                    <TextBlock Text="رصيد منخفض أو نافد (≤ 3)" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#92400E" />
-                    <TextBlock Text="{Binding LowOrOutCountDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="#B45309" Margin="0,4,0,0" />
-                </StackPanel>
-            </Border>
-        </Grid>
-
-        <!-- ══════════ ROW 2: WORKSPACE (TABLE LEFT + FORM RIGHT) ══════════ -->
-        <Grid Grid.Row="2">
+        <!-- ══════════ ROW 1: WORKSPACE (TABLE LEFT + FORM RIGHT) ══════════ -->
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="14" />
@@ -591,8 +549,8 @@
             </Border>
         </Grid>
 
-        <!-- ══════════ ROW 3: STATUS BAR ══════════ -->
-        <Border Grid.Row="3"
+        <!-- ══════════ ROW 2: STATUS BAR ══════════ -->
+        <Border Grid.Row="2"
                 Margin="0,12,0,0"
                 Padding="12,9"
                 CornerRadius="10"

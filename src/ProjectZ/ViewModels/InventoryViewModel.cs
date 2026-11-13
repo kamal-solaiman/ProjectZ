@@ -190,9 +190,8 @@ public sealed class InventoryViewModel : ObservableObject
 
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
+    // Tab labels only; the summary KPI cards were removed from the screen on request.
     public int TotalProductsCount => sharedCatalog.Count;
-    public int TotalAvailableStock => sharedCatalog.Sum(p => p.AvailableStock);
-    public int LowStockCount => sharedCatalog.Count(p => p.IsLowStock);
     public int TotalDamagedCount => sharedCatalog.Sum(p => p.DamagedCount);
     public string CatalogTabLabel => $"قائمة البضاعة المسجلة ({TotalProductsCount})";
     public string DamagedTabLabel => $"قائمة مخزون الهالك ({TotalDamagedCount})";
@@ -1077,8 +1076,6 @@ public sealed class InventoryViewModel : ObservableObject
     private void NotifyKpis()
     {
         Changed(nameof(TotalProductsCount));
-        Changed(nameof(TotalAvailableStock));
-        Changed(nameof(LowStockCount));
         Changed(nameof(TotalDamagedCount));
         Changed(nameof(CatalogTabLabel));
         Changed(nameof(DamagedTabLabel));

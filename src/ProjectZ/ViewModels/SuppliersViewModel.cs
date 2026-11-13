@@ -136,14 +136,6 @@ public sealed class SuppliersViewModel : ObservableObject
     public bool HasNoSelectedSupplierInvoices => SelectedSupplierInvoices.Count == 0;
     public bool HasNoSelectedSupplierStatement => SelectedSupplierStatement.Count == 0;
 
-    public string TotalSuppliersCountDisplay => $"{sharedSuppliers.Count} مورد";
-    public string SpecializationsBreakdownSubtext => $"{SpecializationFilterOptions.Count - 1} تخصصات · {allEntries.Count(e => e.HasTransactions)} لديهم تعاملات";
-    public string TotalPurchasesDisplay => PosFormatting.FormatCurrency(allEntries.Sum(e => e.TotalPurchases));
-    public string PurchasesBreakdownSubtext => $"{allEntries.Sum(e => e.InvoicesCount)} فاتورة · مرتجعات {PosFormatting.FormatCurrency(allEntries.Sum(e => e.TotalReturns))}";
-    public string TotalPaidAllDisplay => PosFormatting.FormatCurrency(allEntries.Sum(e => e.TotalPaid));
-    public string PaymentsBreakdownSubtext => $"فواتير مفتوحة: {allEntries.Sum(e => e.OpenInvoicesCount)}";
-    public string TotalOutstandingAllDisplay => PosFormatting.FormatCurrency(allEntries.Sum(e => e.Outstanding));
-    public string CreditorsCountSubtext { get { var count = allEntries.Count(e => e.HasOutstanding); return count == 0 ? "لا توجد مستحقات مفتوحة" : $"مستحق لـ {count} موردين"; } }
 
     public string StatusMessage { get => statusMessage; private set { if (statusMessage == value) return; statusMessage = value; Changed(); Changed(nameof(HasStatusMessage)); } }
     public bool IsErrorStatus { get => isErrorStatus; private set { if (isErrorStatus == value) return; isErrorStatus = value; Changed(); } }
@@ -365,7 +357,6 @@ public sealed class SuppliersViewModel : ObservableObject
         SpecializationFilterOptions.Clear(); SpecializationFilterOptions.Add("كل التخصصات");
         foreach (var item in values) SpecializationFilterOptions.Add(item);
         if (!SpecializationFilterOptions.Contains(current)) SelectedSpecializationFilter = "كل التخصصات";
-        Changed(nameof(SpecializationsBreakdownSubtext));
     }
 
     private void RebuildEntriesAndRefresh(int? selectSupplierId = null)
@@ -378,7 +369,7 @@ public sealed class SuppliersViewModel : ObservableObject
             entry.Recalculate(sharedPurchaseInvoices.Where(i => i.SupplierId == supplier.Id));
             allEntries.Add(entry);
         }
-        NotifyKpis(); RefreshFilteredSuppliers(previousId);
+        RefreshFilteredSuppliers(previousId);
     }
 
     private void RefreshFilteredSuppliers(int? preferredId = null)
@@ -452,14 +443,6 @@ public sealed class SuppliersViewModel : ObservableObject
             balance += e.Credit - e.Debit;
             return new SupplierStatementRow { Timestamp = e.At, Description = e.Text, Reference = e.Ref, Debit = e.Debit, Credit = e.Credit, RunningBalance = balance };
         }).ToList();
-    }
-
-    private void NotifyKpis()
-    {
-        Changed(nameof(TotalSuppliersCountDisplay)); Changed(nameof(SpecializationsBreakdownSubtext));
-        Changed(nameof(TotalPurchasesDisplay)); Changed(nameof(PurchasesBreakdownSubtext));
-        Changed(nameof(TotalPaidAllDisplay)); Changed(nameof(PaymentsBreakdownSubtext));
-        Changed(nameof(TotalOutstandingAllDisplay)); Changed(nameof(CreditorsCountSubtext));
     }
 
     private void SetStatus(string message, bool isError) { IsErrorStatus = isError; StatusMessage = message; }

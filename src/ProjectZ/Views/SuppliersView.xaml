@@ -36,7 +36,7 @@
     </UserControl.Resources>
 
     <Grid FlowDirection="LeftToRight" Margin="18,14">
-        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
         <!-- Header -->
         <Grid Margin="0,0,0,12">
@@ -56,33 +56,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- Four financial KPI cards -->
-        <Grid Grid.Row="1" FlowDirection="RightToLeft" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Style="{StaticResource SupKpi}"><StackPanel>
-                <TextBlock Text="الموردون المسجلون" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#64748B" />
-                <TextBlock Text="{Binding TotalSuppliersCountDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="19" FontWeight="Bold" Foreground="#102E48" Margin="0,3,0,0" />
-                <TextBlock Text="{Binding SpecializationsBreakdownSubtext}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#147D92" />
-            </StackPanel></Border>
-            <Border Grid.Column="2" Style="{StaticResource SupKpi}"><StackPanel>
-                <TextBlock Text="صافي المشتريات" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#64748B" />
-                <TextBlock Text="{Binding TotalPurchasesDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="19" FontWeight="Bold" Foreground="#102E48" Margin="0,3,0,0" />
-                <TextBlock Text="{Binding PurchasesBreakdownSubtext}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#475569" TextTrimming="CharacterEllipsis" />
-            </StackPanel></Border>
-            <Border Grid.Column="4" Style="{StaticResource SupKpi}"><StackPanel>
-                <TextBlock Text="إجمالي المسدد للموردين" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#64748B" />
-                <TextBlock Text="{Binding TotalPaidAllDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="19" FontWeight="Bold" Foreground="#0F766E" Margin="0,3,0,0" />
-                <TextBlock Text="{Binding PaymentsBreakdownSubtext}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#64748B" />
-            </StackPanel></Border>
-            <Border Grid.Column="6" Style="{StaticResource SupKpi}" Background="#FFFBEB" BorderBrush="#FCD34D"><StackPanel>
-                <TextBlock Text="المستحق للموردين" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#92400E" />
-                <TextBlock Text="{Binding TotalOutstandingAllDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="19" FontWeight="Bold" Foreground="#B42318" Margin="0,3,0,0" />
-                <TextBlock Text="{Binding CreditorsCountSubtext}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="#B45309" />
-            </StackPanel></Border>
-        </Grid>
-
         <!-- Search and filters -->
-        <Border Grid.Row="2" Style="{StaticResource SupCard}" Padding="12,10" Margin="0,0,0,12">
+        <Border Grid.Row="1" Style="{StaticResource SupCard}" Padding="12,10" Margin="0,0,0,12">
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="8" /><ColumnDefinition Width="155" /><ColumnDefinition Width="8" /><ColumnDefinition Width="165" /><ColumnDefinition Width="8" /><ColumnDefinition Width="145" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                 <Button Content="إلغاء الفلاتر" Style="{StaticResource PosSecondaryButtonStyle}" Padding="12,7" Command="{Binding ClearFiltersCommand}" />
@@ -98,7 +73,7 @@
         </Border>
 
         <!-- Master / 360 details -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="480" /><ColumnDefinition Width="12" /><ColumnDefinition Width="520" /></Grid.ColumnDefinitions>
             <Border Style="{StaticResource SupCard}" Padding="10">
                 <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
@@ -247,7 +222,7 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="4" Margin="0,10,0,0" Padding="12,8" CornerRadius="10" BorderThickness="1" Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVis}}">
+        <Border Grid.Row="3" Margin="0,10,0,0" Padding="12,8" CornerRadius="10" BorderThickness="1" Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVis}}">
             <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="#ECFDF5" /><Setter Property="BorderBrush" Value="#A7F3D0" /><Style.Triggers><DataTrigger Binding="{Binding IsErrorStatus}" Value="True"><Setter Property="Background" Value="#FEF2F2" /><Setter Property="BorderBrush" Value="#FECACA" /></DataTrigger></Style.Triggers></Style></Border.Style>
             <TextBlock Text="{Binding StatusMessage}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}"><Setter Property="Foreground" Value="#065F46" /><Style.Triggers><DataTrigger Binding="{Binding IsErrorStatus}" Value="True"><Setter Property="Foreground" Value="#991B1B" /></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
         </Border>

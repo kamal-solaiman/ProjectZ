@@ -144,11 +144,6 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
 
     public bool HasNoFilteredSpareParts => FilteredSpareParts.Count == 0;
 
-    // Summary KPIs
-    public string TotalPartsCountDisplay => $"{sharedSpareParts.Count} صنف";
-    public string TotalQuantityUnitsDisplay => $"{sharedSpareParts.Sum(p => p.Quantity)} قطعة";
-    public string TotalCostValueDisplay => PosFormatting.FormatCurrency(sharedSpareParts.Sum(p => p.TotalCostValue));
-    public string LowOrOutCountDisplay => $"{sharedSpareParts.Count(p => p.IsOutOfStock || p.IsLowStock)} صنف";
 
     public string StatusMessage
     {
@@ -231,14 +226,12 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
     {
         RebuildCategoryFilterOptions();
         RefreshFilteredSpareParts();
-        NotifySummaryKpis();
     }
 
     private void OnSparePartsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         RebuildCategoryFilterOptions();
         RefreshFilteredSpareParts();
-        NotifySummaryKpis();
     }
 
     private void SavePart()
@@ -306,7 +299,6 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
             ClearFormFields();
             RebuildCategoryFilterOptions();
             RefreshFilteredSpareParts();
-            NotifySummaryKpis();
             notifySparePartsChanged?.Invoke();
 
             SetStatus($"تم حفظ تعديلات قطعة الغيار «{trimmedName}» ({editedCode}) ومزامنتها مع إجراءات الصيانة.", false);
@@ -495,14 +487,6 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         }
 
         Changed(nameof(HasNoFilteredSpareParts));
-    }
-
-    private void NotifySummaryKpis()
-    {
-        Changed(nameof(TotalPartsCountDisplay));
-        Changed(nameof(TotalQuantityUnitsDisplay));
-        Changed(nameof(TotalCostValueDisplay));
-        Changed(nameof(LowOrOutCountDisplay));
     }
 
     private void SetStatus(string message, bool isError)
