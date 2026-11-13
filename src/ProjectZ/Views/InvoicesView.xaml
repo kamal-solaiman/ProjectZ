@@ -99,7 +99,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -152,64 +151,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- ROW 1: 5 KPI Summary Cards -->
-        <UniformGrid Grid.Row="1" Columns="5" Margin="0,0,0,10" FlowDirection="RightToLeft">
-            <!-- KPI 1: Invoices Count -->
-            <Border Margin="0,0,0,0" Padding="11,9" CornerRadius="11" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="عدد الفواتير" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" />
-                    <TextBlock Text="{Binding InvoicesCountDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#102E48" />
-                    <TextBlock Text="{Binding InvoicesBreakdownSummary}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10.5" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Border>
-
-            <!-- KPI 2: Net Sales -->
-            <Border Margin="0,0,8,0" Padding="11,9" CornerRadius="11" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="صافي المبيعات" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F766E" />
-                    <TextBlock Text="{Binding TotalNetSalesDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#0F766E" />
-                    <TextBlock Text="{Binding TotalDiscountsSubtext}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10.5" Foreground="#0D9488" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Border>
-
-            <!-- KPI 3: Cost & Net Profit -->
-            <Border Margin="0,0,8,0" Padding="11,9" CornerRadius="11" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="صافي الربح" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#1D4ED8" />
-                    <TextBlock Text="{Binding TotalProfitDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#1E40AF" />
-                    <TextBlock Text="{Binding TotalCostAndMarginDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10.5" Foreground="#2563EB" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Border>
-
-            <!-- KPI 4: Payment Channels Collection -->
-            <Border Margin="0,0,8,0" Padding="11,9" CornerRadius="11" Background="#F5F3FF" BorderBrush="#DDD6FE" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="إجمالي التحصيلات" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#6D28D9" />
-                    <TextBlock Text="{Binding TotalCollectedAllDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#5B21B6" />
-                    <TextBlock Text="{Binding ChannelsBreakdownDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10" Foreground="#7C3AED" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Border>
-
-            <!-- KPI 5: Credit Remaining & Returns (Clickable Quick Filter) -->
-            <Button Margin="0,0,8,0"
-                    Cursor="Hand"
-                    Command="{Binding FilterCreditOnlyCommand}">
-                <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                        <Border Padding="11,9" CornerRadius="11" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="المتبقي الآجل (اضغط للتصفية)" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="#B45309" />
-                                <TextBlock Text="{Binding TotalRemainingDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#B42318" />
-                                <TextBlock Text="{Binding TotalReturnedSubtext}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10.5" Foreground="#92400E" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                        </Border>
-                    </ControlTemplate>
-                </Button.Template>
-            </Button>
-        </UniformGrid>
-
-        <!-- ROW 2: Search & Multi-Filters Bar -->
-        <Border Grid.Row="2"
+        <!-- ROW 1: Search & Multi-Filters Bar -->
+        <Border Grid.Row="1"
                 Margin="0,0,0,10"
                 Padding="11,9"
                 CornerRadius="12"
@@ -375,8 +318,8 @@
             </StackPanel>
         </Border>
 
-        <!-- ROW 3: Master-Detail Split View -->
-        <Grid Grid.Row="3" FlowDirection="LeftToRight">
+        <!-- ROW 2: Master-Detail Split View -->
+        <Grid Grid.Row="2" FlowDirection="LeftToRight">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="485" MinWidth="390" />
                 <ColumnDefinition Width="8" />
@@ -1075,8 +1018,8 @@
             </Border>
         </Grid>
 
-        <!-- ROW 4: Status Strip -->
-        <Border Grid.Row="4"
+        <!-- ROW 3: Status Strip -->
+        <Border Grid.Row="3"
                 Margin="0,10,0,0"
                 Padding="12,8"
                 CornerRadius="10"

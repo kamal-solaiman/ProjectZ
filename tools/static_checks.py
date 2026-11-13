@@ -468,6 +468,18 @@ for token in (
 ):
     assert token in invoices_xaml, f'Invoices UI missing expected token: {token}'
 
+# The five quick-view KPI cards were removed from the invoices screen on request; keep the table and the
+# filters as the source of that information and fail the check if the boxes ever come back.
+for removed_kpi in ('عدد الفواتير', 'صافي المبيعات', 'إجمالي التحصيلات', 'المتبقي الآجل (اضغط للتصفية)'):
+    assert removed_kpi not in invoices_xaml, f'removed invoice KPI card is back in the UI: {removed_kpi}'
+# "صافي الربح" remains only as a label inside the per-invoice detail panel, never as a summary card.
+assert invoices_xaml.count('صافي الربح') == 1
+assert '<UniformGrid Grid.Row="1" Columns="5"' not in invoices_xaml
+for removed_binding in ('InvoicesCountDisplay', 'TotalNetSalesDisplay', 'TotalProfitDisplay',
+                        'TotalCollectedAllDisplay', 'TotalRemainingDisplay', 'FilterCreditOnlyCommand'):
+    assert removed_binding not in invoices_xaml, f'removed invoice KPI binding is back: {removed_binding}'
+assert 'SelectDatePresetCommand' in invoices_xaml and 'FilteredInvoices' in invoices_xaml
+
 assert 'IsReturnExchangeSelected' in main_viewmodel and 'IsReturnExchangeSelected' in main_xaml
 assert 'views:ReturnExchangeView' in main_xaml
 assert 'sharedReturnOperations' in main_viewmodel
