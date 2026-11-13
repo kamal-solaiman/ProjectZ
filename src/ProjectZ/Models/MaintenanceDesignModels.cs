@@ -73,11 +73,26 @@ public sealed class MaintenanceSparePartItem : ObservableObject
     private string name = "";
     private string category = "شاشات";
     private int quantity;
+    private int minimumStockAlert = 3;
     private decimal costPrice;
     private decimal sellPrice;
     private bool isSelected;
 
     public int Id { get; init; }
+
+    public int MinimumStockAlert
+    {
+        get => minimumStockAlert;
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (minimumStockAlert == clamped) return;
+            minimumStockAlert = clamped;
+            Changed();
+            Changed(nameof(IsLowStock));
+            Changed(nameof(StockStatusTitle));
+        }
+    }
 
     public string Name
     {
@@ -173,7 +188,7 @@ public sealed class MaintenanceSparePartItem : ObservableObject
     public decimal TotalCostValue => Quantity * CostPrice;
     public string TotalCostValueDisplay => PosFormatting.FormatCurrency(TotalCostValue);
     public bool IsOutOfStock => Quantity <= 0;
-    public bool IsLowStock => Quantity > 0 && Quantity <= 3;
+    public bool IsLowStock => Quantity > 0 && Quantity <= MinimumStockAlert;
     public string StockStatusTitle => IsOutOfStock ? "نفد" : (IsLowStock ? "منخفض" : "متاح");
 }
 

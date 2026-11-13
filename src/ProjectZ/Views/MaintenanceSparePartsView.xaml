@@ -460,6 +460,16 @@
                                  Text="{Binding QuantityText, UpdateSourceTrigger=PropertyChanged}"
                                  Margin="0,0,0,12" />
 
+                        <!-- Minimum Stock Alert -->
+                        <TextBlock Text="مؤشر الرصيد المنخفض *"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,5" />
+                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
+                                 Text="{Binding MinimumStockText, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,12" />
+
                         <!-- Cost Price & Sell Price -->
                         <Grid FlowDirection="RightToLeft" Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>

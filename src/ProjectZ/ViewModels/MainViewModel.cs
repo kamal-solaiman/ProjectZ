@@ -11,6 +11,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly SalesRepository? salesRepository;
     private readonly PurchaseRepository? purchaseRepository;
     private readonly CategoryRepository? categoryRepository;
+    private readonly MaintenanceRepository? maintenanceRepository;
     private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
     private NavigationMenuItemViewModel? selectedItem;
     private bool isSidebarCollapsed;
@@ -91,12 +92,14 @@ public sealed class MainViewModel : ObservableObject
         SalesRepository? salesRepository = null,
         CategoryRepository? categoryRepository = null,
         PurchaseRepository? purchaseRepository = null,
-        FinancialRepository? financialRepository = null)
+        FinancialRepository? financialRepository = null,
+        MaintenanceRepository? maintenanceRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
         this.categoryRepository = categoryRepository;
         this.purchaseRepository = purchaseRepository;
+        this.maintenanceRepository = maintenanceRepository;
         LogoutCommand = new RelayCommand(logout);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         Categories = new[]
@@ -147,7 +150,9 @@ public sealed class MainViewModel : ObservableObject
         var sharedMaintenanceOrders = salesRepository is null
             ? MaintenanceDesignSeedData.CreateSharedSampleOrders(sharedCustomers)
             : new ObservableCollection<MaintenanceOrderDesignItem>();
-        var sharedMaintenanceSpareParts = MaintenanceDesignSeedData.CreateSharedSampleSpareParts();
+        var sharedMaintenanceSpareParts = maintenanceRepository is null
+            ? MaintenanceDesignSeedData.CreateSharedSampleSpareParts()
+            : new ObservableCollection<MaintenanceSparePartItem>();
 
         Inventory = new InventoryViewModel(
             sharedCatalog,
@@ -212,13 +217,15 @@ public sealed class MainViewModel : ObservableObject
         MaintenanceSpareParts = new MaintenanceSparePartsViewModel(
             sharedMaintenanceSpareParts,
             () => SelectItem(Categories[2].Items[2]),
-            NotifyMaintenanceActionsChanged);
+            NotifyMaintenanceActionsChanged,
+            maintenanceRepository);
         MaintenanceActions = new MaintenanceActionsViewModel(
             user.DisplayName,
             sharedMaintenanceOrders,
             sharedMaintenanceSpareParts,
             () => SelectItem(Categories[2].Items[0]),
-            MaintenanceSpareParts.NotifyExternalDataChanged);
+            MaintenanceSpareParts.NotifyExternalDataChanged,
+            maintenanceRepository);
         MaintenanceInvoices = new MaintenanceInvoicesViewModel(
             user.DisplayName,
             sharedMaintenanceOrders,
