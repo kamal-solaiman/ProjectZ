@@ -972,10 +972,10 @@ ORDER BY o.CreatedAtUtc DESC, o.Id DESC;";
             }
 
             var summaries = LoadOperationLineSummaries(connection, ids);
-            foreach (var (record, _, _) in raw)
+            foreach (var entry in raw)
             {
-                var summary = summaries.GetValueOrDefault(record.Id, ([], []));
-                records.Add(record with
+                var summary = summaries.TryGetValue(entry.Record.Id, out var found) ? found : new OperationLineSummary();
+                records.Add(entry.Record with
                 {
                     ReturnedItemsSummary = string.Join("، ", summary.Returned),
                     ReplacementItemsSummary = summary.Replacements.Count > 0 ? string.Join("، ", summary.Replacements) : "—"
@@ -990,10 +990,16 @@ ORDER BY o.CreatedAtUtc DESC, o.Id DESC;";
         return records;
     }
 
-    private static Dictionary<int, (List<string> Returned, List<string> Replacements)> LoadOperationLineSummaries(
+    private sealed class OperationLineSummary
+    {
+        public List<string> Returned { get; } = [];
+        public List<string> Replacements { get; } = [];
+    }
+
+    private static Dictionary<int, OperationLineSummary> LoadOperationLineSummaries(
         SqlConnection connection, List<int> operationIds)
     {
-        var result = new Dictionary<int, (List<string>, List<string>)>();
+        var result = new Dictionary<int, OperationLineSummary>();
         if (operationIds.Count == 0) return result;
 
         // Small, bounded IN list built from integer ids (no user text), safe for SQL Server 2016.
@@ -1016,7 +1022,7 @@ ORDER BY ReturnExchangeId, Id;";
 
             if (!result.TryGetValue(operationId, out var entry))
             {
-                entry = ([], []);
+                entry = new OperationLineSummary();
                 result[operationId] = entry;
             }
 
