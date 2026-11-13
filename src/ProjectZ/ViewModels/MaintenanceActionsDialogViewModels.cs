@@ -409,28 +409,6 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
         Order.DeliveryNotes = DeliveryNotes.Trim();
         Order.Status = MaintenanceOrderStatus.Delivered;
 
-        var totalNewCollected = cash + vodafone + instaPay;
-        var summaryParts = new List<string>
-        {
-            $"التكلفة النهائية: {Order.EstimatedCostDisplay}",
-            wDays > 0 ? $"ضمان {wDays} يومًا" : "بدون ضمان"
-        };
-        if (totalNewCollected > 0m)
-            summaryParts.Add($"تحصيل عند التسليم: {PosFormatting.FormatCurrency(totalNewCollected)}");
-        if (HasExcessDeposit && RefundExcessDeposit)
-            summaryParts.Add($"رد فرق عربون: {ExcessDepositOverTotalDisplay}");
-        if (!string.IsNullOrWhiteSpace(Order.DeliveryNotes))
-            summaryParts.Add(Order.DeliveryNotes);
-
-        Order.ActivityLog.Add(new MaintenanceActivityEntry
-        {
-            Timestamp = DateTime.Now,
-            ActionTitle = "تسليم الجهاز وإغلاق أمر الصيانة",
-            Details = string.Join(" · ", summaryParts),
-            ActorName = currentUserName,
-            Amount = totalNewCollected > 0m ? totalNewCollected : Order.CurrentEffectiveCost
-        });
-
         Order.NotifyFinancialsChanged();
         IsConfirmed = true;
         ShouldOpenPrintAfterClose = printAfter;

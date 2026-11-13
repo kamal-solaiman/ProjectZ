@@ -226,7 +226,8 @@ public sealed class MainViewModel : ObservableObject
             sharedMaintenanceSpareParts,
             () => SelectItem(Categories[2].Items[0]),
             MaintenanceSpareParts.NotifyExternalDataChanged,
-            maintenanceRepository);
+            maintenanceRepository,
+            ReloadMaintenanceData);
         MaintenanceInvoices = new MaintenanceInvoicesViewModel(
             user.DisplayName,
             sharedMaintenanceOrders,
@@ -236,7 +237,9 @@ public sealed class MainViewModel : ObservableObject
                 MaintenanceActions.SelectOrderFromExternal(order);
                 SelectItem(Categories[2].Items[2]);
             },
-            MaintenanceActions.NotifyExternalDataChanged);
+            ReloadMaintenanceData,
+            maintenanceRepository,
+            ReloadMaintenanceData);
         Pos = new PosViewModel(
             user.DisplayName,
             sharedCatalog,
@@ -412,6 +415,15 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Late-bound notifier: the spare-parts screen may call it before MaintenanceActions exists.</summary>
     private void NotifyMaintenanceActionsChanged()
         => MaintenanceActions?.NotifyExternalDataChanged();
+
+    /// <summary>Re-reads the maintenance data from the database and refreshes every maintenance screen.</summary>
+    private void ReloadMaintenanceData()
+    {
+        MaintenanceIntake.NotifyExternalDataChanged();
+        MaintenanceInvoices.NotifyExternalDataChanged();
+        MaintenanceActions.NotifyExternalDataChanged();
+        MaintenanceSpareParts.NotifyExternalDataChanged();
+    }
 
     /// <summary>Reloads the SQL catalog, units, categories and customers after a sale or a return.</summary>
     private bool ReloadPosData()

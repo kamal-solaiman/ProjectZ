@@ -23,6 +23,18 @@ public sealed record SavedSparePart(
 public sealed record SavedMaintenanceOrder(int OrderId, string OrderNumber, decimal TotalDepositPaid);
 
 /// <summary>SQL Server persistence for the maintenance spare-parts inventory and order-part lines.</summary>
+/// <summary>A payment to persist for a maintenance order (deposit / final / refund).</summary>
+/// <param name="Account">Financial account kind the payment goes through.</param>
+/// <param name="Stage">1 deposit, 2 final.</param>
+/// <param name="Kind">1 collected, 2 refunded.</param>
+public sealed record MaintenancePaymentEntry(
+    FinancialAccountKind Account,
+    int Stage,
+    int Kind,
+    decimal Amount,
+    DateTime PaidAt,
+    string Note);
+
 public sealed class MaintenanceRepository(ConnectionSettingsProvider settings, int actorUserId)
 {
     // ---------------------------------------------------------------- spare parts
@@ -330,7 +342,7 @@ VALUES(@Num, @CustomerId, @Name, @Phone, @Phone2, @Address, @WalkIn, @Received, 
                 insert.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
                 insert.Parameters.Add("@Priority", SqlDbType.TinyInt).Value = (byte)order.Priority;
                 insert.Parameters.Add("@Tech", SqlDbType.NVarChar, 150).Value = order.AssignedTechnician;
-                insert.Parameters.Add("@Expected", SqlDbType.DateTime2).Value = order.ExpectedDeliveryAt?.ToUniversalTime() ?? DBNull.Value;
+                insert.Parameters.Add("@Expected", SqlDbType.DateTime2).Value = (object?)order.ExpectedDeliveryAt?.ToUniversalTime() ?? DBNull.Value;
                 insert.Parameters.Add("@ExpectedLabel", SqlDbType.NVarChar, 200).Value = order.ExpectedDeliveryLabel;
                 insert.Parameters.Add("@DeviceType", SqlDbType.NVarChar, 100).Value = order.DeviceType;
                 insert.Parameters.Add("@Brand", SqlDbType.NVarChar, 100).Value = order.DeviceBrand;
@@ -395,6 +407,150 @@ VALUES(@Order,@Account,1,1,@Amount,@Paid,@Note,@Actor);");
         pay.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
         pay.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
         pay.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Saves the current state of a maintenance order: the editable order columns, any new
+    /// activity entries, new payments (deposit / final / refund) and a full re-sync of the
+    /// order part lines. All of it runs in one transaction.
+    /// </summary>
+    /// <param name="order">The order after applying the changes made in the UI.</param>
+    /// <param name="newActivities">Activity entries added since the last save; they are also
+    /// kept in <c>order.ActivityLog</c> for the in-memory display.</param>
+    /// <param name="newPayments">Payments to record in dbo.MaintenancePayments.</param>
+    public void UpdateMaintenanceOrder(
+        MaintenanceOrderDesignItem order,
+        IReadOnlyList<MaintenanceActivityEntry> newActivities,
+        IReadOnlyList<MaintenancePaymentEntry> newPayments)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction();
+
+            using (var update = CreateCommand(connection, transaction, @"
+UPDATE dbo.MaintenanceOrders SET
+     OrderStatus = @Status, Priority = @Priority, AssignedTechnician = @Tech,
+     ExpectedDeliveryAtUtc = @Expected, ExpectedDeliveryLabel = @ExpectedLabel,
+     DiagnosisNotes = @Diagnosis, LaborCost = @Labor, DiscountAmount = @Discount,
+     EstimatedCost = @Estimated, FinalServiceCost = @FinalCost, HasWorkshopPricing = @HasPricing,
+     DeliveredAtUtc = @Delivered, WarrantyDays = @Warranty,
+     DeliveryNotes = @DeliveryNotes, CancellationReason = @CancelReason,
+     UpdatedAtUtc = SYSUTCDATETIME()
+WHERE Id = @Id;"))
+            {
+                update.Parameters.Add("@Status", SqlDbType.TinyInt).Value = (byte)order.Status;
+                update.Parameters.Add("@Priority", SqlDbType.TinyInt).Value = (byte)order.Priority;
+                update.Parameters.Add("@Tech", SqlDbType.NVarChar, 150).Value = order.AssignedTechnician;
+                update.Parameters.Add("@Expected", SqlDbType.DateTime2).Value = (object?)order.ExpectedDeliveryAt?.ToUniversalTime() ?? DBNull.Value;
+                update.Parameters.Add("@ExpectedLabel", SqlDbType.NVarChar, 200).Value = order.ExpectedDeliveryLabel;
+                update.Parameters.Add("@Diagnosis", SqlDbType.NVarChar, 2000).Value = order.DiagnosisNotes;
+                AddMoney(update, "@Labor", order.LaborCost);
+                AddMoney(update, "@Discount", order.DiscountAmount);
+                AddMoney(update, "@Estimated", order.EstimatedCost);
+                var finalCost = update.Parameters.Add("@FinalCost", SqlDbType.Decimal);
+                finalCost.Precision = 19;
+                finalCost.Scale = 2;
+                finalCost.Value = (object?)order.FinalServiceCost ?? DBNull.Value;
+                update.Parameters.Add("@HasPricing", SqlDbType.Bit).Value = order.HasWorkshopPricing;
+                update.Parameters.Add("@Delivered", SqlDbType.DateTime2).Value = (object?)order.DeliveredAt?.ToUniversalTime() ?? DBNull.Value;
+                update.Parameters.Add("@Warranty", SqlDbType.Int).Value = order.WarrantyDays;
+                update.Parameters.Add("@DeliveryNotes", SqlDbType.NVarChar, 1500).Value = order.DeliveryNotes;
+                update.Parameters.Add("@CancelReason", SqlDbType.NVarChar, 1500).Value = order.CancellationReason;
+                update.Parameters.Add("@Id", SqlDbType.Int).Value = order.Id;
+                if (update.ExecuteNonQuery() == 0)
+                    throw new MaintenanceDataException("تعذّر تحديث أمر الصيانة: غير موجود في قاعدة البيانات.");
+            }
+
+            foreach (var activity in newActivities)
+                InsertActivity(connection, transaction, order.Id, activity);
+
+            if (newPayments.Count > 0)
+            {
+                var accounts = EnsureAccounts(connection, transaction);
+                foreach (var payment in newPayments)
+                {
+                    if (!accounts.TryGetValue(payment.Account, out var accountId))
+                        throw new MaintenanceDataException("تعذّر تسجيل الدفعة: الحساب المالي غير متوفر.");
+                    InsertPayment(
+                        connection, transaction, order.Id, accountId,
+                        payment.Stage, payment.Kind, payment.Amount, payment.PaidAt, payment.Note);
+                }
+            }
+
+            SaveOrderParts(connection, transaction, order);
+
+            transaction.Commit();
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر حفظ تحديثات أمر الصيانة.");
+        }
+    }
+
+    private void InsertActivity(
+        SqlConnection connection, SqlTransaction transaction, int orderId, MaintenanceActivityEntry entry)
+    {
+        using var act = CreateCommand(connection, transaction, @"
+INSERT dbo.MaintenanceActivities(MaintenanceOrderId, OccurredAtUtc, ActionTitle, Details, Amount, ActorUserId)
+VALUES(@Order,@Time,@Title,@Details,@Amount,@Actor);");
+        act.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
+        act.Parameters.Add("@Time", SqlDbType.DateTime2).Value = entry.Timestamp.ToUniversalTime();
+        act.Parameters.Add("@Title", SqlDbType.NVarChar, 200).Value = entry.ActionTitle;
+        act.Parameters.Add("@Details", SqlDbType.NVarChar, 1500).Value = entry.Details;
+        act.Parameters.Add("@Amount", SqlDbType.Decimal).Value = entry.Amount ?? 0m;
+        act.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        act.ExecuteNonQuery();
+    }
+
+    private void InsertPayment(
+        SqlConnection connection, SqlTransaction transaction, int orderId, int accountId,
+        int stage, int kind, decimal amount, DateTime paidAt, string note)
+    {
+        using var pay = CreateCommand(connection, transaction, @"
+INSERT dbo.MaintenancePayments(MaintenanceOrderId, FinancialAccountId, PaymentStage, PaymentKind, Amount, PaidAtUtc, Note, ActorUserId)
+VALUES(@Order,@Account,@Stage,@Kind,@Amount,@Paid,@Note,@Actor);");
+        pay.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
+        pay.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
+        pay.Parameters.Add("@Stage", SqlDbType.TinyInt).Value = stage;
+        pay.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = kind;
+        AddMoney(pay, "@Amount", amount);
+        pay.Parameters.Add("@Paid", SqlDbType.DateTime2).Value = paidAt.ToUniversalTime();
+        pay.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
+        pay.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        pay.ExecuteNonQuery();
+    }
+
+    /// <summary>Full re-sync of the order part lines (used parts) from the in-memory collection.</summary>
+    private static void SaveOrderParts(SqlConnection connection, SqlTransaction transaction, MaintenanceOrderDesignItem order)
+    {
+        using (var delete = CreateCommand(connection, transaction, @"
+DELETE FROM dbo.MaintenanceOrderParts WHERE MaintenanceOrderId = @Order;"))
+        {
+            delete.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
+            delete.ExecuteNonQuery();
+        }
+
+        var line = 0;
+        foreach (var part in order.UsedParts)
+        {
+            line++;
+            using var insert = CreateCommand(connection, transaction, @"
+INSERT dbo.MaintenanceOrderParts(MaintenanceOrderId, SparePartId, ProductId, LineNumber, BarcodeSnapshot,
+ ProductNameSnapshot, Quantity, UnitCost, UnitSellPrice, IsManualPart)
+VALUES(@Order,@Spare,@Product,@Line,@Barcode,@Name,@Qty,@Cost,@Sell,@Manual);");
+            insert.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
+            insert.Parameters.Add("@Spare", SqlDbType.Int).Value = part.IsManualPart ? DBNull.Value : (object)part.ProductId;
+            insert.Parameters.Add("@Product", SqlDbType.Int).Value = part.IsManualPart ? DBNull.Value : (object)part.ProductId;
+            insert.Parameters.Add("@Line", SqlDbType.Int).Value = line;
+            insert.Parameters.Add("@Barcode", SqlDbType.NVarChar, 100).Value = part.Barcode;
+            insert.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = part.ProductName;
+            insert.Parameters.Add("@Qty", SqlDbType.Int).Value = part.Quantity;
+            AddMoney(insert, "@Cost", part.UnitCost);
+            AddMoney(insert, "@Sell", part.UnitSellPrice);
+            insert.Parameters.Add("@Manual", SqlDbType.Bit).Value = part.IsManualPart;
+            insert.ExecuteNonQuery();
+        }
     }
 
     /// <summary>Loads maintenance orders (newest first) with their parts, activities and payments.</summary>
