@@ -211,7 +211,7 @@ public sealed class SuppliersViewModel : ObservableObject
         DeleteSelectedSupplierCommand = new ActionCommand(() => DeleteSupplier(SelectedSupplierEntry));
         StartPurchaseForSupplierCommand = new ActionCommand(StartPurchaseForSelected);
         PayOldestInvoiceCommand = new ActionCommand(PayOldestOutstandingInvoice);
-        RefreshDataCommand = new ActionCommand(RefreshFromDatabase);
+        RefreshDataCommand = new ActionCommand(NotifyExternalDataChangedCallback);
         ClearFiltersCommand = new ActionCommand(ClearAllFilters);
         ClearSearchCommand = new ActionCommand(() => SearchText = "");
         SelectSupplierCommand = new RelayCommand<SupplierDirectoryEntryViewModel>(e => { if (e is not null) SelectedSupplierEntry = e; });
@@ -264,6 +264,12 @@ public sealed class SuppliersViewModel : ObservableObject
         }
 
         RebuildEntriesAndRefresh();
+    }
+
+    /// <summary>Refreshes the directory without surfacing the outcome (used by late-bound callbacks).</summary>
+    private void NotifyExternalDataChangedCallback()
+    {
+        NotifyExternalDataChanged();
     }
     private void OnExternalCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildEntriesAndRefresh();
 

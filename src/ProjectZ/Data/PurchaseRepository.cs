@@ -1579,8 +1579,9 @@ WHERE Id = @Id;");
     private static CollectedPurchaseAmounts LoadCollectedAmounts(
         SqlConnection connection, SqlTransaction transaction, int invoiceId)
     {
-        Dictionary<byte, decimal> paid = [];
-        Dictionary<byte, decimal> refunded = [];
+        // Explicitly typed: ref locals below need the concrete Dictionary overload of GetValueOrDefault.
+        var paid = new Dictionary<byte, decimal>();
+        var refunded = new Dictionary<byte, decimal>();
 
         using (var command = CreateCommand(connection, transaction, @"
 SELECT a.AccountKind, p.PaymentKind, SUM(p.Amount)
@@ -1594,8 +1595,15 @@ GROUP BY a.AccountKind, p.PaymentKind;"))
             while (reader.Read())
             {
                 var kind = reader.GetByte(0);
-                var bucket = reader.GetByte(1) == 2 ? refunded : paid;
-                bucket[kind] = bucket.GetValueOrDefault(kind) + reader.GetDecimal(2);
+                var amount = reader.GetDecimal(2);
+                if (reader.GetByte(1) == 2)
+                {
+                    refunded[kind] = paid.TryGetValue(kind, out var currentRefund) ? currentRefund + amount : amount;
+                }
+                else
+                {
+                    paid[kind] = paid.TryGetValue(kind, out var currentPaid) ? currentPaid + amount : amount;
+                }
             }
         }
 

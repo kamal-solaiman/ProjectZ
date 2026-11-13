@@ -530,8 +530,8 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
                     l.Product.Category,
                     l.Product.UnitDisplay,
                     l.Product.TrackSerialNumber,
-                    l.Quantity,
-                    l.UnitPurchaseCost)).ToList());
+                    l.NewQuantity,
+                    l.NewUnitPurchaseCost)).ToList());
 
             try
             {
