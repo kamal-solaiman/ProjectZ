@@ -564,6 +564,95 @@ assert 'IsPurchaseEntrySelected' in main_viewmodel and 'IsPurchaseEntrySelected'
 assert 'views:PurchaseEntryView' in main_xaml
 assert 'sharedSuppliers' in main_viewmodel and 'sharedPurchaseInvoices' in main_viewmodel
 
+# ---------------------------------------------------------------- purchasing -> SQL Server
+purchase_repository_path = root / 'src/ProjectZ/Data/PurchaseRepository.cs'
+purchase_permissions_path = root / 'sql/12_EnablePurchasing.sql'
+assert purchase_repository_path.is_file(), 'PurchaseRepository.cs is missing'
+assert purchase_permissions_path.is_file(), 'sql/12_EnablePurchasing.sql is missing'
+purchase_repository = purchase_repository_path.read_text(encoding='utf-8')
+purchase_permissions = purchase_permissions_path.read_text(encoding='utf-8')
+
+# The repository must really write the purchase ledger, not only read it.
+for token in (
+    'INSERT dbo.PurchaseInvoices',
+    'INSERT dbo.PurchaseInvoiceLines',
+    'INSERT dbo.PurchaseInvoiceLineUnits',
+    'INSERT dbo.PurchaseReturns',
+    'INSERT dbo.PurchaseReturnLines',
+    'INSERT dbo.PurchasePayments',
+    'INSERT dbo.PurchaseInvoiceActivities',
+    'INSERT dbo.InventoryUnits',
+    "N'Supply'",
+    'INSERT dbo.FinancialTransactions',
+    'UPDATE dbo.FinancialAccounts',
+    'UPDATE dbo.Suppliers',
+    'INSERT dbo.Suppliers',
+    'SELECT Id, AccountKind FROM dbo.FinancialAccounts',
+    'NextDocumentNumber',
+):
+    assert token in purchase_repository, f'PurchaseRepository missing SQL token: {token}'
+
+# Every money parameter must be DECIMAL(19,2): implicit metadata is rejected by SQL Server.
+assert 'SqlDbType.Decimal' in purchase_repository and 'Precision = 19' in purchase_repository
+assert 'AddWithValue' not in purchase_repository, 'PurchaseRepository must declare explicit parameter types'
+
+# The two screens must be wired to the repository, not to the design seed data.
+assert 'new PurchaseRepository(connectionSettings, user.Id)' in app_cs, 'App.xaml.cs must build the purchase repository'
+for token in (
+    'PurchaseRepository? purchaseRepository = null',
+    'purchaseRepository is null',
+    'LoadSuppliersInto',
+    'LoadInvoicesInto',
+    'PurchaseEntry.RefreshSuppliersFromDatabase()',
+    'PurchaseInvoices.RefreshFromDatabase()',
+    'Suppliers.RefreshFromDatabase()',
+    'SuppliesChanged()',
+):
+    assert token in main_viewmodel, f'MainViewModel is not wired to the purchase repository: {token}'
+assert 'new PurchaseRepository(connectionSettings, user.Id)' in app_cs, 'App.xaml.cs must build the purchase repository'
+
+purchase_entry_vm = (root / 'src/ProjectZ/ViewModels/PurchaseEntryViewModel.cs').read_text(encoding='utf-8')
+purchase_invoices_vm = (root / 'src/ProjectZ/ViewModels/PurchaseInvoicesViewModel.cs').read_text(encoding='utf-8')
+suppliers_vm = (root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs').read_text(encoding='utf-8')
+
+for view_model, name in ((purchase_entry_vm, 'PurchaseEntryViewModel'),
+                         (purchase_invoices_vm, 'PurchaseInvoicesViewModel'),
+                         (suppliers_vm, 'SuppliersViewModel')):
+    assert 'using ProjectZ.Data;' in view_model, f'{name} must import the data layer'
+    assert 'IsConnectedToDatabase' in view_model, f'{name} must report its data source'
+
+assert 'repository.CreateInvoice' in purchase_entry_vm, 'the purchase entry screen must save through SQL'
+assert 'مرحلة التصميم (بدون Backend)' not in purchase_entry_vm
+for command in ('repository.PayInvoice', 'repository.ReturnToSupplier', 'repository.CancelInvoice',
+                'repository.DeleteInvoice', 'repository.UpdateInvoice', 'repository.LoadInvoicesInto'):
+    assert command in purchase_invoices_vm, f'the purchase invoices screen must use {command}'
+assert 'مرحلة التصميم (بدون Backend)' not in purchase_invoices_vm
+for command in ('repository.CreateSupplier', 'repository.UpdateSupplier', 'repository.DeleteSupplier',
+                'repository.LoadSuppliersInto'):
+    assert command in suppliers_vm, f'the supplier directory must use {command}'
+
+# The screens must no longer advertise a design-only mode, and must offer an explicit SQL refresh.
+purchase_invoices_xaml_text = (root / 'src/ProjectZ/Views/PurchaseInvoicesView.xaml').read_text(encoding='utf-8')
+purchase_entry_xaml_text = (root / 'src/ProjectZ/Views/PurchaseEntryView.xaml').read_text(encoding='utf-8')
+for view in (purchase_invoices_xaml_text, purchase_entry_xaml_text):
+    assert 'تصميم الواجهة — بدون Backend' not in view
+    assert 'DataSourceLabel' in view, 'the screen must show its live data source'
+assert 'RefreshFromDatabaseCommand' in purchase_invoices_xaml_text
+
+# Permissions script: idempotent grants only, and no table is created in it.
+assert 'CREATE TABLE' not in purchase_permissions, 'sql/12 must not create tables'
+for grant in (
+    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.PurchaseInvoices TO [ProjectZClient];',
+    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.PurchaseInvoiceLines TO [ProjectZClient];',
+    'GRANT SELECT, INSERT, DELETE ON OBJECT::dbo.PurchaseInvoiceLineUnits TO [ProjectZClient];',
+    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchasePayments TO [ProjectZClient];',
+    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchaseReturns TO [ProjectZClient];',
+    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchaseReturnLines TO [ProjectZClient];',
+    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Suppliers TO [ProjectZClient];',
+):
+    assert grant in purchase_permissions, f'sql/12 is missing a grant: {grant}'
+print('PASS: purchase invoice screens and the supplier directory read and write SQL Server')
+
 purchase_entry_xaml_path = root / 'src/ProjectZ/Views/PurchaseEntryView.xaml'
 add_supplier_xaml_path = root / 'src/ProjectZ/Views/AddSupplierWindow.xaml'
 purchase_print_xaml_path = root / 'src/ProjectZ/Views/PurchaseInvoicePrintPreviewWindow.xaml'

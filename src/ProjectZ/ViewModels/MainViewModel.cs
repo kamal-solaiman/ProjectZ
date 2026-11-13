@@ -9,6 +9,7 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly UserSession user;
     private readonly SalesRepository? salesRepository;
+    private readonly PurchaseRepository? purchaseRepository;
     private readonly CategoryRepository? categoryRepository;
     private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
     private NavigationMenuItemViewModel? selectedItem;
@@ -88,11 +89,13 @@ public sealed class MainViewModel : ObservableObject
         Action logout,
         InventoryRepository? inventoryRepository = null,
         SalesRepository? salesRepository = null,
-        CategoryRepository? categoryRepository = null)
+        CategoryRepository? categoryRepository = null,
+        PurchaseRepository? purchaseRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
         this.categoryRepository = categoryRepository;
+        this.purchaseRepository = purchaseRepository;
         LogoutCommand = new RelayCommand(logout);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         Categories = new[]
@@ -131,11 +134,13 @@ public sealed class MainViewModel : ObservableObject
             ? InvoiceDesignSeedData.CreateSharedSampleInvoices(sharedCatalog, sharedRegistrations)
             : new ObservableCollection<SalesInvoiceDesignItem>();
         var sharedReturnOperations = ReturnExchangeDesignSeedData.CreateSharedSampleOperations(sharedSalesInvoices);
-        var sharedSuppliers = PurchaseDesignSeedData.CreateSharedSampleSuppliers();
-        var sharedPurchaseInvoices = PurchaseDesignSeedData.CreateSharedSamplePurchaseInvoices(
-            sharedCatalog,
-            sharedRegistrations,
-            sharedSuppliers);
+        // With SQL the supplier directory and the purchase ledger come from dbo.Suppliers / dbo.PurchaseInvoices.
+        var sharedSuppliers = purchaseRepository is null
+            ? PurchaseDesignSeedData.CreateSharedSampleSuppliers()
+            : new ObservableCollection<SupplierDesignItem>();
+        var sharedPurchaseInvoices = purchaseRepository is null
+            ? PurchaseDesignSeedData.CreateSharedSamplePurchaseInvoices(sharedCatalog, sharedRegistrations, sharedSuppliers)
+            : new ObservableCollection<PurchaseInvoiceDesignItem>();
         var sharedMaintenanceOrders = MaintenanceDesignSeedData.CreateSharedSampleOrders(sharedCustomers);
         var sharedMaintenanceSpareParts = MaintenanceDesignSeedData.CreateSharedSampleSpareParts();
 
@@ -179,7 +184,9 @@ public sealed class MainViewModel : ObservableObject
             sharedCategories,
             () => SelectItem(Categories[0].Items[1]),
             Inventory.NotifyExternalInventoryChanged,
-            ReturnExchange.NotifyExternalDataChanged);
+            ReturnExchange.NotifyExternalDataChanged,
+            purchaseRepository,
+            SuppliesChanged);
         PurchaseInvoices = new PurchaseInvoicesViewModel(
             sharedPurchaseInvoices,
             sharedSuppliers,
@@ -189,7 +196,8 @@ public sealed class MainViewModel : ObservableObject
             () => SelectItem(Categories[1].Items[0]),
             Inventory.NotifyExternalInventoryChanged,
             ReturnExchange.NotifyExternalDataChanged,
-            PurchaseEntry.NotifyExternalCatalogChanged);
+            PurchaseEntry.NotifyExternalCatalogChanged,
+            purchaseRepository);
         MaintenanceIntake = new MaintenanceIntakeViewModel(
             user.DisplayName,
             sharedCustomers,
@@ -257,10 +265,9 @@ public sealed class MainViewModel : ObservableObject
             },
             () =>
             {
-                PurchaseEntry.NotifyExternalCatalogChanged();
-                PurchaseInvoices.NotifyExternalPurchasesChanged();
-                Inventory.NotifyExternalInventoryChanged();
-            });
+                SuppliesChanged();
+            },
+            purchaseRepository);
         Customers = new CustomersViewModel(
             user.DisplayName,
             sharedCustomers,
@@ -292,6 +299,24 @@ public sealed class MainViewModel : ObservableObject
 
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
+
+        if (purchaseRepository is not null)
+        {
+            // The purchase screens and the supplier directory both read these two collections.
+            try
+            {
+                purchaseRepository.LoadSuppliersInto(sharedSuppliers);
+                purchaseRepository.LoadInvoicesInto(sharedPurchaseInvoices);
+            }
+            catch (PurchaseDataException)
+            {
+                // Each screen reports the failure on its own status strip and retries on refresh.
+            }
+
+            PurchaseEntry.RefreshSuppliersFromDatabase();
+            PurchaseInvoices.RefreshFromDatabase();
+            Suppliers.RefreshFromDatabase();
+        }
 
         if (categoryRepository is not null)
             ProductCategories.RefreshFromDatabase();
@@ -331,6 +356,16 @@ public sealed class MainViewModel : ObservableObject
         // A rename changes the category name shown on every product row, so the catalog itself is reloaded.
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
+    }
+
+    /// <summary>
+    /// A supplier was added, renamed or archived in SQL. The purchase entry screen reloaded the shared
+    /// supplier collection already, so the ledger and the directory only need to re-read their rows.
+    /// </summary>
+    private void SuppliesChanged()
+    {
+        PurchaseInvoices.RefreshFromDatabase();
+        Suppliers.RefreshFromDatabase();
     }
 
     /// <summary>Late-bound notifier: the spare-parts screen may call it before MaintenanceActions exists.</summary>
@@ -457,9 +492,12 @@ public sealed class MainViewModel : ObservableObject
             Inventory.NotifyExternalInventoryChanged();
         }
         else if (ReferenceEquals(item, Categories[1].Items[0]))
+        {
+            PurchaseEntry.RefreshSuppliersFromDatabase();
             PurchaseEntry.NotifyExternalCatalogChanged();
+        }
         else if (ReferenceEquals(item, Categories[1].Items[1]))
-            PurchaseInvoices.NotifyExternalPurchasesChanged();
+            PurchaseInvoices.RefreshFromDatabase();
         else if (ReferenceEquals(item, Categories[2].Items[0]))
             MaintenanceIntake.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[2].Items[1]))

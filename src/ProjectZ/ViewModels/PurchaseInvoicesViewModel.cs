@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Globalization;
+using ProjectZ.Data;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 
@@ -17,6 +18,7 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
     private readonly Action? notifyInventoryChanged;
     private readonly Action? notifyReturnExchangeChanged;
     private readonly Action? notifyPurchaseEntryChanged;
+    private readonly PurchaseRepository? repository;
 
     private PurchaseInvoiceDesignItem? selectedInvoice;
     private string searchText = "";
@@ -28,7 +30,7 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
     private string selectedStatusFilter = "الكل";
     private string selectedSortOption = "الأحدث أولًا";
 
-    private string statusMessage = "مرحلة التصميم (بدون Backend): اضغط على أي فاتورة شراء لعرض محتوياتها بالكامل والتحكم بالتعديل والمرتجع والسداد والإلغاء والحذف.";
+    private string statusMessage = "اضغط على أي فاتورة شراء لعرض محتوياتها بالكامل والتحكم بالتعديل والمرتجع والسداد والإلغاء والحذف.";
     private bool isErrorStatus;
 
     public ObservableCollection<PurchaseInvoiceDesignItem> FilteredInvoices { get; } = [];
@@ -199,6 +201,18 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
     public bool HasNoFilteredInvoices => FilteredInvoices.Count == 0;
 
+    /// <summary>True when the screen reads and writes SQL Server instead of the design sample data.</summary>
+    public bool IsConnectedToDatabase => repository is not null;
+
+    public string DataSourceLabel => repository is null
+        ? "معاينة تصميم — بدون قاعدة بيانات"
+        : "متصل بقاعدة البيانات — SQL Server";
+
+    public string HistorySourceLabel => repository is null
+        ? "سجل تجريبي (بدون قاعدة بيانات)"
+        : "السجل مقروء من dbo.PurchaseInvoices";
+
+    public ActionCommand RefreshFromDatabaseCommand { get; }
     public ActionCommand GoToPurchaseEntryCommand { get; }
     public ActionCommand ClearFiltersCommand { get; }
     public RelayCommand<string> SelectDatePresetCommand { get; }
@@ -228,7 +242,8 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         Action? navigateToPurchaseEntry = null,
         Action? notifyInventoryChanged = null,
         Action? notifyReturnExchangeChanged = null,
-        Action? notifyPurchaseEntryChanged = null)
+        Action? notifyPurchaseEntryChanged = null,
+        PurchaseRepository? repository = null)
     {
         this.sharedCatalog = sharedCatalog ?? PosDesignSeedData.CreateSharedSampleCatalog();
         this.sharedRegistrations = sharedRegistrations ?? InventoryDesignSeedData.CreateSharedSampleRegistrations(this.sharedCatalog);
@@ -242,10 +257,12 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         this.notifyInventoryChanged = notifyInventoryChanged;
         this.notifyReturnExchangeChanged = notifyReturnExchangeChanged;
         this.notifyPurchaseEntryChanged = notifyPurchaseEntryChanged;
+        this.repository = repository;
 
         this.sharedPurchaseInvoices.CollectionChanged += OnSharedInvoicesChanged;
         this.sharedSuppliers.CollectionChanged += OnSharedSuppliersChanged;
 
+        RefreshFromDatabaseCommand = new ActionCommand(() => RefreshFromDatabase());
         GoToPurchaseEntryCommand = new ActionCommand(() => this.navigateToPurchaseEntry?.Invoke());
         ClearFiltersCommand = new ActionCommand(ClearFilters);
         SelectDatePresetCommand = new RelayCommand<string>(preset =>
@@ -269,6 +286,43 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
     {
         RebuildSupplierFilters();
         RefreshFilteredInvoices();
+    }
+
+    /// <summary>Reloads the purchase ledger (headers, lines, units, payments and activity) from SQL Server.</summary>
+    public bool RefreshFromDatabase()
+    {
+        if (repository is null)
+        {
+            NotifyExternalPurchasesChanged();
+            return false;
+        }
+
+        try
+        {
+            // Keep the operator on the same invoice: a reload produces new instances for every row.
+            var previousId = SelectedInvoice?.Id ?? 0;
+            var previousNumber = SelectedInvoice?.InvoiceNumber ?? "";
+
+            repository.LoadInvoicesInto(sharedPurchaseInvoices);
+            RebuildSupplierFilters();
+            RefreshFilteredInvoices();
+
+            var restored = sharedPurchaseInvoices.FirstOrDefault(i => i.Id == previousId)
+                           ?? sharedPurchaseInvoices.FirstOrDefault(i => i.InvoiceNumber == previousNumber);
+            if (restored is not null)
+            {
+                selectedInvoice = null;
+                SelectedInvoice = restored;
+            }
+
+            SetStatus($"تم تحميل {sharedPurchaseInvoices.Count} فاتورة شراء من قاعدة البيانات.", false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر تحميل فواتير المشتريات من قاعدة البيانات.", true);
+            return false;
+        }
     }
 
     // Shared invoice actions used by the supplier 360° screen. Keeping one implementation
@@ -385,6 +439,25 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         OpenPaySupplierDialogRequested?.Invoke(vm);
         if (vm.Result is not { } sub) return;
 
+        if (repository is not null)
+        {
+            try
+            {
+                repository.PayInvoice(new PurchasePaymentRequest(invoice.Id, sub.CashPaid, sub.VodafoneCashPaid,
+                    sub.InstaPayPaid, sub.Notes));
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر تسجيل السداد في قاعدة البيانات.", true);
+                return;
+            }
+
+            var paidInDatabase = sub.CashPaid + sub.VodafoneCashPaid + sub.InstaPayPaid;
+            AfterDatabaseWrite(invoice.Id);
+            SetStatus($"تم تسجيل سداد {PosFormatting.FormatCurrency(paidInDatabase)} للمورد على الفاتورة {invoice.InvoiceNumber} في قاعدة البيانات.", false);
+            return;
+        }
+
         var oldRemaining = invoice.RemainingPayable;
         invoice.CashPaid += sub.CashPaid;
         invoice.VodafoneCashPaid += sub.VodafoneCashPaid;
@@ -437,6 +510,43 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         var vm = new EditPurchaseInvoiceViewModel(invoice, sharedSuppliers, sharedCatalog, sharedRegistrations);
         OpenEditDialogRequested?.Invoke(vm);
         if (vm.Result is not { } sub) return;
+
+        if (repository is not null)
+        {
+            var request = new PurchaseInvoiceEdit(
+                invoice.Id,
+                sub.Supplier.Id,
+                sub.SupplierInvoiceNumber,
+                sub.Notes,
+                sub.DiscountAmount,
+                sub.CashPaid,
+                sub.VodafoneCashPaid,
+                sub.InstaPayPaid,
+                sub.Lines.Select(l => new PurchaseLineEdit(
+                    l.ExistingLine?.DatabaseLineId,
+                    l.Product.Id,
+                    l.Product.Barcode,
+                    l.Product.Name,
+                    l.Product.Category,
+                    l.Product.UnitDisplay,
+                    l.Product.TrackSerialNumber,
+                    l.NewQuantity,
+                    l.NewUnitPurchaseCost)).ToList());
+
+            try
+            {
+                repository.UpdateInvoice(request);
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر حفظ تعديلات الفاتورة في قاعدة البيانات.", true);
+                return;
+            }
+
+            AfterDatabaseWrite(invoice.Id);
+            SetStatus($"تم حفظ تعديلات الفاتورة {invoice.InvoiceNumber} في قاعدة البيانات ومزامنة المخزون وحساب المورد.", false);
+            return;
+        }
 
         var oldSupplier = FindSupplierForInvoice(invoice);
         var oldRemaining = invoice.RemainingPayable;
@@ -663,6 +773,43 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         OpenReturnDialogRequested?.Invoke(vm);
         if (vm.Result is not { } sub) return;
 
+        if (repository is not null)
+        {
+            var lines = sub.Lines
+                .Where(l => l.Line.DatabaseLineId > 0)
+                .Select(l => new PurchaseReturnLineInput(l.Line.DatabaseLineId, l.ReturnQuantity))
+                .ToList();
+
+            if (lines.Count == 0)
+            {
+                SetStatus("لا يمكن تسجيل المرتجع: البنود غير محفوظة في قاعدة البيانات. أعد تحميل الشاشة.", true);
+                return;
+            }
+
+            try
+            {
+                var result = repository.ReturnToSupplier(new PurchaseReturnRequest(
+                    invoice.Id, lines, sub.Reason, sub.Notes, sub.PreferDamagedFirst, sub.RefundChannel));
+
+                AfterDatabaseWrite(invoice.Id);
+                var settlement = result.RefundReceived > 0m
+                    ? $"خصم {PosFormatting.FormatCurrency(result.CreditApplied)} من الآجل واسترداد {PosFormatting.FormatCurrency(result.RefundReceived)} ({sub.RefundChannel})"
+                    : result.CreditApplied > 0m
+                        ? $"خصم {PosFormatting.FormatCurrency(result.CreditApplied)} من الآجل للمورد"
+                        : "تسوية رصيد عند المورد لاحقًا";
+
+                SetStatus(
+                    $"تم حفظ المرتجع {result.ReturnNumber}: {result.ReturnedUnits} قطعة بقيمة {PosFormatting.FormatCurrency(result.ReturnedValue)} للمورد «{invoice.SupplierName}» في قاعدة البيانات ({settlement}).",
+                    false);
+                return;
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر حفظ المرتجع في قاعدة البيانات.", true);
+                return;
+            }
+        }
+
         var oldRemaining = invoice.RemainingPayable;
         var affectedProductIds = new HashSet<int>();
         var totalReturnedUnits = 0;
@@ -767,6 +914,23 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
         OpenConfirmDialogRequested?.Invoke(confirmVm, () =>
         {
+            if (repository is not null)
+            {
+                try
+                {
+                    repository.CancelInvoice(invoice.Id);
+                }
+                catch (Exception ex)
+                {
+                    SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر إلغاء الفاتورة في قاعدة البيانات.", true);
+                    return;
+                }
+
+                AfterDatabaseWrite(invoice.Id);
+                SetStatus($"تم إلغاء الفاتورة {invoice.InvoiceNumber} في قاعدة البيانات والاحتفاظ بها في السجل وسحب مخزونها.", false);
+                return;
+            }
+
             var oldRemaining = invoice.RemainingPayable;
             var affectedProducts = RemoveNonSoldRegistrationsForInvoice(invoice);
             SyncCatalogStockCounts(affectedProducts);
@@ -815,6 +979,23 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
         OpenConfirmDialogRequested?.Invoke(confirmVm, () =>
         {
+            if (repository is not null)
+            {
+                try
+                {
+                    repository.DeleteInvoice(invoice.Id);
+                }
+                catch (Exception ex)
+                {
+                    SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر حذف الفاتورة من قاعدة البيانات.", true);
+                    return;
+                }
+
+                AfterDatabaseWrite(invoiceId: 0);
+                SetStatus($"تم حذف الفاتورة {invoice.InvoiceNumber} نهائيًا من قاعدة البيانات وسحب مخزونها وتحديث حساب المورد.", false);
+                return;
+            }
+
             var oldRemaining = invoice.RemainingPayable;
             var affectedProducts = RemoveNonSoldRegistrationsForInvoice(invoice);
             SyncCatalogStockCounts(affectedProducts);
@@ -839,6 +1020,22 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         });
 
         return deleted;
+    }
+
+    /// <summary>
+    /// After a SQL write: re-read the ledger, refresh the stock counts and tell the other screens.
+    /// The reloaded rows are new instances, so the operator is put back on the same invoice id.
+    /// </summary>
+    private void AfterDatabaseWrite(int invoiceId)
+    {
+        RefreshFromDatabase();
+        if (invoiceId > 0)
+            SelectedInvoice = sharedPurchaseInvoices.FirstOrDefault(i => i.Id == invoiceId) ?? SelectedInvoice;
+
+        SyncCatalogStockCounts(sharedCatalog.Select(p => p.Id));
+        NotifyCrossScreenSync();
+        RebuildSupplierFilters();
+        RefreshFilteredInvoices();
     }
 
     private int CountSoldUnitsForInvoice(PurchaseInvoiceDesignItem invoice)

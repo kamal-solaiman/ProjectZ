@@ -409,11 +409,7 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
             SupplierSearchText = "";
             IsSupplierPickerOpen = false;
         });
-        ClearSupplierSelectionCommand = new ActionCommand(() =>
-        {
-            SelectedSupplier = null;
-            IsSupplierPickerOpen = true;
-        });
+        ClearSupplierSelectionCommand = new ActionCommand(ClearSupplierSelection);
         SelectSupplierCommand = new RelayCommand<SupplierDesignItem>(supplier =>
         {
             if (supplier is not null)
@@ -455,6 +451,13 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
 
     internal void Detach()
         => allSuppliers.CollectionChanged -= OnSuppliersCollectionChanged;
+
+    /// <summary>Drops the chosen supplier, e.g. when a SQL reload removed it from the directory.</summary>
+    public void ClearSupplierSelection()
+    {
+        SelectedSupplier = null;
+        IsSupplierPickerOpen = true;
+    }
 
     public void AddProduct(PosProductDesignItem product, int quantity = 1)
     {

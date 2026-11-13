@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Globalization;
+using ProjectZ.Data;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 
@@ -83,6 +84,7 @@ public sealed class SuppliersViewModel : ObservableObject
     private readonly Action<SupplierDesignItem>? startPurchaseForSupplier;
     private readonly Action? notifyExternalDataChanged;
     private readonly List<SupplierDirectoryEntryViewModel> allEntries = [];
+    private readonly PurchaseRepository? repository;
 
     private SupplierDirectoryEntryViewModel? selectedSupplierEntry;
     private string searchText = "";
@@ -141,6 +143,13 @@ public sealed class SuppliersViewModel : ObservableObject
     public bool IsErrorStatus { get => isErrorStatus; private set { if (isErrorStatus == value) return; isErrorStatus = value; Changed(); } }
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
+    /// <summary>True when the directory reads and writes dbo.Suppliers instead of design samples.</summary>
+    public bool IsConnectedToDatabase => repository is not null;
+
+    public string DataSourceLabel => repository is null
+        ? "معاينة تصميم — بدون قاعدة بيانات"
+        : "متصل بقاعدة البيانات — dbo.Suppliers";
+
     public ActionCommand AddSupplierCommand { get; }
     public ActionCommand EditSelectedSupplierCommand { get; }
     public ActionCommand DeleteSelectedSupplierCommand { get; }
@@ -185,13 +194,15 @@ public sealed class SuppliersViewModel : ObservableObject
         ObservableCollection<PurchaseInvoiceDesignItem> sharedPurchaseInvoices,
         PurchaseInvoicesViewModel purchaseActions,
         Action<SupplierDesignItem>? startPurchaseForSupplier = null,
-        Action? notifyExternalDataChanged = null)
+        Action? notifyExternalDataChanged = null,
+        PurchaseRepository? repository = null)
     {
         this.sharedSuppliers = sharedSuppliers;
         this.sharedPurchaseInvoices = sharedPurchaseInvoices;
         this.purchaseActions = purchaseActions;
         this.startPurchaseForSupplier = startPurchaseForSupplier;
         this.notifyExternalDataChanged = notifyExternalDataChanged;
+        this.repository = repository;
         sharedSuppliers.CollectionChanged += OnExternalCollectionChanged;
         sharedPurchaseInvoices.CollectionChanged += OnExternalCollectionChanged;
 
@@ -200,7 +211,7 @@ public sealed class SuppliersViewModel : ObservableObject
         DeleteSelectedSupplierCommand = new ActionCommand(() => DeleteSupplier(SelectedSupplierEntry));
         StartPurchaseForSupplierCommand = new ActionCommand(StartPurchaseForSelected);
         PayOldestInvoiceCommand = new ActionCommand(PayOldestOutstandingInvoice);
-        RefreshDataCommand = new ActionCommand(NotifyExternalDataChanged);
+        RefreshDataCommand = new ActionCommand(NotifyExternalDataChangedCallback);
         ClearFiltersCommand = new ActionCommand(ClearAllFilters);
         ClearSearchCommand = new ActionCommand(() => SearchText = "");
         SelectSupplierCommand = new RelayCommand<SupplierDirectoryEntryViewModel>(e => { if (e is not null) SelectedSupplierEntry = e; });
@@ -210,7 +221,31 @@ public sealed class SuppliersViewModel : ObservableObject
         ReturnInvoiceCommand = new RelayCommand<PurchaseInvoiceDesignItem>(ReturnInvoice);
         OpenInvoiceDetailsCommand = new RelayCommand<PurchaseInvoiceDesignItem>(OpenInvoiceDetails);
         PrintInvoiceCommand = new RelayCommand<PurchaseInvoiceDesignItem>(PrintInvoice);
-        RebuildEntriesAndRefresh();
+        RefreshFromDatabase();
+    }
+
+    /// <summary>Re-reads dbo.Suppliers (and the purchase ledger) so the directory shows the live rows.</summary>
+    public bool RefreshFromDatabase()
+    {
+        if (repository is null)
+        {
+            NotifyExternalDataChanged();
+            return false;
+        }
+
+        try
+        {
+            var previousId = SelectedSupplierEntry?.Supplier.Id;
+            repository.LoadSuppliersInto(sharedSuppliers);
+            RebuildSpecializations();
+            RebuildEntriesAndRefresh(previousId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر تحميل دليل الموردين من قاعدة البيانات.", true);
+            return false;
+        }
     }
 
     private static ObservableCollection<PurchaseInvoiceDesignItem> GetInvoicesFromDesignActions(PurchaseInvoicesViewModel actions)
@@ -219,7 +254,23 @@ public sealed class SuppliersViewModel : ObservableObject
         return new ObservableCollection<PurchaseInvoiceDesignItem>(actions.FilteredInvoices);
     }
 
-    public void NotifyExternalDataChanged() => RebuildEntriesAndRefresh();
+    public void NotifyExternalDataChanged()
+    {
+        // With SQL the shared collections are owned by the repository, so refresh from the rows first.
+        if (repository is not null)
+        {
+            RefreshFromDatabase();
+            return;
+        }
+
+        RebuildEntriesAndRefresh();
+    }
+
+    /// <summary>Refreshes the directory without surfacing the outcome (used by late-bound callbacks).</summary>
+    private void NotifyExternalDataChangedCallback()
+    {
+        NotifyExternalDataChanged();
+    }
     private void OnExternalCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildEntriesAndRefresh();
 
     private static string NormalizePhone(string? value) => string.IsNullOrWhiteSpace(value) ? "" : new string(value.Where(char.IsDigit).ToArray());
@@ -236,10 +287,35 @@ public sealed class SuppliersViewModel : ObservableObject
     {
         OpenAddSupplierDialogRequested?.Invoke(
             string.IsNullOrWhiteSpace(SearchText) ? null : SearchText.Trim(),
-            name => sharedSuppliers.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)),
+            name => repository is not null
+                ? repository.LoadSupplierNames().Contains(name)
+                : sharedSuppliers.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)),
             ValidateDuplicatePhone,
             created =>
             {
+                if (repository is not null)
+                {
+                    SupplierDesignItem saved;
+                    try
+                    {
+                        saved = repository.CreateSupplier(
+                            created.Name, created.Phone, created.SecondaryPhone, created.CompanyName,
+                            created.Specialization, created.Address, created.VodafoneCashNumber,
+                            created.InstaPayAddress, created.Notes);
+                    }
+                    catch (Exception ex)
+                    {
+                        SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر حفظ المورد في قاعدة البيانات.", true);
+                        return;
+                    }
+
+                    RefreshFromDatabase();
+                    RebuildEntriesAndRefresh(saved.Id);
+                    notifyExternalDataChanged?.Invoke();
+                    SetStatus($"تم تسجيل المورد «{saved.Name}» ({saved.SupplierCodeDisplay}) في قاعدة البيانات بنجاح.", false);
+                    return;
+                }
+
                 var supplier = new SupplierDesignItem
                 {
                     Id = sharedSuppliers.Select(s => s.Id).DefaultIfEmpty(0).Max() + 1,
@@ -260,6 +336,25 @@ public sealed class SuppliersViewModel : ObservableObject
         if (entry is null) return;
         OpenEditSupplierDialogRequested?.Invoke(entry.Supplier, ValidateDuplicatePhone, updated =>
         {
+            if (repository is not null)
+            {
+                try
+                {
+                    repository.UpdateSupplier(updated);
+                }
+                catch (Exception ex)
+                {
+                    SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر حفظ تعديلات المورد في قاعدة البيانات.", true);
+                    return;
+                }
+
+                RefreshFromDatabase();
+                RebuildEntriesAndRefresh(updated.Id);
+                notifyExternalDataChanged?.Invoke();
+                SetStatus($"تم تحديث بيانات المورد «{updated.Name}» في قاعدة البيانات ومزامنتها مع فواتير المشتريات.", false);
+                return;
+            }
+
             foreach (var invoice in sharedPurchaseInvoices.Where(i => i.SupplierId == updated.Id))
             {
                 invoice.SupplierName = updated.Name; invoice.SupplierPhone = updated.Phone;
@@ -286,6 +381,27 @@ public sealed class SuppliersViewModel : ObservableObject
         var confirm = new ConfirmActionViewModel("تأكيد حذف المورد", $"{entry.Supplier.Name} — {entry.Supplier.DisplayPhone}", details, "حذف المورد");
         void Confirm()
         {
+            if (repository is not null)
+            {
+                try
+                {
+                    var hardDeleted = repository.DeleteSupplier(entry.Supplier.Id);
+                    RefreshFromDatabase();
+                    notifyExternalDataChanged?.Invoke();
+                    SetStatus(
+                        hardDeleted
+                            ? $"تم حذف المورد «{entry.Supplier.Name}» من قاعدة البيانات نهائيًا."
+                            : $"تمت أرشفة المورد «{entry.Supplier.Name}» (IsActive=0) للحفاظ على سجل فواتير المشتريات.",
+                        false);
+                }
+                catch (Exception ex)
+                {
+                    SetStatus(ex is PurchaseDataException data ? data.Message : "تعذر حذف المورد من قاعدة البيانات.", true);
+                }
+
+                return;
+            }
+
             if (!sharedSuppliers.Remove(entry.Supplier)) return;
             RebuildSpecializations(); RebuildEntriesAndRefresh(); notifyExternalDataChanged?.Invoke();
             SetStatus($"تم حذف المورد «{entry.Supplier.Name}» من الدليل.", false);
