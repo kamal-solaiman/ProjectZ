@@ -69,12 +69,18 @@ IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
     GRANT INSERT ON OBJECT::dbo.AuditLog TO [ProjectZClient];
 GO
 
-/* Maintenance spare parts: the spare-parts screen manages the inventory (SELECT/INSERT/UPDATE/DELETE);
-   the actions screen writes order-part lines that reference a spare part (SELECT/INSERT/UPDATE). */
+/* Maintenance: the intake screen creates maintenance orders, records activities and deposit
+   payments; the actions/invoices screens read and update orders and their parts. */
 IF OBJECT_ID(N'dbo.MaintenanceSpareParts', N'U') IS NOT NULL
     GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceSpareParts TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenanceOrderParts', N'U') IS NOT NULL
     GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
+IF OBJECT_ID(N'dbo.MaintenanceOrders', N'U') IS NOT NULL
+    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
+IF OBJECT_ID(N'dbo.MaintenanceActivities', N'U') IS NOT NULL
+    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
+IF OBJECT_ID(N'dbo.MaintenancePayments', N'U') IS NOT NULL
+    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
 GO
 
 PRINT N'SUCCESS: ProjectZClient can now post POS sales, customer returns, payments and financial ledger rows.';

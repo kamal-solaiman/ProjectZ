@@ -40,6 +40,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
     private readonly ObservableCollection<MaintenanceOrderDesignItem> sharedMaintenanceOrders;
     private readonly string currentUserName;
+    private readonly Data.MaintenanceRepository? repository;
     private int nextOrderId;
 
     // Customer selection & quick contact
@@ -603,16 +604,18 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     public RelayCommand<MaintenanceOrderDesignItem> CopyCustomerForNewOrderCommand { get; }
 
     public MaintenanceIntakeViewModel()
-        : this("المشرف", null, null)
+        : this("المشرف", null, null, null)
     {
     }
 
     public MaintenanceIntakeViewModel(
         string currentUserName,
         ObservableCollection<PosCustomerDesignItem>? sharedCustomers = null,
-        ObservableCollection<MaintenanceOrderDesignItem>? sharedMaintenanceOrders = null)
+        ObservableCollection<MaintenanceOrderDesignItem>? sharedMaintenanceOrders = null,
+        Data.MaintenanceRepository? repository = null)
     {
         this.currentUserName = currentUserName;
+        this.repository = repository;
         this.sharedCustomers = sharedCustomers
             ?? new ObservableCollection<PosCustomerDesignItem>(PosDesignSeedData.CreateSampleCustomers());
         this.sharedMaintenanceOrders = sharedMaintenanceOrders ?? MaintenanceDesignSeedData.CreateSharedSampleOrders(this.sharedCustomers);
@@ -703,6 +706,17 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
 
     public void NotifyExternalDataChanged()
     {
+        if (repository is not null)
+        {
+            try
+            {
+                repository.LoadMaintenanceOrdersInto(sharedMaintenanceOrders);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر تحميل أوامر الصيانة: {ex.Message}", true);
+            }
+        }
         RefreshFilteredCustomers();
         RefreshFilteredRecentOrders();
         NotifyRecentKpis();
@@ -881,9 +895,14 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             return;
         }
 
-        var orderId = GetNextOrderIdPreview();
-        nextOrderId = orderId + 1;
-        var orderNumber = $"MNT-2026-{orderId:0000}";
+        int orderId = 0;
+        string orderNumber = "";
+        if (repository is null)
+        {
+            orderId = GetNextOrderIdPreview();
+            nextOrderId = orderId + 1;
+            orderNumber = $"MNT-2026-{orderId:0000}";
+        }
 
         var selectedConditions = ConditionChecklist.Where(c => c.IsSelected).Select(c => c.Title).ToList();
         if (!string.IsNullOrWhiteSpace(CustomConditionNote))
@@ -935,6 +954,21 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             ActorName = currentUserName,
             Amount = order.HasDeposit ? order.TotalDepositPaid : null
         });
+
+        if (repository is not null)
+        {
+            try
+            {
+                var saved = repository.CreateMaintenanceOrder(order);
+                order.Id = saved.OrderId;
+                order.OrderNumber = saved.OrderNumber;
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر تسجيل أمر الصيانة: {ex.Message}", true);
+                return;
+            }
+        }
 
         sharedMaintenanceOrders.Insert(0, order);
         LastSavedOrder = order;

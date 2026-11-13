@@ -221,8 +221,8 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     private bool hasWorkshopPricing;
     private bool isInvoiceRowSelected;
 
-    public int Id { get; init; }
-    public string OrderNumber { get; init; } = "";
+    public int Id { get; set; }
+    public string OrderNumber { get; set; } = "";
     public DateTime ReceivedAt { get; init; }
     public string ReceivedByName { get; init; } = "";
 
