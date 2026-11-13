@@ -1598,7 +1598,7 @@ GROUP BY a.AccountKind, p.PaymentKind;"))
                 var amount = reader.GetDecimal(2);
                 if (reader.GetByte(1) == 2)
                 {
-                    refunded[kind] = paid.TryGetValue(kind, out var currentRefund) ? currentRefund + amount : amount;
+                    refunded[kind] = refunded.TryGetValue(kind, out var currentRefund) ? currentRefund + amount : amount;
                 }
                 else
                 {
@@ -1607,9 +1607,13 @@ GROUP BY a.AccountKind, p.PaymentKind;"))
             }
         }
 
+        // Literal keys would be int here while the dictionary is keyed by byte; read each bucket explicitly.
+        static decimal Amount(Dictionary<byte, decimal> source, byte kind) =>
+            source.TryGetValue(kind, out var value) ? value : 0m;
+
         return new CollectedPurchaseAmounts(
-            paid.GetValueOrDefault(0), paid.GetValueOrDefault(1), paid.GetValueOrDefault(2),
-            refunded.GetValueOrDefault(0), refunded.GetValueOrDefault(1), refunded.GetValueOrDefault(2));
+            Amount(paid, 0), Amount(paid, 1), Amount(paid, 2),
+            Amount(refunded, 0), Amount(refunded, 1), Amount(refunded, 2));
     }
 
     /// <summary>Maps the refund channel chosen in the return dialog to a financial account.</summary>
