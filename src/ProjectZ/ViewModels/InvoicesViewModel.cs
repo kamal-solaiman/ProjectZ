@@ -17,6 +17,10 @@ public sealed class InvoicesViewModel : ObservableObject
     private readonly Action? navigateToPos;
     private readonly Action? notifyInventoryChanged;
     private readonly SalesRepository? repository;
+    private readonly Action? stockReload;
+
+    /// <summary>Late-bound stock reload (set by MainViewModel) so invoice writes refresh the catalog from SQL.</summary>
+    public Action? StockReloadRequested { get; set; }
     private Action? notifyReturnExchangeChanged;
 
     private int nextInvoiceId;
@@ -288,9 +292,11 @@ public sealed class InvoicesViewModel : ObservableObject
         Action? notifyInventoryChanged = null,
         ObservableCollection<ReturnExchangeOperationItem>? sharedReturnOperations = null,
         Action? notifyReturnExchangeChanged = null,
-        SalesRepository? repository = null)
+        SalesRepository? repository = null,
+        Action? stockReloadRequested = null)
     {
         this.repository = repository;
+        stockReload = stockReloadRequested;
         this.sharedInvoices = sharedInvoices;
         this.sharedCatalog = sharedCatalog;
         this.sharedRegistrations = sharedRegistrations;
@@ -446,6 +452,7 @@ public sealed class InvoicesViewModel : ObservableObject
         RebuildCashierFilters();
         RefreshFilteredInvoices();
         SelectedInvoice = invoice;
+        ReloadStockFromDatabase();
         notifyInventoryChanged?.Invoke();
         notifyReturnExchangeChanged?.Invoke();
         SetStatus($"تم استلام الفاتورة الجديدة {invoiceNo} من نقطة البيع بقيمة {invoice.NetTotalDisplay}.", false);
@@ -745,7 +752,9 @@ public sealed class InvoicesViewModel : ObservableObject
                 Amount = returnValue
             });
 
-            if (sharedReturnOperations is not null)
+            // The return/exchange ledger is read back from dbo.ReturnExchanges. Only the design
+            // (database-less) path still appends to the in-memory collection.
+            if (sharedReturnOperations is not null && repository is null)
             {
                 var opId = sharedReturnOperations.Count > 0 ? sharedReturnOperations.Max(o => o.Id) + 1 : 1;
                 var summaryItems = string.Join("، ", submission.Lines.Select(l =>
@@ -968,32 +977,7 @@ public sealed class InvoicesViewModel : ObservableObject
         if (submission.RefundCashToCustomer) invoice.RefundedAmount += returnValue;
         invoice.NotifyFinancialsChanged();
 
-        sharedReturnOperations?.Insert(0, new ReturnExchangeOperationItem
-        {
-            Id = sharedReturnOperations.Count > 0 ? sharedReturnOperations.Max(o => o.Id) + 1 : 1,
-            OperationNumber = operationNumber,
-            OperationType = ReturnExchangeType.Return,
-            CreatedAt = DateTime.Now,
-            ActorName = currentCashierName,
-            InvoiceId = invoice.Id,
-            InvoiceNumber = invoice.InvoiceNumber,
-            CustomerName = invoice.CustomerName,
-            CustomerPhone = invoice.CustomerPhone,
-            Reason = submission.Reason,
-            GoodReturnedUnitsCount = submission.ReturnAsAvailableStock ? returnedUnits : 0,
-            DamagedReturnedUnitsCount = submission.ReturnAsAvailableStock ? 0 : returnedUnits,
-            ReplacementUnitsCount = 0,
-            ReturnedValue = returnValue,
-            ReplacementValue = 0m,
-            ReturnedItemsSummary = string.Join("، ", submission.Lines
-                .Where(l => l.ReturnQuantity > 0)
-                .Select(l => $"{l.ReturnQuantity}× {l.Line.ProductName} " +
-                             $"({(submission.ReturnAsAvailableStock ? "سليم ← المخزون" : "هالك ← مخزون الهالك")})")),
-            ReplacementItemsSummary = "—",
-            SettlementSummary = submission.RefundCashToCustomer
-                ? $"رد للعميل: {PosFormatting.FormatCurrency(returnValue)}"
-                : $"خصم {PosFormatting.FormatCurrency(returnValue)} من الرصيد"
-        });
+        // The operation row already exists in dbo.ReturnExchanges; the screen reloads it below.
 
         notifyReturnExchangeChanged?.Invoke();
         RefreshFilteredInvoices();
@@ -1003,6 +987,7 @@ public sealed class InvoicesViewModel : ObservableObject
         if (!RefreshInvoicesFromDatabase())
             KeepInvoiceSelection(invoice.Id);
 
+        ReloadStockFromDatabase();
         notifyInventoryChanged?.Invoke();
         SetStatus($"تم تسجيل المرتجع {operationNumber} على الفاتورة {invoice.InvoiceNumber} ({returnedUnits} قطعة) في قاعدة البيانات.", false);
         return null;
@@ -1043,8 +1028,20 @@ public sealed class InvoicesViewModel : ObservableObject
         if (!RefreshInvoicesFromDatabase())
             KeepInvoiceSelection(invoice.Id);
 
+        ReloadStockFromDatabase();
         notifyInventoryChanged?.Invoke();
         SetStatus($"تم إلغاء الفاتورة {invoice.InvoiceNumber} في قاعدة البيانات وإعادة أصنافها للمخزون.", false);
+    }
+
+    /// <summary>
+    /// Reloads the shared catalog and inventory units from SQL so the stock shown on the POS, the
+    /// inventory screen and this screen all come from the same rows after a sale, return or cancel.
+    /// </summary>
+    private void ReloadStockFromDatabase()
+    {
+        if (repository is null) return;
+
+        (StockReloadRequested ?? stockReload)?.Invoke();
     }
 
     /// <summary>Re-selects the invoice the operator was working on after the list is rebuilt from SQL.</summary>

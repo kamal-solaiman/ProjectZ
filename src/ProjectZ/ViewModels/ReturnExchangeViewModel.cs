@@ -188,6 +188,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     private readonly Action? navigateToInvoices;
     private readonly Action? notifyInventoryChanged;
     private readonly Action? notifyInvoicesChanged;
+    private readonly SalesRepository? repository;
 
     private int nextOperationId = 2;
     private int nextRegistrationId = 4001;
@@ -214,7 +215,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     private string historySearchText = "";
     private string selectedHistoryTypeFilter = "الكل";
 
-    private string statusMessage = "مرحلة التصميم (بدون Backend): ابحث باسم العميل أو رقم الموبايل أو رقم الفاتورة أو بتاريخ اليوم لعرض الفاتورة كاملة وتنفيذ المرتجع أو الاستبدال.";
+    private string statusMessage = "ابحث باسم العميل أو رقم الموبايل أو رقم الفاتورة أو بتاريخ اليوم لعرض الفاتورة كاملة وتنفيذ المرتجع أو الاستبدال، ويُحفظ كل شيء في SQL Server.";
     private bool isErrorStatus;
 
     public ObservableCollection<SalesInvoiceDesignItem> FilteredInvoices { get; } = [];
@@ -551,6 +552,78 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         }
     }
 
+    /// <summary>True when the screen reads and writes SQL Server (no design sample data).</summary>
+    public bool IsConnectedToDatabase => repository is not null;
+
+    public string DataSourceLabel => repository is null
+        ? "معاينة تصميم — بدون قاعدة بيانات"
+        : "متصل بقاعدة البيانات — SQL Server";
+
+    public string HistorySourceLabel => repository is null
+        ? "سجل تجريبي (بدون قاعدة بيانات)"
+        : "السجل مقروء من dbo.ReturnExchanges";
+
+    public ActionCommand RefreshFromDatabaseCommand { get; }
+
+    /// <summary>Reloads invoices (with returned quantities) and the saved operations from SQL Server.</summary>
+    public bool RefreshFromDatabase()
+    {
+        if (repository is null)
+        {
+            NotifyExternalDataChanged();
+            return false;
+        }
+
+        try
+        {
+            repository.LoadInvoicesInto(sharedInvoices);
+            LoadOperationsFromDatabase();
+            NotifyExternalDataChanged();
+            SetStatus($"تم تحميل {sharedInvoices.Count} فاتورة و{sharedOperations.Count} عملية مرتجع/استبدال من قاعدة البيانات.", false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is SalesDataException data ? data.Message : "تعذر تحميل بيانات المرتجع والاستبدال من قاعدة البيانات.", true);
+            return false;
+        }
+    }
+
+    private void LoadOperationsFromDatabase()
+    {
+        if (repository is null) return;
+
+        var records = repository.LoadReturnExchanges();
+        sharedOperations.Clear();
+        foreach (var record in records)
+        {
+            sharedOperations.Add(new ReturnExchangeOperationItem
+            {
+                Id = record.Id,
+                OperationNumber = record.OperationNumber,
+                OperationType = record.OperationType == 1 ? ReturnExchangeType.Exchange : ReturnExchangeType.Return,
+                CreatedAt = record.CreatedAt,
+                ActorName = record.ActorName,
+                InvoiceId = record.InvoiceId,
+                InvoiceNumber = record.InvoiceNumber,
+                CustomerName = record.CustomerName,
+                CustomerPhone = record.CustomerPhone,
+                Reason = record.Reason,
+                GoodReturnedUnitsCount = record.GoodUnits,
+                DamagedReturnedUnitsCount = record.DamagedUnits,
+                ReplacementUnitsCount = record.ReplacementUnits,
+                ReturnedValue = record.ReturnedValue,
+                ReplacementValue = record.ReplacementValue,
+                ReturnedItemsSummary = record.ReturnedItemsSummary,
+                ReplacementItemsSummary = record.ReplacementItemsSummary,
+                SettlementSummary = record.SettlementSummary
+            });
+        }
+
+        nextOperationId = sharedOperations.Count > 0 ? sharedOperations.Max(o => o.Id) + 1 : 1;
+        NotifyOperationKpis();
+    }
+
     public ActionCommand SelectWorkspaceTabCommand { get; }
     public ActionCommand SelectHistoryTabCommand { get; }
     public ActionCommand GoToInvoicesCommand { get; }
@@ -612,7 +685,8 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         string currentCashierName = "المشرف",
         Action? navigateToInvoices = null,
         Action? notifyInventoryChanged = null,
-        Action? notifyInvoicesChanged = null)
+        Action? notifyInvoicesChanged = null,
+        SalesRepository? repository = null)
     {
         this.sharedInvoices = sharedInvoices;
         this.sharedCatalog = sharedCatalog;
@@ -622,11 +696,13 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         this.navigateToInvoices = navigateToInvoices;
         this.notifyInventoryChanged = notifyInventoryChanged;
         this.notifyInvoicesChanged = notifyInvoicesChanged;
+        this.repository = repository;
 
         nextOperationId = sharedOperations.Count > 0 ? sharedOperations.Max(o => o.Id) + 1 : 1;
         nextRegistrationId = sharedRegistrations.Count > 0 ? sharedRegistrations.Max(r => r.Id) + 1 : 4001;
 
         SelectWorkspaceTabCommand = new ActionCommand(() => IsWorkspaceTabSelected = true);
+        RefreshFromDatabaseCommand = new ActionCommand(() => RefreshFromDatabase());
         SelectHistoryTabCommand = new ActionCommand(() => IsHistoryTabSelected = true);
         GoToInvoicesCommand = new ActionCommand(() => this.navigateToInvoices?.Invoke());
         ClearFiltersCommand = new ActionCommand(() =>
@@ -872,6 +948,13 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         }
 
         var invoice = SelectedInvoice;
+
+        if (repository is not null)
+        {
+            ExecuteDatabaseOperation(invoice, selectedLines, trimmedReason);
+            return;
+        }
+
         var opId = nextOperationId++;
         var opNo = IsExchangeMode ? $"EXC-2026-{opId:0000}" : $"RET-2026-{opId:0000}";
         var now = DateTime.Now;
@@ -1135,6 +1218,74 @@ public sealed class ReturnExchangeViewModel : ObservableObject
 
         SetStatus(
             $"تم تنفيذ {(IsExchangeMode ? "الاستبدال" : "المرتجع")} ({opNo}) على الفاتورة {invoice.InvoiceNumber}: {goodUnitsTotal} سليم للمخزون، {damagedUnitsTotal} هالك — {settlementDesc}.",
+            false);
+    }
+
+    /// <summary>
+    /// Persists the return/exchange to SQL Server. The repository owns the transaction; on success the
+    /// invoices (with returned quantities) and the operation ledger are re-read so every screen matches.
+    /// </summary>
+    private void ExecuteDatabaseOperation(
+        SalesInvoiceDesignItem invoice,
+        List<ReturnExchangeInvoiceLineViewModel> selectedLines,
+        string reason)
+    {
+        var requests = new List<SalesRepository.ReturnLineRequest>();
+        foreach (var lineVm in selectedLines)
+        {
+            if (lineVm.Line.DatabaseLineId <= 0)
+            {
+                SetStatus("أحد بنود الفاتورة غير محفوظ في قاعدة البيانات. اضغط «تحديث من قاعدة البيانات» وأعد المحاولة.", true);
+                return;
+            }
+
+            requests.Add(new SalesRepository.ReturnLineRequest(
+                lineVm.Line.DatabaseLineId,
+                lineVm.TotalSelectedReturnQty,
+                lineVm.DamagedReturnQty == 0,
+                lineVm.Line.UnitPrice,
+                lineVm.Line.UnitCost > 0m ? lineVm.Line.UnitCost : lineVm.Line.UnitPrice,
+                lineVm.GoodReturnQty));
+        }
+
+        var replacements = ReplacementItems
+            .Select(r => new SalesRepository.ExchangeReplacementRequest(
+                r.Product.Id, r.Quantity, (int)r.SelectedPriceTier))
+            .ToList();
+
+        var payment = new SalesRepository.ExchangePayment(ParsedDiffCash, ParsedDiffVodafone, ParsedDiffInstaPay);
+
+        string operationNumber;
+        try
+        {
+            operationNumber = IsExchangeMode
+                ? repository!.CreateExchange(new SalesRepository.ExchangeRequest(invoice, reason, requests, replacements), payment)
+                : repository!.CreateReturn(new SalesRepository.ReturnRequest(invoice, reason, true, requests));
+        }
+        catch (SalesDataException data)
+        {
+            SetStatus(data.Message, true);
+            return;
+        }
+        catch (Exception)
+        {
+            SetStatus("تعذر حفظ العملية في قاعدة البيانات؛ لم تتغير الفاتورة ولا المخزون.", true);
+            return;
+        }
+
+        // Re-read everything the operation touched so the screen shows the committed numbers.
+        var reloaded = RefreshFromDatabase();
+
+        notifyInventoryChanged?.Invoke();
+        notifyInvoicesChanged?.Invoke();
+
+        var returnedUnits = requests.Sum(r => r.Quantity);
+        var note = reloaded
+            ? string.Empty
+            : " (تعذر إعادة تحميل الفواتير تلقائيًا؛ اضغط «تحديث من قاعدة البيانات».)";
+        SetStatus(
+            $"تم حفظ {(IsExchangeMode ? "الاستبدال" : "المرتجع")} {operationNumber} للفاتورة {invoice.InvoiceNumber}: " +
+            $"{returnedUnits} وحدة راجعة، {ReplacementItems.Sum(r => r.Quantity)} وحدة بديلة.{note}",
             false);
     }
 

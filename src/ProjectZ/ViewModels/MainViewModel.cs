@@ -165,8 +165,11 @@ public sealed class MainViewModel : ObservableObject
             user.DisplayName,
             () => SelectItem(Categories[0].Items[4]),
             Inventory.NotifyExternalInventoryChanged,
-            Invoices.NotifyExternalInvoicesChanged);
+            Invoices.NotifyExternalInvoicesChanged,
+            salesRepository);
         Invoices.SetReturnExchangeNotifier(ReturnExchange.NotifyExternalDataChanged);
+        // Invoice writes (sale / return / cancel) move stock in SQL; the catalog and units are re-read from the same rows.
+        Invoices.StockReloadRequested = ReloadInventoryOnly;
         PurchaseEntry = new PurchaseEntryViewModel(
             user.DisplayName,
             sharedCatalog,
@@ -357,6 +360,14 @@ public sealed class MainViewModel : ObservableObject
         return true;
     }
 
+    /// <summary>Re-reads products and units from SQL and pushes them to every screen that shows stock.</summary>
+    private void ReloadInventoryOnly()
+    {
+        Inventory.RefreshFromDatabase();
+        Pos.NotifyExternalInventoryChanged();
+        AddProduct.NotifyInventoryLoaded();
+    }
+
     /// <summary>Called by the invoice screen after it changed stock or money in SQL.</summary>
     private void ReloadAfterSale()
     {
@@ -428,7 +439,10 @@ public sealed class MainViewModel : ObservableObject
         else if (ReferenceEquals(item, Categories[3].Items[4]))
             InstapayRecords.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[0].Items[5]))
-            ReturnExchange.NotifyExternalDataChanged();
+        {
+            if (!ReturnExchange.RefreshFromDatabase())
+                ReturnExchange.NotifyExternalDataChanged();
+        }
         else if (ReferenceEquals(item, Categories[0].Items[4]))
         {
             if (!Invoices.RefreshInvoicesFromDatabase())
