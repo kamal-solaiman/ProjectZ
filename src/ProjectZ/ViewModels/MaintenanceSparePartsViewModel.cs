@@ -311,7 +311,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
                 RefreshFilteredSpareParts();
                 notifySparePartsChanged?.Invoke();
                 SetStatus(editingPart is not null
-                    ? $"تم حفظ تعديلات قطعة الغيار «{saved.Name}» (SPR-{saved.Id:000}) ومزامنتها مع قاعدة البيانات.",
+                    ? $"تم حفظ تعديلات قطعة الغيار «{saved.Name}» (SPR-{saved.Id:000}) ومزامنتها مع قاعدة البيانات."
                     : $"تم تسجيل قطعة الغيار «{saved.Name}» (SPR-{saved.Id:000}) بنجاح في قاعدة البيانات.", false);
                 return;
             }
