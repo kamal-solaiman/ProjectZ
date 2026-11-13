@@ -405,6 +405,7 @@ VALUES(@Account,@OpKind,@Customer,@Amount,@Commission,@CashDelta,@WalletBalance,
         FinancialAccountKind walletKind,
         decimal walletDelta,
         decimal cashDelta,
+        string counterparty,
         string note)
     {
         try
@@ -443,9 +444,9 @@ OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
             }
 
             RecordWalletMovement(connection, transaction, walletAccount, walletBalanceAfter,
-                -walletDelta, "عكس تحويل", note, actorUserId);
+                -walletDelta, "عكس تحويل", counterparty, note, actorUserId);
             RecordWalletMovement(connection, transaction, cashAccount, cashBalanceAfter,
-                -cashDelta, "عكس تحويل", note, actorUserId);
+                -cashDelta, "عكس تحويل", counterparty, note, actorUserId);
 
             using (var reverse = CreateCommand(connection, transaction, @"
 UPDATE dbo.CustomerTransfers SET OperationStatus = 1, ReversedAtUtc = SYSUTCDATETIME(), ReversedByUserId = @Actor,

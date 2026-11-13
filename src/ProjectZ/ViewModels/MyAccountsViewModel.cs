@@ -220,9 +220,9 @@ public sealed class MyAccountsViewModel : ObservableObject
                     result.MonthlyDepositLimit, result.MonthlyWithdrawalLimit, result.Notes,
                     !Accounts.Any(a => a.Kind == result.Kind && a.IsDefault));
                 LoadFromDatabase();
-                var account = Accounts.First(a => a.Id == saved.AccountId);
-                SelectedAccount = account;
-                SetStatus($"تمت إضافة «{account.Alias}» برصيد مستقل وحدود تشغيل خاصة.", false);
+                var refreshedAccount = Accounts.First(a => a.Id == saved.AccountId);
+                SelectedAccount = refreshedAccount;
+                SetStatus($"تمت إضافة «{refreshedAccount.Alias}» برصيد مستقل وحدود تشغيل خاصة.", false);
             }
             catch (Exception ex)
             {
@@ -329,9 +329,9 @@ public sealed class MyAccountsViewModel : ObservableObject
 
         if (account.Balance != 0m) { SetStatus("لا يمكن حذف محفظة عليها رصيد؛ حوّل أو اسحب الرصيد أولًا.", true); return; }
         if (Transactions.Any(t => t.AccountId == account.Id)) { SetStatus("لا يمكن حذف محفظة لها سجل حركات؛ يمكنك إيقافها مؤقتًا للحفاظ على الأرشيف.", true); return; }
-        var confirm = new ConfirmActionViewModel("تأكيد حذف المحفظة", account.DisplayName, "المحفظة بلا رصيد أو حركات. سيتم حذفها نهائيًا من التصميم المحلي. هل تريد المتابعة؟", "حذف المحفظة");
-        void Delete() { Accounts.Remove(account); RecalculateAll(); SelectedAccount = FilteredWallets.FirstOrDefault(); SetStatus($"تم حذف «{account.Alias}».", false); }
-        if (OpenConfirmDialogRequested is not null) OpenConfirmDialogRequested(confirm, Delete); else Delete();
+        var confirmLocal = new ConfirmActionViewModel("تأكيد حذف المحفظة", account.DisplayName, "المحفظة بلا رصيد أو حركات. سيتم حذفها نهائيًا من التصميم المحلي. هل تريد المتابعة؟", "حذف المحفظة");
+        void DeleteLocal() { Accounts.Remove(account); RecalculateAll(); SelectedAccount = FilteredWallets.FirstOrDefault(); SetStatus($"تم حذف «{account.Alias}».", false); }
+        if (OpenConfirmDialogRequested is not null) OpenConfirmDialogRequested(confirmLocal, DeleteLocal); else DeleteLocal();
     }
 
     private void OpenTransaction(FinancialAccountDesignItem? account)

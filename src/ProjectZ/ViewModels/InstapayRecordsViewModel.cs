@@ -215,7 +215,7 @@ public sealed class InstapayRecordsViewModel : ObservableObject
                     accounts.Repository.ReverseCustomerTransfer(
                         operation.Id, operation.WalletId, FinancialAccountKind.InstaPay,
                         operation.IsDeposit ? -operation.Amount : operation.Amount, operation.CashDelta,
-                        $"عكس عملية إنستاباي رقم {operation.Id}");
+                        operation.CustomerNumber, $"عكس عملية إنستاباي رقم {operation.Id}");
                     accounts.NotifyExternalDataChanged();
                     transfers.NotifyExternalDataChanged();
                     ApplyFilters();
@@ -251,7 +251,7 @@ public sealed class InstapayRecordsViewModel : ObservableObject
                         accounts.Repository.ReverseCustomerTransfer(
                             operation.Id, operation.WalletId, FinancialAccountKind.InstaPay,
                             operation.IsDeposit ? -operation.Amount : operation.Amount, operation.CashDelta,
-                            $"تسوية حذف سجل إنستاباي رقم {operation.Id}");
+                            operation.CustomerNumber, $"تسوية حذف سجل إنستاباي رقم {operation.Id}");
                     }
                     accounts.NotifyExternalDataChanged();
                     transfers.NotifyExternalDataChanged();
