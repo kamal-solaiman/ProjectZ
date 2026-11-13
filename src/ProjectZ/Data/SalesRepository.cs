@@ -603,13 +603,450 @@ UPDATE dbo.SalesInvoices SET InvoiceStatus = 4, UpdatedAtUtc = SYSUTCDATETIME() 
         }
     }
 
-    public sealed record ReturnLineRequest(int SalesInvoiceLineId, int Quantity, bool ReturnAsGood, decimal UnitPrice, decimal UnitCost);
+    /// <summary>
+    /// One returned line. A line can carry both conditions at once (good + damaged), which the
+    /// exchange screen allows; the invoice dialog always sends one of them.
+    /// </summary>
+    public sealed record ReturnLineRequest(
+        int SalesInvoiceLineId,
+        int Quantity,
+        bool ReturnAsGood,
+        decimal UnitPrice,
+        decimal UnitCost,
+        int GoodQuantity = -1)
+    {
+        public int GoodQuantityValue => GoodQuantity < 0 ? (ReturnAsGood ? Quantity : 0) : Math.Clamp(GoodQuantity, 0, Quantity);
+        public int DamagedQuantity => Quantity - GoodQuantityValue;
+        public bool IsSplitCondition => GoodQuantityValue > 0 && DamagedQuantity > 0;
+    }
 
     public sealed record ReturnRequest(
         SalesInvoiceDesignItem Invoice,
         string Reason,
         bool RefundCashToCustomer,
         IReadOnlyList<ReturnLineRequest> Lines);
+
+    /// <summary>A replacement and the price tier the customer agreed on.</summary>
+    public sealed record ExchangeReplacementRequest(int ProductId, int Quantity, int PriceTier);
+
+    /// <summary>Extra money the customer pays for an upgrade exchange (split by payment method).</summary>
+    public sealed record ExchangePayment(decimal Cash, decimal Vodafone, decimal InstaPay);
+
+    public sealed record ExchangeRequest(
+        SalesInvoiceDesignItem Invoice,
+        string Reason,
+        IReadOnlyList<ReturnLineRequest> Lines,
+        IReadOnlyList<ExchangeReplacementRequest> Replacements);
+
+    /// <summary>One saved return/exchange operation read back from SQL for the history tab.</summary>
+    public sealed record ReturnExchangeRecord(
+        int Id,
+        string OperationNumber,
+        int OperationType,
+        DateTime CreatedAt,
+        string ActorName,
+        int InvoiceId,
+        string InvoiceNumber,
+        string CustomerName,
+        string CustomerPhone,
+        string Reason,
+        string SettlementSummary,
+        int GoodUnits,
+        int DamagedUnits,
+        int ReplacementUnits,
+        decimal ReturnedValue,
+        decimal ReplacementValue,
+        string ReturnedItemsSummary,
+        string ReplacementItemsSummary);
+
+    /// <summary>
+    /// Posts a customer <b>exchange</b> in one serializable transaction: the returned units go back to
+    /// stock (good) or to damage, the replacement units are claimed for the same invoice, the invoice
+    /// price difference is settled (refund, extra payment, or credit), and everything is written to
+    /// ReturnExchanges / ReturnExchangeLines / ReturnExchangeUnits / StockMovements / AuditLog.
+    /// </summary>
+    public string CreateExchange(ExchangeRequest request, ExchangePayment payment)
+    {
+        if (request.Invoice.Id <= 0) throw new SalesDataException("الاستبدال يحتاج فاتورة محفوظة في قاعدة البيانات.");
+        if (request.Lines.Count == 0) throw new SalesDataException("حدد كمية مرتجعة واحدة على الأقل للاستبدال.");
+        if (request.Replacements.Count == 0) throw new SalesDataException("اختر صنفًا بديلًا واحدًا على الأقل.");
+        if (string.IsNullOrWhiteSpace(request.Reason)) throw new SalesDataException("يرجى تحديد سبب الاستبدال.");
+        if (payment.Cash < 0m || payment.Vodafone < 0m || payment.InstaPay < 0m)
+            throw new SalesDataException("مبالغ فرق الاستبدال لا يمكن أن تكون سالبة.");
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+            try
+            {
+                var operationNumber = NextDocumentNumber(connection, transaction, "ReturnExchange", DateTime.Now.Year, "EXC");
+
+                // Prices are resolved before the operation row is inserted so the settlement summary
+                // is written once (no UPDATE grant needed on dbo.ReturnExchanges).
+                var planned = new List<(ExchangeReplacementRequest Request, SaleProductSnapshot Product, decimal Price)>();
+                foreach (var replacement in request.Replacements.Where(r => r.Quantity > 0))
+                {
+                    var snapshotProduct = LoadProductForSale(connection, transaction, replacement.ProductId);
+                    var tierPrice = replacement.PriceTier switch
+                    {
+                        2 => snapshotProduct.WholesalePrice,
+                        1 => snapshotProduct.SpecialPrice,
+                        _ => snapshotProduct.RetailPrice
+                    };
+                    planned.Add((replacement, snapshotProduct, tierPrice));
+                }
+
+                var returnedValue = request.Lines.Where(l => l.Quantity > 0).Sum(l => l.Quantity * l.UnitPrice);
+                var replacementValue = planned.Sum(p => p.Request.Quantity * p.Price);
+                var difference = replacementValue - returnedValue;
+                var paidTotal = payment.Cash + payment.Vodafone + payment.InstaPay;
+                if (difference > 0m && paidTotal > difference + 0.009m)
+                    throw new SalesDataException(
+                        $"المبلغ المدفوع ({paidTotal:0.00}) أكبر من فرق الاستبدال المستحق ({difference:0.00}).");
+
+                var settlementParts = new List<string>(3);
+                if (payment.Cash > 0m) settlementParts.Add($"كاش {payment.Cash:0.00}");
+                if (payment.Vodafone > 0m) settlementParts.Add($"فودافون {payment.Vodafone:0.00}");
+                if (payment.InstaPay > 0m) settlementParts.Add($"إنستاباي {payment.InstaPay:0.00}");
+
+                string settlement;
+                if (difference > 0m)
+                {
+                    var creditGap = Math.Max(0m, difference - paidTotal);
+                    settlement = creditGap > 0m
+                        ? $"تحصيل فرق {paidTotal:0.00} ج.م ({string.Join(" + ", settlementParts)}) + ترحيل {creditGap:0.00} ج.م آجل"
+                        : $"تحصيل فرق {paidTotal:0.00} ج.م ({string.Join(" + ", settlementParts)})";
+                }
+                else if (difference < 0m)
+                {
+                    settlement = $"رد للعميل {Math.Abs(difference):0.00} ج.م (استبدال)";
+                }
+                else
+                {
+                    settlement = "استبدال متساوي القيمة (0.00 ج.م)";
+                }
+
+                int operationId;
+                using (var command = CreateCommand(connection, transaction, @"
+INSERT dbo.ReturnExchanges(OperationNumber,SalesInvoiceId,OperationType,CreatedAtUtc,ActorUserId,Reason,SettlementSummary)
+OUTPUT inserted.Id
+VALUES(@Number,@Invoice,1,SYSUTCDATETIME(),@Actor,@Reason,@Settlement);"))
+                {
+                    command.Parameters.Add("@Number", SqlDbType.NVarChar, 50).Value = operationNumber;
+                    command.Parameters.Add("@Invoice", SqlDbType.Int).Value = request.Invoice.Id;
+                    command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+                    command.Parameters.Add("@Reason", SqlDbType.NVarChar, 1000).Value = Trim(request.Reason, 1000, "");
+                    command.Parameters.Add("@Settlement", SqlDbType.NVarChar, 1500).Value = Trim(settlement, 1500, "");
+                    operationId = (int)command.ExecuteScalar()!;
+                }
+
+                var goodTotal = 0;
+                var damagedTotal = 0;
+
+                foreach (var line in request.Lines)
+                {
+                    if (line.Quantity <= 0) continue;
+
+                    var snapshot = LoadLineSnapshot(connection, transaction, line.SalesInvoiceLineId, request.Invoice.Id);
+                    if (line.Quantity > snapshot.RemainingQuantity)
+                        throw new SalesDataException($"الكمية المتاحة للمرتجع من «{snapshot.ProductName}» هي {snapshot.RemainingQuantity} فقط.");
+
+                    var goodQty = line.GoodQuantityValue;
+                    var damagedQty = line.DamagedQuantity;
+                    goodTotal += goodQty;
+                    damagedTotal += damagedQty;
+
+                    int returnLineId;
+                    using (var command = CreateCommand(connection, transaction, @"
+INSERT dbo.ReturnExchangeLines(ReturnExchangeId,LineKind,SalesInvoiceLineId,ProductId,ProductNameSnapshot,Quantity,UnitPrice,UnitCost,UnitCondition)
+OUTPUT inserted.Id
+VALUES(@Operation,1,@SalesLine,@Product,@Name,@Quantity,@Price,@Cost,@Condition);"))
+                    {
+                        command.Parameters.Add("@Operation", SqlDbType.Int).Value = operationId;
+                        command.Parameters.Add("@SalesLine", SqlDbType.Int).Value = line.SalesInvoiceLineId;
+                        command.Parameters.Add("@Product", SqlDbType.Int).Value = snapshot.ProductId;
+                        command.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = snapshot.ProductName;
+                        command.Parameters.Add("@Quantity", SqlDbType.Int).Value = line.Quantity;
+                        AddMoney(command, "@Price", line.UnitPrice);
+                        AddMoney(command, "@Cost", line.UnitCost);
+                        command.Parameters.Add("@Condition", SqlDbType.TinyInt).Value = (byte)(damagedQty > 0 ? 1 : 0);
+                        returnLineId = (int)command.ExecuteScalar()!;
+                    }
+
+                    var units = ClaimSoldUnits(connection, transaction, line.SalesInvoiceLineId, line.Quantity);
+                    var unitIndex = 0;
+                    foreach (var unit in units)
+                    {
+                        using (var link = CreateCommand(connection, transaction,
+                            "INSERT dbo.ReturnExchangeUnits(ReturnExchangeLineId,InventoryUnitId) VALUES(@Line,@Unit);"))
+                        {
+                            link.Parameters.Add("@Line", SqlDbType.Int).Value = returnLineId;
+                            link.Parameters.Add("@Unit", SqlDbType.Int).Value = unit.UnitId;
+                            link.ExecuteNonQuery();
+                        }
+
+                        using (var mark = CreateCommand(connection, transaction,
+                            "UPDATE dbo.SalesInvoiceLineUnits SET AllocationStatus = 1 WHERE SalesInvoiceLineId=@Line AND InventoryUnitId=@Unit;"))
+                        {
+                            mark.Parameters.Add("@Line", SqlDbType.Int).Value = line.SalesInvoiceLineId;
+                            mark.Parameters.Add("@Unit", SqlDbType.Int).Value = unit.UnitId;
+                            mark.ExecuteNonQuery();
+                        }
+
+                        var asGood = unitIndex++ < goodQty;
+                        if (asGood)
+                            ReturnUnitToStock(connection, transaction, request.Invoice.Id, request.Invoice.InvoiceNumber,
+                                unit.UnitId, snapshot.ProductId, unit.Cost, "Return", $"استبدال: {request.Reason}");
+                        else
+                            MoveUnitToDamaged(connection, transaction, request.Invoice.Id, unit.UnitId,
+                                snapshot.ProductId, unit.Cost, $"استبدال فاتورة {request.Invoice.InvoiceNumber}: {request.Reason}");
+                    }
+
+                    using var updateLine = CreateCommand(connection, transaction,
+                        "UPDATE dbo.SalesInvoiceLines SET ReturnedQuantity = ReturnedQuantity + @Quantity WHERE Id=@Id;");
+                    updateLine.Parameters.Add("@Quantity", SqlDbType.Int).Value = line.Quantity;
+                    updateLine.Parameters.Add("@Id", SqlDbType.Int).Value = line.SalesInvoiceLineId;
+                    updateLine.ExecuteNonQuery();
+                }
+
+                var replacementUnits = 0;
+                var nextLineNumber = NextSalesLineNumber(connection, transaction, request.Invoice.Id);
+
+                foreach (var (replacement, product, price) in planned)
+                {
+                    var claim = ClaimExchangeUnits(connection, transaction, replacement.ProductId, replacement.Quantity);
+                    var claimed = claim.Units;
+                    var unitlessStock = claimed.Count < replacement.Quantity && claim.RegisteredUnits == 0
+                        ? GetUnregisteredStockBalance(connection, transaction, replacement.ProductId)
+                        : -1;
+                    if (claimed.Count < replacement.Quantity && unitlessStock < replacement.Quantity)
+                        throw new SalesDataException(
+                            $"المتاح من الصنف البديل «{product.Name}» ({Math.Max(claimed.Count, Math.Max(0, unitlessStock))}) أقل من الكمية المطلوبة ({replacement.Quantity}).");
+
+                    var lineNumber = nextLineNumber++;
+                    int replacementLineId;
+                    using (var command = CreateCommand(connection, transaction, @"
+INSERT dbo.SalesInvoiceLines(SalesInvoiceId,LineNumber,ProductId,BarcodeSnapshot,ProductNameSnapshot,CategoryNameSnapshot,
+ UnitNameSnapshot,TrackSerialNumber,PriceTier,Quantity,UnitPrice,UnitCost,IsExchangeReplacement)
+OUTPUT inserted.Id
+VALUES(@Invoice,@Line,@Product,@Barcode,@Name,@Category,@Unit,@TrackSerial,@Tier,@Quantity,@Price,@Cost,1);"))
+                    {
+                        command.Parameters.Add("@Invoice", SqlDbType.Int).Value = request.Invoice.Id;
+                        command.Parameters.Add("@Line", SqlDbType.Int).Value = lineNumber;
+                        command.Parameters.Add("@Product", SqlDbType.Int).Value = product.Id;
+                        command.Parameters.Add("@Barcode", SqlDbType.NVarChar, 100).Value = product.Barcode;
+                        command.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = product.Name;
+                        command.Parameters.Add("@Category", SqlDbType.NVarChar, 200).Value = product.Category;
+                        command.Parameters.Add("@Unit", SqlDbType.NVarChar, 50).Value = product.UnitName;
+                        command.Parameters.Add("@TrackSerial", SqlDbType.Bit).Value = product.TrackSerialNumber;
+                        command.Parameters.Add("@Tier", SqlDbType.TinyInt).Value = (byte)Math.Clamp(replacement.PriceTier, 0, 2);
+                        command.Parameters.Add("@Quantity", SqlDbType.Int).Value = replacement.Quantity;
+                        AddMoney(command, "@Price", price);
+                        AddMoney(command, "@Cost", product.CostPrice);
+                        replacementLineId = (int)command.ExecuteScalar()!;
+                    }
+
+                    var serials = new List<string>();
+                    foreach (var unit in claimed)
+                    {
+                        using (var link = CreateCommand(connection, transaction,
+                            "INSERT dbo.SalesInvoiceLineUnits(SalesInvoiceLineId,InventoryUnitId,AllocationStatus) VALUES(@Line,@Unit,0);"))
+                        {
+                            link.Parameters.Add("@Line", SqlDbType.Int).Value = replacementLineId;
+                            link.Parameters.Add("@Unit", SqlDbType.Int).Value = unit.Id;
+                            link.ExecuteNonQuery();
+                        }
+
+                        ModifyUnit(connection, transaction, unit.Id, isSold: true);
+                        StockMovement(connection, transaction, request.Invoice.Id, unit.Id, "ExchangeOut",
+                            -1, product.CostPrice, $"استبدال {operationNumber}");
+                    }
+
+                    // Products without registered units keep their balance in StockMovements only.
+                    var untracked = replacement.Quantity - claimed.Count;
+                    if (untracked > 0)
+                        RecordUntrackedExchange(connection, transaction, request.Invoice.Id, product.Id,
+                            untracked, product.CostPrice, operationNumber);
+
+                    using (var rl = CreateCommand(connection, transaction, @"
+INSERT dbo.ReturnExchangeLines(ReturnExchangeId,LineKind,SalesInvoiceLineId,ProductId,ProductNameSnapshot,Quantity,UnitPrice,UnitCost,UnitCondition)
+VALUES(@Operation,2,NULL,@Product,@Name,@Quantity,@Price,@Cost,0);"))
+                    {
+                        rl.Parameters.Add("@Operation", SqlDbType.Int).Value = operationId;
+                        rl.Parameters.Add("@Product", SqlDbType.Int).Value = product.Id;
+                        rl.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = product.Name;
+                        rl.Parameters.Add("@Quantity", SqlDbType.Int).Value = replacement.Quantity;
+                        AddMoney(rl, "@Price", price);
+                        AddMoney(rl, "@Cost", product.CostPrice);
+                        rl.ExecuteNonQuery();
+                    }
+
+                    replacementValue += replacement.Quantity * price;
+                    replacementUnits += replacement.Quantity;
+                }
+
+                // Settlement side effects: collect the upgrade difference, or refund the customer.
+                if (difference > 0m)
+                    ApplyExchangePayment(connection, transaction, request.Invoice, payment);
+                else if (difference < 0m)
+                    RefundAccounts(connection, transaction, request.Invoice, Math.Abs(difference),
+                        $"رد فرق استبدال {operationNumber}");
+
+                using (var status = CreateCommand(connection, transaction, @"
+UPDATE dbo.SalesInvoices SET InvoiceStatus=5, UpdatedAtUtc=SYSUTCDATETIME() WHERE Id=@Id;"))
+                {
+                    status.Parameters.Add("@Id", SqlDbType.Int).Value = request.Invoice.Id;
+                    status.ExecuteNonQuery();
+                }
+
+                AddActivity(connection, transaction, request.Invoice.Id, $"عملية استبدال ({operationNumber})",
+                    $"راجع: {goodTotal} سليم / {damagedTotal} هالك بقيمة {returnedValue:0.00} ج.م | بديل: {replacementUnits} وحدة بقيمة {replacementValue:0.00} ج.م | السبب: {request.Reason} | التسوية: {settlement}.",
+                    Math.Max(returnedValue, replacementValue));
+                Audit(connection, transaction, "CreateExchange", request.Invoice.Id,
+                    $"استبدال {operationNumber} على الفاتورة {request.Invoice.InvoiceNumber}", "SalesInvoice");
+
+                transaction.Commit();
+                return operationNumber;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+        catch (Exception ex) when (ex is SqlException or (InvalidOperationException and not SalesDataException))
+        {
+            throw Describe(ex, "تعذر حفظ الاستبدال في قاعدة البيانات.");
+        }
+    }
+
+    /// <summary>Reads the saved return/exchange operations for the history tab.</summary>
+    public List<ReturnExchangeRecord> LoadReturnExchanges()
+    {
+        var records = new List<ReturnExchangeRecord>();
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT o.Id, o.OperationNumber, o.OperationType, o.CreatedAtUtc, u.DisplayName, o.SalesInvoiceId,
+       si.InvoiceNumber, si.CustomerNameSnapshot, si.CustomerPhoneSnapshot, o.Reason, o.SettlementSummary,
+       SUM(CASE WHEN l.LineKind = 1 THEN l.Quantity ELSE 0 END),
+       COUNT(DISTINCT CASE WHEN l.LineKind = 1 AND l.UnitCondition = 1 THEN uu.InventoryUnitId END),
+       SUM(CASE WHEN l.LineKind = 2 THEN l.Quantity ELSE 0 END),
+       COUNT(DISTINCT CASE WHEN l.LineKind = 1 AND l.UnitCondition = 0 THEN uu.InventoryUnitId END),
+       SUM(CASE WHEN l.LineKind = 1 THEN l.Quantity * l.UnitPrice ELSE 0 END),
+       SUM(CASE WHEN l.LineKind = 2 THEN l.Quantity * l.UnitPrice ELSE 0 END)
+FROM dbo.ReturnExchanges o
+JOIN dbo.Users u ON u.Id = o.ActorUserId
+JOIN dbo.SalesInvoices si ON si.Id = o.SalesInvoiceId
+LEFT JOIN dbo.ReturnExchangeLines l ON l.ReturnExchangeId = o.Id
+LEFT JOIN dbo.ReturnExchangeUnits uu ON uu.ReturnExchangeLineId = l.Id
+GROUP BY o.Id, o.OperationNumber, o.OperationType, o.CreatedAtUtc, u.DisplayName, o.SalesInvoiceId,
+         si.InvoiceNumber, si.CustomerNameSnapshot, si.CustomerPhoneSnapshot, o.Reason, o.SettlementSummary
+ORDER BY o.CreatedAtUtc DESC, o.Id DESC;";
+
+            using var reader = command.ExecuteReader();
+            var ids = new List<int>();
+            var raw = new List<(ReturnExchangeRecord Record, int Good, int Damaged)>();
+            while (reader.Read())
+            {
+                var good = reader.IsDBNull(11) ? 0 : Convert.ToInt32(reader.GetValue(11));
+                var damaged = reader.IsDBNull(12) ? 0 : Convert.ToInt32(reader.GetValue(12));
+                var replacementUnits = reader.IsDBNull(13) ? 0 : Convert.ToInt32(reader.GetValue(13));
+                var goodUnits = reader.IsDBNull(14) ? 0 : Convert.ToInt32(reader.GetValue(14));
+                var returnedValue = reader.IsDBNull(15) ? 0m : Convert.ToDecimal(reader.GetValue(15));
+                var replacementValue = reader.IsDBNull(16) ? 0m : Convert.ToDecimal(reader.GetValue(16));
+
+                // Good vs damaged is counted from the tagged units of each return line, not from a subtraction.
+                raw.Add((new ReturnExchangeRecord(
+                    reader.GetInt32(0),
+                    reader.GetString(1),
+                    reader.GetByte(2),
+                    AsLocal(reader.GetDateTime(3)),
+                    reader.GetString(4),
+                    reader.GetInt32(5),
+                    reader.GetString(6),
+                    reader.GetString(7),
+                    reader.GetString(8),
+                    reader.GetString(9),
+                    reader.GetString(10),
+                    goodUnits > 0 || damaged > 0 ? goodUnits : Math.Max(0, good - damaged),
+                    damaged,
+                    replacementUnits,
+                    returnedValue,
+                    replacementValue,
+                    "",
+                    ""), good, damaged));
+
+                ids.Add(reader.GetInt32(0));
+            }
+
+            var summaries = LoadOperationLineSummaries(connection, ids);
+            foreach (var entry in raw)
+            {
+                var summary = summaries.TryGetValue(entry.Record.Id, out var found) ? found : new OperationLineSummary();
+                records.Add(entry.Record with
+                {
+                    ReturnedItemsSummary = string.Join("، ", summary.Returned),
+                    ReplacementItemsSummary = summary.Replacements.Count > 0 ? string.Join("، ", summary.Replacements) : "—"
+                });
+            }
+        }
+        catch (Exception ex) when (ex is SqlException or InvalidOperationException)
+        {
+            throw Describe(ex, "تعذر تحميل سجل المرتجع والاستبدال من قاعدة البيانات.");
+        }
+
+        return records;
+    }
+
+    private sealed class OperationLineSummary
+    {
+        public List<string> Returned { get; } = [];
+        public List<string> Replacements { get; } = [];
+    }
+
+    private static Dictionary<int, OperationLineSummary> LoadOperationLineSummaries(
+        SqlConnection connection, List<int> operationIds)
+    {
+        var result = new Dictionary<int, OperationLineSummary>();
+        if (operationIds.Count == 0) return result;
+
+        // Small, bounded IN list built from integer ids (no user text), safe for SQL Server 2016.
+        var idList = string.Join(",", operationIds.Select(id => id.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        using var command = connection.CreateCommand();
+        command.CommandText = $@"
+SELECT ReturnExchangeId, LineKind, ProductNameSnapshot, Quantity, UnitCondition
+FROM dbo.ReturnExchangeLines
+WHERE ReturnExchangeId IN ({idList})
+ORDER BY ReturnExchangeId, Id;";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var operationId = reader.GetInt32(0);
+            var kind = reader.GetByte(1);
+            var name = reader.GetString(2);
+            var quantity = reader.GetInt32(3);
+            var condition = reader.GetByte(4);
+
+            if (!result.TryGetValue(operationId, out var entry))
+            {
+                entry = new OperationLineSummary();
+                result[operationId] = entry;
+            }
+
+            if (kind == 2)
+                entry.Replacements.Add($"{quantity}× {name}");
+            else
+                entry.Returned.Add($"{name} ({quantity} {(condition == 1 ? "هالك" : "سليم")})");
+        }
+
+        return result;
+    }
 
     /// <summary>Posts a customer return, moves the units back (good) or to damage, and records the refund when requested.</summary>
     public string CreateReturn(ReturnRequest request)
@@ -670,11 +1107,12 @@ VALUES(@Operation,1,@SalesLine,@Product,@Name,@Quantity,@Price,@Cost,@Condition)
                         command.Parameters.Add("@Cost", SqlDbType.Decimal).Value = line.UnitCost;
                         command.Parameters["@Cost"].Precision = 19;
                         command.Parameters["@Cost"].Scale = 2;
-                        command.Parameters.Add("@Condition", SqlDbType.TinyInt).Value = (byte)(line.ReturnAsGood ? 0 : 1);
+                        command.Parameters.Add("@Condition", SqlDbType.TinyInt).Value = (byte)(line.GoodQuantityValue < line.Quantity ? 1 : 0);
                         returnLineId = (int)command.ExecuteScalar()!;
                     }
 
                     var units = ClaimSoldUnits(connection, transaction, line.SalesInvoiceLineId, line.Quantity);
+                    var goodRemaining = line.GoodQuantityValue;
                     foreach (var unit in units)
                     {
                         using (var link = CreateCommand(connection, transaction,
@@ -693,12 +1131,18 @@ VALUES(@Operation,1,@SalesLine,@Product,@Name,@Quantity,@Price,@Cost,@Condition)
                             mark.ExecuteNonQuery();
                         }
 
-                        if (line.ReturnAsGood)
+                        // The first units go back to stock, the rest are booked as damaged (mixed-condition line).
+                        if (goodRemaining > 0)
+                        {
+                            goodRemaining--;
                             ReturnUnitToStock(connection, transaction, request.Invoice.Id, request.Invoice.InvoiceNumber,
                                 unit.UnitId, snapshot.ProductId, unit.Cost, "Return", $"مرتجع {request.Reason}");
+                        }
                         else
+                        {
                             MoveUnitToDamaged(connection, transaction, request.Invoice.Id, unit.UnitId,
                                 snapshot.ProductId, unit.Cost, $"مرتجع فاتورة {request.Invoice.InvoiceNumber}: {request.Reason}");
+                        }
                     }
 
                     using var updateLine = CreateCommand(connection, transaction,
@@ -941,13 +1385,16 @@ GROUP BY a.AccountKind;");
 
     private void RefundOne(
         SqlConnection connection, SqlTransaction transaction, int invoiceId, string invoiceNumber,
-        int accountId, decimal amount, string customerName)
+        int accountId, decimal amount, string customerName, string? note = null, string? category = null)
     {
         if (amount <= 0m) return;
 
+        var paymentNote = note ?? "رد مبلغ فاتورة ملغاة";
+        var ledgerCategory = category ?? "رد فاتورة ملغاة";
+
         using (var payment = CreateCommand(connection, transaction, @"
 INSERT dbo.SalesPayments(SalesInvoiceId,FinancialAccountId,PaymentKind,Amount,PaidAtUtc,Note,ActorUserId)
-VALUES(@Invoice,@Account,2,@Amount,SYSUTCDATETIME(),N'رد مبلغ فاتورة ملغاة',@Actor);"))
+VALUES(@Invoice,@Account,2,@Amount,SYSUTCDATETIME(),@Note,@Actor);"))
         {
             payment.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
             payment.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
@@ -955,6 +1402,7 @@ VALUES(@Invoice,@Account,2,@Amount,SYSUTCDATETIME(),N'رد مبلغ فاتورة
             payment.Parameters["@Amount"].Precision = 19;
             payment.Parameters["@Amount"].Scale = 2;
             payment.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+            payment.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = Trim(paymentNote, 1000, "");
             payment.ExecuteNonQuery();
         }
 
@@ -973,7 +1421,7 @@ OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
         using var ledger = CreateCommand(connection, transaction, @"
 INSERT dbo.FinancialTransactions(FinancialAccountId,OccurredAtUtc,IsIncoming,Category,Amount,BalanceAfter,Counterparty,Note,
  ActorUserId,CountsTowardLimits,SourceEntityType,SourceEntityId)
-VALUES(@Account,SYSUTCDATETIME(),0,N'رد فاتورة ملغاة',@Amount,@Balance,@Counterparty,@Note,@Actor,0,N'SalesInvoice',@Invoice);");
+VALUES(@Account,SYSUTCDATETIME(),0,@Category,@Amount,@Balance,@Counterparty,@Note,@Actor,0,N'SalesInvoice',@Invoice);");
         ledger.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
         ledger.Parameters.Add("@Amount", SqlDbType.Decimal).Value = amount;
         ledger.Parameters["@Amount"].Precision = 19;
@@ -982,7 +1430,8 @@ VALUES(@Account,SYSUTCDATETIME(),0,N'رد فاتورة ملغاة',@Amount,@Bala
         ledger.Parameters["@Balance"].Precision = 19;
         ledger.Parameters["@Balance"].Scale = 2;
         ledger.Parameters.Add("@Counterparty", SqlDbType.NVarChar, 250).Value = Trim(customerName, 250, "عميل نقدي");
-        ledger.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = $"إلغاء {invoiceNumber}";
+        ledger.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = Trim(note ?? $"إلغاء {invoiceNumber}", 1000, "");
+        ledger.Parameters.Add("@Category", SqlDbType.NVarChar, 100).Value = Trim(ledgerCategory, 100, "رد فاتورة ملغاة");
         ledger.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
         ledger.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
         ledger.ExecuteNonQuery();
@@ -1037,6 +1486,213 @@ SELECT COUNT(*) FROM dbo.InventoryUnits WITH (UPDLOCK, HOLDLOCK) WHERE ProductId
         throw new SalesDataException(
             $"المتاح من «{line.ProductName}» هو {units.Count} قطعة فقط، والمطلوب {line.Quantity}. " +
             "حدّث الأصناف من قاعدة البيانات وعدّل الكمية.");
+    }
+
+    /// <summary>Adds a money parameter with the schema precision used by every DECIMAL(19,2) column.</summary>
+    private static void AddMoney(SqlCommand command, string name, decimal value)
+    {
+        var parameter = command.Parameters.Add(name, SqlDbType.Decimal);
+        parameter.Value = value;
+        parameter.Precision = 19;
+        parameter.Scale = 2;
+    }
+
+    private sealed record ExchangeStockClaim(List<ClaimedUnit> Units, int RegisteredUnits);
+
+    /// <summary>Claims available units for an exchange replacement (same locking rules as a POS sale).</summary>
+    private static ExchangeStockClaim ClaimExchangeUnits(
+        SqlConnection connection, SqlTransaction transaction, int productId, int quantity)
+    {
+        var units = new List<ClaimedUnit>();
+        var registered = 0;
+
+        using (var command = CreateCommand(connection, transaction, @"
+SELECT Id, PurchaseCost FROM (
+    SELECT TOP (@Quantity) iu.Id, iu.PurchaseCost, iu.RegisteredAtUtc
+    FROM dbo.InventoryUnits iu WITH (UPDLOCK, HOLDLOCK)
+    WHERE iu.ProductId = @ProductId AND iu.UnitStatus = 0
+    ORDER BY iu.RegisteredAtUtc, iu.Id
+) AS claimed ORDER BY RegisteredAtUtc, Id;
+SELECT COUNT(*) FROM dbo.InventoryUnits WITH (UPDLOCK, HOLDLOCK) WHERE ProductId = @ProductId;"))
+        {
+            command.Parameters.Add("@Quantity", SqlDbType.Int).Value = quantity;
+            command.Parameters.Add("@ProductId", SqlDbType.Int).Value = productId;
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) units.Add(new ClaimedUnit(reader.GetInt32(0), reader.GetDecimal(1)));
+
+            reader.NextResult();
+            if (reader.Read()) registered = reader.GetInt32(0);
+        }
+
+        return new ExchangeStockClaim(units, registered);
+    }
+
+    private sealed record SaleProductSnapshot(
+        int Id, string Barcode, string Name, string Category, string UnitName,
+        bool TrackSerialNumber, decimal CostPrice, decimal RetailPrice, decimal SpecialPrice, decimal WholesalePrice);
+
+    private static SaleProductSnapshot LoadProductForSale(
+        SqlConnection connection, SqlTransaction transaction, int productId)
+    {
+        using var command = CreateCommand(connection, transaction, @"
+SELECT p.Id, p.Barcode, p.Name, c.Name, p.UnitName, p.TrackSerialNumber,
+       p.CostPrice, p.RetailPrice, p.SpecialPrice, p.WholesalePrice
+FROM dbo.Products p
+JOIN dbo.Categories c ON c.Id = p.CategoryId
+WHERE p.Id = @Id;");
+        command.Parameters.Add("@Id", SqlDbType.Int).Value = productId;
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+            throw new SalesDataException("الصنف البديل غير موجود في قاعدة البيانات؛ اضغط «تحديث» وأعد المحاولة.");
+
+        return new SaleProductSnapshot(
+            reader.GetInt32(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4),
+            reader.GetBoolean(5), reader.GetDecimal(6), reader.GetDecimal(7), reader.GetDecimal(8), reader.GetDecimal(9));
+    }
+
+    private static int NextSalesLineNumber(SqlConnection connection, SqlTransaction transaction, int invoiceId)
+    {
+        using var command = CreateCommand(connection, transaction,
+            "SELECT COALESCE(MAX(LineNumber),0) + 1 FROM dbo.SalesInvoiceLines WITH (UPDLOCK, HOLDLOCK) WHERE SalesInvoiceId=@Invoice;");
+        command.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
+        return Convert.ToInt32(command.ExecuteScalar()!);
+    }
+
+    private void ModifyUnit(SqlConnection connection, SqlTransaction transaction, int unitId, bool isSold)
+    {
+        using var command = CreateCommand(connection, transaction, @"
+UPDATE dbo.InventoryUnits
+SET UnitStatus = 1, SoldAtUtc = SYSUTCDATETIME(), DamagedAtUtc = NULL, DamageReason = N'',
+    DamageSettlementStatus = N'', SaleInvoiceNumber = N''
+WHERE Id = @Id;");
+        command.Parameters.Add("@Id", SqlDbType.Int).Value = unitId;
+        command.ExecuteNonQuery();
+    }
+
+    private void StockMovement(
+        SqlConnection connection, SqlTransaction transaction, int invoiceId, int unitId,
+        string movementType, int quantityDelta, decimal unitCost, string reason)
+    {
+        using var command = CreateCommand(connection, transaction, @"
+INSERT dbo.StockMovements(ProductId,InventoryUnitId,MovementType,QuantityDelta,UnitCost,ActorUserId,SourceEntityType,SourceEntityId,Reason)
+SELECT iu.ProductId, iu.Id, @Type, @Delta, @Cost, @Actor, N'ReturnExchange', @Invoice, @Reason
+FROM dbo.InventoryUnits iu WHERE iu.Id = @Unit;");
+        command.Parameters.Add("@Type", SqlDbType.NVarChar, 30).Value = movementType;
+        command.Parameters.Add("@Delta", SqlDbType.Int).Value = quantityDelta;
+        AddMoney(command, "@Cost", unitCost);
+        command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        command.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
+        command.Parameters.Add("@Reason", SqlDbType.NVarChar, 1000).Value = Trim(reason, 1000, "");
+        command.Parameters.Add("@Unit", SqlDbType.Int).Value = unitId;
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Posts the exchange movement for replacement quantities that have no registered unit rows.</summary>
+    private void RecordUntrackedExchange(
+        SqlConnection connection, SqlTransaction transaction, int invoiceId, int productId,
+        int quantity, decimal unitCost, string operationNumber)
+    {
+        using var movement = CreateCommand(connection, transaction, @"
+INSERT dbo.StockMovements(ProductId,InventoryUnitId,MovementType,QuantityDelta,UnitCost,ActorUserId,SourceEntityType,SourceEntityId,Reason)
+VALUES(@Product,NULL,N'ExchangeOut',-@Quantity,@Cost,@Actor,N'ReturnExchange',@Invoice,@Reason);");
+        movement.Parameters.Add("@Product", SqlDbType.Int).Value = productId;
+        movement.Parameters.Add("@Quantity", SqlDbType.Int).Value = quantity;
+        AddMoney(movement, "@Cost", unitCost);
+        movement.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        movement.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
+        movement.Parameters.Add("@Reason", SqlDbType.NVarChar, 1000).Value =
+            Trim($"استبدال {operationNumber} بدون وحدات مسجلة", 1000, "");
+        movement.ExecuteNonQuery();
+    }
+
+    /// <summary>Refunds an exchange difference from one or more accounts with their ledger rows.</summary>
+    private void RefundAccounts(
+        SqlConnection connection, SqlTransaction transaction, SalesInvoiceDesignItem invoice,
+        decimal amount, string note)
+    {
+        if (amount <= 0m) return;
+
+        var accounts = EnsureAccounts(connection, transaction);
+        var remaining = Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+
+        // Refund from cash first, then the wallets that actually collected money for this invoice.
+        var collected = LoadCollectedAmounts(connection, transaction, invoice.Id);
+        var order = new (FinancialAccountKind Kind, decimal Collected)[]
+        {
+            (FinancialAccountKind.Cash, collected.Cash),
+            (FinancialAccountKind.VodafoneCash, collected.Vodafone),
+            (FinancialAccountKind.InstaPay, collected.InstaPay)
+        };
+
+        foreach (var (kind, collectedAmount) in order)
+        {
+            if (remaining <= 0m) break;
+            var portion = kind == FinancialAccountKind.Cash ? remaining : Math.Min(remaining, collectedAmount);
+            if (portion <= 0m) continue;
+            remaining -= portion;
+            RefundOne(connection, transaction, invoice.Id, invoice.InvoiceNumber, accounts[kind], portion,
+                Trim(invoice.CustomerName, 250, "عميل نقدي"), note, "رد فرق استبدال");
+        }
+
+        if (remaining > 0m)
+            RefundOne(connection, transaction, invoice.Id, invoice.InvoiceNumber, accounts[FinancialAccountKind.Cash],
+                remaining, Trim(invoice.CustomerName, 250, "عميل نقدي"), note, "رد فرق استبدال");
+    }
+
+    /// <summary>Collects the extra money a customer pays for an upgrade exchange.</summary>
+    private void ApplyExchangePayment(
+        SqlConnection connection, SqlTransaction transaction, SalesInvoiceDesignItem invoice, ExchangePayment payment)
+    {
+        var accounts = EnsureAccounts(connection, transaction);
+        var customer = Trim(invoice.CustomerName, 250, "عميل نقدي");
+
+        void Collect(FinancialAccountKind kind, decimal amount)
+        {
+            if (amount <= 0m) return;
+            var applied = Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+            if (applied <= 0m) return;
+
+            using (var insert = CreateCommand(connection, transaction, @"
+INSERT dbo.SalesPayments(SalesInvoiceId,FinancialAccountId,PaymentKind,Amount,PaidAtUtc,Note,ActorUserId)
+VALUES(@Invoice,@Account,1,@Amount,SYSUTCDATETIME(),N'تحصيل فرق استبدال',@Actor);"))
+            {
+                insert.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoice.Id;
+                insert.Parameters.Add("@Account", SqlDbType.Int).Value = accounts[kind];
+                AddMoney(insert, "@Amount", applied);
+                insert.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+                insert.ExecuteNonQuery();
+            }
+
+            decimal balanceAfter;
+            using (var balance = CreateCommand(connection, transaction, @"
+UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Amount, UpdatedAtUtc = SYSUTCDATETIME()
+OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
+            {
+                AddMoney(balance, "@Amount", applied);
+                balance.Parameters.Add("@Id", SqlDbType.Int).Value = accounts[kind];
+                balanceAfter = (decimal)balance.ExecuteScalar()!;
+            }
+
+            using var ledger = CreateCommand(connection, transaction, @"
+INSERT dbo.FinancialTransactions(FinancialAccountId,OccurredAtUtc,IsIncoming,Category,Amount,BalanceAfter,Counterparty,Note,
+ ActorUserId,CountsTowardLimits,SourceEntityType,SourceEntityId)
+VALUES(@Account,SYSUTCDATETIME(),1,N'فرق استبدال',@Amount,@Balance,@Counterparty,@Note,@Actor,@Limits,N'SalesInvoice',@Invoice);");
+            ledger.Parameters.Add("@Account", SqlDbType.Int).Value = accounts[kind];
+            AddMoney(ledger, "@Amount", applied);
+            AddMoney(ledger, "@Balance", balanceAfter);
+            ledger.Parameters.Add("@Counterparty", SqlDbType.NVarChar, 250).Value = customer;
+            ledger.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value =
+                $"فرق استبدال فاتورة {invoice.InvoiceNumber}";
+            ledger.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+            ledger.Parameters.Add("@Limits", SqlDbType.Bit).Value = kind != FinancialAccountKind.Cash;
+            ledger.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoice.Id;
+            ledger.ExecuteNonQuery();
+        }
+
+        Collect(FinancialAccountKind.Cash, payment.Cash);
+        Collect(FinancialAccountKind.VodafoneCash, payment.Vodafone);
+        Collect(FinancialAccountKind.InstaPay, payment.InstaPay);
     }
 
     /// <summary>Sum of StockMovements for a product that has no registered units.</summary>

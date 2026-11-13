@@ -491,8 +491,52 @@ for token in (
     'ConfirmOperationCommand',
     'OpenOperationInvoiceCommand',
     'PrintSelectedInvoiceCommand',
+    'RefreshFromDatabaseCommand',
+    'DataSourceLabel',
+    'HistorySourceLabel',
 ):
     assert token in return_exchange_xaml, f'ReturnExchange UI missing expected token: {token}'
+
+return_exchange_vm = (root / 'src/ProjectZ/ViewModels/ReturnExchangeViewModel.cs').read_text(encoding='utf-8')
+sales_repository = (root / 'src/ProjectZ/Data/SalesRepository.cs').read_text(encoding='utf-8')
+return_exchange_permissions = (root / 'sql/11_EnableReturnExchange.sql').read_text(encoding='utf-8')
+
+# The screen must persist to SQL instead of only mutating in-memory design collections.
+assert 'مرحلة التصميم (بدون Backend)' not in return_exchange_vm, 'the return screen still announces design-only mode'
+assert 'private void ExecuteDatabaseOperation(' in return_exchange_vm
+assert 'repository!.CreateExchange(' in return_exchange_vm and 'repository!.CreateReturn(' in return_exchange_vm
+assert 'repository.LoadInvoicesInto(sharedInvoices)' in return_exchange_vm
+assert 'repository.LoadReturnExchanges()' in return_exchange_vm
+assert 'IsConnectedToDatabase' in return_exchange_vm
+
+# Repository: exchange posting, history read, mixed good/damaged returns and financial settlement.
+assert 'public string CreateExchange(ExchangeRequest request, ExchangePayment payment)' in sales_repository
+assert 'public List<ReturnExchangeRecord> LoadReturnExchanges()' in sales_repository
+for table in ('dbo.ReturnExchanges', 'dbo.ReturnExchangeLines', 'dbo.ReturnExchangeUnits'):
+    assert table in sales_repository, f'the return screen does not write {table}'
+assert 'VALUES(@Operation,1,@SalesLine' in sales_repository and 'VALUES(@Operation,2,NULL' in sales_repository
+assert 'public int DamagedQuantity => Quantity - GoodQuantityValue;' in sales_repository
+assert 'goodRemaining > 0' in sales_repository, 'mixed good/damaged returns are not split per unit'
+assert 'ApplyExchangePayment(connection, transaction, request.Invoice, payment)' in sales_repository
+assert 'private static ExchangeStockClaim ClaimExchangeUnits(' in sales_repository
+assert 'RecordUntrackedExchange(connection, transaction, request.Invoice.Id, product.Id' in sales_repository
+assert 'RefundAccounts(connection, transaction, request.Invoice, Math.Abs(difference)' in sales_repository
+assert 'StockMovement(connection, transaction, request.Invoice.Id, unit.Id, "ExchangeOut"' in sales_repository
+assert 'INSERT dbo.AuditLog' in sales_repository
+
+# Cross-screen wiring: the sales repository feeds the screen and invoice writes reload stock from SQL.
+assert 'Invoices.StockReloadRequested = ReloadInventoryOnly;' in main_viewmodel
+assert 'NotifyInventoryChanged?.Invoke' not in return_exchange_vm
+assert 'notifyInventoryChanged?.Invoke();' in return_exchange_vm
+assert 'salesRepository);' in main_viewmodel
+assert "if (!ReturnExchange.RefreshFromDatabase())" in main_viewmodel
+
+# Permissions script is idempotent and grants only the return/exchange tables.
+assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];' in return_exchange_permissions
+assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];' in return_exchange_permissions
+assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];' in return_exchange_permissions
+assert 'DELETE' not in return_exchange_permissions.replace('-- ', ''), 'the return permission script must not grant DELETE'
+print('PASS: return/exchange screen persists to SQL, reads its ledger back, and reloads stock across screens')
 
 assert 'IsPurchaseEntrySelected' in main_viewmodel and 'IsPurchaseEntrySelected' in main_xaml
 assert 'views:PurchaseEntryView' in main_xaml
@@ -940,7 +984,7 @@ for command in (
     assert command in inventory_view, f'inventory screen is not wired to {command}'
 
 # Refresh + ledger panel read straight from SQL through the repository.
-assert 'new ActionCommand(RefreshFromDatabase)' in inventory_vm
+assert 'RefreshInventoryCommand = new ActionCommand(() => RefreshFromDatabase());' in inventory_vm
 assert 'repository.LoadStockMovements' in inventory_vm
 assert 'public ObservableCollection<StockMovementRow> RecentMovements' in inventory_vm
 assert 'FROM dbo.StockMovements m' in inventory_repo
