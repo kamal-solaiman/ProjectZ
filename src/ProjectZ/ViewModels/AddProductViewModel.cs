@@ -14,6 +14,7 @@ public sealed class AddProductViewModel : ObservableObject
     private readonly Func<PosProductDesignItem, bool>? onProductCreated;
     private readonly Func<string>? persistenceError;
     private readonly InventoryRepository? repository;
+    private readonly Func<string, string>? createCategory;
     private readonly Func<bool>? reloadInventory;
     private int nextProductId = 100;
 
@@ -315,7 +316,8 @@ public sealed class AddProductViewModel : ObservableObject
         ObservableCollection<string>? sharedCategories = null,
         Func<string>? persistenceError = null,
         InventoryRepository? repository = null,
-        Func<bool>? reloadInventory = null)
+        Func<bool>? reloadInventory = null,
+        Func<string, string>? createCategory = null)
     {
         this.sharedCatalog = sharedCatalog;
         this.navigateToPos = navigateToPos;
@@ -323,6 +325,7 @@ public sealed class AddProductViewModel : ObservableObject
         this.persistenceError = persistenceError;
         this.repository = repository;
         this.reloadInventory = reloadInventory;
+        this.createCategory = createCategory;
 
         Categories = sharedCategories ?? PosDesignSeedData.CreateSharedCategories();
         if (sharedCategories is null)
@@ -386,11 +389,14 @@ public sealed class AddProductViewModel : ObservableObject
         }
         else
         {
-            if (repository is not null)
+            if (createCategory is not null || repository is not null)
             {
                 try
                 {
-                    var savedName = repository.AddCategory(trimmed);
+                    // The category screen and this combo box share dbo.Categories, so both go through the same write.
+                    var savedName = createCategory is not null
+                        ? createCategory(trimmed)
+                        : repository!.AddCategory(trimmed);
                     if (!Categories.Contains(savedName)) Categories.Add(savedName);
                     SelectedCategory = savedName;
                 }
@@ -645,7 +651,7 @@ public sealed class AddProductViewModel : ObservableObject
         Barcode = GenerateNextAvailableBarcode();
         if (!keepCategoryAndUnit)
         {
-            SelectedCategory = Categories.FirstOrDefault() ?? "هواتف";
+            SelectedCategory = Categories.FirstOrDefault() ?? "";
             SelectedUnit = Units.FirstOrDefault() ?? "قطعة";
         }
         IsAddingCustomCategory = false;
@@ -703,10 +709,34 @@ public sealed class AddProductViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(SelectedCategory) || !Categories.Contains(SelectedCategory))
             SelectedCategory = Categories.FirstOrDefault() ?? "";
         RefreshFilteredProducts();
+        NotifyCategoriesStateChanged();
+    }
+
+    /// <summary>True when the category list is empty; saving a product then requires creating a category first.</summary>
+    public bool HasNoCategories => Categories.Count == 0;
+
+    public string CategoriesCountDisplay => $"{Categories.Count} تصنيف متاح";
+
+    private void NotifyCategoriesStateChanged()
+    {
+        Changed(nameof(HasNoCategories));
+        Changed(nameof(CategoriesCountDisplay));
+    }
+
+    /// <summary>
+    /// Called when the screen becomes visible: keeps the combo box in step with dbo.Categories after the
+    /// categories screen added, renamed or deleted rows.
+    /// </summary>
+    public void RefreshCategoriesFromSharedList()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedCategory) || !Categories.Contains(SelectedCategory))
+            SelectedCategory = Categories.FirstOrDefault() ?? "";
+        NotifyCategoriesStateChanged();
     }
 
     private void OnSharedCategoriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        NotifyCategoriesStateChanged();
         if (e.Action == NotifyCollectionChangedAction.Replace
             && e.OldItems is { Count: > 0 }
             && e.NewItems is { Count: > 0 }

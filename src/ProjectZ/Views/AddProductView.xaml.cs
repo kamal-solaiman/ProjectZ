@@ -13,8 +13,12 @@ public partial class AddProductView : UserControl
         Loaded += (_, _) => FocusProductNameInput();
         IsVisibleChanged += (_, _) =>
         {
-            if (IsVisible)
-                FocusProductNameInput();
+            if (!IsVisible) return;
+
+            // The categories screen shares this list, so re-point the combo box at the current rows.
+            if (DataContext is AddProductViewModel viewModel)
+                viewModel.RefreshCategoriesFromSharedList();
+            FocusProductNameInput();
         };
     }
 

@@ -67,7 +67,8 @@ public partial class App : Application
                 user,
                 () => Logout(main),
                 new InventoryRepository(connectionSettings, user.Id),
-                new SalesRepository(connectionSettings, user.Id));
+                new SalesRepository(connectionSettings, user.Id),
+                new CategoryRepository(connectionSettings, user.Id));
             MainWindow = main;
             TrackWindow(main);
 
