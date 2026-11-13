@@ -24,7 +24,8 @@ public sealed class MainViewModel : ObservableObject
     public PurchaseInvoicesViewModel PurchaseInvoices { get; }
     public MaintenanceIntakeViewModel MaintenanceIntake { get; }
     public MaintenanceInvoicesViewModel MaintenanceInvoices { get; }
-    public MaintenanceActionsViewModel MaintenanceActions { get; }
+    // Assigned during construction: the spare-parts screen can notify actions before that line runs.
+    public MaintenanceActionsViewModel MaintenanceActions { get; } = null!;
     public MaintenanceSparePartsViewModel MaintenanceSpareParts { get; }
     public CustomersViewModel Customers { get; }
     public SuppliersViewModel Suppliers { get; }
@@ -185,10 +186,12 @@ public sealed class MainViewModel : ObservableObject
             user.DisplayName,
             sharedCustomers,
             sharedMaintenanceOrders);
+        // Spare parts and actions notify each other, so the spare-parts screen gets a late-bound callback
+        // instead of dereferencing MaintenanceActions before it has been assigned.
         MaintenanceSpareParts = new MaintenanceSparePartsViewModel(
             sharedMaintenanceSpareParts,
             () => SelectItem(Categories[2].Items[2]),
-            () => MaintenanceActions.NotifyExternalDataChanged());
+            NotifyMaintenanceActionsChanged);
         MaintenanceActions = new MaintenanceActionsViewModel(
             user.DisplayName,
             sharedMaintenanceOrders,
@@ -289,6 +292,10 @@ public sealed class MainViewModel : ObservableObject
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);
     }
+
+    /// <summary>Late-bound notifier: the spare-parts screen may call it before MaintenanceActions exists.</summary>
+    private void NotifyMaintenanceActionsChanged()
+        => MaintenanceActions?.NotifyExternalDataChanged();
 
     /// <summary>Reloads the SQL catalog, units, categories and customers after a sale or a return.</summary>
     private bool ReloadPosData()
