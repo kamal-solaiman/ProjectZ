@@ -310,8 +310,9 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     private void OnCategoriesChanged()
     {
+        // A rename changes the category name shown on every product row, so the catalog itself is reloaded.
+        Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
-        Inventory.NotifyExternalInventoryChanged();
     }
 
     /// <summary>Late-bound notifier: the spare-parts screen may call it before MaintenanceActions exists.</summary>

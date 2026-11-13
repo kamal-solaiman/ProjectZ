@@ -321,7 +321,21 @@ public sealed class CategoriesViewModel : ObservableObject
                        ?? repository.LoadAll().FirstOrDefault(r => r.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
         if (existing is not null) return existing.Name;
 
-        var saved = repository.Create(trimmed, description);
+        CategoryRecord saved;
+        try
+        {
+            saved = repository.Create(trimmed, description);
+        }
+        catch (CategoryDataException)
+        {
+            // Another user created the same name between the check and the insert: use theirs.
+            var concurrent = repository.LoadAll()
+                .FirstOrDefault(r => r.Name.Equals(trimmed, StringComparison.OrdinalIgnoreCase));
+            if (concurrent is null) throw;
+            if (!sharedCategories.Contains(concurrent.Name)) sharedCategories.Add(concurrent.Name);
+            return concurrent.Name;
+        }
+
         loadedRecords.Add(saved);
         loadedRecords = loadedRecords.OrderBy(r => r.Name, StringComparer.CurrentCulture).ToList();
         if (!sharedCategories.Contains(saved.Name)) sharedCategories.Add(saved.Name);
