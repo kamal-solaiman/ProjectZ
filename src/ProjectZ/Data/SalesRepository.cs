@@ -850,7 +850,7 @@ VALUES(@Product,@Unit,@Type,1,@Cost,@Actor,N'SalesInvoice',@Invoice,@Reason);");
         _ = invoiceNumber;
     }
 
-    private static void MoveUnitToDamaged(
+    private void MoveUnitToDamaged(
         SqlConnection connection, SqlTransaction transaction, int invoiceId,
         int unitId, int productId, decimal cost, string reason)
     {
