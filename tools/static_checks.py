@@ -899,7 +899,7 @@ for callback in ('repository.Supply(', 'repository.UpdateProduct(', 'repository.
     assert callback in inventory_vm, f'inventory screen is not wired to SQL operation: {callback}'
 assert 'new InventoryRepository(connectionSettings, user.Id)' in (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
 assert 'public string AddCategory(string name)' in inventory_repository
-for operation in ('repository.SaveNewProduct(', 'repository.AddCategory(', 'repository.DeleteOrArchiveProduct(', 'reloadInventory()'):
+for operation in ('repository.SaveNewProduct(', 'repository.DeleteOrArchiveProduct(', 'createCategory(trimmed)', 'reloadInventory()'):
     assert operation in add_product_vm_text, f'AddProduct is not wired to SQL operation: {operation}'
 assert 'AddProduct.RefreshFromDatabase();' in main_viewmodel
 assert 'Command="{Binding RefreshCatalogCommand}"' in add_product_xaml
@@ -1069,5 +1069,35 @@ assert 'تصميم الواجهة — بدون Backend' not in pos_xaml, 'POS mu
 assert 'تصميم الواجهة — بدون Backend' not in (root / 'src/ProjectZ/Views/InvoicesView.xaml').read_text(encoding='utf-8')
 assert 'Command="{Binding RefreshCatalogCommand}"' in pos_xaml
 assert 'IsDatabaseBacked' in pos_vm
-print('PASS: POS and invoices persist customers, sales, payments, ledger rows and stock in SQL Server')
+
+# --- Categories screen + add-product category combo (CategoryRepository + sql/10) -----------
+category_repository_path = root / 'src/ProjectZ/Data/CategoryRepository.cs'
+assert category_repository_path.is_file(), 'missing src/ProjectZ/Data/CategoryRepository.cs'
+category_repository = category_repository_path.read_text(encoding='utf-8')
+enable_category_sql_path = root / 'sql/10_EnableCategoryAdmin.sql'
+assert enable_category_sql_path.is_file(), 'missing sql/10_EnableCategoryAdmin.sql'
+enable_category_sql = enable_category_sql_path.read_text(encoding='utf-8')
+for operation in ('LoadAll', 'LoadNamesInto', 'Create', 'Rename', 'Delete'):
+    assert f'{operation}(' in category_repository, f'missing category SQL operation: {operation}'
+for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK', 'dbo.Categories', 'dbo.Products',
+              'INSERT dbo.AuditLog', 'UPDATE dbo.Categories', 'DELETE dbo.Categories'):
+    assert guard in category_repository, f'missing category persistence guard: {guard}'
+assert 'لا يمكن حذف التصنيف' in category_repository, 'deleting a used category must be refused with a clear message'
+assert 'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Categories TO [ProjectZClient]' in enable_category_sql
+assert 'CREATE TABLE' not in enable_category_sql
+categories_vm = (root / 'src/ProjectZ/ViewModels/CategoriesViewModel.cs').read_text(encoding='utf-8')
+for wiring in ('repository.LoadAll(', 'repository.LoadNamesInto(', 'repository.Create(', 'repository.Rename(',
+               'repository.Delete(', 'EnsureCategory(', 'RefreshFromDatabase()'):
+    assert wiring in categories_vm, f'categories screen is not wired to SQL: {wiring}'
+for token in ('SearchText', 'ToggleOnlyUsedCommand', 'NewCategoryDescription', 'EditingDescription', 'ProductsCountDisplay',
+              'CanDelete', 'RefreshCategoriesCommand', 'ToggleOnlyUsedCommand', 'EmptyCategoriesDisplay'):
+    assert token in categories_xaml, f'Categories UI missing expected token: {token}'
+assert 'متصل بقاعدة البيانات' in categories_xaml and 'بدون Backend' not in categories_xaml
+assert 'new CategoryRepository(connectionSettings, user.Id)' in (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
+assert 'categoryRepository,' in main_viewmodel and 'ProductCategories.CategoriesChanged' in main_viewmodel
+add_product_vm = (root / 'src/ProjectZ/Views/AddProductView.xaml').read_text(encoding='utf-8')
+for token in ('ItemsSource="{Binding Categories}"', 'SelectedCategory', 'CategoriesCountDisplay', 'HasNoCategories'):
+    assert token in add_product_vm, f'add-product category combo is not wired: {token}'
+assert 'EnsureCategory' in main_viewmodel, 'the add-product dialog must save categories through the shared screen'
+print('PASS: categories screen and the add-product category combo both read and write dbo.Categories')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

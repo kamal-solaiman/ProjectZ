@@ -9,6 +9,7 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly UserSession user;
     private readonly SalesRepository? salesRepository;
+    private readonly CategoryRepository? categoryRepository;
     private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
     private NavigationMenuItemViewModel? selectedItem;
     private bool isSidebarCollapsed;
@@ -86,10 +87,12 @@ public sealed class MainViewModel : ObservableObject
         UserSession user,
         Action logout,
         InventoryRepository? inventoryRepository = null,
-        SalesRepository? salesRepository = null)
+        SalesRepository? salesRepository = null,
+        CategoryRepository? categoryRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
+        this.categoryRepository = categoryRepository;
         LogoutCommand = new RelayCommand(logout);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         Categories = new[]
@@ -217,6 +220,13 @@ public sealed class MainViewModel : ObservableObject
             salesRepository,
             ReloadPosData,
             CreateCustomerFromPos);
+        // Created first: the add-product dialog saves new categories through this screen's repository.
+        ProductCategories = new CategoriesViewModel(
+            sharedCategories,
+            () => SelectItem(Categories[0].Items[1]),
+            categoryRepository,
+            user.DisplayName);
+        ProductCategories.CategoriesChanged = OnCategoriesChanged;
         AddProduct = new AddProductViewModel(
             sharedCatalog,
             () => SelectItem(Categories[0].Items[0]),
@@ -224,10 +234,8 @@ public sealed class MainViewModel : ObservableObject
             sharedCategories,
             () => Inventory.StatusMessage,
             inventoryRepository,
-            Inventory.RefreshFromDatabase);
-        ProductCategories = new CategoriesViewModel(
-            sharedCategories,
-            () => SelectItem(Categories[0].Items[1]));
+            Inventory.RefreshFromDatabase,
+            name => ProductCategories.EnsureCategory(name));
         MyAccounts = new MyAccountsViewModel(user.DisplayName);
         VodafoneTransfer = new VodafoneTransferViewModel(MyAccounts, user.DisplayName);
         InstapayTransfer = new InstapayTransferViewModel(MyAccounts, user.DisplayName);
@@ -280,6 +288,9 @@ public sealed class MainViewModel : ObservableObject
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
 
+        if (categoryRepository is not null)
+            ProductCategories.RefreshFromDatabase();
+
         if (salesRepository is not null)
         {
             // Customer directory and the saved sales invoices both live in SQL Server.
@@ -291,6 +302,16 @@ public sealed class MainViewModel : ObservableObject
 
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);
+    }
+
+    /// <summary>
+    /// A category was added, renamed or deleted in SQL. The combo box list was already updated in place;
+    /// this keeps the inventory and add-product screens consistent with the same rows.
+    /// </summary>
+    private void OnCategoriesChanged()
+    {
+        AddProduct.NotifyInventoryLoaded();
+        Inventory.NotifyExternalInventoryChanged();
     }
 
     /// <summary>Late-bound notifier: the spare-parts screen may call it before MaintenanceActions exists.</summary>
@@ -400,7 +421,11 @@ public sealed class MainViewModel : ObservableObject
         else if (ReferenceEquals(item, Categories[0].Items[1]))
             AddProduct.RefreshFromDatabase();
         else if (ReferenceEquals(item, Categories[0].Items[2]))
+        {
+            if (categoryRepository is not null)
+                ProductCategories.RefreshFromDatabase();
             Inventory.NotifyExternalInventoryChanged();
+        }
         else if (ReferenceEquals(item, Categories[1].Items[0]))
             PurchaseEntry.NotifyExternalCatalogChanged();
         else if (ReferenceEquals(item, Categories[1].Items[1]))

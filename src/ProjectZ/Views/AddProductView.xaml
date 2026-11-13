@@ -413,6 +413,27 @@
                                                   ItemsSource="{Binding Categories}"
                                                   SelectedItem="{Binding SelectedCategory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
+                                        <TextBlock Text="{Binding CategoriesCountDisplay}"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   Margin="0,4,0,0"
+                                                   FontSize="11"
+                                                   Foreground="#64748B" />
+
+                                        <!-- No categories yet: saving a product is impossible until one exists -->
+                                        <Border Margin="0,6,0,0"
+                                                Padding="8,6"
+                                                CornerRadius="7"
+                                                Background="#FFFBEB"
+                                                BorderBrush="#FDE68A"
+                                                BorderThickness="1"
+                                                Visibility="{Binding HasNoCategories, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="لا توجد تصنيفات في قاعدة البيانات بعد. أضف تصنيفًا جديدًا أولًا ليظهر في هذه القائمة."
+                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                       FontSize="11.5"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="#92400E" />
+                                        </Border>
+
                                         <!-- Inline New Category Input -->
                                         <Border Margin="0,6,0,0"
                                                 Padding="8"

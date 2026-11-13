@@ -74,16 +74,23 @@
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
-                        Background="#E0F2FE"
-                        BorderBrush="#BAE6FD"
+                        Background="#DCFCE7"
+                        BorderBrush="#BBF7D0"
                         BorderThickness="1"
                         VerticalAlignment="Center">
-                    <TextBlock Text="تصميم الواجهة — بدون Backend"
+                    <TextBlock Text="متصل بقاعدة البيانات"
                                Style="{StaticResource PosCenterTextStyle}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
-                               Foreground="#0369A1" />
+                               Foreground="#15803D" />
                 </Border>
+                <Button Margin="10,0,0,0"
+                        Content="تحديث التصنيفات"
+                        Style="{StaticResource PosOutlineTealButtonStyle}"
+                        Padding="12,7"
+                        FontSize="12.5"
+                        VerticalAlignment="Center"
+                        Command="{Binding RefreshCategoriesCommand}" />
             </StackPanel>
         </Grid>
 
@@ -100,25 +107,57 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="10" />
-                    <ColumnDefinition Width="260" />
+                    <ColumnDefinition Width="220" />
                     <ColumnDefinition Width="18" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Total Categories Count Badge -->
-                <Border Grid.Column="0"
-                        Padding="12,8"
-                        CornerRadius="9"
-                        Background="#EFF6FF"
-                        BorderBrush="#BFDBFE"
-                        BorderThickness="1"
-                        VerticalAlignment="Bottom">
-                    <TextBlock Text="{Binding TotalCountDisplay}"
-                               Style="{StaticResource PosCenterTextStyle}"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               Foreground="#1D4ED8" />
-                </Border>
+                <!-- Count Badges: total, used, unused -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Bottom" Orientation="Horizontal" FlowDirection="LeftToRight">
+                    <Border Padding="12,8"
+                            CornerRadius="9"
+                            Background="#EFF6FF"
+                            BorderBrush="#BFDBFE"
+                            BorderThickness="1">
+                        <TextBlock Text="{Binding TotalCountDisplay}"
+                                   Style="{StaticResource PosCenterTextStyle}"
+                                   FontSize="13"
+                                   FontWeight="Bold"
+                                   Foreground="#1D4ED8" />
+                    </Border>
+                    <Border Margin="6,0,0,0"
+                            Padding="12,8"
+                            CornerRadius="9"
+                            Background="#ECFDF5"
+                            BorderBrush="#A7F3D0"
+                            BorderThickness="1">
+                        <TextBlock Text="{Binding UsedCategoriesDisplay}"
+                                   Style="{StaticResource PosCenterTextStyle}"
+                                   FontSize="12.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="#047857" />
+                    </Border>
+                    <Border Margin="6,0,0,0"
+                            Padding="12,8"
+                            CornerRadius="9"
+                            Background="#FFF7ED"
+                            BorderBrush="#FED7AA"
+                            BorderThickness="1">
+                        <TextBlock Text="{Binding EmptyCategoriesDisplay}"
+                                   Style="{StaticResource PosCenterTextStyle}"
+                                   FontSize="12.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="#C2410C" />
+                    </Border>
+                    <Button Margin="6,0,0,0"
+                            Content="المستخدمة فقط"
+                            Style="{StaticResource CatActionBtnBaseStyle}"
+                            Background="#F8FAFC"
+                            Foreground="#475569"
+                            BorderBrush="#C7D2DE"
+                            Command="{Binding ToggleOnlyUsedCommand}"
+                            ToolTip="إظهار التصنيفات المستخدمة في أصناف فقط، واضغط مرة أخرى لإلغاء الفلتر" />
+                </StackPanel>
 
                 <!-- Search Categories Box -->
                 <StackPanel Grid.Column="2">
@@ -197,6 +236,22 @@
                                        Visibility="{Binding NewCategoryName, Converter={StaticResource StringEmptyToVis}}" />
                         </Grid>
                     </Grid>
+                    <Grid Margin="0,6,0,0" FlowDirection="LeftToRight">
+                        <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                 FlowDirection="RightToLeft"
+                                 TextAlignment="Left"
+                                 MaxLength="500"
+                                 MinHeight="32"
+                                 Text="{Binding NewCategoryDescription, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Text="وصف اختياري للتصنيف (يظهر في الشاشة فقط)..."
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   Margin="12,0,12,0"
+                                   VerticalAlignment="Center"
+                                   FontSize="12"
+                                   Foreground="#94A3B8"
+                                   IsHitTestVisible="False"
+                                   Visibility="{Binding NewCategoryDescription, Converter={StaticResource StringEmptyToVis}}" />
+                    </Grid>
                 </StackPanel>
             </Grid>
         </Border>
@@ -222,8 +277,9 @@
                         FlowDirection="LeftToRight">
                     <Grid FlowDirection="RightToLeft">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="64" />
+                            <ColumnDefinition Width="56" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="130" />
                             <ColumnDefinition Width="220" />
                         </Grid.ColumnDefinitions>
 
@@ -234,13 +290,19 @@
                                    FontWeight="Bold"
                                    Foreground="#B7CFDD" />
                         <TextBlock Grid.Column="1"
-                                   Text="اسم التصنيف"
+                                   Text="اسم التصنيف والوصف"
                                    Style="{StaticResource PosRtlTextStyle}"
                                    Margin="8,0"
                                    FontSize="13"
                                    FontWeight="Bold"
                                    Foreground="White" />
                         <TextBlock Grid.Column="2"
+                                   Text="عدد الأصناف"
+                                   Style="{StaticResource PosCenterTextStyle}"
+                                   FontSize="12.5"
+                                   FontWeight="Bold"
+                                   Foreground="#B7CFDD" />
+                        <TextBlock Grid.Column="3"
                                    Text="التحكم"
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="12.5"
@@ -263,8 +325,9 @@
                                             Background="White">
                                         <Grid FlowDirection="RightToLeft">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="64" />
+                                                <ColumnDefinition Width="56" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="130" />
                                                 <ColumnDefinition Width="220" />
                                             </Grid.ColumnDefinitions>
 
@@ -283,34 +346,67 @@
                                                            Foreground="#334155" />
                                             </Border>
 
-                                            <!-- Category Name Display / Inline Edit Box -->
+                                            <!-- Category Name + Description / Inline Edit Boxes -->
                                             <Grid Grid.Column="1" Margin="8,0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}"
-                                                           Style="{StaticResource PosRtlTextStyle}"
-                                                           FontSize="14.5"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="#172B41"
-                                                           VerticalAlignment="Center"
-                                                           Visibility="{Binding IsNotEditing, Converter={StaticResource BoolToVis}}" />
+                                                <StackPanel Visibility="{Binding IsNotEditing, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               Style="{StaticResource PosRtlTextStyle}"
+                                                               FontSize="14.5"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#172B41"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding DescriptionDisplay}"
+                                                               Style="{StaticResource PosRtlTextStyle}"
+                                                               Margin="0,2,0,0"
+                                                               FontSize="11.5"
+                                                               Foreground="#64748B"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
 
-                                                <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
-                                                         MinHeight="34"
-                                                         Padding="10,5"
-                                                         FlowDirection="RightToLeft"
-                                                         TextAlignment="Left"
-                                                         MaxLength="80"
-                                                         Text="{Binding EditingName, UpdateSourceTrigger=PropertyChanged}"
-                                                         Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}"
-                                                         IsVisibleChanged="InlineEditBox_IsVisibleChanged">
-                                                    <TextBox.InputBindings>
-                                                        <KeyBinding Key="Return" Command="{Binding SaveEditCommand}" />
-                                                        <KeyBinding Key="Escape" Command="{Binding CancelEditCommand}" />
-                                                    </TextBox.InputBindings>
-                                                </TextBox>
+                                                <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+                                                    <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                                             MinHeight="34"
+                                                             Padding="10,5"
+                                                             FlowDirection="RightToLeft"
+                                                             TextAlignment="Left"
+                                                             MaxLength="200"
+                                                             Text="{Binding EditingName, UpdateSourceTrigger=PropertyChanged}"
+                                                             IsVisibleChanged="InlineEditBox_IsVisibleChanged">
+                                                        <TextBox.InputBindings>
+                                                            <KeyBinding Key="Return" Command="{Binding SaveEditCommand}" />
+                                                            <KeyBinding Key="Escape" Command="{Binding CancelEditCommand}" />
+                                                        </TextBox.InputBindings>
+                                                    </TextBox>
+                                                    <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                                             Margin="0,5,0,0"
+                                                             MinHeight="30"
+                                                             Padding="10,4"
+                                                             FlowDirection="RightToLeft"
+                                                             TextAlignment="Left"
+                                                             MaxLength="500"
+                                                             FontSize="11.5"
+                                                             Text="{Binding EditingDescription, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
                                             </Grid>
 
+                                            <!-- Products Count -->
+                                            <Border Grid.Column="2"
+                                                    Padding="10,5"
+                                                    CornerRadius="8"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Background="#F1F5F9"
+                                                    BorderBrush="#E2E8F0"
+                                                    BorderThickness="1">
+                                                <TextBlock Text="{Binding ProductsCountDisplay}"
+                                                           Style="{StaticResource PosCenterTextStyle}"
+                                                           FontSize="11.5"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#334155" />
+                                            </Border>
+
                                             <!-- Action Buttons (Normal vs Edit Mode) -->
-                                            <Grid Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Grid Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <!-- Normal Mode: Edit + Delete -->
                                                 <StackPanel Orientation="Horizontal"
                                                             FlowDirection="RightToLeft"
@@ -326,6 +422,8 @@
                                                             Background="#FEF2F2"
                                                             Foreground="#B42318"
                                                             BorderBrush="#FECACA"
+                                                            IsEnabled="{Binding CanDelete}"
+                                                            ToolTip="الحذف متاح فقط لتصنيف غير مستخدم في أي صنف"
                                                             Command="{Binding DeleteCommand}" />
                                                 </StackPanel>
 
