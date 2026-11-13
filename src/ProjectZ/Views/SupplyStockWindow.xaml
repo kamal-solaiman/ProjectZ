@@ -93,7 +93,7 @@
                              MaxLength="120" />
 
                     <!-- Quick Supplier Chips -->
-                    <TextBlock Text="اختيار سريع للمورد:"
+                    <TextBlock Text="اختيار سريع للمورد (dbo.Suppliers):"
                                Style="{StaticResource PosRtlTextStyle}"
                                Margin="0,8,0,4"
                                FontSize="11.5"

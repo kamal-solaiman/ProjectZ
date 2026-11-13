@@ -11,6 +11,42 @@ public enum InventoryUnitStatus
     Damaged = 2
 }
 
+/// <summary>One row of dbo.StockMovements rendered in the inventory ledger panel.</summary>
+public sealed class StockMovementRow
+{
+    public DateTime OccurredAt { get; init; }
+    public string MovementType { get; init; } = "";
+    public int QuantityDelta { get; init; }
+    public decimal UnitCost { get; init; }
+    public string ActorName { get; init; } = "";
+    public string Reason { get; init; } = "";
+    public int? InventoryUnitId { get; init; }
+
+    public string OccurredAtDisplay => OccurredAt.ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
+
+    /// <summary>Arabic label for the ledger movement type.</summary>
+    public string MovementTypeDisplay => MovementType switch
+    {
+        "Supply" => "توريد",
+        "Sale" => "بيع",
+        "Damage" => "هالك",
+        "DamageRestore" => "استرجاع هالك",
+        "Opening" => "رصيد افتتاحي",
+        "Return" => "مرتجع",
+        _ => MovementType
+    };
+
+    public string QuantityDisplay => (QuantityDelta > 0 ? "+" : "") + QuantityDelta.ToString(CultureInfo.InvariantCulture);
+
+    public string UnitCostDisplay => UnitCost.ToString("N2", CultureInfo.InvariantCulture);
+
+    public string ReasonDisplay => string.IsNullOrWhiteSpace(Reason) ? "—" : Reason;
+
+    public string ActorDisplay => string.IsNullOrWhiteSpace(ActorName) ? "غير محدد" : ActorName;
+
+    public bool IsIncrease => QuantityDelta > 0;
+}
+
 public sealed record InventorySupplierSummary(string SupplierName, int AvailableCount, int SoldCount, int DamagedCount)
 {
     public string SummaryText => $"{SupplierName}: {AvailableCount} متاح"

@@ -910,7 +910,74 @@ assert 'useDesignSamples: inventoryRepository is null' in main_viewmodel
 assert 'if (useDesignSamples)' in pos_vm and 'else\n            CreateAndSelectNewInvoice();' in pos_vm
 assert 'if (Catalog.Count < 4 || Customers.Count < 4)' in pos_vm
 print('PASS: SQL startup uses an empty POS invoice; design samples cannot index a short catalog')
-print('PASS: inventory SQL repository, transactions, row-version checks, serials, stock movements and full screen wiring')
+inventory_view = (root / 'src/ProjectZ/Views/InventoryView.xaml').read_text(encoding='utf-8')
+inventory_vm = (root / 'src/ProjectZ/ViewModels/InventoryViewModel.cs').read_text(encoding='utf-8')
+inventory_repo = (root / 'src/ProjectZ/Data/InventoryRepository.cs').read_text(encoding='utf-8')
+inventory_dialog_vm = (root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs').read_text(encoding='utf-8')
+registrations_window = (root / 'src/ProjectZ/Views/ProductRegistrationsWindow.xaml').read_text(encoding='utf-8')
+supply_window = (root / 'src/ProjectZ/Views/SupplyStockWindow.xaml').read_text(encoding='utf-8')
+
+# The screen must not present itself as a design mock anymore.
+assert 'بدون Backend' not in inventory_view, 'the inventory screen still shows the "no backend" badge'
+assert 'متصل بقاعدة البيانات' in inventory_view, 'the inventory screen is missing the SQL connection badge'
+
+# Every button on the screen must bind a real command; no Click handlers in the code-behind.
+assert 'Click=' not in inventory_view, 'the inventory screen still uses Click handlers instead of commands'
+inventory_buttons = [b for b in re.findall(r'<Button\b[^>]*>', inventory_view, re.S) if not b.startswith('<Button.')]
+assert len(inventory_buttons) >= 10, 'the inventory screen unexpectedly has almost no buttons'
+for button in inventory_buttons:
+    assert 'Command=' in button or 'IsCancel=' in button, f'inventory button without a command: {button[:120]}'
+for token in ('اسم المنتج', 'باركود', 'الكمية', 'سعر القطاعي', 'سعر الجملة', 'سعر المميز', 'الهالك', 'أزرار التحكمات'):
+    assert token in inventory_view, f'missing inventory column header: {token}'
+for command in (
+    'OpenRegistrationsCommand', 'OpenSupplyCommand', 'OpenEditCommand', 'OpenBarcodePrintCommand',
+    'OpenMarkDamagedCommand', 'DeleteProductCommand', 'RestoreDamagedUnitCommand', 'DeleteDamagedUnitCommand',
+    'MarkReturnedToSupplierCommand', 'GoToAddProductCommand', 'RefreshInventoryCommand',
+    'ShowProductMovementsCommand', 'EditDamagedUnitCommand', 'MarkAllDamagedReturnedCommand',
+    'SelectDamagedTabCommand', 'ToggleLowStockCommand',
+    'ClearCatalogFiltersCommand', 'ClearDamagedFiltersCommand', 'IsDamagedTabSelected',
+):
+    assert command in inventory_view, f'inventory screen is not wired to {command}'
+
+# Refresh + ledger panel read straight from SQL through the repository.
+assert 'new ActionCommand(RefreshFromDatabase)' in inventory_vm
+assert 'repository.LoadStockMovements' in inventory_vm
+assert 'public ObservableCollection<StockMovementRow> RecentMovements' in inventory_vm
+assert 'FROM dbo.StockMovements m' in inventory_repo
+assert 'dbo.Users u ON u.Id = m.ActorUserId' in inventory_repo
+
+# Suppliers and categories come from the database, never from design seed data.
+assert 'InventoryDesignSeedData.DefaultSuppliers' not in inventory_vm, 'suppliers still come from seed data'
+assert 'repository.LoadSupplierNames()' in inventory_vm
+assert 'SELECT Name FROM dbo.Suppliers WHERE IsActive=1' in inventory_repo
+assert 'categoryRepository.LoadNamesInto(target)' in inventory_vm, 'inventory categories are not read from dbo.Categories'
+assert 'ReloadCategoryNames(categories)' in inventory_vm
+assert 'PosDesignSeedData.ProductCategories' not in inventory_vm, 'inventory categories still fall back to seed data'
+
+# Writes are audited and notify the rest of the application.
+for write in ('Supply', 'MarkDamaged', 'MarkSingleDamaged', 'RestoreDamaged', 'MarkReturnedToSupplier',
+              'DeleteDamaged', 'DeleteOrArchiveProduct', 'RegisterSerial', 'UpdateProduct', 'SaveNewProduct'):
+    assert f'public ' in inventory_repo and write in inventory_repo, f'missing repository operation {write}'
+assert 'Inventory.InventoryChanged += OnInventoryChanged' in main_viewmodel
+assert 'Pos.NotifyExternalInventoryChanged();' in main_viewmodel
+assert 'InventoryChanged?.Invoke();' in inventory_vm
+assert inventory_vm.count('ReloadAfterWrite();') >= 10, 'not every inventory write reloads and notifies'
+for audited in ('MarkUnitDamaged', 'ReturnDamagedToSupplier', 'UpdateDamageSettlement',
+                'UpdateDamageReason', 'RestoreDamaged', 'DeleteDamagedUnit'):
+    assert f'"{audited}"' in inventory_repo, f'missing audit entry for {audited}'
+
+# Registrations window exposes the per-unit ledger; the supply dialog suggests real suppliers.
+assert 'ShowUnitMovementsCommand' in registrations_window
+assert 'UnitMovements' in inventory_dialog_vm
+assert 'dbo.Suppliers' in supply_window
+assert 'OpenDamageEditDialogRequested' in (root / 'src/ProjectZ/Views/InventoryView.xaml.cs').read_text(encoding='utf-8')
+damage_edit_vm = (root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs').read_text(encoding='utf-8')
+assert 'class DamageEditViewModel' in damage_edit_vm
+assert 'repository.UpdateDamageSettlement(unit, settlement)' in inventory_vm
+assert 'repository.UpdateDamageReason(unit, reason)' in inventory_vm
+assert 'UPDATE dbo.InventoryUnits SET DamageSettlementStatus=@Status' in inventory_repo
+assert 'UPDATE dbo.InventoryUnits SET DamageReason=@Reason' in inventory_repo
+print('PASS: inventory screen is fully wired to SQL (catalog, units, suppliers, categories, movements, cross-screen notifications)')
 
 app_resource_keys = set()
 for rf in (

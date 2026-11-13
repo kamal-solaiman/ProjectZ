@@ -96,6 +96,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- ROW 0: Header Strip -->
@@ -105,13 +106,25 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0"
-                    Content="+ إضافة منتج جديد"
-                    Style="{StaticResource PosPrimaryCompactButtonStyle}"
-                    Padding="14,8"
-                    FontSize="12.5"
-                    VerticalAlignment="Center"
-                    Command="{Binding GoToAddProductCommand}" />
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="+ إضافة منتج جديد"
+                        Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                        Padding="14,8"
+                        FontSize="12.5"
+                        VerticalAlignment="Center"
+                        Command="{Binding GoToAddProductCommand}" />
+                <Button Content="🔄 تحديث المخزون"
+                        Margin="8,0,0,0"
+                        Padding="12,8"
+                        FontSize="12.5"
+                        VerticalAlignment="Center"
+                        Cursor="Hand"
+                        Background="#0F766E"
+                        Foreground="White"
+                        BorderThickness="0"
+                        ToolTip="إعادة قراءة الأصناف والوحدات والموردين وحركات المخزون من SQL Server"
+                        Command="{Binding RefreshInventoryCommand}" />
+            </StackPanel>
 
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
@@ -131,7 +144,7 @@
                         BorderBrush="#BAE6FD"
                         BorderThickness="1"
                         VerticalAlignment="Center">
-                    <TextBlock Text="تصميم الواجهة — بدون Backend"
+                    <TextBlock Text="متصل بقاعدة البيانات — SQL Server"
                                Style="{StaticResource PosCenterTextStyle}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
@@ -421,7 +434,7 @@
                                     <ColumnDefinition Width="80" />
                                     <ColumnDefinition Width="80" />
                                     <ColumnDefinition Width="56" />
-                                    <ColumnDefinition Width="246" />
+                                    <ColumnDefinition Width="300" />
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0" Text="اسم المنتج" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#102E48" />
@@ -456,7 +469,7 @@
                                                         <ColumnDefinition Width="80" />
                                                         <ColumnDefinition Width="80" />
                                                         <ColumnDefinition Width="56" />
-                                                        <ColumnDefinition Width="246" />
+                                                        <ColumnDefinition Width="300" />
                                                     </Grid.ColumnDefinitions>
 
                                                     <!-- 1. Product Name (Clickable -> Opens Registrations Modal) -->
@@ -589,7 +602,7 @@
 
                                                     <!-- 8. Control Buttons (Registrations | Supply | Edit | Barcode | Damage | Delete) -->
                                                     <UniformGrid Grid.Column="7"
-                                                                 Columns="3"
+                                                                 Columns="4"
                                                                  VerticalAlignment="Center"
                                                                  FlowDirection="RightToLeft">
                                                         <Button Content="التسجيلات"
@@ -635,6 +648,15 @@
                                                                 BorderBrush="#FCD34D"
                                                                 ToolTip="تسجيل كمية تالفة / هالكة"
                                                                 Command="{Binding DataContext.OpenMarkDamagedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}" />
+
+                                                        <Button Content="حركات"
+                                                                Style="{StaticResource InvActionBtnBaseStyle}"
+                                                                Background="#EEF2FF"
+                                                                Foreground="#4338CA"
+                                                                BorderBrush="#C7D2FE"
+                                                                ToolTip="عرض سجل حركات هذا الصنف من dbo.StockMovements"
+                                                                Command="{Binding DataContext.ShowProductMovementsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                 CommandParameter="{Binding}" />
 
                                                         <Button Content="حذف"
@@ -689,12 +711,23 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0"
-                                Content="مسح التصفية"
-                                Style="{StaticResource PosSecondaryButtonStyle}"
-                                Padding="12,6"
-                                FontSize="12"
-                                Command="{Binding ClearDamagedFiltersCommand}" />
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <Button Content="مسح التصفية"
+                                    Style="{StaticResource PosSecondaryButtonStyle}"
+                                    Padding="12,6"
+                                    FontSize="12"
+                                    Command="{Binding ClearDamagedFiltersCommand}" />
+                            <Button Content="إرجاع كل الهالك للمورد"
+                                    Margin="8,0,0,0"
+                                    Padding="12,6"
+                                    FontSize="12"
+                                    Cursor="Hand"
+                                    Background="#E0F2FE"
+                                    Foreground="#0369A1"
+                                    BorderBrush="#BAE6FD"
+                                    ToolTip="تسجيل كل وحدات الهالك كمرتجع للمورد في dbo.InventoryUnits"
+                                    Command="{Binding MarkAllDamagedReturnedCommand}" />
+                        </StackPanel>
 
                         <ComboBox Grid.Column="2"
                                   Style="{StaticResource PosComboBoxStyle}"
@@ -900,6 +933,15 @@
                                                                 Command="{Binding DataContext.MarkReturnedToSupplierCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                 CommandParameter="{Binding}" />
 
+                                                        <Button Content="تعديل"
+                                                                Style="{StaticResource InvActionBtnBaseStyle}"
+                                                                Background="#FFFBEB"
+                                                                Foreground="#B45309"
+                                                                BorderBrush="#FCD34D"
+                                                                ToolTip="تعديل سبب الهالك وحالة التسوية في قاعدة البيانات"
+                                                                Command="{Binding DataContext.EditDamagedUnitCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}" />
+
                                                         <Button Content="حذف"
                                                                 Style="{StaticResource InvActionBtnBaseStyle}"
                                                                 Background="#FEF2F2"
@@ -928,8 +970,127 @@
             </Grid>
         </Grid>
 
-        <!-- ROW 4: Status Feedback Strip -->
+        <!-- ROW 4: Stock movement ledger (dbo.StockMovements) -->
         <Border Grid.Row="4"
+                Margin="0,10,0,0"
+                Padding="10"
+                CornerRadius="12"
+                Background="#F8FAFC"
+                BorderBrush="#CBD5E1"
+                BorderThickness="1"
+                FlowDirection="LeftToRight">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Right" FlowDirection="RightToLeft">
+                        <TextBlock Text="{Binding MovementsHeader}"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="13"
+                                   FontWeight="Bold"
+                                   Foreground="#0F172A" />
+                        <TextBlock Text="{Binding MovementSummary}"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="11"
+                                   Foreground="#475569" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Content="كل الحركات"
+                            Padding="10,5"
+                            FontSize="11.5"
+                            Cursor="Hand"
+                            Background="#E2E8F0"
+                            BorderThickness="0"
+                            Command="{Binding RefreshInventoryCommand}" />
+                </Grid>
+
+                <ItemsControl Grid.Row="1"
+                              MaxHeight="112"
+                              ItemsSource="{Binding RecentMovements}"
+                              Visibility="{Binding HasMovements, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl.Template>
+                        <ControlTemplate TargetType="ItemsControl">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsPresenter />
+                            </ScrollViewer>
+                        </ControlTemplate>
+                    </ItemsControl.Template>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="0,0,0,3"
+                                    Padding="8,4"
+                                    CornerRadius="8"
+                                    Background="White"
+                                    BorderBrush="#E2E8F0"
+                                    BorderThickness="1">
+                                <Grid FlowDirection="LeftToRight">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding QuantityDisplay}"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource PosLtrTextStyle}">
+                                                <Setter Property="Foreground" Value="#047857" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsIncrease}" Value="False">
+                                                        <Setter Property="Foreground" Value="#B42318" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding MovementTypeDisplay}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="11.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="#0F172A"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding UnitCostDisplay, StringFormat='{}{0} ج.م'}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="11"
+                                               Foreground="#475569"
+                                               Margin="8,0"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding ReasonDisplay}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="11"
+                                               Foreground="#334155"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="4"
+                                               Text="{Binding OccurredAtDisplay}"
+                                               Style="{StaticResource PosLtrTextStyle}"
+                                               FontSize="10.5"
+                                               Foreground="#64748B"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
+
+        <!-- ROW 5: Status Feedback Strip -->
+        <Border Grid.Row="5"
                 Margin="0,10,0,0"
                 Padding="12,8"
                 CornerRadius="10"

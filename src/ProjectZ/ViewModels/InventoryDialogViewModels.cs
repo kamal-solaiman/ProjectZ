@@ -12,6 +12,7 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
     private readonly Func<InventoryUnitRegistrationItem, bool> restoreUnitToAvailable;
     private readonly Func<InventoryUnitRegistrationItem, string, bool>? saveSerialNumber;
     private readonly Func<string>? persistenceError;
+    private readonly Func<InventoryUnitRegistrationItem, IReadOnlyList<StockMovementRow>>? loadUnitMovements;
 
     private InventoryUnitStatus? statusFilter;
     private string searchText = "";
@@ -21,6 +22,7 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
     public PosProductDesignItem Product { get; }
     public ObservableCollection<InventoryUnitRegistrationItem> FilteredRegistrations { get; } = [];
     public ObservableCollection<InventorySupplierSummary> SupplierSummaries { get; } = [];
+    public ObservableCollection<StockMovementRow> UnitMovements { get; } = [];
     public IReadOnlyList<string> QuickDamageReasons => InventoryDesignSeedData.DamageReasons;
 
     public InventoryUnitStatus? StatusFilter
@@ -102,6 +104,9 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
     public RelayCommand<InventoryUnitRegistrationItem> MarkUnitDamagedCommand { get; }
     public RelayCommand<InventoryUnitRegistrationItem> RestoreUnitCommand { get; }
     public RelayCommand<InventoryUnitRegistrationItem> SaveSerialCommand { get; }
+    public RelayCommand<InventoryUnitRegistrationItem> ShowUnitMovementsCommand { get; }
+    public bool HasUnitMovements => UnitMovements.Count > 0;
+    public string UnitMovementsHeader { get; private set; } = "سجل حركات الوحدة";
     public ActionCommand CloseCommand { get; }
 
     public ProductRegistrationsViewModel(
@@ -110,7 +115,8 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
         Func<InventoryUnitRegistrationItem, string, bool> markUnitDamaged,
         Func<InventoryUnitRegistrationItem, bool> restoreUnitToAvailable,
         Func<InventoryUnitRegistrationItem, string, bool>? saveSerialNumber = null,
-        Func<string>? persistenceError = null)
+        Func<string>? persistenceError = null,
+        Func<InventoryUnitRegistrationItem, IReadOnlyList<StockMovementRow>>? loadUnitMovements = null)
     {
         Product = product;
         this.allRegistrations = allRegistrations;
@@ -118,6 +124,7 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
         this.restoreUnitToAvailable = restoreUnitToAvailable;
         this.saveSerialNumber = saveSerialNumber;
         this.persistenceError = persistenceError;
+        this.loadUnitMovements = loadUnitMovements;
 
         SelectAllFilterCommand = new ActionCommand(() => StatusFilter = null);
         SelectAvailableFilterCommand = new ActionCommand(() => StatusFilter = InventoryUnitStatus.Available);
@@ -145,6 +152,32 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
                 ? $"تم استرجاع التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى المخزون المتاح."
                 : PersistenceError("لم يُحفظ الاسترجاع. حدّث البيانات وأعد المحاولة.");
             Refresh();
+        });
+        ShowUnitMovementsCommand = new RelayCommand<InventoryUnitRegistrationItem>(unit =>
+        {
+            if (unit is null) return;
+            if (loadUnitMovements is null)
+            {
+                StatusMessage = "سجل الحركات يتطلب الاتصال بقاعدة البيانات.";
+                return;
+            }
+
+            try
+            {
+                UnitMovements.Clear();
+                foreach (var row in loadUnitMovements(unit)) UnitMovements.Add(row);
+                UnitMovementsHeader = $"سجل حركات الوحدة {unit.IdDisplay}";
+                StatusMessage = UnitMovements.Count == 0
+                    ? "لا توجد حركات مسجلة لهذه الوحدة."
+                    : $"تم تحميل {UnitMovements.Count} حركة للوحدة {unit.IdDisplay}.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"تعذر قراءة حركات الوحدة: {ex.Message}";
+            }
+
+            Changed(nameof(UnitMovementsHeader));
+            Changed(nameof(HasUnitMovements));
         });
         SaveSerialCommand = new RelayCommand<InventoryUnitRegistrationItem>(unit =>
         {
@@ -771,6 +804,87 @@ public sealed class MarkDamagedViewModel : ObservableObject
                 RequestCloseWithResult?.Invoke(true);
             else
                 Error = persistenceError?.Invoke() is { Length: > 0 } error ? error : "تعذر تسجيل الهالك.";
+        });
+
+        CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));
+    }
+}
+
+/// <summary>Edits the settlement/reason of a damaged unit and persists them to dbo.InventoryUnits.</summary>
+public sealed class DamageEditViewModel : ObservableObject
+{
+    private string settlementText;
+    private string reasonText;
+    private string error = "";
+
+    public InventoryUnitRegistrationItem Unit { get; }
+    public IReadOnlyList<string> SettlementOptions { get; } = ["قيد المراجعة", "مرتجع للمورد", "تم تعويضها", "خسارة محملة على المخزن"];
+    public IReadOnlyList<string> QuickReasons => InventoryDesignSeedData.DamageReasons;
+
+    public string Title => $"تعديل بيانات هالك الوحدة {Unit.IdDisplay} — {Unit.ProductName}";
+
+    public string SettlementText
+    {
+        get => settlementText;
+        set { settlementText = value; Changed(); Error = ""; }
+    }
+
+    public string ReasonText
+    {
+        get => reasonText;
+        set { reasonText = value; Changed(); Error = ""; }
+    }
+
+    public string Error
+    {
+        get => error;
+        private set { error = value; Changed(); Changed(nameof(HasError)); }
+    }
+
+    public bool HasError => !string.IsNullOrWhiteSpace(Error);
+
+    public Action<bool>? RequestCloseWithResult { get; set; }
+    public RelayCommand<string> PickSettlementCommand { get; }
+    public RelayCommand<string> PickReasonCommand { get; }
+    public ActionCommand ConfirmCommand { get; }
+    public ActionCommand CancelCommand { get; }
+
+    public DamageEditViewModel(
+        InventoryUnitRegistrationItem unit,
+        Func<string, string, bool> onConfirm,
+        Func<string>? persistenceError = null)
+    {
+        Unit = unit;
+        settlementText = unit.DamageSettlementStatus;
+        reasonText = unit.DamageReason;
+
+        PickSettlementCommand = new RelayCommand<string>(value =>
+        {
+            if (!string.IsNullOrWhiteSpace(value)) SettlementText = value;
+        });
+        PickReasonCommand = new RelayCommand<string>(value =>
+        {
+            if (!string.IsNullOrWhiteSpace(value)) ReasonText = value;
+        });
+
+        ConfirmCommand = new ActionCommand(() =>
+        {
+            var settlement = SettlementText.Trim();
+            var reason = ReasonText.Trim();
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                Error = "يرجى إدخال سبب الإهلاك.";
+                return;
+            }
+
+            if (settlement.Length > 50)
+            {
+                Error = "حالة التسوية يجب ألا تتجاوز 50 حرفًا.";
+                return;
+            }
+
+            if (onConfirm(settlement, reason)) RequestCloseWithResult?.Invoke(true);
+            else Error = persistenceError?.Invoke() is { Length: > 0 } message ? message : "تعذر حفظ تعديل الهالك.";
         });
 
         CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));
