@@ -8,6 +8,8 @@ namespace ProjectZ.ViewModels;
 public sealed class MainViewModel : ObservableObject
 {
     private readonly UserSession user;
+    private readonly SalesRepository? salesRepository;
+    private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
     private NavigationMenuItemViewModel? selectedItem;
     private bool isSidebarCollapsed;
 
@@ -79,9 +81,14 @@ public sealed class MainViewModel : ObservableObject
     }
     public RelayCommand ToggleSidebarCommand { get; }
 
-    public MainViewModel(UserSession user, Action logout, InventoryRepository? inventoryRepository = null)
+    public MainViewModel(
+        UserSession user,
+        Action logout,
+        InventoryRepository? inventoryRepository = null,
+        SalesRepository? salesRepository = null)
     {
         this.user = user;
+        this.salesRepository = salesRepository;
         LogoutCommand = new RelayCommand(logout);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         Categories = new[]
@@ -108,12 +115,17 @@ public sealed class MainViewModel : ObservableObject
         var sharedCategories = inventoryRepository is null
             ? PosDesignSeedData.CreateSharedCategories()
             : new ObservableCollection<string>();
-        var sharedCustomers = new ObservableCollection<PosCustomerDesignItem>(
-            PosDesignSeedData.CreateSampleCustomers());
+        // With SQL the directory comes from dbo.Customers; design mode keeps the sample customers.
+        sharedCustomers = salesRepository is null
+            ? new ObservableCollection<PosCustomerDesignItem>(PosDesignSeedData.CreateSampleCustomers())
+            : new ObservableCollection<PosCustomerDesignItem>();
         var sharedRegistrations = inventoryRepository is null
             ? InventoryDesignSeedData.CreateSharedSampleRegistrations(sharedCatalog)
             : new ObservableCollection<InventoryUnitRegistrationItem>();
-        var sharedSalesInvoices = InvoiceDesignSeedData.CreateSharedSampleInvoices(sharedCatalog, sharedRegistrations);
+        // With SQL these collections start empty and are filled by SalesRepository.
+        var sharedSalesInvoices = salesRepository is null
+            ? InvoiceDesignSeedData.CreateSharedSampleInvoices(sharedCatalog, sharedRegistrations)
+            : new ObservableCollection<SalesInvoiceDesignItem>();
         var sharedReturnOperations = ReturnExchangeDesignSeedData.CreateSharedSampleOperations(sharedSalesInvoices);
         var sharedSuppliers = PurchaseDesignSeedData.CreateSharedSampleSuppliers();
         var sharedPurchaseInvoices = PurchaseDesignSeedData.CreateSharedSamplePurchaseInvoices(
@@ -135,8 +147,10 @@ public sealed class MainViewModel : ObservableObject
             sharedRegistrations,
             user.DisplayName,
             () => SelectItem(Categories[0].Items[0]),
-            Inventory.NotifyExternalInventoryChanged,
-            sharedReturnOperations);
+            ReloadAfterSale,
+            sharedReturnOperations,
+            null,
+            salesRepository);
         ReturnExchange = new ReturnExchangeViewModel(
             sharedSalesInvoices,
             sharedCatalog,
@@ -196,7 +210,10 @@ public sealed class MainViewModel : ObservableObject
             sharedCatalog,
             posInvoice => Invoices.RecordCompletedPosSale(posInvoice).InvoiceNumber,
             sharedCustomers,
-            useDesignSamples: inventoryRepository is null);
+            useDesignSamples: inventoryRepository is null,
+            salesRepository,
+            ReloadPosData,
+            CreateCustomerFromPos);
         AddProduct = new AddProductViewModel(
             sharedCatalog,
             () => SelectItem(Categories[0].Items[0]),
@@ -260,8 +277,70 @@ public sealed class MainViewModel : ObservableObject
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
 
+        if (salesRepository is not null)
+        {
+            // Customer directory and the saved sales invoices both live in SQL Server.
+            try { salesRepository.LoadCustomersInto(sharedCustomers); }
+            catch (SalesDataException) { /* The POS status strip explains the failure on first sale. */ }
+
+            Invoices.RefreshInvoicesFromDatabase();
+        }
+
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);
+    }
+
+    /// <summary>Reloads the SQL catalog, units, categories and customers after a sale or a return.</summary>
+    private bool ReloadPosData()
+    {
+        var loaded = Inventory.RefreshFromDatabase();
+        if (!loaded) return false;
+
+        if (salesRepository is not null)
+        {
+            try
+            {
+                salesRepository.LoadCustomersInto(sharedCustomers);
+            }
+            catch (SalesDataException)
+            {
+                return false;
+            }
+        }
+
+        Pos.NotifyExternalInventoryChanged();
+        AddProduct.NotifyInventoryLoaded();
+        return true;
+    }
+
+    /// <summary>Called by the invoice screen after it changed stock or money in SQL.</summary>
+    private void ReloadAfterSale()
+    {
+        var loaded = Inventory.RefreshFromDatabase();
+        if (loaded && salesRepository is not null)
+        {
+            try { salesRepository.LoadCustomersInto(sharedCustomers); }
+            catch (SalesDataException) { /* Keep the loaded list; the status strip reports the failure. */ }
+        }
+
+        Pos.NotifyExternalInventoryChanged();
+    }
+
+    /// <summary>Persists a customer created from the POS dialog; the POS view model appends it to the directory.</summary>
+    private PosCustomerDesignItem CreateCustomerFromPos(PosCustomerDesignItem customer)
+    {
+        if (salesRepository is null) return customer;
+
+        var saved = salesRepository.CreateCustomer(
+            customer.Name,
+            customer.Phone,
+            customer.SecondaryPhone,
+            customer.Address,
+            customer.Notes,
+            customer.DefaultPriceTier);
+
+        Customers.NotifyExternalDataChanged();
+        return saved;
     }
 
     public void ToggleCategory(NavigationMenuCategoryViewModel category)
@@ -307,7 +386,10 @@ public sealed class MainViewModel : ObservableObject
         else if (ReferenceEquals(item, Categories[0].Items[5]))
             ReturnExchange.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[0].Items[4]))
-            Invoices.NotifyExternalInvoicesChanged();
+        {
+            if (!Invoices.RefreshInvoicesFromDatabase())
+                Invoices.NotifyExternalInvoicesChanged();
+        }
         else if (ReferenceEquals(item, Categories[0].Items[1]))
             AddProduct.RefreshFromDatabase();
         else if (ReferenceEquals(item, Categories[0].Items[2]))

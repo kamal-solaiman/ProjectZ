@@ -1031,5 +1031,43 @@ for removed_reference in ('VodafoneCashReference', 'InstaPayReference', 'Deposit
 assert 'VF-' not in all_transfer_sources and 'IP-' not in all_transfer_sources
 print('PASS: wallet references removed globally from sales, purchases, maintenance, returns, details and printing')
 
-print('PASS: POS, SQL-backed AddProduct/Inventory, Categories, Invoices, ReturnExchange, purchases, maintenance, returns and print preview')
+
+# --- POS sales persistence (SalesRepository + sql/09_EnablePosSales.sql) -------------------
+sales_repository_path = root / 'src/ProjectZ/Data/SalesRepository.cs'
+assert sales_repository_path.is_file(), 'missing src/ProjectZ/Data/SalesRepository.cs'
+sales_repository = sales_repository_path.read_text(encoding='utf-8')
+enable_pos_sql_path = root / 'sql/09_EnablePosSales.sql'
+assert enable_pos_sql_path.is_file(), 'missing sql/09_EnablePosSales.sql'
+enable_pos_sql = enable_pos_sql_path.read_text(encoding='utf-8')
+for operation in ('LoadCustomersInto', 'CreateCustomer', 'CompleteSale', 'CollectPayment', 'LoadInvoicesInto',
+                  'UpdateNotes', 'CancelSale', 'CreateReturn'):
+    assert f'public' in sales_repository and operation + '(' in sales_repository, f'missing POS SQL operation: {operation}'
+for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK', 'dbo.DocumentSequences',
+              'dbo.SalesPayments', 'dbo.FinancialTransactions', 'dbo.StockMovements', 'dbo.AuditLog',
+              'INSERT dbo.SalesInvoiceLineUnits', 'CountsTowardLimits'):
+    assert guard in sales_repository, f'missing POS persistence guard: {guard}'
+for message_code in ('229 or 230', '1205', '2601 or 2627'):
+    assert message_code in sales_repository, f'missing SQL error mapping: {message_code}'
+for table in ('Customers', 'DocumentSequences', 'FinancialAccounts', 'FinancialTransactions', 'SalesInvoices',
+              'SalesInvoiceLines', 'SalesInvoiceLineUnits', 'SalesPayments', 'SalesInvoiceActivities',
+              'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits', 'InventoryUnits', 'StockMovements',
+              'AuditLog'):
+    assert f'dbo.{table} TO [ProjectZClient]' in enable_pos_sql, f'sql/09 does not grant ProjectZClient on {table}'
+assert 'GRANT DELETE' not in enable_pos_sql and 'CREATE TABLE' not in enable_pos_sql
+for forbidden in ('SqlConnection', 'Microsoft.Data.SqlClient', 'SqlCommand'):
+    assert forbidden not in pos_vm, f'POS view models must not talk to SQL directly: {forbidden}'
+    assert forbidden not in (root / 'src/ProjectZ/ViewModels/InvoicesViewModel.cs').read_text(encoding='utf-8')
+assert 'new SalesRepository(connectionSettings, user.Id)' in (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
+assert 'salesRepository,' in main_viewmodel and 'CreateCustomerFromPos' in main_viewmodel
+invoices_vm_text = (root / 'src/ProjectZ/ViewModels/InvoicesViewModel.cs').read_text(encoding='utf-8')
+for wiring in ('CompleteSale(', 'CollectPayment(', 'UpdateNotes(', 'CancelSale(',
+               'CreateReturn(', 'LoadInvoicesInto(', 'LoadCustomersInto'):
+    assert 'repository' in invoices_vm_text + main_viewmodel, 'invoice screen must receive the sales repository'
+    assert wiring in invoices_vm_text + main_viewmodel, f'invoice screen is not wired to SQL: {wiring}'
+assert 'RefreshInvoicesFromDatabase()' in main_viewmodel
+assert 'تصميم الواجهة — بدون Backend' not in pos_xaml, 'POS must not advertise a backend-less design screen'
+assert 'تصميم الواجهة — بدون Backend' not in (root / 'src/ProjectZ/Views/InvoicesView.xaml').read_text(encoding='utf-8')
+assert 'Command="{Binding RefreshCatalogCommand}"' in pos_xaml
+assert 'IsDatabaseBacked' in pos_vm
+print('PASS: POS and invoices persist customers, sales, payments, ledger rows and stock in SQL Server')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

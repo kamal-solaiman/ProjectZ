@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Globalization;
+using ProjectZ.Data;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 
@@ -15,6 +16,7 @@ public sealed class InvoicesViewModel : ObservableObject
     private readonly string currentCashierName;
     private readonly Action? navigateToPos;
     private readonly Action? notifyInventoryChanged;
+    private readonly SalesRepository? repository;
     private Action? notifyReturnExchangeChanged;
 
     private int nextInvoiceId;
@@ -29,7 +31,7 @@ public sealed class InvoicesViewModel : ObservableObject
     private string selectedStatusFilter = "الكل";
     private string selectedCashierFilter = "كل الكاشيرية";
 
-    private string statusMessage = "مرحلة التصميم (بدون Backend): اضغط على أي فاتورة في القائمة لمراجعة كافة تفاصيلها وسجل حركاتها والتحكم بالطباعة والمرتجع والتحصيل.";
+    private string statusMessage = "اضغط على أي فاتورة محفوظة لمراجعة تفاصيلها وسجل حركاتها والتحصيل والمرتجع.";
     private bool isErrorStatus;
 
     public ObservableCollection<SalesInvoiceDesignItem> FilteredInvoices { get; } = [];
@@ -285,8 +287,10 @@ public sealed class InvoicesViewModel : ObservableObject
         Action? navigateToPos = null,
         Action? notifyInventoryChanged = null,
         ObservableCollection<ReturnExchangeOperationItem>? sharedReturnOperations = null,
-        Action? notifyReturnExchangeChanged = null)
+        Action? notifyReturnExchangeChanged = null,
+        SalesRepository? repository = null)
     {
+        this.repository = repository;
         this.sharedInvoices = sharedInvoices;
         this.sharedCatalog = sharedCatalog;
         this.sharedRegistrations = sharedRegistrations;
@@ -342,8 +346,16 @@ public sealed class InvoicesViewModel : ObservableObject
         SelectedInvoice = FilteredInvoices.FirstOrDefault();
     }
 
+    /// <summary>
+    /// Persists a POS sale. With a repository the invoice, its lines, the serialized units, the payments
+    /// and the financial ledger are written in one Serializable transaction; design mode keeps the old
+    /// in-memory behaviour so the standalone previews still work.
+    /// </summary>
     public SalesInvoiceDesignItem RecordCompletedPosSale(PosInvoiceViewModel posInvoice)
     {
+        if (repository is not null)
+            return PersistCompletedPosSale(posInvoice);
+
         var invoiceId = nextInvoiceId++;
         var invoiceNo = $"INV-2026-{invoiceId:0000}";
 
@@ -440,6 +452,128 @@ public sealed class InvoicesViewModel : ObservableObject
         return invoice;
     }
 
+    private SalesInvoiceDesignItem PersistCompletedPosSale(PosInvoiceViewModel posInvoice)
+    {
+        var customer = posInvoice.SelectedCustomer;
+        var request = new PosSaleRequest(
+            customer.IsWalkIn ? null : customer.Id,
+            customer.Name,
+            customer.Phone,
+            customer.Address,
+            customer.IsWalkIn,
+            posInvoice.InvoicePriceTier,
+            posInvoice.EffectiveDiscount,
+            posInvoice.Items.Select(item => new PosSaleLineRequest(
+                item.Product.Id,
+                item.Product.Barcode,
+                item.Product.Name,
+                item.Product.Category,
+                item.Product.UnitDisplay,
+                item.Product.TrackSerialNumber,
+                item.SelectedPriceTier,
+                item.Quantity,
+                item.UnitPrice,
+                item.Product.CostPrice)).ToList(),
+            posInvoice.CashAmount,
+            posInvoice.VodafoneCashAmount,
+            posInvoice.InstaPayAmount,
+            posInvoice.HasChange
+                ? $"تم تسليم الباقي للعميل ({posInvoice.ChangeAmountDisplay})."
+                : "");
+
+        var saved = repository!.CompleteSale(request);
+
+        var invoice = new SalesInvoiceDesignItem
+        {
+            Id = saved.InvoiceId,
+            InvoiceNumber = saved.InvoiceNumber,
+            IssuedAt = DateTime.Now,
+            CashierName = currentCashierName,
+            CustomerId = customer.Id,
+            CustomerName = customer.Name,
+            CustomerPhone = customer.Phone,
+            CustomerAddress = customer.Address,
+            IsWalkInCustomer = customer.IsWalkIn,
+            DefaultPriceTier = posInvoice.InvoicePriceTier,
+            Status = saved.IsCredit ? SalesInvoiceStatus.PartialCredit : SalesInvoiceStatus.Completed,
+            DiscountAmount = posInvoice.EffectiveDiscount,
+            CashPaid = Math.Min(posInvoice.CashAmount, saved.NetTotal),
+            VodafoneCashPaid = posInvoice.VodafoneCashAmount,
+            InstaPayPaid = posInvoice.InstaPayAmount,
+            Notes = request.Notes
+        };
+
+        var lineNo = 1;
+        foreach (var posLine in posInvoice.Items)
+        {
+            invoice.Items.Add(new SalesInvoiceLineDesignItem
+            {
+                LineNumber = lineNo++,
+                ProductId = posLine.Product.Id,
+                Barcode = posLine.Product.Barcode,
+                ProductName = posLine.Product.Name,
+                Category = posLine.Product.Category,
+                Unit = posLine.Product.UnitDisplay,
+                TrackSerialNumber = posLine.Product.TrackSerialNumber,
+                PriceTier = posLine.SelectedPriceTier,
+                Quantity = posLine.Quantity,
+                UnitPrice = posLine.UnitPrice,
+                UnitCost = posLine.Product.CostPrice
+            });
+        }
+
+        invoice.ActivityLog.Add(new SalesInvoiceActivityEntry
+        {
+            Timestamp = DateTime.Now,
+            ActionTitle = "إصدار فاتورة من نقطة البيع",
+            Details = $"سداد: {invoice.PaymentMethodSummary} ({invoice.NetTotalDisplay}).",
+            ActorName = currentCashierName,
+            Amount = invoice.NetTotal
+        });
+
+        notifyInventoryChanged?.Invoke();
+        notifyReturnExchangeChanged?.Invoke();
+
+        // Re-read the invoice from SQL so every line carries its database id (required later by returns).
+        var reloaded = RefreshInvoicesFromDatabase();
+        var current = reloaded
+            ? sharedInvoices.FirstOrDefault(i => i.Id == saved.InvoiceId) ?? invoice
+            : invoice;
+
+        if (!reloaded)
+        {
+            sharedInvoices.Insert(0, invoice);
+            RebuildCashierFilters();
+            RefreshFilteredInvoices();
+        }
+
+        SelectedInvoice = current;
+        SetStatus($"تم حفظ الفاتورة {saved.InvoiceNumber} في قاعدة البيانات بقيمة {invoice.NetTotalDisplay}.", false);
+        return current;
+    }
+
+    /// <summary>Reloads saved sales invoices (headers, lines, serials, payments and activity) from SQL Server.</summary>
+    public bool RefreshInvoicesFromDatabase()
+    {
+        if (repository is null) return false;
+
+        try
+        {
+            repository.LoadInvoicesInto(sharedInvoices);
+            nextInvoiceId = sharedInvoices.Count > 0 ? sharedInvoices.Max(i => i.Id) + 1 : 1;
+            RebuildCashierFilters();
+            RefreshFilteredInvoices();
+            NotifyKpis();
+            SetStatus("تم تحميل فواتير البيع المحفوظة من قاعدة البيانات.", false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is SalesDataException data ? data.Message : "تعذر تحميل الفواتير من قاعدة البيانات.", true);
+            return false;
+        }
+    }
+
     public void SetReturnExchangeNotifier(Action? notifier)
     {
         notifyReturnExchangeChanged = notifier;
@@ -461,6 +595,19 @@ public sealed class InvoicesViewModel : ObservableObject
         {
             SetStatus("لم يتغير نص الملاحظات.", false);
             return;
+        }
+
+        if (repository is not null && SelectedInvoice.Id > 0)
+        {
+            try
+            {
+                repository.UpdateNotes(SelectedInvoice.Id, trimmed);
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex is SalesDataException data ? data.Message : "تعذر حفظ ملاحظات الفاتورة في قاعدة البيانات.", true);
+                return;
+            }
         }
 
         SelectedInvoice.Notes = trimmed;
@@ -508,6 +655,9 @@ public sealed class InvoicesViewModel : ObservableObject
 
         var vm = new InvoiceReturnViewModel(invoice, submission =>
         {
+            if (repository is not null && invoice.Id > 0)
+                return PostDatabaseReturn(invoice, submission);
+
             decimal returnValue = 0m;
             var returnedUnitsCount = 0;
 
@@ -616,6 +766,7 @@ public sealed class InvoicesViewModel : ObservableObject
             RefreshFilteredInvoices();
             NotifyKpis();
             SetStatus($"تم تسجيل مرتجع على الفاتورة {invoice.InvoiceNumber} ({returnedUnitsCount} قطعة) وتحديث المخزون.", false);
+            return null;
         });
 
         OpenReturnDialogRequested?.Invoke(vm);
@@ -635,6 +786,22 @@ public sealed class InvoicesViewModel : ObservableObject
         var vm = new CollectInvoicePaymentViewModel(invoice, submission =>
         {
             var paidNow = submission.CashAmount + submission.VodafoneAmount + submission.InstaPayAmount;
+
+            if (repository is not null && invoice.Id > 0)
+            {
+                try
+                {
+                    repository.CollectPayment(invoice.Id, submission.CashAmount, submission.VodafoneAmount,
+                        submission.InstaPayAmount, invoice.RemainingAmount, invoice.CustomerName, submission.Note);
+                }
+                catch (Exception ex)
+                {
+                    return ex is SalesDataException data
+                        ? data.Message
+                        : "تعذر حفظ التحصيل في قاعدة البيانات؛ لم يُسجل أي مبلغ.";
+                }
+            }
+
             invoice.CashPaid += submission.CashAmount;
             invoice.VodafoneCashPaid += submission.VodafoneAmount;
             invoice.InstaPayPaid += submission.InstaPayAmount;
@@ -661,7 +828,9 @@ public sealed class InvoicesViewModel : ObservableObject
             RefreshFilteredInvoices();
             NotifyKpis();
             notifyReturnExchangeChanged?.Invoke();
-            SetStatus($"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber}.", false);
+            notifyInventoryChanged?.Invoke();
+            SetStatus($"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber} وحفظها في قاعدة البيانات.", false);
+            return null;
         });
 
         OpenCollectPaymentRequested?.Invoke(vm);
@@ -686,6 +855,12 @@ public sealed class InvoicesViewModel : ObservableObject
 
         OpenConfirmDialogRequested?.Invoke(confirmVm, () =>
         {
+            if (repository is not null && invoice.Id > 0)
+            {
+                CancelPersistedInvoice(invoice);
+                return;
+            }
+
             foreach (var line in invoice.Items)
             {
                 var product = sharedCatalog.FirstOrDefault(p => p.Id == line.ProductId);
@@ -731,6 +906,141 @@ public sealed class InvoicesViewModel : ObservableObject
             NotifyKpis();
             SetStatus($"تم إلغاء الفاتورة {invoice.InvoiceNumber} وإعادة أصنافها للمخزون.", false);
         });
+    }
+
+    /// <returns>Null on success, or the reason the dialog must stay open for the operator to fix.</returns>
+    private string? PostDatabaseReturn(SalesInvoiceDesignItem invoice, InvoiceReturnSubmission submission)
+    {
+        var requests = new List<SalesRepository.ReturnLineRequest>();
+        foreach (var req in submission.Lines)
+        {
+            if (req.ReturnQuantity <= 0) continue;
+            if (req.Line.DatabaseLineId <= 0)
+                return "هذا البند غير محفوظ في قاعدة البيانات؛ حدّث شاشة الفواتير وأعد المحاولة.";
+
+            requests.Add(new SalesRepository.ReturnLineRequest(
+                req.Line.DatabaseLineId,
+                req.ReturnQuantity,
+                submission.ReturnAsAvailableStock,
+                req.Line.UnitPrice,
+                req.Line.UnitCost > 0m ? req.Line.UnitCost : req.Line.UnitPrice));
+        }
+
+        if (requests.Count == 0)
+            return "حدد كمية واحدة على الأقل للإرجاع من بنود الفاتورة.";
+
+        string operationNumber;
+        try
+        {
+            operationNumber = repository!.CreateReturn(new SalesRepository.ReturnRequest(
+                invoice, submission.Reason, submission.RefundCashToCustomer, requests));
+        }
+        catch (Exception ex)
+        {
+            return ex is SalesDataException data
+                ? data.Message
+                : "تعذر حفظ المرتجع في قاعدة البيانات؛ لم تتغير الفاتورة ولا المخزون.";
+        }
+
+        var returnedUnits = requests.Sum(r => r.Quantity);
+        var returnValue = requests.Sum(r => r.Quantity * r.UnitPrice);
+
+        foreach (var req in submission.Lines)
+        {
+            if (req.ReturnQuantity <= 0) continue;
+            req.Line.ReturnedQuantity += req.ReturnQuantity;
+        }
+
+        var anyRemaining = invoice.Items.Any(i => i.RemainingQuantity > 0);
+        invoice.Status = anyRemaining ? SalesInvoiceStatus.PartiallyReturned : SalesInvoiceStatus.FullyReturned;
+        if (submission.RefundCashToCustomer) invoice.RefundedAmount += returnValue;
+        invoice.NotifyFinancialsChanged();
+
+        sharedReturnOperations?.Insert(0, new ReturnExchangeOperationItem
+        {
+            Id = sharedReturnOperations.Count > 0 ? sharedReturnOperations.Max(o => o.Id) + 1 : 1,
+            OperationNumber = operationNumber,
+            OperationType = ReturnExchangeType.Return,
+            CreatedAt = DateTime.Now,
+            ActorName = currentCashierName,
+            InvoiceId = invoice.Id,
+            InvoiceNumber = invoice.InvoiceNumber,
+            CustomerName = invoice.CustomerName,
+            CustomerPhone = invoice.CustomerPhone,
+            Reason = submission.Reason,
+            GoodReturnedUnitsCount = submission.ReturnAsAvailableStock ? returnedUnits : 0,
+            DamagedReturnedUnitsCount = submission.ReturnAsAvailableStock ? 0 : returnedUnits,
+            ReplacementUnitsCount = 0,
+            ReturnedValue = returnValue,
+            ReplacementValue = 0m,
+            ReturnedItemsSummary = string.Join("، ", submission.Lines
+                .Where(l => l.ReturnQuantity > 0)
+                .Select(l => $"{l.ReturnQuantity}× {l.Line.ProductName} " +
+                             $"({(submission.ReturnAsAvailableStock ? "سليم ← المخزون" : "هالك ← مخزون الهالك")})")),
+            ReplacementItemsSummary = "—",
+            SettlementSummary = submission.RefundCashToCustomer
+                ? $"رد للعميل: {PosFormatting.FormatCurrency(returnValue)}"
+                : $"خصم {PosFormatting.FormatCurrency(returnValue)} من الرصيد"
+        });
+
+        notifyReturnExchangeChanged?.Invoke();
+        RefreshFilteredInvoices();
+        NotifyKpis();
+
+        // Reload the invoice rows after the SQL write so returned quantities and new activity come from the database.
+        if (!RefreshInvoicesFromDatabase())
+            KeepInvoiceSelection(invoice.Id);
+
+        notifyInventoryChanged?.Invoke();
+        SetStatus($"تم تسجيل المرتجع {operationNumber} على الفاتورة {invoice.InvoiceNumber} ({returnedUnits} قطعة) في قاعدة البيانات.", false);
+        return null;
+    }
+
+    private void CancelPersistedInvoice(SalesInvoiceDesignItem invoice)
+    {
+        var refunded = invoice.NetCollected;
+        try
+        {
+            repository!.CancelSale(invoice);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is SalesDataException data ? data.Message : "تعذر إلغاء الفاتورة في قاعدة البيانات.", true);
+            return;
+        }
+
+        foreach (var line in invoice.Items)
+            line.ReturnedQuantity = line.Quantity;
+
+        invoice.RefundedAmount = invoice.GrossPaid;
+        invoice.Status = SalesInvoiceStatus.Cancelled;
+        invoice.NotifyFinancialsChanged();
+        invoice.ActivityLog.Add(new SalesInvoiceActivityEntry
+        {
+            Timestamp = DateTime.Now,
+            ActionTitle = "إلغاء الفاتورة بالكامل",
+            Details = $"تم إلغاء الفاتورة وإعادة القطع للمخزون ورد {PosFormatting.FormatCurrency(refunded)}.",
+            ActorName = currentCashierName,
+            Amount = refunded
+        });
+
+        notifyReturnExchangeChanged?.Invoke();
+        RefreshFilteredInvoices();
+        NotifyKpis();
+
+        if (!RefreshInvoicesFromDatabase())
+            KeepInvoiceSelection(invoice.Id);
+
+        notifyInventoryChanged?.Invoke();
+        SetStatus($"تم إلغاء الفاتورة {invoice.InvoiceNumber} في قاعدة البيانات وإعادة أصنافها للمخزون.", false);
+    }
+
+    /// <summary>Re-selects the invoice the operator was working on after the list is rebuilt from SQL.</summary>
+    private void KeepInvoiceSelection(int invoiceId)
+    {
+        var match = sharedInvoices.FirstOrDefault(i => i.Id == invoiceId);
+        if (match is not null)
+            SelectedInvoice = match;
     }
 
     private void OnSharedInvoicesChanged(object? sender, NotifyCollectionChangedEventArgs e)

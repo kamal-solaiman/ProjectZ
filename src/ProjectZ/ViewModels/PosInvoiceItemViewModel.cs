@@ -6,12 +6,13 @@ namespace ProjectZ.ViewModels;
 public sealed class PosInvoiceItemViewModel : ObservableObject
 {
     private readonly Action onChanged;
+    private readonly Func<PosProductDesignItem, int, bool>? canSetQuantity;
     private int lineNumber;
     private int quantity;
     private PriceTier selectedPriceTier;
     private PriceTier invoicePriceTier;
 
-    public PosProductDesignItem Product { get; }
+    public PosProductDesignItem Product { get; private set; }
     public IReadOnlyList<PriceTierOption> PriceTierOptions => PosFormatting.PriceTierOptions;
 
     public int LineNumber
@@ -25,12 +26,22 @@ public sealed class PosInvoiceItemViewModel : ObservableObject
         }
     }
 
+    /// <summary>Maximum units this line may hold: the product's available stock, never below the current quantity.</summary>
+    public int MaxQuantity => Math.Max(1, Product.AvailableStock);
+
     public int Quantity
     {
         get => quantity;
         set
         {
             var clamped = Math.Max(1, value);
+            if (canSetQuantity is not null && !canSetQuantity(Product, clamped))
+            {
+                // Reject above-stock edits: keep the stored value and let the caller report the real availability.
+                Changed(nameof(Quantity));
+                return;
+            }
+
             if (quantity == clamped) return;
             quantity = clamped;
             Changed();
@@ -71,7 +82,8 @@ public sealed class PosInvoiceItemViewModel : ObservableObject
         PriceTier invoicePriceTier,
         PriceTier? initialTier,
         int quantity,
-        Action onChanged)
+        Action onChanged,
+        Func<PosProductDesignItem, int, bool>? canSetQuantity = null)
     {
         Product = product;
         this.lineNumber = lineNumber;
@@ -79,6 +91,20 @@ public sealed class PosInvoiceItemViewModel : ObservableObject
         selectedPriceTier = initialTier ?? invoicePriceTier;
         this.quantity = Math.Max(1, quantity);
         this.onChanged = onChanged;
+        this.canSetQuantity = canSetQuantity;
+    }
+
+    /// <summary>Points the line at the freshly loaded product instance so stock and prices are never stale.</summary>
+    internal void RebindProduct(PosProductDesignItem product)
+    {
+        if (ReferenceEquals(Product, product) || Product.Id != product.Id) return;
+        Product = product;
+        Changed(nameof(Product));
+        Changed(nameof(MaxQuantity));
+        Changed(nameof(UnitPrice));
+        Changed(nameof(UnitPriceDisplay));
+        Changed(nameof(LineTotal));
+        Changed(nameof(LineTotalDisplay));
     }
 
     internal void ApplyInvoicePriceTier(PriceTier newInvoiceTier)

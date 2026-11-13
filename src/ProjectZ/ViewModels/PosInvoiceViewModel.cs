@@ -9,6 +9,7 @@ public sealed class PosInvoiceViewModel : ObservableObject
 {
     private readonly ObservableCollection<PosCustomerDesignItem> allCustomers;
     private readonly Action<string, bool>? notifyStatus;
+    private readonly Func<PosProductDesignItem, int, bool>? canSetQuantity;
 
     private bool isActive;
     private PriceTier invoicePriceTier = PriceTier.Retail;
@@ -88,6 +89,7 @@ public sealed class PosInvoiceViewModel : ObservableObject
             Changed();
             Changed(nameof(HasNamedCustomer));
             Changed(nameof(SelectedCustomerTierDisplay));
+            Changed(nameof(CanLeaveUnpaid));
         }
     }
 
@@ -322,6 +324,15 @@ public sealed class PosInvoiceViewModel : ObservableObject
 
     public bool IsFullySettled => NetTotal > 0m && RemainingAmount == 0m;
 
+    /// <summary>True when the cart holds more units than the stock currently loaded from SQL.</summary>
+    public bool HasStockShortage => Items.Any(item => item.Quantity > Math.Max(0, item.Product.AvailableStock));
+
+    /// <summary>Lines whose requested quantity no longer fits the loaded stock, for the error message.</summary>
+    public IReadOnlyList<string> StockShortageSummaries => Items
+        .Where(item => item.Quantity > Math.Max(0, item.Product.AvailableStock))
+        .Select(item => $"{item.Product.Name}: مطلوب {item.Quantity} / متاح {item.Product.AvailableStock}")
+        .ToList();
+
     public string PaymentMixSummary
     {
         get
@@ -372,11 +383,13 @@ public sealed class PosInvoiceViewModel : ObservableObject
     public PosInvoiceViewModel(
         int invoiceNumber,
         ObservableCollection<PosCustomerDesignItem> allCustomers,
-        Action<string, bool>? notifyStatus = null)
+        Action<string, bool>? notifyStatus = null,
+        Func<PosProductDesignItem, int, bool>? canSetQuantity = null)
     {
         InvoiceNumber = invoiceNumber;
         this.allCustomers = allCustomers;
         this.notifyStatus = notifyStatus;
+        this.canSetQuantity = canSetQuantity;
         selectedCustomer = allCustomers.FirstOrDefault(c => c.IsWalkIn)
             ?? new PosCustomerDesignItem { Id = 0, Name = "عميل نقدي (عام)", IsWalkIn = true };
 
@@ -406,8 +419,26 @@ public sealed class PosInvoiceViewModel : ObservableObject
 
         IncrementItemCommand = new RelayCommand<PosInvoiceItemViewModel>(item =>
         {
-            if (item is not null)
-                item.Quantity++;
+            if (item is null) return;
+
+            if (item.Quantity + 1 > item.MaxQuantity)
+            {
+                if (notifyStatus is not null)
+                {
+                    notifyStatus(
+                        $"المتاح من «{item.Product.Name}» هو {item.Product.AvailableStock} قطعة فقط؛ لا يمكن زيادة الكمية.",
+                        true);
+                }
+                else
+                {
+                    // No status channel (design previews): fall back to the plain quantity setter.
+                    item.Quantity++;
+                }
+
+                return;
+            }
+
+            item.Quantity++;
         });
         DecrementItemCommand = new RelayCommand<PosInvoiceItemViewModel>(item =>
         {
@@ -439,9 +470,54 @@ public sealed class PosInvoiceViewModel : ObservableObject
     internal void Detach()
         => allCustomers.CollectionChanged -= OnCustomersCollectionChanged;
 
-    public void AddProduct(PosProductDesignItem product, int quantity = 1, PriceTier? explicitTier = null)
+    /// <summary>Re-points the open lines at the products reloaded from SQL and drops lines whose stock vanished.</summary>
+    internal void RebindCatalog(IReadOnlyCollection<PosProductDesignItem> catalog)
+    {
+        var droppedNames = new List<string>();
+        var enforceStock = canSetQuantity is not null;
+        foreach (var item in Items.ToList())
+        {
+            var product = catalog.FirstOrDefault(p => p.Id == item.Product.Id);
+            if (product is null || (enforceStock && product.AvailableStock <= 0))
+            {
+                // Sold out or removed from the catalog: the line cannot stay on a sale that must reach SQL.
+                Items.Remove(item);
+                droppedNames.Add(item.Product.Name);
+                continue;
+            }
+
+            item.RebindProduct(product);
+            if (enforceStock && item.Quantity > product.AvailableStock)
+                item.Quantity = product.AvailableStock;
+        }
+
+        RenumberItems();
+        NotifyTotalsChanged(syncSinglePayment: true);
+
+        if (droppedNames.Count > 0)
+        {
+            notifyStatus?.Invoke(
+                "أُزيلت بنود نفد مخزونها بعد التحديث: " + string.Join("، ", droppedNames) +
+                ". أضف كمية جديدة بعد توريد مخزون.",
+                true);
+        }
+    }
+
+    /// <returns>False when the requested quantity exceeds the stock loaded from SQL.</returns>
+    public bool AddProduct(PosProductDesignItem product, int quantity = 1, PriceTier? explicitTier = null)
     {
         var existing = Items.FirstOrDefault(item => item.Product.Id == product.Id);
+        var requested = (existing?.Quantity ?? 0) + Math.Max(1, quantity);
+
+        if (!HasEnoughStock(product, requested))
+        {
+            notifyStatus?.Invoke(
+                $"المتاح من «{product.Name}» هو {product.AvailableStock} قطعة فقط. " +
+                "لا يمكن تجاوز الكمية المتاحة في المخزون؛ حدّث الأصناف أو اختر كمية أقل.",
+                true);
+            return false;
+        }
+
         if (existing is not null)
         {
             existing.Quantity += Math.Max(1, quantity);
@@ -454,13 +530,22 @@ public sealed class PosInvoiceViewModel : ObservableObject
                 InvoicePriceTier,
                 explicitTier ?? InvoicePriceTier,
                 quantity,
-                OnItemChanged);
+                OnItemChanged,
+                canSetQuantity);
             Items.Add(item);
         }
 
         RenumberItems();
         NotifyTotalsChanged(syncSinglePayment: true);
+        return true;
     }
+
+    /// <summary>Stock guard shared by the cart stepper, the quick picker and barcode entry.</summary>
+    public bool HasEnoughStock(PosProductDesignItem product, int requestedQuantity)
+        => canSetQuantity is null || canSetQuantity(product, requestedQuantity);
+
+    /// <summary>True when the invoice may stay partly unpaid (registered customer only).</summary>
+    public bool CanLeaveUnpaid => HasNamedCustomer;
 
     public void ApplyTierToWholeInvoice(PriceTier tier)
     {
@@ -646,6 +731,8 @@ public sealed class PosInvoiceViewModel : ObservableObject
         Changed(nameof(NetTotal));
         Changed(nameof(NetTotalDisplay));
         Changed(nameof(TabItemsSummary));
+        Changed(nameof(HasStockShortage));
+        Changed(nameof(StockShortageSummaries));
 
         if (syncSinglePayment && !hasManualSinglePaymentEdit && ActivePaymentPreset != PaymentPresetMode.Split)
         {

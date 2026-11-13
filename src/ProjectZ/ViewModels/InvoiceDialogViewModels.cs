@@ -195,7 +195,12 @@ public sealed class InvoiceReturnViewModel : ObservableObject
     public ActionCommand ConfirmCommand { get; }
     public ActionCommand CancelCommand { get; }
 
-    public InvoiceReturnViewModel(SalesInvoiceDesignItem invoice, Action<InvoiceReturnSubmission> onConfirm)
+    /// <param name="onConfirm">
+    /// Returns null on success, or a user-facing error that keeps the dialog open so the operator can fix it.
+    /// </param>
+    public InvoiceReturnViewModel(
+        SalesInvoiceDesignItem invoice,
+        Func<InvoiceReturnSubmission, string?> onConfirm)
     {
         Invoice = invoice;
         refundCashToCustomer = !invoice.HasRemaining;
@@ -235,7 +240,14 @@ public sealed class InvoiceReturnViewModel : ObservableObject
                 return;
             }
 
-            onConfirm(new InvoiceReturnSubmission(selected, trimmedReason, ReturnAsAvailableStock, RefundCashToCustomer));
+            var error = onConfirm(new InvoiceReturnSubmission(selected, trimmedReason, ReturnAsAvailableStock, RefundCashToCustomer));
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                // The SQL write failed: keep the dialog and its numbers so nothing is lost.
+                Error = error;
+                return;
+            }
+
             RequestCloseWithResult?.Invoke(true);
         });
 
@@ -314,7 +326,12 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
     public ActionCommand ConfirmCommand { get; }
     public ActionCommand CancelCommand { get; }
 
-    public CollectInvoicePaymentViewModel(SalesInvoiceDesignItem invoice, Action<CollectPaymentSubmission> onConfirm)
+    /// <param name="onConfirm">
+    /// Returns null on success, or a user-facing error that keeps the dialog open so the operator can fix it.
+    /// </param>
+    public CollectInvoicePaymentViewModel(
+        SalesInvoiceDesignItem invoice,
+        Func<CollectPaymentSubmission, string?> onConfirm)
     {
         Invoice = invoice;
         cashAmountText = PosFormatting.FormatPlainNumber(invoice.RemainingAmount);
@@ -354,11 +371,18 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
                 return;
             }
 
-            onConfirm(new CollectPaymentSubmission(
+            var error = onConfirm(new CollectPaymentSubmission(
                 ParsedCash,
                 ParsedVodafone,
                 ParsedInstaPay,
                 Note.Trim()));
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                // The SQL write failed: keep the dialog open instead of implying the payment was saved.
+                Error = error;
+                return;
+            }
+
             RequestCloseWithResult?.Invoke(true);
         });
 

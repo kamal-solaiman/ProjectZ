@@ -66,7 +66,8 @@ public partial class App : Application
             main.DataContext = new MainViewModel(
                 user,
                 () => Logout(main),
-                new InventoryRepository(connectionSettings, user.Id));
+                new InventoryRepository(connectionSettings, user.Id),
+                new SalesRepository(connectionSettings, user.Id));
             MainWindow = main;
             TrackWindow(main);
 
