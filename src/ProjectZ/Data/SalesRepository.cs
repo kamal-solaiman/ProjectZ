@@ -925,6 +925,7 @@ SELECT o.Id, o.OperationNumber, o.OperationType, o.CreatedAtUtc, u.DisplayName, 
        SUM(CASE WHEN l.LineKind = 1 THEN l.Quantity ELSE 0 END),
        COUNT(DISTINCT CASE WHEN l.LineKind = 1 AND l.UnitCondition = 1 THEN uu.InventoryUnitId END),
        SUM(CASE WHEN l.LineKind = 2 THEN l.Quantity ELSE 0 END),
+       COUNT(DISTINCT CASE WHEN l.LineKind = 1 AND l.UnitCondition = 0 THEN uu.InventoryUnitId END),
        SUM(CASE WHEN l.LineKind = 1 THEN l.Quantity * l.UnitPrice ELSE 0 END),
        SUM(CASE WHEN l.LineKind = 2 THEN l.Quantity * l.UnitPrice ELSE 0 END)
 FROM dbo.ReturnExchanges o
@@ -944,10 +945,11 @@ ORDER BY o.CreatedAtUtc DESC, o.Id DESC;";
                 var good = reader.IsDBNull(11) ? 0 : Convert.ToInt32(reader.GetValue(11));
                 var damaged = reader.IsDBNull(12) ? 0 : Convert.ToInt32(reader.GetValue(12));
                 var replacementUnits = reader.IsDBNull(13) ? 0 : Convert.ToInt32(reader.GetValue(13));
-                var returnedValue = reader.IsDBNull(14) ? 0m : Convert.ToDecimal(reader.GetValue(14));
-                var replacementValue = reader.IsDBNull(15) ? 0m : Convert.ToDecimal(reader.GetValue(15));
+                var goodUnits = reader.IsDBNull(14) ? 0 : Convert.ToInt32(reader.GetValue(14));
+                var returnedValue = reader.IsDBNull(15) ? 0m : Convert.ToDecimal(reader.GetValue(15));
+                var replacementValue = reader.IsDBNull(16) ? 0m : Convert.ToDecimal(reader.GetValue(16));
 
-                // Good units are the returned quantity minus the damaged ones tagged on their lines.
+                // Good vs damaged is counted from the tagged units of each return line, not from a subtraction.
                 raw.Add((new ReturnExchangeRecord(
                     reader.GetInt32(0),
                     reader.GetString(1),
@@ -960,7 +962,7 @@ ORDER BY o.CreatedAtUtc DESC, o.Id DESC;";
                     reader.GetString(8),
                     reader.GetString(9),
                     reader.GetString(10),
-                    Math.Max(0, good - damaged),
+                    goodUnits > 0 || damaged > 0 ? goodUnits : Math.Max(0, good - damaged),
                     damaged,
                     replacementUnits,
                     returnedValue,
