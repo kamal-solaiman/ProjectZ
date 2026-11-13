@@ -358,10 +358,12 @@ public sealed class MainViewModel : ObservableObject
         AddProduct.NotifyInventoryLoaded();
     }
 
-    /// <summary>A supplier was added, renamed or archived in SQL: every screen that lists suppliers reloads.</summary>
+    /// <summary>
+    /// A supplier was added, renamed or archived in SQL. The purchase entry screen reloaded the shared
+    /// supplier collection already, so the ledger and the directory only need to re-read their rows.
+    /// </summary>
     private void SuppliesChanged()
     {
-        PurchaseEntry.RefreshSuppliersFromDatabase();
         PurchaseInvoices.RefreshFromDatabase();
         Suppliers.RefreshFromDatabase();
     }

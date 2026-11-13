@@ -683,10 +683,9 @@ public sealed class PurchaseEntryViewModel : ObservableObject
         }
 
         // Re-read from SQL: the invoice rows, the stock units and the cash balances all changed.
-        repository.LoadSuppliersInto(Suppliers);
-        repository.LoadInvoicesInto(sharedPurchaseInvoices);
-        notifySuppliersChanged?.Invoke();
+        // The shared collections are reloaded by MainViewModel once the other screens are notified.
         notifyInventoryChanged?.Invoke();
+        notifySuppliersChanged?.Invoke();
         notifyReturnExchangeChanged?.Invoke();
         NotifyExternalCatalogChanged();
 
