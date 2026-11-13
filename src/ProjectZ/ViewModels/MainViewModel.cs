@@ -90,7 +90,8 @@ public sealed class MainViewModel : ObservableObject
         InventoryRepository? inventoryRepository = null,
         SalesRepository? salesRepository = null,
         CategoryRepository? categoryRepository = null,
-        PurchaseRepository? purchaseRepository = null)
+        PurchaseRepository? purchaseRepository = null,
+        FinancialRepository? financialRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
@@ -253,7 +254,7 @@ public sealed class MainViewModel : ObservableObject
             inventoryRepository,
             Inventory.RefreshFromDatabase,
             name => ProductCategories.EnsureCategory(name));
-        MyAccounts = new MyAccountsViewModel(user.DisplayName);
+        MyAccounts = new MyAccountsViewModel(user.DisplayName, financialRepository);
         VodafoneTransfer = new VodafoneTransferViewModel(MyAccounts, user.DisplayName);
         InstapayTransfer = new InstapayTransferViewModel(MyAccounts, user.DisplayName);
         VodafoneRecords = new VodafoneRecordsViewModel(VodafoneTransfer, MyAccounts, user.DisplayName);

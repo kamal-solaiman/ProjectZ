@@ -208,6 +208,26 @@ public sealed class InstapayRecordsViewModel : ObservableObject
         var operation = SelectedOperation;
         Confirm(new ConfirmActionViewModel("عكس عملية إنستاباي", operation.DetailsDisplay, "سيُنشأ أثر مالي عكسي مع الاحتفاظ بالسجل الأصلي وتحديده كعملية معكوسة.", "تأكيد العكس"), () =>
         {
+            if (accounts.Repository is not null)
+            {
+                try
+                {
+                    accounts.Repository.ReverseCustomerTransfer(
+                        operation.Id, operation.WalletId, FinancialAccountKind.InstaPay,
+                        operation.IsDeposit ? -operation.Amount : operation.Amount, operation.CashDelta,
+                        $"عكس عملية إنستاباي رقم {operation.Id}");
+                    accounts.NotifyExternalDataChanged();
+                    transfers.NotifyExternalDataChanged();
+                    ApplyFilters();
+                    SetStatus($"تم عكس العملية رقم {operation.Id} بنجاح.", false);
+                }
+                catch (Exception ex)
+                {
+                    SetStatus($"تعذّر عكس العملية: {ex.Message}", true);
+                }
+                return;
+            }
+
             if (!CanUndo(operation, out var error)) { SetStatus(error, true); return; }
             var wallet = accounts.Accounts.First(w => w.Id == operation.WalletId);
             ApplyEffect(wallet, operation.CustomerNumber, operation.Amount, operation.Commission, operation.IsDeposit, true, "عكس عملية إنستاباي");
@@ -220,8 +240,32 @@ public sealed class InstapayRecordsViewModel : ObservableObject
     {
         if (SelectedOperation is null) { SetStatus("اختر عملية أولًا.", true); return; }
         var operation = SelectedOperation;
-        Confirm(new ConfirmActionViewModel("حذف سجل إنستاباي", operation.DetailsDisplay, "سيُحذف السجل من قائمة عمليات إنستاباي، وتُسوّى آثاره المالية غير المعكوسة بحركة مراجعة في حساباتي.", "حذف السجل"), () =>
+        Confirm(new ConfirmActionViewModel("حذف سجل إنستاباي", operation.DetailsDisplay, "سيتم عكس العملية وتثبيتها كمعكوسة في قاعدة البيانات. لا يُحذف السجل نهائيًا.", "حذف السجل"), () =>
         {
+            if (accounts.Repository is not null)
+            {
+                try
+                {
+                    if (!operation.IsReversed)
+                    {
+                        accounts.Repository.ReverseCustomerTransfer(
+                            operation.Id, operation.WalletId, FinancialAccountKind.InstaPay,
+                            operation.IsDeposit ? -operation.Amount : operation.Amount, operation.CashDelta,
+                            $"تسوية حذف سجل إنستاباي رقم {operation.Id}");
+                    }
+                    accounts.NotifyExternalDataChanged();
+                    transfers.NotifyExternalDataChanged();
+                    ApplyFilters();
+                    SelectedOperation = null;
+                    SetStatus($"تم حذف السجل رقم {operation.Id} مع الاحتفاظ بأثر المراجعة المالي.", false);
+                }
+                catch (Exception ex)
+                {
+                    SetStatus($"تعذّر حذف السجل: {ex.Message}", true);
+                }
+                return;
+            }
+
             if (!operation.IsReversed)
             {
                 if (!CanUndo(operation, out var error)) { SetStatus(error, true); return; }

@@ -27,11 +27,15 @@ IF OBJECT_ID(N'dbo.DocumentSequences', N'U') IS NOT NULL
     GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.DocumentSequences TO [ProjectZClient];
 GO
 
-/* Cash and wallet balances plus the unified financial ledger written with every sale payment. */
+/* Cash and wallet balances plus the unified financial ledger written with every sale payment.
+   DELETE is granted so the accounts screen can permanently remove a completed wallet
+   (no balance and no movements); wallets with a ledger are deactivated instead. */
 IF OBJECT_ID(N'dbo.FinancialAccounts', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient];
+    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.FinancialTransactions', N'U') IS NOT NULL
     GRANT SELECT, INSERT ON OBJECT::dbo.FinancialTransactions TO [ProjectZClient];
+IF OBJECT_ID(N'dbo.CustomerTransfers', N'U') IS NOT NULL
+    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.CustomerTransfers TO [ProjectZClient];
 GO
 
 /* Sales document: invoice header, lines, serialized units, payments and activity history. */

@@ -128,6 +128,26 @@
 - **المزامنة**: بعد أي تغيير يجري `CustomersChanged()` في `MainViewModel` الذي يعيد تحميل
   `dbo.Customers` إلى المجموعة المشتركة، فتُرى التغييرات فورًا في نقطة البيع والفواتير والمالية.
 
+## حساباتي: كيف تُكتب البيانات فعليًا
+
+شاشات **حساباتي** و**تحويل فودافون** و**تحويل إنستاباي** و**سجلات فودافون** و**سجلات إنستاباي**
+تتحدث مباشرة إلى SQL Server عبر `src/ProjectZ/Data/FinancialRepository.cs` (نمط `SalesRepository`).
+الجداول موجودة مسبقًا في `sql/06_CreateFullSchema.sql` (`FinancialAccounts`، `FinancialTransactions`،
+`CustomerTransfers`)؛ صلاحيات `ProjectZClient` في `sql/09_EnablePosSales.sql`.
+
+| العملية في الواجهة | الأثر في القاعدة (معاملة واحدة) |
+| --- | --- |
+| إضافة/تعديل محفظة (`MyAccountsViewModel.AddWallet`/`EditSelectedAccount` → `FinancialRepository.SaveAccount`) | `INSERT` أو `UPDATE dbo.FinancialAccounts`؛ يُعاد الحساب المحفوظ برصيد مستقل وحدود تشغيل. |
+| تسجيل حركة (إيداع/سحب/تسوية) (`OpenTransaction` → `SaveTransaction`) | `UPDATE dbo.FinancialAccounts.CurrentBalance` (مع `OUTPUT` الرصيد بعد الحركة) + `INSERT dbo.FinancialTransactions` مع الرصيد بعدها. |
+| تحويل بين المحافظ (`OpenTransfer`) | حركة سحب على المصدر + حركة إيداع على الهدف، كل في `dbo.FinancialTransactions`. |
+| تحويل للعميل (تحويل فودافون/إنستاباي → `ExecuteCustomerTransfer`) | يُحدّث رصيد خط المحفظة ورصيد النقدي، ويكتب `INSERT dbo.CustomerTransfers`، ويسجل حركتين في `dbo.FinancialTransactions` (واحدة على المحفظة وأخرى على النقدي). الإيداع ينقص المحفظة ويزيد النقدي بـ `المبلغ + العمولة`؛ السحب يزيد المحفظة ويخفض النقدي بـ `المبلغ - العمولة`. |
+| عكس التحويل (سجلات → `ReverseCustomerTransfer`) | يطبّق الأثر المالي المعاكس على المحفظة والنقدي (يحصل على الأرصدة الحالية من DB)، ويسجل حركتي تسوية، ويضع `OperationStatus=1` مع `ReversedAtUtc` و`ReversedByUserId` في `dbo.CustomerTransfers` (يظل السجل محفوظًا). |
+| حذف محفظة (`DeleteSelectedAccount` → `DeleteAccount`) | المحفظة المكتملة (بلا رصيد وبلا حركات) تُحذف نهائيًا `DELETE dbo.FinancialAccounts`؛ أي محفظة لها سجل تُوقَّف مؤقتًا `UPDATE ... SET IsActive=0` (لا حذف فعلي). |
+
+- **المزامنة**: بعد أي كتابة يجري `LoadFromDatabase()` في `MyAccountsViewModel` الذي يعيد تحميل
+  `dbo.FinancialAccounts` و`dbo.FinancialTransactions`، ويُنْبِه الـViewModels الأخرى عبر
+  `NotifyExternalDataChanged()` فتُرى التغييرات فورًا في التحويلات والسجلات.
+
 ## مشتريات: كيف تُكتب البيانات فعليًا
 
 شاشتا «شراء فاتورة» و«فواتير المشتريات» و«الموردين» تتحدث مباشرة إلى SQL Server عبر `src/ProjectZ/Data/PurchaseRepository.cs`. الجداول كلها موجودة مسبقًا في `sql/06_CreateFullSchema.sql`، ولم يُضف جدول جديد؛ أُضيف سكربت صلاحيات واحد فقط (`sql/12_EnablePurchasing.sql`).
