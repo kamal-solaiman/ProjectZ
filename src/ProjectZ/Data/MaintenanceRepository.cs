@@ -19,6 +19,9 @@ public sealed record SavedSparePart(
     decimal CostPrice,
     decimal SellPrice);
 
+/// <summary>Result of creating a maintenance order.</summary>
+public sealed record SavedMaintenanceOrder(int OrderId, string OrderNumber, decimal TotalDepositPaid);
+
 /// <summary>SQL Server persistence for the maintenance spare-parts inventory and order-part lines.</summary>
 public sealed class MaintenanceRepository(ConnectionSettingsProvider settings, int actorUserId)
 {
@@ -285,7 +288,324 @@ WHERE Id = @Id AND IsActive = 1;"))
         }
     }
 
+    // ---------------------------------------------------------------- maintenance orders
+
+    /// <summary>
+    /// Creates a maintenance order (intake) with its activity log and deposit payments in one
+    /// transaction. The order number is taken from DocumentSequences; the deposit payments are
+    /// written to MaintenancePayments against the cash / Vodafone Cash / InstaPay accounts.
+    /// </summary>
+    public SavedMaintenanceOrder CreateMaintenanceOrder(MaintenanceOrderDesignItem order)
+    {
+        var orderNumber = "";
+        decimal totalDeposit = order.DepositCashPaid + order.DepositVodafonePaid + order.DepositInstaPayPaid;
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction();
+
+            orderNumber = NextDocumentNumber(connection, transaction, "MaintenanceOrder", DateTime.Now.Year, "MNT");
+
+            int orderId;
+            using (var insert = CreateCommand(connection, transaction, @"
+INSERT dbo.MaintenanceOrders(OrderNumber, CustomerId, CustomerNameSnapshot, CustomerPhoneSnapshot,
+ CustomerSecondaryPhoneSnapshot, CustomerAddressSnapshot, IsWalkInCustomer, ReceivedAtUtc, ReceivedByUserId,
+ OrderStatus, Priority, AssignedTechnician, ExpectedDeliveryAtUtc, ExpectedDeliveryLabel, DeviceType, DeviceBrand,
+ DeviceModel, DeviceColor, SerialOrImei, PasscodeType, PasscodeValueProtected, ReportedFault, PhysicalCondition,
+ AccessoriesReceived, IntakeNotes, IsEstimatePendingInspection, EstimatedCost)
+OUTPUT inserted.Id
+VALUES(@Num, @CustomerId, @Name, @Phone, @Phone2, @Address, @WalkIn, @Received, @Actor,
+ 0, @Priority, @Tech, @Expected, @ExpectedLabel, @DeviceType, @Brand, @Model, @Color, @Serial,
+ @PasscodeType, @Passcode, @Fault, @Physical, @Accessories, @Intake, @EstimatePending, @EstimatedCost);"))
+            {
+                insert.Parameters.Add("@Num", SqlDbType.NVarChar, 50).Value = orderNumber;
+                insert.Parameters.Add("@CustomerId", SqlDbType.Int).Value = order.IsWalkInCustomer ? DBNull.Value : (object)order.CustomerId;
+                insert.Parameters.Add("@Name", SqlDbType.NVarChar, 200).Value = order.CustomerName;
+                insert.Parameters.Add("@Phone", SqlDbType.NVarChar, 30).Value = order.CustomerPhone;
+                insert.Parameters.Add("@Phone2", SqlDbType.NVarChar, 30).Value = order.CustomerSecondaryPhone;
+                insert.Parameters.Add("@Address", SqlDbType.NVarChar, 500).Value = order.CustomerAddress;
+                insert.Parameters.Add("@WalkIn", SqlDbType.Bit).Value = order.IsWalkInCustomer;
+                insert.Parameters.Add("@Received", SqlDbType.DateTime2).Value = order.ReceivedAt.ToUniversalTime();
+                insert.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+                insert.Parameters.Add("@Priority", SqlDbType.TinyInt).Value = (byte)order.Priority;
+                insert.Parameters.Add("@Tech", SqlDbType.NVarChar, 150).Value = order.AssignedTechnician;
+                insert.Parameters.Add("@Expected", SqlDbType.DateTime2).Value = order.ExpectedDeliveryAt?.ToUniversalTime() ?? DBNull.Value;
+                insert.Parameters.Add("@ExpectedLabel", SqlDbType.NVarChar, 200).Value = order.ExpectedDeliveryLabel;
+                insert.Parameters.Add("@DeviceType", SqlDbType.NVarChar, 100).Value = order.DeviceType;
+                insert.Parameters.Add("@Brand", SqlDbType.NVarChar, 100).Value = order.DeviceBrand;
+                insert.Parameters.Add("@Model", SqlDbType.NVarChar, 150).Value = order.DeviceModel;
+                insert.Parameters.Add("@Color", SqlDbType.NVarChar, 80).Value = order.DeviceColor;
+                insert.Parameters.Add("@Serial", SqlDbType.NVarChar, 150).Value = order.SerialOrImei;
+                insert.Parameters.Add("@PasscodeType", SqlDbType.TinyInt).Value = (byte)order.PasscodeType;
+                insert.Parameters.Add("@Passcode", SqlDbType.NVarChar, 1000).Value = order.PasscodeValue;
+                insert.Parameters.Add("@Fault", SqlDbType.NVarChar, 2000).Value = order.ReportedFault;
+                insert.Parameters.Add("@Physical", SqlDbType.NVarChar, 1500).Value = order.PhysicalCondition;
+                insert.Parameters.Add("@Accessories", SqlDbType.NVarChar, 1000).Value = order.AccessoriesReceived;
+                insert.Parameters.Add("@Intake", SqlDbType.NVarChar, 1500).Value = order.IntakeNotes;
+                insert.Parameters.Add("@EstimatePending", SqlDbType.Bit).Value = order.IsEstimatePendingInspection;
+                AddMoney(insert, "@EstimatedCost", order.EstimatedCost);
+                orderId = (int)insert.ExecuteScalar()!;
+            }
+
+            foreach (var activity in order.ActivityLog)
+            {
+                using var act = CreateCommand(connection, transaction, @"
+INSERT dbo.MaintenanceActivities(MaintenanceOrderId, OccurredAtUtc, ActionTitle, Details, Amount, ActorUserId)
+VALUES(@Order,@Time,@Title,@Details,@Amount,@Actor);");
+                act.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
+                act.Parameters.Add("@Time", SqlDbType.DateTime2).Value = activity.Timestamp.ToUniversalTime();
+                act.Parameters.Add("@Title", SqlDbType.NVarChar, 200).Value = activity.ActionTitle;
+                act.Parameters.Add("@Details", SqlDbType.NVarChar, 1500).Value = activity.Details;
+                act.Parameters.Add("@Amount", SqlDbType.Decimal).Value = activity.Amount ?? 0m;
+                act.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+                act.ExecuteNonQuery();
+            }
+
+            if (totalDeposit > 0m)
+            {
+                var accounts = EnsureAccounts(connection, transaction);
+                if (order.DepositCashPaid > 0m)
+                    InsertDepositPayment(connection, transaction, orderId, accounts[FinancialAccountKind.Cash], order.DepositCashPaid, order.ReceivedAt, "عربون نقدي");
+                if (order.DepositVodafonePaid > 0m)
+                    InsertDepositPayment(connection, transaction, orderId, accounts[FinancialAccountKind.VodafoneCash], order.DepositVodafonePaid, order.ReceivedAt, "عربون فودافون كاش");
+                if (order.DepositInstaPayPaid > 0m)
+                    InsertDepositPayment(connection, transaction, orderId, accounts[FinancialAccountKind.InstaPay], order.DepositInstaPayPaid, order.ReceivedAt, "عربون إنستاباي");
+            }
+
+            transaction.Commit();
+            return new SavedMaintenanceOrder(orderId, orderNumber, totalDeposit);
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر تسجيل أمر الصيانة.");
+        }
+    }
+
+    private void InsertDepositPayment(
+        SqlConnection connection, SqlTransaction transaction, int orderId, int accountId, decimal amount, DateTime paidAt, string note)
+    {
+        using var pay = CreateCommand(connection, transaction, @"
+INSERT dbo.MaintenancePayments(MaintenanceOrderId, FinancialAccountId, PaymentStage, PaymentKind, Amount, PaidAtUtc, Note, ActorUserId)
+VALUES(@Order,@Account,1,1,@Amount,@Paid,@Note,@Actor);");
+        pay.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
+        pay.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
+        AddMoney(pay, "@Amount", amount);
+        pay.Parameters.Add("@Paid", SqlDbType.DateTime2).Value = paidAt.ToUniversalTime();
+        pay.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
+        pay.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        pay.ExecuteNonQuery();
+    }
+
+    /// <summary>Loads maintenance orders (newest first) with their parts, activities and payments.</summary>
+    public void LoadMaintenanceOrdersInto(ObservableCollection<MaintenanceOrderDesignItem> target)
+    {
+        var loaded = new List<MaintenanceOrderDesignItem>();
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT Id, OrderNumber, CustomerId, CustomerNameSnapshot, CustomerPhoneSnapshot, CustomerSecondaryPhoneSnapshot,
+ CustomerAddressSnapshot, IsWalkInCustomer, ReceivedAtUtc, ReceivedByUserId, OrderStatus, Priority, AssignedTechnician,
+ ExpectedDeliveryAtUtc, ExpectedDeliveryLabel, DeviceType, DeviceBrand, DeviceModel, DeviceColor, SerialOrImei,
+ PasscodeType, PasscodeValueProtected, ReportedFault, PhysicalCondition, AccessoriesReceived, IntakeNotes,
+ IsEstimatePendingInspection, EstimatedCost, DiagnosisNotes, LaborCost, DiscountAmount, FinalServiceCost,
+ HasWorkshopPricing, DeliveredAtUtc, WarrantyDays, DeliveryNotes, CancellationReason
+FROM dbo.MaintenanceOrders
+ORDER BY ReceivedAtUtc DESC, Id DESC;";
+            using var reader = command.ExecuteReader();
+            var ordersById = new Dictionary<int, MaintenanceOrderDesignItem>();
+            while (reader.Read())
+            {
+                var id = reader.GetInt32(0);
+                var order = new MaintenanceOrderDesignItem
+                {
+                    Id = id,
+                    OrderNumber = reader.GetString(1),
+                    CustomerId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    CustomerName = reader.GetString(3),
+                    CustomerPhone = reader.GetString(4),
+                    CustomerSecondaryPhone = reader.GetString(5),
+                    CustomerAddress = reader.GetString(6),
+                    IsWalkInCustomer = reader.GetBoolean(7),
+                    ReceivedAt = reader.GetDateTime(8).ToLocalTime(),
+                    ReceivedByName = "",
+                    Status = (MaintenanceOrderStatus)reader.GetByte(10),
+                    Priority = (MaintenancePriority)reader.GetByte(11),
+                    AssignedTechnician = reader.GetString(12),
+                    ExpectedDeliveryAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13).ToLocalTime(),
+                    ExpectedDeliveryLabel = reader.GetString(14),
+                    DeviceType = reader.GetString(15),
+                    DeviceBrand = reader.GetString(16),
+                    DeviceModel = reader.GetString(17),
+                    DeviceColor = reader.GetString(18),
+                    SerialOrImei = reader.GetString(19),
+                    PasscodeType = (MaintenancePasscodeType)reader.GetByte(20),
+                    PasscodeValue = reader.GetString(21),
+                    ReportedFault = reader.GetString(22),
+                    PhysicalCondition = reader.GetString(23),
+                    AccessoriesReceived = reader.GetString(24),
+                    IntakeNotes = reader.GetString(25),
+                    IsEstimatePendingInspection = reader.GetBoolean(26),
+                    EstimatedCost = reader.GetDecimal(27),
+                    DiagnosisNotes = reader.GetString(28),
+                    LaborCost = reader.GetDecimal(29),
+                    DiscountAmount = reader.GetDecimal(30),
+                    FinalServiceCost = reader.IsDBNull(31) ? null : reader.GetDecimal(31),
+                    HasWorkshopPricing = reader.GetBoolean(32),
+                    DeliveredAt = reader.IsDBNull(33) ? null : reader.GetDateTime(33).ToLocalTime(),
+                    WarrantyDays = reader.GetInt32(34),
+                    DeliveryNotes = reader.GetString(35),
+                    CancellationReason = reader.GetString(36),
+                };
+                ordersById[id] = order;
+                loaded.Add(order);
+            }
+
+            foreach (var order in loaded)
+            {
+                LoadOrderParts(connection, order);
+                LoadOrderActivities(connection, order);
+                LoadOrderPayments(connection, order);
+            }
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر تحميل أوامر الصيانة من قاعدة البيانات.");
+        }
+
+        target.Clear();
+        foreach (var item in loaded) target.Add(item);
+    }
+
+    private static void LoadOrderParts(SqlConnection connection, MaintenanceOrderDesignItem order)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT ProductId, BarcodeSnapshot, ProductNameSnapshot, Quantity, UnitCost, UnitSellPrice, IsManualPart, SparePartId
+FROM dbo.MaintenanceOrderParts WHERE MaintenanceOrderId = @Order ORDER BY LineNumber;";
+        command.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            order.UsedParts.Add(new MaintenancePartUsageItem
+            {
+                ProductId = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                Barcode = reader.GetString(1),
+                ProductName = reader.GetString(2),
+                Quantity = reader.GetInt32(3),
+                UnitCost = reader.GetDecimal(4),
+                UnitSellPrice = reader.GetDecimal(5),
+                IsManualPart = reader.GetBoolean(6)
+            });
+        }
+    }
+
+    private static void LoadOrderActivities(SqlConnection connection, MaintenanceOrderDesignItem order)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT OccurredAtUtc, ActionTitle, Details, Amount, ActorUserId
+FROM dbo.MaintenanceActivities WHERE MaintenanceOrderId = @Order ORDER BY OccurredAtUtc;";
+        command.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            order.ActivityLog.Add(new MaintenanceActivityEntry
+            {
+                Timestamp = reader.GetDateTime(0).ToLocalTime(),
+                ActionTitle = reader.GetString(1),
+                Details = reader.GetString(2),
+                Amount = reader.IsDBNull(3) ? null : reader.GetDecimal(3),
+                ActorName = ""
+            });
+        }
+    }
+
+    private static void LoadOrderPayments(SqlConnection connection, MaintenanceOrderDesignItem order)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT PaymentStage, PaymentKind, Amount, FinancialAccountId
+FROM dbo.MaintenancePayments WHERE MaintenanceOrderId = @Order ORDER BY PaidAtUtc;";
+        command.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var stage = reader.GetByte(0);
+            var kind = reader.GetByte(1);
+            var amount = reader.GetDecimal(2);
+            if (stage == 1 && kind == 1)
+            {
+                // deposit collected
+                if (reader.GetInt32(3) == 0) order.DepositCashPaid += amount;
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    private static string NextDocumentNumber(
+        SqlConnection connection, SqlTransaction transaction, string documentType, int year, string prefix)
+    {
+        using var command = CreateCommand(connection, transaction, @"
+IF NOT EXISTS (SELECT 1 FROM dbo.DocumentSequences WITH (UPDLOCK, HOLDLOCK)
+              WHERE DocumentType = @Type AND SequenceYear = @Year)
+    INSERT dbo.DocumentSequences(DocumentType,SequenceYear,LastValue) VALUES(@Type,@Year,0);
+UPDATE dbo.DocumentSequences SET LastValue = LastValue + 1
+OUTPUT inserted.LastValue
+WHERE DocumentType = @Type AND SequenceYear = @Year;");
+        command.Parameters.Add("@Type", SqlDbType.NVarChar, 30).Value = documentType;
+        command.Parameters.Add("@Year", SqlDbType.SmallInt).Value = year;
+        var value = command.ExecuteScalar();
+        return $"{prefix}-{year:0000}-{(long)value:0000}";
+    }
+
+    private static IReadOnlyDictionary<FinancialAccountKind, int> EnsureAccounts(
+        SqlConnection connection, SqlTransaction transaction)
+    {
+        var accounts = new Dictionary<FinancialAccountKind, int>();
+
+        using (var command = CreateCommand(connection, transaction, @"
+SELECT Id, AccountKind FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK)
+WHERE IsActive = 1
+ORDER BY IsDefault DESC, Id;"))
+        {
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var kind = (FinancialAccountKind)reader.GetByte(1);
+                accounts.TryAdd(kind, reader.GetInt32(0));
+            }
+        }
+
+        foreach (var kind in new[] { FinancialAccountKind.Cash, FinancialAccountKind.VodafoneCash, FinancialAccountKind.InstaPay })
+        {
+            if (accounts.ContainsKey(kind)) continue;
+
+            using var insert = CreateCommand(connection, transaction, @"
+INSERT dbo.FinancialAccounts(AccountKind,Alias,Identifier,CurrentBalance,IsActive,IsDefault,Notes)
+OUTPUT inserted.Id
+VALUES(@Kind,@Alias,@Identifier,0,1,1,N'أنشئت تلقائيًا لأوامر الصيانة');");
+            insert.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
+            insert.Parameters.Add("@Alias", SqlDbType.NVarChar, 200).Value = kind switch
+            {
+                FinancialAccountKind.VodafoneCash => "فودافون كاش",
+                FinancialAccountKind.InstaPay => "انستاباي",
+                _ => "الخزنة الرئيسية"
+            };
+            insert.Parameters.Add("@Identifier", SqlDbType.NVarChar, 200).Value = kind switch
+            {
+                FinancialAccountKind.VodafoneCash => "غير محدد",
+                FinancialAccountKind.InstaPay => "غير محدد",
+                _ => ""
+            };
+            accounts[kind] = (int)insert.ExecuteScalar()!;
+        }
+
+        return accounts;
+    }
 
     private static SqlCommand CreateCommand(SqlConnection connection, SqlTransaction transaction, string sql) =>
         new(sql, connection, transaction) { CommandTimeout = 30 };

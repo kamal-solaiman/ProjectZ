@@ -211,7 +211,8 @@ public sealed class MainViewModel : ObservableObject
         MaintenanceIntake = new MaintenanceIntakeViewModel(
             user.DisplayName,
             sharedCustomers,
-            sharedMaintenanceOrders);
+            sharedMaintenanceOrders,
+            maintenanceRepository);
         // Spare parts and actions notify each other, so the spare-parts screen gets a late-bound callback
         // instead of dereferencing MaintenanceActions before it has been assigned.
         MaintenanceSpareParts = new MaintenanceSparePartsViewModel(
@@ -312,6 +313,23 @@ public sealed class MainViewModel : ObservableObject
 
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
+
+        if (maintenanceRepository is not null)
+        {
+            // MaintenanceIntake is the source for the shared orders collection; loading it here
+            // makes the orders visible to the actions and invoices screens immediately.
+            try
+            {
+                MaintenanceIntake.NotifyExternalDataChanged();
+            }
+            catch (MaintenanceDataException)
+            {
+                // Each maintenance screen reports the failure on its own status strip and retries on refresh.
+            }
+            MaintenanceActions.NotifyExternalDataChanged();
+            MaintenanceInvoices.NotifyExternalDataChanged();
+            MaintenanceSpareParts.NotifyExternalDataChanged();
+        }
 
         if (purchaseRepository is not null)
         {
