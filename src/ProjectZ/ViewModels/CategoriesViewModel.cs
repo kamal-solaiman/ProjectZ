@@ -290,7 +290,7 @@ public sealed class CategoriesViewModel : ObservableObject
         AddCategoryCommand = new ActionCommand(AddCategory);
         ClearSearchCommand = new ActionCommand(() => SearchText = "");
         GoToAddProductCommand = new ActionCommand(() => this.navigateToAddProduct?.Invoke());
-        RefreshCategoriesCommand = new ActionCommand(RefreshFromDatabase);
+        RefreshCategoriesCommand = new ActionCommand(() => RefreshFromDatabase());
         ToggleOnlyUsedCommand = new ActionCommand(() => ShowOnlyUsed = !ShowOnlyUsed);
 
         if (repository is null)
