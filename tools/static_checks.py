@@ -1076,6 +1076,10 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/MarkDamagedWindow.xaml.cs',
     root / 'src/ProjectZ/Views/BarcodePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/ConfirmActionWindow.xaml.cs',
+    root / 'src/ProjectZ/ViewModels/VodafoneTransferViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/InstapayTransferViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/VodafoneRecordsViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/InstapayRecordsViewModel.cs',
 ]
 for p in pos_code_paths:
     text = p.read_text(encoding='utf-8')

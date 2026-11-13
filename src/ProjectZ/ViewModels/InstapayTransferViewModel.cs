@@ -16,7 +16,7 @@ public sealed class InstapayTransferViewModel : ObservableObject
     private string note = "";
     private string walletSearchText = "";
     private bool showSelectedWalletOperationsOnly;
-    private string statusMessage = "تصميم تفاعلي بدون Backend: العمليات تؤثر على أرصدة الجلسة الحالية وتظهر أيضًا في شاشة حساباتي.";
+    private string statusMessage = "تحميل البيانات من قاعدة البيانات.";
     private bool isErrorStatus;
     private int nextOperationId;
     private int nextFinancialTransactionId;
@@ -103,7 +103,23 @@ public sealed class InstapayTransferViewModel : ObservableObject
     public void NotifyExternalDataChanged()
     {
         accounts.NotifyExternalDataChanged();
+        LoadOperationsFromDatabase();
         RefreshWallets(); RefreshFilteredOperations(); NotifyPreviewChanged();
+    }
+
+    private void LoadOperationsFromDatabase()
+    {
+        Operations.Clear();
+        if (accounts.Repository is null)
+        {
+            foreach (var op in InstapayTransferDesignSeedData.CreateOperations()) Operations.Add(op);
+        }
+        else
+        {
+            accounts.LoadInstapayTransfers(Operations);
+        }
+        nextOperationId = Operations.Select(o => o.Id).DefaultIfEmpty(0).Max() + 1;
+        nextFinancialTransactionId = accounts.Transactions.Select(t => t.Id).DefaultIfEmpty(0).Max() + 1;
     }
 
     private IEnumerable<FinancialAccountDesignItem> Wallets() => accounts.Accounts.Where(a => a.Kind == FinancialAccountKind.InstaPay);
@@ -141,6 +157,27 @@ public sealed class InstapayTransferViewModel : ObservableObject
         if (cashDelta < 0m && Math.Abs(cashDelta) > accounts.CashAccount.Balance) { SetStatus($"الرصيد النقدي ({accounts.CashAccount.BalanceDisplay}) لا يكفي لصرف صافي مبلغ العملية.", true); return; }
         var limitError = AccountTransactionViewModel.ValidateLimits(SelectedWallet, incoming: !IsDepositSelected, amount);
         if (limitError is not null) { SetStatus(limitError, true); return; }
+
+        if (accounts.Repository is not null)
+        {
+            try
+            {
+                accounts.Repository.ExecuteCustomerTransfer(
+                    SelectedWallet.Kind, SelectedWallet.Id,
+                    IsDepositSelected ? "DepositToCustomer" : "WithdrawForCustomer",
+                    normalizedCustomer, amount, commission, Note.Trim());
+                accounts.NotifyExternalDataChanged();
+                LoadOperationsFromDatabase();
+                RefreshWallets(); RefreshFilteredOperations(); NotifyPreviewChanged();
+                SetStatus($"تم تنفيذ {(IsDepositSelected ? "إيداع" : "سحب")} للعميل بمبلغ {PosFormatting.FormatCurrency(amount)} وعمولة {PosFormatting.FormatCurrency(commission)} بنجاح.", false);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر تنفيذ التحويل: {ex.Message}", true);
+            }
+            CustomerNumber = ""; AmountText = ""; CommissionText = "0"; Note = "";
+            return;
+        }
 
         var wallet = SelectedWallet;
         wallet.Balance += IsDepositSelected ? -amount : amount;
