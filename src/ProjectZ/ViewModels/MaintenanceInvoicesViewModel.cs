@@ -12,6 +12,11 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     private readonly Action? navigateToIntake;
     private readonly Action<MaintenanceOrderDesignItem>? openInMaintenanceActions;
     private readonly Action? notifyMaintenanceOrdersChanged;
+    private readonly Data.MaintenanceRepository? repository;
+    private readonly Action? onOrdersSaved;
+    // Entries accumulated since the last DB save; flushed together with the order update.
+    private readonly List<MaintenanceActivityEntry> pendingActivities = new();
+    private readonly List<Data.MaintenancePaymentEntry> pendingPayments = new();
 
     private MaintenanceOrderDesignItem? selectedOrder;
     private string searchText = "";
@@ -307,13 +312,17 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         ObservableCollection<MaintenanceOrderDesignItem> sharedOrders,
         Action? navigateToIntake = null,
         Action<MaintenanceOrderDesignItem>? openInMaintenanceActions = null,
-        Action? notifyMaintenanceOrdersChanged = null)
+        Action? notifyMaintenanceOrdersChanged = null,
+        Data.MaintenanceRepository? repository = null,
+        Action? onOrdersSaved = null)
     {
         this.currentUserName = currentUserName;
         this.sharedOrders = sharedOrders;
         this.navigateToIntake = navigateToIntake;
         this.openInMaintenanceActions = openInMaintenanceActions;
         this.notifyMaintenanceOrdersChanged = notifyMaintenanceOrdersChanged;
+        this.repository = repository;
+        this.onOrdersSaved = onOrdersSaved;
 
         TechnicianFilterOptions = new[] { "كل الفنيين" }.Concat(MaintenanceDesignSeedData.Technicians).ToArray();
         this.sharedOrders.CollectionChanged += OnOrdersCollectionChanged;
@@ -353,7 +362,50 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
 
     public void NotifyExternalDataChanged()
     {
+        if (repository is not null)
+        {
+            try
+            {
+                repository.LoadMaintenanceOrdersInto(sharedOrders);
+                pendingActivities.Clear();
+                pendingPayments.Clear();
+            }
+            catch (Exception)
+            {
+                // The status strip reports the failure; the in-memory list stays as-is.
+            }
+        }
         RefreshFilteredOrders();
+    }
+
+    /// <summary>Flushes accumulated activities/payments and the order state to the database.</summary>
+    /// <returns>True when the save succeeded (or no repository is connected).</returns>
+    private bool TryPersistOrder(MaintenanceOrderDesignItem order, string successMessage, string errorPrefix)
+    {
+        if (repository is null)
+            return true;
+
+        try
+        {
+            repository.UpdateMaintenanceOrder(order, pendingActivities, pendingPayments);
+            pendingActivities.Clear();
+            pendingPayments.Clear();
+            onOrdersSaved?.Invoke();
+            SetStatus(successMessage, false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"{errorPrefix}: {ex.Message}", true);
+            return false;
+        }
+    }
+
+    /// <summary>Records an activity both in the in-memory log and the pending DB batch.</summary>
+    private void RecordActivity(MaintenanceOrderDesignItem order, MaintenanceActivityEntry entry)
+    {
+        order.ActivityLog.Add(entry);
+        pendingActivities.Add(entry);
     }
 
     private void OnOrdersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -401,7 +453,7 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         if (order is null) return;
         SelectedOrder = order;
 
-        var detailsVm = new MaintenanceInvoiceDetailsViewModel(order, currentUserName)
+        var detailsVm = new MaintenanceInvoiceDetailsViewModel(order, currentUserName, repository)
         {
             OpenDeliveryDialogRequested = vm => OpenDeliveryDialogRequested?.Invoke(vm),
             OpenReceiptPreviewRequested = vm => OpenReceiptPreviewRequested?.Invoke(vm),
@@ -438,11 +490,59 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         var result = OpenDeliveryDialogRequested?.Invoke(vm);
         if (result == true || vm.IsConfirmed)
         {
+            var cashBefore = order.FinalPaymentCashPaid;
+            var vodBefore = order.FinalPaymentVodafonePaid;
+            var instaBefore = order.FinalPaymentInstaPayPaid;
+            var refundBefore = order.RefundedDepositAmount;
+
             RefreshFilteredOrders();
             notifyMaintenanceOrdersChanged?.Invoke();
-            SetStatus(
-                $"تم تسليم الجهاز وإغلاق الفاتورة {order.OrderNumber} ({order.WarrantySummaryDisplay}).",
-                false);
+
+            var cashNew = order.FinalPaymentCashPaid - cashBefore;
+            var vodNew = order.FinalPaymentVodafonePaid - vodBefore;
+            var instaNew = order.FinalPaymentInstaPayPaid - instaBefore;
+            var refundNew = order.RefundedDepositAmount - refundBefore;
+            var totalNewCollected = cashNew + vodNew + instaNew;
+
+            if (cashNew > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 1, cashNew, DateTime.Now, "دفعة تسليم - كاش"));
+            if (vodNew > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.VodafoneCash, 2, 1, vodNew, DateTime.Now, "دفعة تسليم - فودافون كاش"));
+            if (instaNew > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.InstaPay, 2, 1, instaNew, DateTime.Now, "دفعة تسليم - إنستاباي"));
+            if (refundNew > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 2, refundNew, DateTime.Now, "رد فرق عربون عند التسليم"));
+
+            var summaryParts = new List<string>
+            {
+                $"التكلفة النهائية: {order.EstimatedCostDisplay}",
+                vm.WarrantyDays > 0 ? $"ضمان {vm.WarrantyDays} يومًا" : "بدون ضمان"
+            };
+            if (totalNewCollected > 0m)
+                summaryParts.Add($"تحصيل عند التسليم: {PosFormatting.FormatCurrency(totalNewCollected)}");
+            if (refundNew > 0m)
+                summaryParts.Add($"رد فرق عربون: {PosFormatting.FormatCurrency(refundNew)}");
+            if (!string.IsNullOrWhiteSpace(order.DeliveryNotes))
+                summaryParts.Add(order.DeliveryNotes);
+
+            RecordActivity(order, new MaintenanceActivityEntry
+            {
+                Timestamp = DateTime.Now,
+                ActionTitle = "تسليم الجهاز وإغلاق أمر الصيانة",
+                Details = string.Join(" · ", summaryParts),
+                ActorName = currentUserName,
+                Amount = totalNewCollected > 0m ? totalNewCollected : order.CurrentEffectiveCost
+            });
+
+            if (repository is not null)
+                TryPersistOrder(
+                    order,
+                    $"تم تسليم الجهاز وإغلاق الفاتورة {order.OrderNumber} ({order.WarrantySummaryDisplay}).",
+                    "تعذّر حفظ التسليم");
+            else
+                SetStatus(
+                    $"تم تسليم الجهاز وإغلاق الفاتورة {order.OrderNumber} ({order.WarrantySummaryDisplay}).",
+                    false);
 
             if (vm.ShouldOpenPrintAfterClose)
                 OpenPrintPreview(order, MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt);

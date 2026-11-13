@@ -13,6 +13,10 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     private readonly Action? navigateToIntake;
     private readonly Action? notifySparePartsChanged;
     private readonly Data.MaintenanceRepository? repository;
+    private readonly Action? onOrdersSaved;
+    // Entries accumulated since the last DB save; flushed together with the order update.
+    private readonly List<MaintenanceActivityEntry> pendingActivities = new();
+    private readonly List<Data.MaintenancePaymentEntry> pendingPayments = new();
 
     private MaintenanceOrderDesignItem? selectedOrder;
     private string searchText = "";
@@ -479,7 +483,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         ObservableCollection<MaintenanceSparePartItem> sharedSpareParts,
         Action? navigateToIntake = null,
         Action? notifySparePartsChanged = null,
-        Data.MaintenanceRepository? repository = null)
+        Data.MaintenanceRepository? repository = null,
+        Action? onOrdersSaved = null)
     {
         this.currentUserName = currentUserName;
         this.sharedOrders = sharedOrders;
@@ -487,6 +492,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         this.navigateToIntake = navigateToIntake;
         this.notifySparePartsChanged = notifySparePartsChanged;
         this.repository = repository;
+        this.onOrdersSaved = onOrdersSaved;
 
         TechnicianFilterOptions = new[] { "كل الفنيين" }.Concat(MaintenanceDesignSeedData.Technicians).ToArray();
 
@@ -550,6 +556,19 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     public void NotifyExternalDataChanged()
     {
+        if (repository is not null)
+        {
+            try
+            {
+                repository.LoadMaintenanceOrdersInto(sharedOrders);
+                pendingActivities.Clear();
+                pendingPayments.Clear();
+            }
+            catch (Exception)
+            {
+                // The status strip reports the failure; the in-memory list stays as-is.
+            }
+        }
         NotifyStageAndKpiCounts();
         RefreshFilteredOrders();
         RefreshFilteredCatalogParts();
@@ -557,6 +576,36 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             SelectedOrder = FilteredOrders[0];
         else
             LoadEditableFieldsFromSelected();
+    }
+
+    /// <summary>Flushes accumulated activities/payments and the order state to the database.</summary>
+    /// <returns>True when the save succeeded (or no repository is connected).</returns>
+    private bool TryPersistOrder(MaintenanceOrderDesignItem order, string successMessage, string errorPrefix)
+    {
+        if (repository is null)
+            return true;
+
+        try
+        {
+            repository.UpdateMaintenanceOrder(order, pendingActivities, pendingPayments);
+            pendingActivities.Clear();
+            pendingPayments.Clear();
+            onOrdersSaved?.Invoke();
+            SetStatus(successMessage, false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"{errorPrefix}: {ex.Message}", true);
+            return false;
+        }
+    }
+
+    /// <summary>Records an activity both in the in-memory log and the pending DB batch.</summary>
+    private void RecordActivity(MaintenanceOrderDesignItem order, MaintenanceActivityEntry entry)
+    {
+        order.ActivityLog.Add(entry);
+        pendingActivities.Add(entry);
     }
 
     public void SelectOrderFromExternal(MaintenanceOrderDesignItem order)
@@ -723,7 +772,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
         if (changes.Count > 0)
         {
-            order.ActivityLog.Add(new MaintenanceActivityEntry
+            RecordActivity(order, new MaintenanceActivityEntry
             {
                 Timestamp = DateTime.Now,
                 ActionTitle = "تحديث بيانات الورشة والفحص",
@@ -734,7 +783,12 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
             NotifyStageAndKpiCounts();
             RefreshFilteredOrders();
-            if (showSuccessMessage)
+            if (repository is not null)
+                TryPersistOrder(
+                    order,
+                    $"تم حفظ تحديثات الأمر {order.OrderNumber} ({string.Join("، ", changes)}).",
+                    "تعذّر حفظ تحديثات الأمر");
+            else if (showSuccessMessage)
                 SetStatus($"تم حفظ تحديثات الأمر {order.OrderNumber} ({string.Join("، ", changes)}).", false);
         }
         else if (showSuccessMessage)
@@ -807,7 +861,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         var prevTitle = order.StatusTitle;
         order.Status = nextStatus;
 
-        order.ActivityLog.Add(new MaintenanceActivityEntry
+        RecordActivity(order, new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = $"تغيير الحالة إلى: {order.StatusTitle}",
@@ -818,7 +872,10 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         NotifyStageAndKpiCounts();
         RefreshFilteredOrders();
         Changed(nameof(CanEditSelectedWorkshopFields));
-        SetStatus($"تم تغيير حالة الأمر {order.OrderNumber} إلى «{order.StatusTitle}».", false);
+        if (repository is not null)
+            TryPersistOrder(order, $"تم تغيير حالة الأمر {order.OrderNumber} إلى «{order.StatusTitle}».", "تعذّر حفظ تغيير الحالة");
+        else
+            SetStatus($"تم تغيير حالة الأمر {order.OrderNumber} إلى «{order.StatusTitle}».", false);
     }
 
     private void ReopenOrder()
@@ -831,7 +888,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         order.DeliveredAt = null;
         order.CancellationReason = "";
 
-        order.ActivityLog.Add(new MaintenanceActivityEntry
+        RecordActivity(order, new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = "إعادة فتح أمر الصيانة",
@@ -842,7 +899,10 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         NotifyStageAndKpiCounts();
         RefreshFilteredOrders();
         LoadEditableFieldsFromSelected();
-        SetStatus($"تمت إعادة فتح الأمر {order.OrderNumber} للمراجعة بحالة «قيد الفحص».", false);
+        if (repository is not null)
+            TryPersistOrder(order, $"تمت إعادة فتح الأمر {order.OrderNumber} للمراجعة بحالة «قيد الفحص».", "تعذّر حفظ إعادة الفتح");
+        else
+            SetStatus($"تمت إعادة فتح الأمر {order.OrderNumber} للمراجعة بحالة «قيد الفحص».", false);
     }
 
     private void OpenDeliveryDialog()
@@ -867,12 +927,61 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         var result = OpenDeliveryDialogRequested?.Invoke(vm);
         if (result == true || vm.IsConfirmed)
         {
+            // Snapshot before delivery so only the newly collected amounts are recorded.
+            var cashBefore = order.FinalPaymentCashPaid;
+            var vodBefore = order.FinalPaymentVodafonePaid;
+            var instaBefore = order.FinalPaymentInstaPayPaid;
+            var refundBefore = order.RefundedDepositAmount;
+
             NotifyStageAndKpiCounts();
             RefreshFilteredOrders();
             LoadEditableFieldsFromSelected();
-            SetStatus(
-                $"تم تسليم الجهاز {order.OrderNumber} وإغلاق التذكرة ({order.WarrantySummaryDisplay}).",
-                false);
+
+            var cashNew = order.FinalPaymentCashPaid - cashBefore;
+            var vodNew = order.FinalPaymentVodafonePaid - vodBefore;
+            var instaNew = order.FinalPaymentInstaPayPaid - instaBefore;
+            var refundNew = order.RefundedDepositAmount - refundBefore;
+            var totalNewCollected = cashNew + vodNew + instaNew;
+
+            if (cashNew > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 1, cashNew, DateTime.Now, "دفعة تسليم - كاش"));
+            if (vodNew > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.VodafoneCash, 2, 1, vodNew, DateTime.Now, "دفعة تسليم - فودافون كاش"));
+            if (instaNew > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.InstaPay, 2, 1, instaNew, DateTime.Now, "دفعة تسليم - إنستاباي"));
+            if (refundNew > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 2, refundNew, DateTime.Now, "رد فرق عربون عند التسليم"));
+
+            var summaryParts = new List<string>
+            {
+                $"التكلفة النهائية: {order.EstimatedCostDisplay}",
+                vm.WarrantyDays > 0 ? $"ضمان {vm.WarrantyDays} يومًا" : "بدون ضمان"
+            };
+            if (totalNewCollected > 0m)
+                summaryParts.Add($"تحصيل عند التسليم: {PosFormatting.FormatCurrency(totalNewCollected)}");
+            if (refundNew > 0m)
+                summaryParts.Add($"رد فرق عربون: {PosFormatting.FormatCurrency(refundNew)}");
+            if (!string.IsNullOrWhiteSpace(order.DeliveryNotes))
+                summaryParts.Add(order.DeliveryNotes);
+
+            RecordActivity(order, new MaintenanceActivityEntry
+            {
+                Timestamp = DateTime.Now,
+                ActionTitle = "تسليم الجهاز وإغلاق أمر الصيانة",
+                Details = string.Join(" · ", summaryParts),
+                ActorName = currentUserName,
+                Amount = totalNewCollected > 0m ? totalNewCollected : order.CurrentEffectiveCost
+            });
+
+            if (repository is not null)
+                TryPersistOrder(
+                    order,
+                    $"تم تسليم الجهاز {order.OrderNumber} وإغلاق التذكرة ({order.WarrantySummaryDisplay}).",
+                    "تعذّر حفظ التسليم");
+            else
+                SetStatus(
+                    $"تم تسليم الجهاز {order.OrderNumber} وإغلاق التذكرة ({order.WarrantySummaryDisplay}).",
+                    false);
 
             if (vm.ShouldOpenPrintAfterClose)
             {
@@ -926,7 +1035,11 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             if (vm.ConfirmedRefundAmount > 0m)
                 details += $" · استرداد عربون: {PosFormatting.FormatCurrency(vm.ConfirmedRefundAmount)}";
 
-            order.ActivityLog.Add(new MaintenanceActivityEntry
+            if (vm.ConfirmedRefundAmount > 0m)
+                pendingPayments.Add(new Data.MaintenancePaymentEntry(
+                    FinancialAccountKind.Cash, 1, 2, vm.ConfirmedRefundAmount, DateTime.Now, "رد عربون عند الإلغاء"));
+
+            RecordActivity(order, new MaintenanceActivityEntry
             {
                 Timestamp = DateTime.Now,
                 ActionTitle = "إلغاء أمر الصيانة",
@@ -938,7 +1051,10 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             NotifyStageAndKpiCounts();
             RefreshFilteredOrders();
             LoadEditableFieldsFromSelected();
-            SetStatus($"تم إلغاء الأمر {order.OrderNumber} ({vm.FinalReasonText}).", false);
+            if (repository is not null)
+                TryPersistOrder(order, $"تم إلغاء الأمر {order.OrderNumber} ({vm.FinalReasonText}).", "تعذّر حفظ الإلغاء");
+            else
+                SetStatus($"تم إلغاء الأمر {order.OrderNumber} ({vm.FinalReasonText}).", false);
         }
     }
 
@@ -1034,7 +1150,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         order.RecalculateWorkshopTotal();
         Changed(nameof(LiveComputedTotalDisplay));
 
-        order.ActivityLog.Add(new MaintenanceActivityEntry
+        RecordActivity(order, new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = "صرف قطعة غيار من مخزون الصيانة",
@@ -1048,7 +1164,13 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         NotifyStageAndKpiCounts();
         notifySparePartsChanged?.Invoke();
 
-        SetStatus($"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.", false);
+        if (order.Id > 0)
+            TryPersistOrder(
+                order,
+                $"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.",
+                "تعذّر حفظ قطعة الغيار المصروفة");
+        else
+            SetStatus($"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.", false);
     }
 
     private void AddManualPart()
@@ -1101,7 +1223,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         order.RecalculateWorkshopTotal();
         Changed(nameof(LiveComputedTotalDisplay));
 
-        order.ActivityLog.Add(new MaintenanceActivityEntry
+        RecordActivity(order, new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = "إضافة قطعة غيار يدوية",
@@ -1115,7 +1237,13 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         ManualPartPriceText = "0";
         ManualPartQtyText = "1";
         NotifyStageAndKpiCounts();
-        SetStatus($"تمت إضافة البند اليدوي «{partItem.ProductName}» للأمر {order.OrderNumber}.", false);
+        if (order.Id > 0)
+            TryPersistOrder(
+                order,
+                $"تمت إضافة البند اليدوي «{partItem.ProductName}» للأمر {order.OrderNumber}.",
+                "تعذّر حفظ البند اليدوي");
+        else
+            SetStatus($"تمت إضافة البند اليدوي «{partItem.ProductName}» للأمر {order.OrderNumber}.", false);
     }
 
     private void RemoveUsedPart(MaintenancePartUsageItem? part)
@@ -1134,7 +1262,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         order.RecalculateWorkshopTotal();
         Changed(nameof(LiveComputedTotalDisplay));
 
-        order.ActivityLog.Add(new MaintenanceActivityEntry
+        RecordActivity(order, new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = part.IsManualPart ? "حذف بند قطعة غيار" : "إرجاع قطعة غيار لمخزون الصيانة",
@@ -1147,11 +1275,19 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         if (!part.IsManualPart)
             notifySparePartsChanged?.Invoke();
 
-        SetStatus(
-            part.IsManualPart
-                ? $"تم حذف البند «{part.ProductName}» من التذكرة."
-                : $"تمت إزالة «{part.ProductName}» وإرجاع الكمية لمخزون قطع الغيار بنجاح.",
-            false);
+        if (order.Id > 0)
+            TryPersistOrder(
+                order,
+                part.IsManualPart
+                    ? $"تم حذف البند «{part.ProductName}» من التذكرة."
+                    : $"تمت إزالة «{part.ProductName}» وإرجاع الكمية لمخزون قطع الغيار بنجاح.",
+                "تعذّر حفظ حذف القطعة");
+        else
+            SetStatus(
+                part.IsManualPart
+                    ? $"تم حذف البند «{part.ProductName}» من التذكرة."
+                    : $"تمت إزالة «{part.ProductName}» وإرجاع الكمية لمخزون قطع الغيار بنجاح.",
+                false);
     }
 
     private void SyncLaborBeforeWorkshopRecalc(MaintenanceOrderDesignItem order)
@@ -1209,24 +1345,30 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
+        FinancialAccountKind account;
         string channelTitle;
         if (extraDepositMode == MaintenanceDepositMode.VodafoneCashOnly)
         {
             order.DepositVodafonePaid += amount;
+            account = FinancialAccountKind.VodafoneCash;
             channelTitle = "فودافون كاش";
         }
         else if (extraDepositMode == MaintenanceDepositMode.InstaPayOnly)
         {
             order.DepositInstaPayPaid += amount;
+            account = FinancialAccountKind.InstaPay;
             channelTitle = "إنستاباي";
         }
         else
         {
             order.DepositCashPaid += amount;
+            account = FinancialAccountKind.Cash;
             channelTitle = "كاش";
         }
 
-        order.ActivityLog.Add(new MaintenanceActivityEntry
+        pendingPayments.Add(new Data.MaintenancePaymentEntry(account, 1, 1, amount, DateTime.Now, $"دفعة إضافية - {channelTitle}"));
+
+        RecordActivity(order, new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = "تحصيل دفعة تحت الحساب",
@@ -1237,7 +1379,13 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
         ExtraDepositAmountText = "";
         NotifyStageAndKpiCounts();
-        SetStatus($"تم تحصيل دفعة إضافية {PosFormatting.FormatCurrency(amount)} على الأمر {order.OrderNumber} ({channelTitle}).", false);
+        if (repository is not null)
+            TryPersistOrder(
+                order,
+                $"تم تحصيل دفعة إضافية {PosFormatting.FormatCurrency(amount)} على الأمر {order.OrderNumber} ({channelTitle}).",
+                "تعذّر حفظ الدفعة الإضافية");
+        else
+            SetStatus($"تم تحصيل دفعة إضافية {PosFormatting.FormatCurrency(amount)} على الأمر {order.OrderNumber} ({channelTitle}).", false);
     }
 
     private void RefreshFilteredOrders()

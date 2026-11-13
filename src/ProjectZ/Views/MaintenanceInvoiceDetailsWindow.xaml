@@ -523,6 +523,61 @@
                                         <TextBlock Grid.Column="1" Text="{Binding Order.EstimatedRemainingDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#B42318" />
                                     </Grid>
                                 </Border>
+
+                                <Border Margin="0,10,0,0"
+                                        Padding="8,6"
+                                        CornerRadius="8"
+                                        Background="#FFFBEB"
+                                        BorderBrush="#FDE68A"
+                                        BorderThickness="1"
+                                        Visibility="{Binding CanCollectPayment, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel FlowDirection="RightToLeft">
+                                        <TextBlock Text="تحصيل دفعة من الفاتورة"
+                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                   FontSize="12"
+                                                   FontWeight="Bold"
+                                                   Foreground="#92400E"
+                                                   Margin="0,0,0,6" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Grid.Column="0"
+                                                     Text="{Binding CollectPaymentAmountText, UpdateSourceTrigger=PropertyChanged}"
+                                                     FontSize="12"
+                                                     Padding="6,3"
+                                                     Background="#FFFFFF"
+                                                     BorderBrush="#F59E0B" />
+                                            <Button Grid.Column="1"
+                                                    Content="كاش"
+                                                    Style="{StaticResource MntDetailsToolbarBtnStyle}"
+                                                    Background="#059669"
+                                                    BorderBrush="#34D399"
+                                                    Foreground="White"
+                                                    Margin="4,0,0,0"
+                                                    Command="{Binding CollectCashCommand}" />
+                                            <Button Grid.Column="2"
+                                                    Content="فودافون"
+                                                    Style="{StaticResource MntDetailsToolbarBtnStyle}"
+                                                    Background="#C8102E"
+                                                    BorderBrush="#F87171"
+                                                    Foreground="White"
+                                                    Margin="4,0,0,0"
+                                                    Command="{Binding CollectVodafoneCommand}" />
+                                            <Button Grid.Column="3"
+                                                    Content="إنستاباي"
+                                                    Style="{StaticResource MntDetailsToolbarBtnStyle}"
+                                                    Background="#6D28D9"
+                                                    BorderBrush="#A78BFA"
+                                                    Foreground="White"
+                                                    Margin="4,0,0,0"
+                                                    Command="{Binding CollectInstaPayCommand}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Grid>
                     </Border>
