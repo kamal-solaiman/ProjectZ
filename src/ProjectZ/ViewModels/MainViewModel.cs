@@ -202,7 +202,9 @@ public sealed class MainViewModel : ObservableObject
             () => SelectItem(Categories[0].Items[0]),
             Inventory.RegisterInitialStockForNewProduct,
             sharedCategories,
-            () => Inventory.StatusMessage);
+            () => Inventory.StatusMessage,
+            inventoryRepository,
+            Inventory.RefreshFromDatabase);
         ProductCategories = new CategoriesViewModel(
             sharedCategories,
             () => SelectItem(Categories[0].Items[1]));
@@ -306,6 +308,8 @@ public sealed class MainViewModel : ObservableObject
             ReturnExchange.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[0].Items[4]))
             Invoices.NotifyExternalInvoicesChanged();
+        else if (ReferenceEquals(item, Categories[0].Items[1]))
+            AddProduct.RefreshFromDatabase();
         else if (ReferenceEquals(item, Categories[0].Items[2]))
             Inventory.NotifyExternalInventoryChanged();
         else if (ReferenceEquals(item, Categories[1].Items[0]))

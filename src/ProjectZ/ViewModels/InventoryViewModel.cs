@@ -259,19 +259,21 @@ public sealed class InventoryViewModel : ObservableObject
         NotifyKpis();
     }
 
-    public void RefreshFromDatabase()
+    public bool RefreshFromDatabase()
     {
-        if (repository is null) return;
+        if (repository is null) return true;
         try
         {
             var categories = sharedCategories ?? new ObservableCollection<string>();
             repository.LoadInto(sharedCatalog, sharedRegistrations, categories);
             NotifyExternalInventoryChanged();
             SetStatus("تم تحميل المخزون والتسجيلات من قاعدة البيانات.", false);
+            return true;
         }
         catch (Exception ex)
         {
             SetStatus(DatabaseError(ex, "تعذر تحميل المخزون من قاعدة البيانات. تحقق من تنفيذ مخطط قاعدة البيانات والاتصال."), true);
+            return false;
         }
     }
 
