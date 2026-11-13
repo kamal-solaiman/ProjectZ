@@ -207,10 +207,10 @@ public sealed class InventoryViewModel : ObservableObject
     public ActionCommand GoToAddProductCommand { get; }
     public ActionCommand RefreshInventoryCommand { get; }
     public ActionCommand ReloadSuppliersCommand { get; }
-    public ActionCommand ShowProductMovementsCommand { get; private set; } = null!;
-    public ActionCommand ShowUnitMovementsCommand { get; private set; } = null!;
+    public RelayCommand<PosProductDesignItem> ShowProductMovementsCommand { get; }
+    public RelayCommand<InventoryUnitRegistrationItem> ShowUnitMovementsCommand { get; }
     public RelayCommand<InventoryUnitRegistrationItem> EditDamagedUnitCommand { get; }
-    public ActionCommand MarkAllDamagedReturnedCommand { get; private set; } = null!;
+    public ActionCommand MarkAllDamagedReturnedCommand { get; }
 
     public RelayCommand<PosProductDesignItem> OpenRegistrationsCommand { get; }
     public RelayCommand<PosProductDesignItem> OpenSupplyCommand { get; }
@@ -272,7 +272,7 @@ public sealed class InventoryViewModel : ObservableObject
             SelectedSettlementFilter = "الكل";
         });
         GoToAddProductCommand = new ActionCommand(() => this.navigateToAddProduct?.Invoke());
-        RefreshInventoryCommand = new ActionCommand(RefreshFromDatabase);
+        RefreshInventoryCommand = new ActionCommand(() => RefreshFromDatabase());
         ReloadSuppliersCommand = new ActionCommand(ReloadSuppliers);
         ShowProductMovementsCommand = new RelayCommand<PosProductDesignItem>(product =>
         {
