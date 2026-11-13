@@ -99,7 +99,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -158,65 +157,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- ROW 1: 5 Dynamic KPI Cards -->
-        <UniformGrid Grid.Row="1" Columns="5" Margin="0,0,0,10" FlowDirection="RightToLeft">
-            <!-- KPI 1: Count & Breakdown -->
-            <Border Padding="11,9" CornerRadius="11" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="عدد فواتير الصيانة" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" />
-                    <TextBlock Text="{Binding InvoicesCountDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#102E48" />
-                    <TextBlock Text="{Binding InvoicesBreakdownSummary}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10.5" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Border>
-
-            <!-- KPI 2: Effective Service Revenue -->
-            <Border Margin="0,0,8,0" Padding="11,9" CornerRadius="11" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="إجمالي قيمة الصيانات" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F766E" />
-                    <TextBlock Text="{Binding TotalServiceValueDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#0F766E" />
-                    <TextBlock Text="{Binding ServiceBreakdownSubtext}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10" Foreground="#0D9488" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Border>
-
-            <!-- KPI 3: Estimated / Realized Net Profit -->
-            <Border Margin="0,0,8,0" Padding="11,9" CornerRadius="11" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="صافي ربح الصيانة" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#1D4ED8" />
-                    <TextBlock Text="{Binding TotalNetProfitDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#1E40AF" />
-                    <TextBlock Text="{Binding PartsCostAndMarginSubtext}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10.5" Foreground="#2563EB" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Border>
-
-            <!-- KPI 4: Collected Payments & Channels -->
-            <Border Margin="0,0,8,0" Padding="11,9" CornerRadius="11" Background="#F5F3FF" BorderBrush="#DDD6FE" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="صافي التحصيلات الفعلية" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#6D28D9" />
-                    <TextBlock Text="{Binding TotalCollectedAllDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#5B21B6" />
-                    <TextBlock Text="{Binding ChannelsBreakdownDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10" Foreground="#7C3AED" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Border>
-
-            <!-- KPI 5: Remaining to Collect (Clickable Quick Filter) -->
-            <Button Margin="0,0,8,0"
-                    Cursor="Hand"
-                    Command="{Binding FilterRemainingOnlyCommand}"
-                    ToolTip="اضغط لتصفية الفواتير التي بها رصيد متبقٍ للتحصيل">
-                <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                        <Border Padding="11,9" CornerRadius="11" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="المتبقي للتحصيل (اضغط للتصفية)" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="#B45309" />
-                                <TextBlock Text="{Binding TotalRemainingDisplay}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="17" FontWeight="Bold" Foreground="#B42318" />
-                                <TextBlock Text="{Binding RemainingCountSubtext}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="10" Foreground="#92400E" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                        </Border>
-                    </ControlTemplate>
-                </Button.Template>
-            </Button>
-        </UniformGrid>
-
-        <!-- ROW 2: Multi-Criteria Search & Filter Bar -->
-        <Border Grid.Row="2"
+        <!-- ROW 1: Multi-Criteria Search & Filter Bar -->
+        <Border Grid.Row="1"
                 Margin="0,0,0,10"
                 Padding="11,9"
                 CornerRadius="12"
@@ -449,8 +391,8 @@
             </StackPanel>
         </Border>
 
-        <!-- ROW 3: Full-Width Comprehensive Maintenance Invoices Table -->
-        <Border Grid.Row="3"
+        <!-- ROW 2: Full-Width Comprehensive Maintenance Invoices Table -->
+        <Border Grid.Row="2"
                 CornerRadius="12"
                 Background="White"
                 BorderBrush="#CBD5E1"
@@ -756,8 +698,8 @@
             </ScrollViewer>
         </Border>
 
-        <!-- ROW 4: Status Banner -->
-        <Border Grid.Row="4"
+        <!-- ROW 3: Status Banner -->
+        <Border Grid.Row="3"
                 Margin="0,10,0,0"
                 Padding="12,8"
                 CornerRadius="10"

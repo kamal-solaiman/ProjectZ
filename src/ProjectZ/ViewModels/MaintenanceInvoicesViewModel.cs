@@ -255,102 +255,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         }
     }
 
-    // --- 5 Dynamic KPI Summaries computed on FilteredOrders ---
-    public string InvoicesCountDisplay => $"{FilteredOrders.Count} فاتورة";
-
-    public string InvoicesBreakdownSummary
-    {
-        get
-        {
-            var active = FilteredOrders.Count(o => o.IsActiveOrder);
-            var delivered = FilteredOrders.Count(o => o.IsDelivered);
-            var cancelled = FilteredOrders.Count(o => o.IsCancelled);
-            return $"نشط: {active} · مسلّم: {delivered} · ملغى: {cancelled}";
-        }
-    }
-
-    public string TotalServiceValueDisplay
-    {
-        get
-        {
-            var sum = FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.CurrentEffectiveCost);
-            return PosFormatting.FormatCurrency(sum);
-        }
-    }
-
-    public string ServiceBreakdownSubtext
-    {
-        get
-        {
-            var nonCancelled = FilteredOrders.Where(o => !o.IsCancelled).ToList();
-            var partsSum = nonCancelled.Sum(o => o.PartsTotal);
-            var laborSum = nonCancelled.Sum(o => o.LaborCost);
-            var discountSum = nonCancelled.Sum(o => o.DiscountAmount);
-            return $"قطع: {PosFormatting.FormatCurrency(partsSum)} · مصنعية: {PosFormatting.FormatCurrency(laborSum)} · خصم: {PosFormatting.FormatCurrency(discountSum)}";
-        }
-    }
-
-    public string TotalNetProfitDisplay
-    {
-        get
-        {
-            var profit = FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.EstimatedProfit);
-            return PosFormatting.FormatCurrency(profit);
-        }
-    }
-
-    public string PartsCostAndMarginSubtext
-    {
-        get
-        {
-            var nonCancelled = FilteredOrders.Where(o => !o.IsCancelled).ToList();
-            var revenue = nonCancelled.Sum(o => o.CurrentEffectiveCost);
-            var profit = nonCancelled.Sum(o => o.EstimatedProfit);
-            var partsCost = nonCancelled.Sum(o => o.PartsCostTotal);
-            var margin = revenue > 0m ? Math.Round((profit / revenue) * 100m, 1) : 0m;
-            return $"تكلفة القطع: {PosFormatting.FormatCurrency(partsCost)} · الهامش: {margin:0.#}%";
-        }
-    }
-
-    public string TotalCollectedAllDisplay
-    {
-        get
-        {
-            var netCollected = FilteredOrders.Sum(o => o.TotalCollectedAll);
-            return PosFormatting.FormatCurrency(netCollected);
-        }
-    }
-
-    public string ChannelsBreakdownDisplay
-    {
-        get
-        {
-            var cash = FilteredOrders.Sum(o => o.TotalCashCollected);
-            var vf = FilteredOrders.Sum(o => o.TotalVodafoneCollected);
-            var ip = FilteredOrders.Sum(o => o.TotalInstaPayCollected);
-            return $"كاش: {PosFormatting.FormatPlainNumber(cash)} · فودافون: {PosFormatting.FormatPlainNumber(vf)} · إنستاباي: {PosFormatting.FormatPlainNumber(ip)}";
-        }
-    }
-
-    public string TotalRemainingDisplay
-    {
-        get
-        {
-            var remaining = FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.EstimatedRemaining);
-            return PosFormatting.FormatCurrency(remaining);
-        }
-    }
-
-    public string RemainingCountSubtext
-    {
-        get
-        {
-            var withRemaining = FilteredOrders.Count(o => !o.IsCancelled && o.HasEstimatedRemaining);
-            var refunded = FilteredOrders.Sum(o => o.RefundedDepositAmount);
-            return $"{withRemaining} فاتورة بها متبقي · مرتجع عربون: {PosFormatting.FormatCurrency(refunded)}";
-        }
-    }
-
     public string StatusMessage
     {
         get => statusMessage;
@@ -381,7 +285,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     public ActionCommand RefreshDataCommand { get; }
     public ActionCommand ClearFiltersCommand { get; }
     public ActionCommand ClearSearchCommand { get; }
-    public ActionCommand FilterRemainingOnlyCommand { get; }
     public RelayCommand<string> SelectDateBasisCommand { get; }
     public RelayCommand<string> SelectDatePresetCommand { get; }
     public RelayCommand<MaintenanceOrderDesignItem> OpenInvoiceDetailsCommand { get; }
@@ -423,13 +326,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         });
         ClearFiltersCommand = new ActionCommand(ClearAllFilters);
         ClearSearchCommand = new ActionCommand(() => SearchText = "");
-        FilterRemainingOnlyCommand = new ActionCommand(() =>
-        {
-            SelectedStatusFilter = "كل الحالات";
-            SelectedSettlementFilter = SelectedSettlementFilter == "يوجد متبقي للتحصيل"
-                ? "كل الحالات المالية"
-                : "يوجد متبقي للتحصيل";
-        });
 
         SelectDateBasisCommand = new RelayCommand<string>(basis =>
         {
@@ -705,21 +601,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
             SelectedOrder = null;
 
         Changed(nameof(HasNoFilteredOrders));
-        NotifyKpis();
-    }
-
-    private void NotifyKpis()
-    {
-        Changed(nameof(InvoicesCountDisplay));
-        Changed(nameof(InvoicesBreakdownSummary));
-        Changed(nameof(TotalServiceValueDisplay));
-        Changed(nameof(ServiceBreakdownSubtext));
-        Changed(nameof(TotalNetProfitDisplay));
-        Changed(nameof(PartsCostAndMarginSubtext));
-        Changed(nameof(TotalCollectedAllDisplay));
-        Changed(nameof(ChannelsBreakdownDisplay));
-        Changed(nameof(TotalRemainingDisplay));
-        Changed(nameof(RemainingCountSubtext));
     }
 
     private void SetStatus(string message, bool isError)

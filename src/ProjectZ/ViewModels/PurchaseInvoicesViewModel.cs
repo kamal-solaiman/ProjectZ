@@ -199,67 +199,8 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
     public bool HasNoFilteredInvoices => FilteredInvoices.Count == 0;
 
-    // 5 Dynamic KPI Summaries calculated over FilteredInvoices
-    public string InvoicesCountDisplay => $"{FilteredInvoices.Count} فاتورة";
-
-    public string InvoicesBreakdownSummary
-    {
-        get
-        {
-            var paid = FilteredInvoices.Count(i => i.IsPaid);
-            var credit = FilteredInvoices.Count(i => i.HasRemainingPayable);
-            var returned = FilteredInvoices.Count(i => i.IsPartiallyReturned || i.IsFullyReturned);
-            var cancelled = FilteredInvoices.Count(i => i.IsCancelled);
-            return $"مدفوعة: {paid} · آجل: {credit} · مرتجع: {returned}" + (cancelled > 0 ? $" · ملغاة: {cancelled}" : "");
-        }
-    }
-
-    public decimal TotalNetPurchases => FilteredInvoices
-        .Where(i => !i.IsCancelled)
-        .Sum(i => i.NetTotal);
-    public string TotalNetPurchasesDisplay => PosFormatting.FormatCurrency(TotalNetPurchases);
-    public string TotalDiscountsSubtext =>
-        $"الخصومات: {PosFormatting.FormatCurrency(FilteredInvoices.Where(i => !i.IsCancelled).Sum(i => i.EffectiveDiscount))}";
-
-    public decimal TotalPaidNet => FilteredInvoices
-        .Where(i => !i.IsCancelled)
-        .Sum(i => i.NetCashOutflow);
-    public string TotalPaidNetDisplay => PosFormatting.FormatCurrency(TotalPaidNet);
-    public string ChannelsBreakdownDisplay
-    {
-        get
-        {
-            var active = FilteredInvoices.Where(i => !i.IsCancelled).ToList();
-            var cash = active.Sum(i => i.CashPaid);
-            var vf = active.Sum(i => i.VodafoneCashPaid);
-            var ip = active.Sum(i => i.InstaPayPaid);
-            return $"كاش: {cash:N0} · فودافون: {vf:N0} · إنستاباي: {ip:N0}";
-        }
-    }
-
-    public decimal TotalReturnedGoods => FilteredInvoices
-        .Where(i => !i.IsCancelled)
-        .Sum(i => i.ReturnedGoodsTotal);
-    public string TotalReturnedGoodsDisplay => PosFormatting.FormatCurrency(TotalReturnedGoods);
-    public string TotalRefundReceivedSubtext =>
-        $"مسترد نقديًا/إلكترونيًا: {PosFormatting.FormatCurrency(FilteredInvoices.Where(i => !i.IsCancelled).Sum(i => i.SupplierRefundReceived))}";
-
-    public decimal TotalRemainingPayable => FilteredInvoices
-        .Where(i => !i.IsCancelled && !i.IsFullyReturned)
-        .Sum(i => i.RemainingPayable);
-    public string TotalRemainingPayableDisplay => PosFormatting.FormatCurrency(TotalRemainingPayable);
-    public string CreditInvoicesCountSubtext
-    {
-        get
-        {
-            var cnt = FilteredInvoices.Count(i => i.HasRemainingPayable);
-            return cnt == 0 ? "لا يوجد آجل مفتوح" : $"{cnt} {(cnt == 1 ? "فاتورة آجلة" : "فواتير آجلة")} للموردين";
-        }
-    }
-
     public ActionCommand GoToPurchaseEntryCommand { get; }
     public ActionCommand ClearFiltersCommand { get; }
-    public ActionCommand FilterCreditOnlyCommand { get; }
     public RelayCommand<string> SelectDatePresetCommand { get; }
     public RelayCommand<PurchaseInvoiceDesignItem> OpenInvoiceDetailsCommand { get; }
     public RelayCommand<PurchaseInvoiceDesignItem> OpenPrintPreviewCommand { get; }
@@ -307,11 +248,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
         GoToPurchaseEntryCommand = new ActionCommand(() => this.navigateToPurchaseEntry?.Invoke());
         ClearFiltersCommand = new ActionCommand(ClearFilters);
-        FilterCreditOnlyCommand = new ActionCommand(() =>
-        {
-            SelectedPaymentFilter = "آجل / متبقي";
-            SetStatus("تمت التصفية لعرض الفواتير الآجلة المستحقة للموردين فقط.", false);
-        });
         SelectDatePresetCommand = new RelayCommand<string>(preset =>
         {
             if (!string.IsNullOrEmpty(preset))
@@ -333,7 +269,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
     {
         RebuildSupplierFilters();
         RefreshFilteredInvoices();
-        NotifyKpis();
     }
 
     // Shared invoice actions used by the supplier 360° screen. Keeping one implementation
@@ -347,7 +282,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
     {
         RebuildSupplierFilters();
         RefreshFilteredInvoices();
-        NotifyKpis();
     }
 
     private void OnSharedSuppliersChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -414,7 +348,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
         OpenDetailsDialogRequested?.Invoke(detailsVm);
         RefreshFilteredInvoices();
-        NotifyKpis();
     }
 
     private void OpenPrintPreview(PurchaseInvoiceDesignItem? invoice)
@@ -487,7 +420,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
         NotifyCrossScreenSync();
         RefreshFilteredInvoices();
-        NotifyKpis();
         SetStatus($"تم تسجيل سداد {PosFormatting.FormatCurrency(paidNow)} للمورد على الفاتورة {invoice.InvoiceNumber}.", false);
     }
 
@@ -707,7 +639,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         NotifyCrossScreenSync();
         RebuildSupplierFilters();
         RefreshFilteredInvoices();
-        NotifyKpis();
         SetStatus($"تم حفظ تعديلات الفاتورة {invoice.InvoiceNumber} ومزامنة المخزون وحساب المورد «{invoice.SupplierName}».", false);
     }
 
@@ -803,7 +734,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
         NotifyCrossScreenSync();
         RefreshFilteredInvoices();
-        NotifyKpis();
         SetStatus(
             $"تم تسجيل مرتجع {totalReturnedUnits} قطعة للمورد «{invoice.SupplierName}» بقيمة {PosFormatting.FormatCurrency(totalReturnValue)} ({settlementNote}).",
             false);
@@ -858,7 +788,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
             NotifyCrossScreenSync();
             RefreshFilteredInvoices();
-            NotifyKpis();
             SetStatus($"تم إلغاء الفاتورة {invoice.InvoiceNumber} والاحتفاظ بها في السجل وسحب مخزونها.", false);
         });
     }
@@ -906,7 +835,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
             NotifyCrossScreenSync();
             RebuildSupplierFilters();
             RefreshFilteredInvoices();
-            NotifyKpis();
             SetStatus($"تم حذف الفاتورة {invoice.InvoiceNumber} نهائيًا وسحب مخزونها وتحديث حساب المورد.", false);
         });
 
@@ -1045,25 +973,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
             SelectedInvoice = null;
 
         Changed(nameof(HasNoFilteredInvoices));
-        NotifyKpis();
-    }
-
-    private void NotifyKpis()
-    {
-        Changed(nameof(InvoicesCountDisplay));
-        Changed(nameof(InvoicesBreakdownSummary));
-        Changed(nameof(TotalNetPurchases));
-        Changed(nameof(TotalNetPurchasesDisplay));
-        Changed(nameof(TotalDiscountsSubtext));
-        Changed(nameof(TotalPaidNet));
-        Changed(nameof(TotalPaidNetDisplay));
-        Changed(nameof(ChannelsBreakdownDisplay));
-        Changed(nameof(TotalReturnedGoods));
-        Changed(nameof(TotalReturnedGoodsDisplay));
-        Changed(nameof(TotalRefundReceivedSubtext));
-        Changed(nameof(TotalRemainingPayable));
-        Changed(nameof(TotalRemainingPayableDisplay));
-        Changed(nameof(CreditInvoicesCountSubtext));
     }
 
     private void SetStatus(string message, bool isError)

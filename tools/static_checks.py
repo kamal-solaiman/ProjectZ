@@ -606,9 +606,15 @@ for token in (
     'OpenEditInvoiceCommand',
     'OpenReturnDialogCommand',
     'OpenPrintPreviewCommand',
-    'FilterCreditOnlyCommand',
 ):
     assert token in purchase_invoices_xaml, f'PurchaseInvoices UI missing expected token: {token}'
+
+for removed_kpi in ('عدد فواتير الشراء', 'إجمالي المشتريات الصافي', 'إجمالي المدفوع للموردين',
+                    'مرتجعات المشتريات', 'المتبقي الآجل للموردين (اضغط للتصفية)'):
+    assert removed_kpi not in purchase_invoices_xaml, f'removed purchase KPI card is back: {removed_kpi}'
+for removed_binding in ('InvoicesCountDisplay', 'TotalNetPurchasesDisplay', 'TotalPaidNetDisplay',
+                        'TotalReturnedGoodsDisplay', 'TotalRemainingPayableDisplay', 'FilterCreditOnlyCommand'):
+    assert removed_binding not in purchase_invoices_xaml, f'removed purchase KPI binding is back: {removed_binding}'
 
 purchase_details_xaml = purchase_details_xaml_path.read_text(encoding='utf-8')
 for token in (
@@ -715,11 +721,6 @@ assert 'views:MaintenanceInvoicesView' in main_xaml
 
 maintenance_invoices_xaml = maintenance_invoices_xaml_path.read_text(encoding='utf-8')
 for token in (
-    'InvoicesCountDisplay',
-    'TotalServiceValueDisplay',
-    'TotalNetProfitDisplay',
-    'TotalCollectedAllDisplay',
-    'TotalRemainingDisplay',
     'SelectDateBasisCommand',
     'SelectDatePresetCommand',
     'CustomFromDate',
@@ -737,6 +738,13 @@ for token in (
     'OpenInMaintenanceActionsCommand',
 ):
     assert token in maintenance_invoices_xaml, f'MaintenanceInvoices UI missing expected token: {token}'
+
+for removed_kpi in ('عدد فواتير الصيانة', 'إجمالي قيمة الصيانات', 'صافي ربح الصيانة',
+                    'صافي التحصيلات الفعلية', 'المتبقي للتحصيل (اضغط للتصفية)'):
+    assert removed_kpi not in maintenance_invoices_xaml, f'removed maintenance KPI card is back: {removed_kpi}'
+for removed_binding in ('InvoicesCountDisplay', 'TotalServiceValueDisplay', 'TotalNetProfitDisplay',
+                        'TotalRemainingDisplay', 'FilterRemainingOnlyCommand'):
+    assert removed_binding not in maintenance_invoices_xaml, f'removed maintenance KPI binding is back: {removed_binding}'
 
 maintenance_invoice_details_xaml = maintenance_invoice_details_xaml_path.read_text(encoding='utf-8')
 for token in (
@@ -756,10 +764,6 @@ assert 'views:MaintenanceSparePartsView' in main_xaml
 
 maintenance_spare_parts_xaml = maintenance_spare_parts_xaml_path.read_text(encoding='utf-8')
 for token in (
-    'TotalPartsCountDisplay',
-    'TotalQuantityUnitsDisplay',
-    'TotalCostValueDisplay',
-    'LowOrOutCountDisplay',
     'FormHeaderTitle',
     'SaveButtonText',
     'PartName',
@@ -782,6 +786,13 @@ for token in (
 ):
     assert token in maintenance_spare_parts_xaml, f'MaintenanceSpareParts UI missing expected token: {token}'
 
+for removed_kpi in ('إجمالي الأصناف المسجلة', 'إجمالي القطع المتاحة', 'إجمالي قيمة المخزون (بالتكلفة)',
+                    'رصيد منخفض أو نافد'):
+    assert removed_kpi not in maintenance_spare_parts_xaml, f'removed spare-parts KPI card is back: {removed_kpi}'
+for removed_binding in ('TotalPartsCountDisplay', 'TotalQuantityUnitsDisplay', 'TotalCostValueDisplay',
+                        'LowOrOutCountDisplay'):
+    assert removed_binding not in maintenance_spare_parts_xaml, f'removed spare-parts KPI binding is back: {removed_binding}'
+
 maintenance_actions_vm_text = (root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs').read_text(encoding='utf-8')
 assert 'ObservableCollection<MaintenanceSparePartItem>' in maintenance_actions_vm_text
 assert 'InventoryUnitRegistrationItem' not in maintenance_actions_vm_text, 'MaintenanceActions must use dedicated maintenance spare parts, not POS/Inventory registrations'
@@ -793,10 +804,6 @@ assert 'views:CustomersView' in main_xaml
 
 customers_xaml = customers_xaml_path.read_text(encoding='utf-8')
 for token in (
-    'TotalCustomersCountDisplay',
-    'TotalBusinessValueDisplay',
-    'TotalCollectedAllDisplay',
-    'TotalRemainingAllDisplay',
     'FilteredCustomers',
     'SelectedCustomerEntry',
     'AddCustomerCommand',
@@ -814,6 +821,15 @@ for token in (
 ):
     assert token in customers_xaml, f'Customers UI missing expected token: {token}'
 
+for removed_kpi in ('العملاء المسجلون', 'إجمالي التعاملات (مبيعات + صيانة)',
+                    'إجمالي المحصّل من العملاء', 'المستحقات المتبقية للتحصيل'):
+    assert removed_kpi not in customers_xaml, f'removed customers KPI card is back: {removed_kpi}'
+# TotalBusinessValueDisplay still exists on the per-customer directory row, so only the card-only
+# bindings are forbidden here.
+for removed_binding in ('TotalCustomersCountDisplay', 'TotalCollectedAllDisplay', 'TotalRemainingAllDisplay',
+                        'TierBreakdownSubtext', 'DebtorsCountSubtext'):
+    assert removed_binding not in customers_xaml, f'removed customers KPI binding is back: {removed_binding}'
+
 suppliers_xaml_path = root / 'src/ProjectZ/Views/SuppliersView.xaml'
 suppliers_vm_path = root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs'
 assert suppliers_xaml_path.is_file() and suppliers_vm_path.is_file()
@@ -821,14 +837,23 @@ assert 'IsSuppliersSelected' in main_viewmodel and 'SuppliersViewModel' in main_
 assert 'views:SuppliersView' in main_xaml
 suppliers_xaml = suppliers_xaml_path.read_text(encoding='utf-8')
 for token in (
-    'TotalSuppliersCountDisplay', 'TotalPurchasesDisplay', 'TotalPaidAllDisplay',
-    'TotalOutstandingAllDisplay', 'FilteredSuppliers', 'SelectedSupplierEntry',
+    'FilteredSuppliers', 'SelectedSupplierEntry',
     'AddSupplierCommand', 'EditSelectedSupplierCommand', 'DeleteSelectedSupplierCommand',
     'StartPurchaseForSupplierCommand', 'PayOldestInvoiceCommand',
     'SelectedSupplierInvoices', 'SelectedSupplierStatement', 'PayInvoiceCommand',
     'ReturnInvoiceCommand', 'OpenInvoiceDetailsCommand', 'PrintInvoiceCommand',
 ):
     assert token in suppliers_xaml, f'Suppliers UI missing expected token: {token}'
+
+# "صافي المشتريات" also heads the supplier-invoices table column, so the card labels checked here are
+# the ones that appeared only inside the removed summary cards.
+for removed_kpi in ('الموردون المسجلون', 'إجمالي المسدد للموردين'):
+    assert removed_kpi not in suppliers_xaml, f'removed suppliers KPI card is back: {removed_kpi}'
+assert suppliers_xaml.count('صافي المشتريات') == 1, 'the suppliers summary card is back'
+# TotalPurchasesDisplay is still bound per supplier row, so only the card-only bindings are forbidden.
+for removed_binding in ('TotalSuppliersCountDisplay', 'TotalPaidAllDisplay', 'TotalOutstandingAllDisplay',
+                        'SpecializationsBreakdownSubtext', 'CreditorsCountSubtext'):
+    assert removed_binding not in suppliers_xaml, f'removed suppliers KPI binding is back: {removed_binding}'
 suppliers_vm_text = suppliers_vm_path.read_text(encoding='utf-8')
 for token in ('BuildStatement', 'RunningBalance', 'ReturnedGoodsTotal', 'NetCashOutflow', 'RemainingPayable'):
     assert token in suppliers_vm_text, f'Suppliers ledger missing expected calculation: {token}'
@@ -990,10 +1015,16 @@ for command in (
     'OpenMarkDamagedCommand', 'DeleteProductCommand', 'RestoreDamagedUnitCommand', 'DeleteDamagedUnitCommand',
     'MarkReturnedToSupplierCommand', 'GoToAddProductCommand', 'RefreshInventoryCommand',
     'ShowProductMovementsCommand', 'EditDamagedUnitCommand', 'MarkAllDamagedReturnedCommand',
-    'SelectDamagedTabCommand', 'ToggleLowStockCommand',
+    'SelectDamagedTabCommand',
     'ClearCatalogFiltersCommand', 'ClearDamagedFiltersCommand', 'IsDamagedTabSelected',
 ):
     assert command in inventory_view, f'inventory screen is not wired to {command}'
+
+# Card-only labels: "مخزون الهالك" also names the damaged tab, so the KPI binder count is checked instead.
+for removed_kpi in ('إجمالي الأصناف', 'إجمالي الكميات المتاحة', 'نواقص المخزون'):
+    assert removed_kpi not in inventory_view, f'removed inventory KPI card is back: {removed_kpi}'
+for removed_binding in ('TotalProductsCount', 'TotalAvailableStock', 'LowStockCount', 'TotalDamagedCount'):
+    assert removed_binding not in inventory_view, f'removed inventory KPI binding is back: {removed_binding}'
 
 # Refresh + ledger panel read straight from SQL through the repository.
 assert 'RefreshInventoryCommand = new ActionCommand(() => RefreshFromDatabase());' in inventory_vm

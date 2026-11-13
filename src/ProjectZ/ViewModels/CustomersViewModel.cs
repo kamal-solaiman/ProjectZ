@@ -314,64 +314,6 @@ public sealed class CustomersViewModel : ObservableObject
     public bool HasNoSelectedCustomerSales => SelectedCustomerSalesInvoices.Count == 0;
     public bool HasNoSelectedCustomerMaintenance => SelectedCustomerMaintenanceOrders.Count == 0;
 
-    // Top KPI Cards
-    public string TotalCustomersCountDisplay
-    {
-        get
-        {
-            var registeredCount = sharedCustomers.Count(c => !c.IsWalkIn);
-            return $"{registeredCount} عميل";
-        }
-    }
-
-    public string TierBreakdownSubtext
-    {
-        get
-        {
-            var registered = sharedCustomers.Where(c => !c.IsWalkIn).ToList();
-            var retail = registered.Count(c => c.DefaultPriceTier == PriceTier.Retail);
-            var special = registered.Count(c => c.DefaultPriceTier == PriceTier.Special);
-            var wholesale = registered.Count(c => c.DefaultPriceTier == PriceTier.Wholesale);
-            return $"قطاعي: {retail} · مميز: {special} · جملة: {wholesale}";
-        }
-    }
-
-    public string TotalBusinessValueDisplay => PosFormatting.FormatCurrency(allEntries.Sum(e => e.TotalBusinessValue));
-
-    public string BusinessBreakdownSubtext
-    {
-        get
-        {
-            var sales = allEntries.Sum(e => e.TotalSalesNet);
-            var maint = allEntries.Sum(e => e.TotalMaintenanceValue);
-            return $"مبيعات: {PosFormatting.FormatCurrency(sales)} · صيانة: {PosFormatting.FormatCurrency(maint)}";
-        }
-    }
-
-    public string TotalCollectedAllDisplay => PosFormatting.FormatCurrency(allEntries.Sum(e => e.TotalPaid));
-
-    public string TransactionsCountSubtext
-    {
-        get
-        {
-            var salesCount = allEntries.Sum(e => e.SalesInvoicesCount);
-            var maintCount = allEntries.Sum(e => e.MaintenanceOrdersCount);
-            return $"{salesCount} فاتورة بيع · {maintCount} تذكرة صيانة";
-        }
-    }
-
-    public string TotalRemainingAllDisplay => PosFormatting.FormatCurrency(allEntries.Sum(e => e.TotalRemaining));
-
-    public string DebtorsCountSubtext
-    {
-        get
-        {
-            var debtors = allEntries.Count(e => e.HasRemaining);
-            return debtors == 0
-                ? "لا توجد مستحقات متبقية"
-                : $"{debtors} عميل عليه مستحقات";
-        }
-    }
 
     public string StatusMessage
     {
@@ -807,7 +749,6 @@ public sealed class CustomersViewModel : ObservableObject
             allEntries.Add(entry);
         }
 
-        NotifyKpis();
         RefreshFilteredCustomers(previousSelectedId);
     }
 
@@ -896,18 +837,6 @@ public sealed class CustomersViewModel : ObservableObject
         Changed(nameof(SelectedMaintenanceTabTitle));
         Changed(nameof(HasNoSelectedCustomerSales));
         Changed(nameof(HasNoSelectedCustomerMaintenance));
-    }
-
-    private void NotifyKpis()
-    {
-        Changed(nameof(TotalCustomersCountDisplay));
-        Changed(nameof(TierBreakdownSubtext));
-        Changed(nameof(TotalBusinessValueDisplay));
-        Changed(nameof(BusinessBreakdownSubtext));
-        Changed(nameof(TotalCollectedAllDisplay));
-        Changed(nameof(TransactionsCountSubtext));
-        Changed(nameof(TotalRemainingAllDisplay));
-        Changed(nameof(DebtorsCountSubtext));
     }
 
     private void SetStatus(string message, bool isError)
