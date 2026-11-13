@@ -815,9 +815,14 @@ VALUES(@Operation,1,@SalesLine,@Product,@Name,@Quantity,@Price,@Cost,@Condition)
 
                 foreach (var (replacement, product, price) in planned)
                 {
-                    var claimed = ClaimAvailableUnits(connection, transaction, replacement.ProductId, replacement.Quantity);
-                    if (claimed.Count < replacement.Quantity)
-                        throw new SalesDataException($"المتاح من الصنف البديل «{product.Name}» ({claimed.Count}) أقل من الكمية المطلوبة ({replacement.Quantity}).");
+                    var claim = ClaimExchangeUnits(connection, transaction, replacement.ProductId, replacement.Quantity);
+                    var claimed = claim.Units;
+                    var unitlessStock = claimed.Count < replacement.Quantity && claim.RegisteredUnits == 0
+                        ? GetUnregisteredStockBalance(connection, transaction, replacement.ProductId)
+                        : -1;
+                    if (claimed.Count < replacement.Quantity && unitlessStock < replacement.Quantity)
+                        throw new SalesDataException(
+                            $"المتاح من الصنف البديل «{product.Name}» ({Math.Max(claimed.Count, Math.Max(0, unitlessStock))}) أقل من الكمية المطلوبة ({replacement.Quantity}).");
 
                     var lineNumber = nextLineNumber++;
                     int replacementLineId;
@@ -857,6 +862,12 @@ VALUES(@Invoice,@Line,@Product,@Barcode,@Name,@Category,@Unit,@TrackSerial,@Tier
                         StockMovement(connection, transaction, request.Invoice.Id, unit.Id, "ExchangeOut",
                             -1, product.CostPrice, $"استبدال {operationNumber}");
                     }
+
+                    // Products without registered units keep their balance in StockMovements only.
+                    var untracked = replacement.Quantity - claimed.Count;
+                    if (untracked > 0)
+                        RecordUntrackedExchange(connection, transaction, request.Invoice.Id, product.Id,
+                            untracked, product.CostPrice, operationNumber);
 
                     using (var rl = CreateCommand(connection, transaction, @"
 INSERT dbo.ReturnExchangeLines(ReturnExchangeId,LineKind,SalesInvoiceLineId,ProductId,ProductNameSnapshot,Quantity,UnitPrice,UnitCost,UnitCondition)
@@ -1486,24 +1497,35 @@ SELECT COUNT(*) FROM dbo.InventoryUnits WITH (UPDLOCK, HOLDLOCK) WHERE ProductId
         parameter.Scale = 2;
     }
 
+    private sealed record ExchangeStockClaim(List<ClaimedUnit> Units, int RegisteredUnits);
+
     /// <summary>Claims available units for an exchange replacement (same locking rules as a POS sale).</summary>
-    private static List<ClaimedUnit> ClaimAvailableUnits(
+    private static ExchangeStockClaim ClaimExchangeUnits(
         SqlConnection connection, SqlTransaction transaction, int productId, int quantity)
     {
         var units = new List<ClaimedUnit>();
-        using var command = CreateCommand(connection, transaction, @"
+        var registered = 0;
+
+        using (var command = CreateCommand(connection, transaction, @"
 SELECT Id, PurchaseCost FROM (
     SELECT TOP (@Quantity) iu.Id, iu.PurchaseCost, iu.RegisteredAtUtc
     FROM dbo.InventoryUnits iu WITH (UPDLOCK, HOLDLOCK)
     WHERE iu.ProductId = @ProductId AND iu.UnitStatus = 0
     ORDER BY iu.RegisteredAtUtc, iu.Id
-) AS claimed ORDER BY RegisteredAtUtc, Id;");
-        command.Parameters.Add("@Quantity", SqlDbType.Int).Value = quantity;
-        command.Parameters.Add("@ProductId", SqlDbType.Int).Value = productId;
+) AS claimed ORDER BY RegisteredAtUtc, Id;
+SELECT COUNT(*) FROM dbo.InventoryUnits WITH (UPDLOCK, HOLDLOCK) WHERE ProductId = @ProductId;"))
+        {
+            command.Parameters.Add("@Quantity", SqlDbType.Int).Value = quantity;
+            command.Parameters.Add("@ProductId", SqlDbType.Int).Value = productId;
 
-        using var reader = command.ExecuteReader();
-        while (reader.Read()) units.Add(new ClaimedUnit(reader.GetInt32(0), reader.GetDecimal(1)));
-        return units;
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) units.Add(new ClaimedUnit(reader.GetInt32(0), reader.GetDecimal(1)));
+
+            reader.NextResult();
+            if (reader.Read()) registered = reader.GetInt32(0);
+        }
+
+        return new ExchangeStockClaim(units, registered);
     }
 
     private sealed record SaleProductSnapshot(
@@ -1564,6 +1586,24 @@ FROM dbo.InventoryUnits iu WHERE iu.Id = @Unit;");
         command.Parameters.Add("@Reason", SqlDbType.NVarChar, 1000).Value = Trim(reason, 1000, "");
         command.Parameters.Add("@Unit", SqlDbType.Int).Value = unitId;
         command.ExecuteNonQuery();
+    }
+
+    /// <summary>Posts the exchange movement for replacement quantities that have no registered unit rows.</summary>
+    private void RecordUntrackedExchange(
+        SqlConnection connection, SqlTransaction transaction, int invoiceId, int productId,
+        int quantity, decimal unitCost, string operationNumber)
+    {
+        using var movement = CreateCommand(connection, transaction, @"
+INSERT dbo.StockMovements(ProductId,InventoryUnitId,MovementType,QuantityDelta,UnitCost,ActorUserId,SourceEntityType,SourceEntityId,Reason)
+VALUES(@Product,NULL,N'ExchangeOut',-@Quantity,@Cost,@Actor,N'ReturnExchange',@Invoice,@Reason);");
+        movement.Parameters.Add("@Product", SqlDbType.Int).Value = productId;
+        movement.Parameters.Add("@Quantity", SqlDbType.Int).Value = quantity;
+        AddMoney(movement, "@Cost", unitCost);
+        movement.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        movement.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
+        movement.Parameters.Add("@Reason", SqlDbType.NVarChar, 1000).Value =
+            Trim($"استبدال {operationNumber} بدون وحدات مسجلة", 1000, "");
+        movement.ExecuteNonQuery();
     }
 
     /// <summary>Refunds an exchange difference from one or more accounts with their ledger rows.</summary>

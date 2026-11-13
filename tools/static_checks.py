@@ -518,6 +518,8 @@ assert 'VALUES(@Operation,1,@SalesLine' in sales_repository and 'VALUES(@Operati
 assert 'public int DamagedQuantity => Quantity - GoodQuantityValue;' in sales_repository
 assert 'goodRemaining > 0' in sales_repository, 'mixed good/damaged returns are not split per unit'
 assert 'ApplyExchangePayment(connection, transaction, request.Invoice, payment)' in sales_repository
+assert 'private static ExchangeStockClaim ClaimExchangeUnits(' in sales_repository
+assert 'RecordUntrackedExchange(connection, transaction, request.Invoice.Id, product.Id' in sales_repository
 assert 'RefundAccounts(connection, transaction, request.Invoice, Math.Abs(difference)' in sales_repository
 assert 'StockMovement(connection, transaction, request.Invoice.Id, unit.Id, "ExchangeOut"' in sales_repository
 assert 'INSERT dbo.AuditLog' in sales_repository
