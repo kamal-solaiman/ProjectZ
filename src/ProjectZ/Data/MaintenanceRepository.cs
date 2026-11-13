@@ -330,7 +330,7 @@ VALUES(@Num, @CustomerId, @Name, @Phone, @Phone2, @Address, @WalkIn, @Received, 
                 insert.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
                 insert.Parameters.Add("@Priority", SqlDbType.TinyInt).Value = (byte)order.Priority;
                 insert.Parameters.Add("@Tech", SqlDbType.NVarChar, 150).Value = order.AssignedTechnician;
-                insert.Parameters.Add("@Expected", SqlDbType.DateTime2).Value = order.ExpectedDeliveryAt?.ToUniversalTime() ?? DBNull.Value;
+                insert.Parameters.Add("@Expected", SqlDbType.DateTime2).Value = (object?)order.ExpectedDeliveryAt?.ToUniversalTime() ?? DBNull.Value;
                 insert.Parameters.Add("@ExpectedLabel", SqlDbType.NVarChar, 200).Value = order.ExpectedDeliveryLabel;
                 insert.Parameters.Add("@DeviceType", SqlDbType.NVarChar, 100).Value = order.DeviceType;
                 insert.Parameters.Add("@Brand", SqlDbType.NVarChar, 100).Value = order.DeviceBrand;
