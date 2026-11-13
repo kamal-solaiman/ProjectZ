@@ -21,8 +21,8 @@ public sealed class MyAccountsViewModel : ObservableObject
     private int nextAccountId = 100;
     private int nextTransactionId = 1000;
 
-    public ObservableCollection<FinancialAccountDesignItem> Accounts { get; }
-    public ObservableCollection<FinancialTransactionDesignItem> Transactions { get; }
+    public ObservableCollection<FinancialAccountDesignItem> Accounts { get; } = [];
+    public ObservableCollection<FinancialTransactionDesignItem> Transactions { get; } = [];
     public ObservableCollection<FinancialAccountDesignItem> FilteredWallets { get; } = [];
     public ObservableCollection<FinancialTransactionDesignItem> SelectedAccountTransactions { get; } = [];
     public IReadOnlyList<string> ProviderFilterOptions { get; } = ["كل المحافظ", "فودافون كاش", "إنستاباي"];
