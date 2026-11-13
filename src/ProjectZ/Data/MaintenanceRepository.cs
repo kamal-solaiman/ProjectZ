@@ -378,11 +378,11 @@ VALUES(@Order,@Time,@Title,@Details,@Amount,@Actor);");
             {
                 var accounts = EnsureAccounts(connection, transaction);
                 if (order.DepositCashPaid > 0m)
-                    InsertDepositPayment(connection, transaction, orderId, accounts[FinancialAccountKind.Cash], order.DepositCashPaid, order.ReceivedAt, "عربون نقدي");
+                    RecordMaintenancePayment(connection, transaction, orderId, orderNumber, order.CustomerName, FinancialAccountKind.Cash, accounts[FinancialAccountKind.Cash], 1, 1, order.DepositCashPaid, order.ReceivedAt, "عربون نقدي");
                 if (order.DepositVodafonePaid > 0m)
-                    InsertDepositPayment(connection, transaction, orderId, accounts[FinancialAccountKind.VodafoneCash], order.DepositVodafonePaid, order.ReceivedAt, "عربون فودافون كاش");
+                    RecordMaintenancePayment(connection, transaction, orderId, orderNumber, order.CustomerName, FinancialAccountKind.VodafoneCash, accounts[FinancialAccountKind.VodafoneCash], 1, 1, order.DepositVodafonePaid, order.ReceivedAt, "عربون فودافون كاش");
                 if (order.DepositInstaPayPaid > 0m)
-                    InsertDepositPayment(connection, transaction, orderId, accounts[FinancialAccountKind.InstaPay], order.DepositInstaPayPaid, order.ReceivedAt, "عربون إنستاباي");
+                    RecordMaintenancePayment(connection, transaction, orderId, orderNumber, order.CustomerName, FinancialAccountKind.InstaPay, accounts[FinancialAccountKind.InstaPay], 1, 1, order.DepositInstaPayPaid, order.ReceivedAt, "عربون إنستاباي");
             }
 
             transaction.Commit();
@@ -392,21 +392,6 @@ VALUES(@Order,@Time,@Title,@Details,@Amount,@Actor);");
         {
             throw Describe(ex, "تعذّر تسجيل أمر الصيانة.");
         }
-    }
-
-    private void InsertDepositPayment(
-        SqlConnection connection, SqlTransaction transaction, int orderId, int accountId, decimal amount, DateTime paidAt, string note)
-    {
-        using var pay = CreateCommand(connection, transaction, @"
-INSERT dbo.MaintenancePayments(MaintenanceOrderId, FinancialAccountId, PaymentStage, PaymentKind, Amount, PaidAtUtc, Note, ActorUserId)
-VALUES(@Order,@Account,1,1,@Amount,@Paid,@Note,@Actor);");
-        pay.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
-        pay.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
-        AddMoney(pay, "@Amount", amount);
-        pay.Parameters.Add("@Paid", SqlDbType.DateTime2).Value = paidAt.ToUniversalTime();
-        pay.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
-        pay.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
-        pay.ExecuteNonQuery();
     }
 
     /// <summary>
@@ -472,8 +457,8 @@ WHERE Id = @Id;"))
                 {
                     if (!accounts.TryGetValue(payment.Account, out var accountId))
                         throw new MaintenanceDataException("تعذّر تسجيل الدفعة: الحساب المالي غير متوفر.");
-                    InsertPayment(
-                        connection, transaction, order.Id, accountId,
+                    RecordMaintenancePayment(
+                        connection, transaction, order.Id, order.OrderNumber, order.CustomerName, payment.Account, accountId,
                         payment.Stage, payment.Kind, payment.Amount, payment.PaidAt, payment.Note);
                 }
             }
@@ -503,22 +488,65 @@ VALUES(@Order,@Time,@Title,@Details,@Amount,@Actor);");
         act.ExecuteNonQuery();
     }
 
-    private void InsertPayment(
-        SqlConnection connection, SqlTransaction transaction, int orderId, int accountId,
-        int stage, int kind, decimal amount, DateTime paidAt, string note)
+    /// <summary>
+    /// Records a maintenance payment in three places in one step: the MaintenancePayments row,
+    /// the FinancialAccounts balance (+ collected / - refunded) and the FinancialTransactions
+    /// ledger row that the financial screens read. The ledger row links back to the order via
+    /// SourceEntityType/SourceEntityId so payments reconcile with the rest of the program.
+    /// </summary>
+    private void RecordMaintenancePayment(
+        SqlConnection connection, SqlTransaction transaction, int orderId, string orderNumber,
+        string customerName, FinancialAccountKind accountKind, int accountId, int stage, int kind,
+        decimal amount, DateTime paidAt, string note)
     {
-        using var pay = CreateCommand(connection, transaction, @"
+        // 1) MaintenancePayments row.
+        using (var pay = CreateCommand(connection, transaction, @"
 INSERT dbo.MaintenancePayments(MaintenanceOrderId, FinancialAccountId, PaymentStage, PaymentKind, Amount, PaidAtUtc, Note, ActorUserId)
-VALUES(@Order,@Account,@Stage,@Kind,@Amount,@Paid,@Note,@Actor);");
-        pay.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
-        pay.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
-        pay.Parameters.Add("@Stage", SqlDbType.TinyInt).Value = stage;
-        pay.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = kind;
-        AddMoney(pay, "@Amount", amount);
-        pay.Parameters.Add("@Paid", SqlDbType.DateTime2).Value = paidAt.ToUniversalTime();
-        pay.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
-        pay.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
-        pay.ExecuteNonQuery();
+VALUES(@Order,@Account,@Stage,@Kind,@Amount,@Paid,@Note,@Actor);"))
+        {
+            pay.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
+            pay.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
+            pay.Parameters.Add("@Stage", SqlDbType.TinyInt).Value = stage;
+            pay.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = kind;
+            AddMoney(pay, "@Amount", amount);
+            pay.Parameters.Add("@Paid", SqlDbType.DateTime2).Value = paidAt.ToUniversalTime();
+            pay.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
+            pay.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+            pay.ExecuteNonQuery();
+        }
+
+        // 2) Update the account balance and capture the resulting balance.
+        var isIncoming = kind == 1;
+        decimal balanceAfter;
+        using (var balance = CreateCommand(connection, transaction, isIncoming
+            ? @"UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Amount, UpdatedAtUtc = SYSUTCDATETIME()
+OUTPUT inserted.CurrentBalance WHERE Id = @Id;"
+            : @"UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance - @Amount, UpdatedAtUtc = SYSUTCDATETIME()
+OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
+        {
+            AddMoney(balance, "@Amount", amount);
+            balance.Parameters.Add("@Id", SqlDbType.Int).Value = accountId;
+            balanceAfter = (decimal)balance.ExecuteScalar()!;
+        }
+
+        // 3) FinancialTransactions ledger row (read by My Accounts / records screens).
+        using var ledger = CreateCommand(connection, transaction, @"
+INSERT dbo.FinancialTransactions(FinancialAccountId,OccurredAtUtc,IsIncoming,Category,Amount,BalanceAfter,Counterparty,Note,
+ ActorUserId,CountsTowardLimits,SourceEntityType,SourceEntityId)
+VALUES(@Account,SYSUTCDATETIME(),@Incoming,@Category,@Amount,@Balance,@Counterparty,@Note,@Actor,@Limits,N'MaintenanceOrder',@Order);");
+        ledger.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
+        ledger.Parameters.Add("@Incoming", SqlDbType.Bit).Value = isIncoming;
+        ledger.Parameters.Add("@Category", SqlDbType.NVarChar, 150).Value = isIncoming ? "تحصيل صيانة" : "رد دفعة صيانة";
+        AddMoney(ledger, "@Amount", amount);
+        AddMoney(ledger, "@Balance", balanceAfter);
+        ledger.Parameters.Add("@Counterparty", SqlDbType.NVarChar, 250).Value =
+            Trim(string.IsNullOrWhiteSpace(customerName) ? "عميل نقدي" : customerName, 250, "عميل نقدي");
+        ledger.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value =
+            Trim(string.IsNullOrWhiteSpace(orderNumber) ? note : $"{orderNumber} · {note}", 1000, note);
+        ledger.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        ledger.Parameters.Add("@Limits", SqlDbType.Bit).Value = accountKind != FinancialAccountKind.Cash;
+        ledger.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
+        ledger.ExecuteNonQuery();
     }
 
     /// <summary>Full re-sync of the order part lines (used parts) from the in-memory collection.</summary>
@@ -683,8 +711,11 @@ FROM dbo.MaintenanceActivities WHERE MaintenanceOrderId = @Order ORDER BY Occurr
     {
         using var command = connection.CreateCommand();
         command.CommandText = @"
-SELECT PaymentStage, PaymentKind, Amount, FinancialAccountId
-FROM dbo.MaintenancePayments WHERE MaintenanceOrderId = @Order ORDER BY PaidAtUtc;";
+SELECT mp.PaymentStage, mp.PaymentKind, mp.Amount, fa.AccountKind
+FROM dbo.MaintenancePayments mp
+JOIN dbo.FinancialAccounts fa ON fa.Id = mp.FinancialAccountId
+WHERE mp.MaintenanceOrderId = @Order
+ORDER BY mp.PaidAtUtc;";
         command.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
         using var reader = command.ExecuteReader();
         while (reader.Read())
@@ -692,10 +723,45 @@ FROM dbo.MaintenancePayments WHERE MaintenanceOrderId = @Order ORDER BY PaidAtUt
             var stage = reader.GetByte(0);
             var kind = reader.GetByte(1);
             var amount = reader.GetDecimal(2);
-            if (stage == 1 && kind == 1)
+            var accountKind = (FinancialAccountKind)reader.GetByte(3);
+
+            if (kind == 2)
             {
-                // deposit collected
-                if (reader.GetInt32(3) == 0) order.DepositCashPaid += amount;
+                // refund (deposit or final) reduces the collected totals.
+                order.RefundedDepositAmount += amount;
+                continue;
+            }
+
+            // Collected payment: deposit (stage 1) or final (stage 2).
+            if (stage == 1)
+            {
+                switch (accountKind)
+                {
+                    case FinancialAccountKind.Cash:
+                        order.DepositCashPaid += amount;
+                        break;
+                    case FinancialAccountKind.VodafoneCash:
+                        order.DepositVodafonePaid += amount;
+                        break;
+                    case FinancialAccountKind.InstaPay:
+                        order.DepositInstaPayPaid += amount;
+                        break;
+                }
+            }
+            else
+            {
+                switch (accountKind)
+                {
+                    case FinancialAccountKind.Cash:
+                        order.FinalPaymentCashPaid += amount;
+                        break;
+                    case FinancialAccountKind.VodafoneCash:
+                        order.FinalPaymentVodafonePaid += amount;
+                        break;
+                    case FinancialAccountKind.InstaPay:
+                        order.FinalPaymentInstaPayPaid += amount;
+                        break;
+                }
             }
         }
     }

@@ -986,16 +986,33 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     {
         var vm = new MaintenanceReceiptPreviewViewModel(order, modeLabel =>
         {
-            order.ActivityLog.Add(new MaintenanceActivityEntry
+            var entry = new MaintenanceActivityEntry
             {
                 Timestamp = DateTime.Now,
                 ActionTitle = "معاينة / طباعة تذكرة صيانة",
                 Details = $"معاينة بصيغة «{modeLabel}».",
                 ActorName = currentUserName
-            });
+            };
+            order.ActivityLog.Add(entry);
+            PersistActivity(order, entry);
             SetStatus($"تمت معاينة طباعة {order.OrderNumber} ({modeLabel}).", false);
         });
         OpenReceiptPreviewRequested?.Invoke(vm);
+    }
+
+    /// <summary>Persists a single activity entry for an already-saved order.</summary>
+    private void PersistActivity(MaintenanceOrderDesignItem order, MaintenanceActivityEntry entry)
+    {
+        if (repository is null || order.Id <= 0) return;
+
+        try
+        {
+            repository.UpdateMaintenanceOrder(order, [entry], []);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"تعذّر حفظ سجل الطباعة في القاعدة: {ex.Message}", true);
+        }
     }
 
     private void ResetForm()

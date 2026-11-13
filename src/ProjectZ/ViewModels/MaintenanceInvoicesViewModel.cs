@@ -562,14 +562,21 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
             order,
             modeLabel =>
             {
-                order.ActivityLog.Add(new MaintenanceActivityEntry
+                RecordActivity(order, new MaintenanceActivityEntry
                 {
                     Timestamp = DateTime.Now,
                     ActionTitle = $"طباعة: {modeLabel}",
                     Details = $"معاينة وطباعة {modeLabel} من فواتير الصيانة {order.OrderNumber}.",
                     ActorName = currentUserName
                 });
-                SetStatus($"تمت معاينة طباعة الفاتورة {order.OrderNumber} ({modeLabel}).", false);
+
+                if (repository is not null && order.Id > 0)
+                    TryPersistOrder(
+                        order,
+                        $"تمت معاينة طباعة الفاتورة {order.OrderNumber} ({modeLabel}).",
+                        "تعذّر حفظ سجل الطباعة");
+                else
+                    SetStatus($"تمت معاينة طباعة الفاتورة {order.OrderNumber} ({modeLabel}).", false);
             },
             initialMode);
 
