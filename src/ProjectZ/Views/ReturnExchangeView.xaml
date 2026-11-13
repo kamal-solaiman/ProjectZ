@@ -102,7 +102,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -187,50 +186,8 @@
             </StackPanel>
         </Grid>
 
-        <!-- 2. KPI Summary Cards -->
-        <Grid Grid.Row="1" Margin="0,0,0,10" FlowDirection="RightToLeft">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="13,9" Margin="0,0,5,0">
-                <StackPanel>
-                    <TextBlock Text="إجمالي عمليات المرتجع والاستبدال" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#64748B" />
-                    <TextBlock Text="{Binding TotalOperationsCount}" Style="{StaticResource PosRtlTextStyle}" FontSize="19" FontWeight="Bold" Foreground="#102E48" Margin="0,2,0,0" />
-                    <TextBlock Text="{Binding OperationsKpiSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#147D92" FontWeight="SemiBold" Margin="0,2,0,0" />
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="13,9" Margin="5,0">
-                <StackPanel>
-                    <TextBlock Text="قطع سليمة عادت للمخزون" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#64748B" />
-                    <TextBlock Text="{Binding TotalGoodReturnedKpi, StringFormat='{}{0} قطعة'}" Style="{StaticResource PosRtlTextStyle}" FontSize="19" FontWeight="Bold" Foreground="#0F766E" Margin="0,2,0,0" />
-                    <TextBlock Text="تضاف مباشرة لرصيد المخزون المتاح" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#64748B" Margin="0,2,0,0" />
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Column="2" Background="White" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="12" Padding="13,9" Margin="5,0">
-                <StackPanel>
-                    <TextBlock Text="قطع تالفة رُحلت للهالك" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#991B1B" />
-                    <TextBlock Text="{Binding TotalDamagedReturnedKpi, StringFormat='{}{0} قطعة'}" Style="{StaticResource PosRtlTextStyle}" FontSize="19" FontWeight="Bold" Foreground="#B42318" Margin="0,2,0,0" />
-                    <TextBlock Text="تظهر تلقائيًا في تبويب مخزون الهالك" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#B42318" Margin="0,2,0,0" />
-                </StackPanel>
-            </Border>
-
-            <Border Grid.Column="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="13,9" Margin="5,0,0,0">
-                <StackPanel>
-                    <TextBlock Text="إجمالي المسترد للعملاء" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#64748B" />
-                    <TextBlock Text="{Binding TotalRefundedValueKpiDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="19" FontWeight="Bold" Foreground="#147D92" Margin="0,2,0,0" />
-                    <TextBlock Text="{Binding TotalExchangeUpgradesKpiSubtext}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#64748B" Margin="0,2,0,0" />
-                </StackPanel>
-            </Border>
-        </Grid>
-
-        <!-- 3. Status Message Banner -->
-        <Border Grid.Row="2"
+        <!-- 2. Status Message Banner -->
+        <Border Grid.Row="1"
                 Margin="0,0,0,10"
                 Padding="12,8"
                 CornerRadius="10"
@@ -266,7 +223,7 @@
         </Border>
 
         <!-- 4A. TAB 1: WORKSPACE (Search + Invoice List + Full Invoice & Return/Exchange Workspace) -->
-        <Grid Grid.Row="3" Visibility="{Binding IsWorkspaceTabSelected, Converter={StaticResource BoolToVis}}">
+        <Grid Grid.Row="2" Visibility="{Binding IsWorkspaceTabSelected, Converter={StaticResource BoolToVis}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -1430,7 +1387,7 @@
         </Grid>
 
         <!-- 4B. TAB 2: OPERATIONS HISTORY -->
-        <Grid Grid.Row="3" Visibility="{Binding IsHistoryTabSelected, Converter={StaticResource BoolToVis}}">
+        <Grid Grid.Row="2" Visibility="{Binding IsHistoryTabSelected, Converter={StaticResource BoolToVis}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
