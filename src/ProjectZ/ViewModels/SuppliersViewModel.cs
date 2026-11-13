@@ -357,7 +357,6 @@ public sealed class SuppliersViewModel : ObservableObject
         SpecializationFilterOptions.Clear(); SpecializationFilterOptions.Add("كل التخصصات");
         foreach (var item in values) SpecializationFilterOptions.Add(item);
         if (!SpecializationFilterOptions.Contains(current)) SelectedSpecializationFilter = "كل التخصصات";
-        Changed(nameof(SpecializationsBreakdownSubtext));
     }
 
     private void RebuildEntriesAndRefresh(int? selectSupplierId = null)
