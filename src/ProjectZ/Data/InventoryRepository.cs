@@ -79,6 +79,59 @@ SELECT Name FROM dbo.Categories WHERE IsActive=1 ORDER BY Name;";
         foreach (var category in loadedCategories) categories.Add(category);
     }
 
+    /// <summary>Suppliers directory used by the supply dialog, read from dbo.Suppliers.</summary>
+    public List<string> LoadSupplierNames()
+    {
+        var names = new List<string>();
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Name FROM dbo.Suppliers WHERE IsActive=1 ORDER BY Name;";
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) names.Add(reader.GetString(0));
+        return names;
+    }
+
+    /// <summary>
+    /// Reads the movement ledger. Exactly one of productId/unitId is used; with neither,
+    /// the most recent movements of the whole warehouse are returned.
+    /// </summary>
+    public List<StockMovementRow> LoadStockMovements(int? productId = null, int? unitId = null, int limit = 200)
+    {
+        if (limit is < 1 or > 2000) limit = 200;
+
+        var rows = new List<StockMovementRow>();
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT TOP (@Limit) m.OccurredAtUtc, m.MovementType, m.QuantityDelta, m.UnitCost,
+       COALESCE(u.DisplayName, N'غير محدد'), m.Reason, m.InventoryUnitId
+FROM dbo.StockMovements m
+LEFT JOIN dbo.Users u ON u.Id = m.ActorUserId
+WHERE (@ProductId IS NULL OR m.ProductId = @ProductId)
+  AND (@UnitId IS NULL OR m.InventoryUnitId = @UnitId)
+ORDER BY m.OccurredAtUtc DESC, m.Id DESC;";
+        command.Parameters.AddWithValue("@Limit", limit);
+        command.Parameters.Add("@ProductId", SqlDbType.Int).Value = (object?)productId ?? DBNull.Value;
+        command.Parameters.Add("@UnitId", SqlDbType.Int).Value = (object?)unitId ?? DBNull.Value;
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            rows.Add(new StockMovementRow
+            {
+                OccurredAt = AsLocal(reader.GetDateTime(0)),
+                MovementType = reader.GetString(1),
+                QuantityDelta = reader.GetInt32(2),
+                UnitCost = reader.GetDecimal(3),
+                ActorName = reader.GetString(4),
+                Reason = reader.GetString(5),
+                InventoryUnitId = reader.IsDBNull(6) ? null : reader.GetInt32(6)
+            });
+        }
+
+        return rows;
+    }
+
     public string AddCategory(string name)
     {
         name = name.Trim();
@@ -218,7 +271,13 @@ ORDER BY iu.RegisteredAtUtc,iu.Id;"))
     public void MarkSingleDamaged(InventoryUnitRegistrationItem unit, string reason)
     {
         using var connection = OpenConnection(); using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
-        try { SetUnitDamaged(connection, transaction, unit.Id, reason); transaction.Commit(); }
+        try
+        {
+            SetUnitDamaged(connection, transaction, unit.Id, reason);
+            Audit(connection, transaction, "MarkUnitDamaged", unit.Id,
+                $"هالك الوحدة {unit.Id} ({unit.ProductName}): {reason}", "InventoryUnit");
+            transaction.Commit();
+        }
         catch { transaction.Rollback(); throw; }
     }
 
@@ -237,6 +296,7 @@ WHERE Id=@Id AND UnitStatus=0;"))
         StockMovement(connection, transaction, productId, unitId, "Damage", -1, cost, reason);
     }
 
+    /// <summary>Saves the serial of one unit and records the change in the audit trail.</summary>
     public void RegisterSerial(InventoryUnitRegistrationItem unit, string serial)
     {
         serial = serial.Trim();
@@ -267,6 +327,8 @@ OUTPUT inserted.ProductId,inserted.PurchaseCost WHERE Id=@Id AND UnitStatus=2;")
                 if (!reader.Read()) throw Concurrency<InventoryUnitRegistrationItem>(); productId = reader.GetInt32(0); cost = reader.GetDecimal(1);
             }
             StockMovement(connection, transaction, productId, unit.Id, "DamageRestore", 1, cost, "استرجاع هالك");
+            Audit(connection, transaction, "RestoreDamaged", unit.Id,
+                $"استرجاع الوحدة {unit.Id} ({unit.ProductName}) إلى المخزون المتاح", "InventoryUnit");
             transaction.Commit();
         }
         catch { transaction.Rollback(); throw; }
@@ -275,10 +337,72 @@ OUTPUT inserted.ProductId,inserted.PurchaseCost WHERE Id=@Id AND UnitStatus=2;")
     public void MarkReturnedToSupplier(InventoryUnitRegistrationItem unit)
     {
         using var connection = OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = "UPDATE dbo.InventoryUnits SET DamageSettlementStatus=N'مرتجع للمورد' WHERE Id=@Id AND UnitStatus=2;";
-        command.Parameters.AddWithValue("@Id", unit.Id);
-        if (command.ExecuteNonQuery() != 1) throw Concurrency<InventoryUnitRegistrationItem>();
+        using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+        try
+        {
+            using (var command = CreateCommand(connection, transaction,
+                "UPDATE dbo.InventoryUnits SET DamageSettlementStatus=N'مرتجع للمورد' WHERE Id=@Id AND UnitStatus=2;"))
+            {
+                command.Parameters.AddWithValue("@Id", unit.Id);
+                if (command.ExecuteNonQuery() != 1) throw Concurrency<InventoryUnitRegistrationItem>();
+            }
+
+            Audit(connection, transaction, "ReturnDamagedToSupplier", unit.Id,
+                $"تسوية هالك الوحدة {unit.Id} ({unit.ProductName}) كمرتجع للمورد {unit.SupplierName}", "InventoryUnit");
+            transaction.Commit();
+        }
+        catch { transaction.Rollback(); throw; }
+    }
+
+    /// <summary>Updates the settlement note of a damaged unit (for example a supplier claim number).</summary>
+    public void UpdateDamageSettlement(InventoryUnitRegistrationItem unit, string settlement)
+    {
+        settlement = (settlement ?? "").Trim();
+        if (settlement.Length > 50) throw new InventoryDataException("حالة التسوية يجب ألا تتجاوز 50 حرفًا.");
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+        try
+        {
+            using (var command = CreateCommand(connection, transaction,
+                "UPDATE dbo.InventoryUnits SET DamageSettlementStatus=@Status WHERE Id=@Id AND UnitStatus=2;"))
+            {
+                command.Parameters.AddWithValue("@Status", settlement);
+                command.Parameters.AddWithValue("@Id", unit.Id);
+                if (command.ExecuteNonQuery() != 1) throw Concurrency<InventoryUnitRegistrationItem>();
+            }
+
+            Audit(connection, transaction, "UpdateDamageSettlement", unit.Id,
+                $"تسوية هالك الوحدة {unit.Id}: {settlement}", "InventoryUnit");
+            transaction.Commit();
+        }
+        catch { transaction.Rollback(); throw; }
+    }
+
+    /// <summary>Updates the damage reason of a damaged unit without touching its status.</summary>
+    public void UpdateDamageReason(InventoryUnitRegistrationItem unit, string reason)
+    {
+        reason = (reason ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(reason)) throw new InventoryDataException("أدخل سبب الهالك أولًا.");
+        if (reason.Length > 1000) throw new InventoryDataException("سبب الهالك يجب ألا يتجاوز 1000 حرف.");
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+        try
+        {
+            using (var command = CreateCommand(connection, transaction,
+                "UPDATE dbo.InventoryUnits SET DamageReason=@Reason WHERE Id=@Id AND UnitStatus=2;"))
+            {
+                command.Parameters.AddWithValue("@Reason", reason);
+                command.Parameters.AddWithValue("@Id", unit.Id);
+                if (command.ExecuteNonQuery() != 1) throw Concurrency<InventoryUnitRegistrationItem>();
+            }
+
+            Audit(connection, transaction, "UpdateDamageReason", unit.Id,
+                $"تعديل سبب هالك الوحدة {unit.Id}: {reason}", "InventoryUnit");
+            transaction.Commit();
+        }
+        catch { transaction.Rollback(); throw; }
     }
 
     public void DeleteDamaged(InventoryUnitRegistrationItem unit)
@@ -296,6 +420,8 @@ DELETE dbo.InventoryUnits WHERE Id=@Id AND UnitStatus=2;
 IF EXISTS(SELECT 1 FROM dbo.InventoryUnits WHERE Id=@Id)
  THROW 50021,N'تغيرت حالة الوحدة؛ حدّث الشاشة قبل حذفها.',1;"))
             { command.Parameters.AddWithValue("@Id", unit.Id); command.ExecuteNonQuery(); }
+            Audit(connection, transaction, "DeleteDamagedUnit", unit.Id,
+                $"إعدام وحذف سجل هالك الوحدة {unit.Id} ({unit.ProductName})", "InventoryUnit");
             transaction.Commit();
         }
         catch { transaction.Rollback(); throw; }

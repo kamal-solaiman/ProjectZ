@@ -144,7 +144,9 @@ public sealed class MainViewModel : ObservableObject
             sharedRegistrations,
             () => SelectItem(Categories[0].Items[1]),
             sharedCategories,
-            inventoryRepository);
+            inventoryRepository,
+            categoryRepository);
+        Inventory.InventoryChanged += OnInventoryChanged;
         Invoices = new InvoicesViewModel(
             sharedSalesInvoices,
             sharedCatalog,
@@ -308,6 +310,19 @@ public sealed class MainViewModel : ObservableObject
     /// A category was added, renamed or deleted in SQL. The combo box list was already updated in place;
     /// this keeps the inventory and add-product screens consistent with the same rows.
     /// </summary>
+    /// <summary>
+    /// Inventory wrote stock to SQL (supply, edit, damage, restore, delete...). POS, add-product and
+    /// the invoice screens hold the same catalog instances, so they only need a refresh; maintenance
+    /// and suppliers reload their own lists.
+    /// </summary>
+    private void OnInventoryChanged()
+    {
+        Pos.NotifyExternalInventoryChanged();
+        AddProduct.NotifyInventoryLoaded();
+        Invoices.NotifyExternalInvoicesChanged();
+        Suppliers.NotifyExternalDataChanged();
+    }
+
     private void OnCategoriesChanged()
     {
         // A rename changes the category name shown on every product row, so the catalog itself is reloaded.

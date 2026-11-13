@@ -21,6 +21,7 @@ public partial class InventoryView : UserControl
             oldVm.OpenEditDialogRequested = null;
             oldVm.OpenBarcodePreviewRequested = null;
             oldVm.OpenMarkDamagedDialogRequested = null;
+            oldVm.OpenDamageEditDialogRequested = null;
             oldVm.OpenConfirmDialogRequested = null;
         }
 
@@ -31,6 +32,7 @@ public partial class InventoryView : UserControl
             newVm.OpenEditDialogRequested = vm => ShowOwnedDialog(new EditProductWindow(vm));
             newVm.OpenBarcodePreviewRequested = vm => ShowOwnedDialog(new BarcodePrintPreviewWindow(vm));
             newVm.OpenMarkDamagedDialogRequested = vm => ShowOwnedDialog(new MarkDamagedWindow(vm));
+            newVm.OpenDamageEditDialogRequested = vm => ShowOwnedDialog(new DamageEditWindow(vm));
             newVm.OpenConfirmDialogRequested = (vm, onConfirmed) =>
             {
                 if (ShowOwnedDialog(new ConfirmActionWindow(vm)) == true)
