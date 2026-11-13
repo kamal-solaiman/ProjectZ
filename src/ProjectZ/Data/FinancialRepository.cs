@@ -468,6 +468,130 @@ WHERE Id = @Id AND OperationStatus = 0;"))
         }
     }
 
+    /// <summary>
+    /// Edits an existing customer transfer in place: reverses the original effect on the wallet and cash
+    /// balances, applies the new effect, updates the CustomerTransfers row with the new values, and records
+    /// settlement movements — all in one transaction. The transfer keeps its original Id and stays active.
+    /// </summary>
+    public void UpdateCustomerTransfer(
+        int transferId,
+        int oldWalletAccountId,
+        FinancialAccountKind walletKind,
+        decimal oldAmount,
+        decimal oldCommission,
+        bool oldIsDeposit,
+        string oldCustomerNumber,
+        int newWalletAccountId,
+        string operationKind,
+        string newCustomerNumber,
+        decimal newAmount,
+        decimal newCommission,
+        string newNote)
+    {
+        newCustomerNumber = Trim(newCustomerNumber, 30, "");
+        newNote = Trim(newNote, 1000, "");
+        newAmount = Math.Round(newAmount, 2, MidpointRounding.AwayFromZero);
+        newCommission = Math.Round(newCommission, 2, MidpointRounding.AwayFromZero);
+
+        if (newAmount <= 0m)
+            throw new FinancialDataException("المبلغ يجب أن يكون أكبر من الصفر.");
+
+        // Match the local-design semantics for both the original and the new effect.
+        var oldWalletDelta = oldIsDeposit ? -oldAmount : oldAmount;
+        var oldCashDelta = oldIsDeposit ? oldAmount + oldCommission : oldCommission - oldAmount;
+        var newIsDeposit = operationKind == "DepositToCustomer";
+        var newWalletDelta = newIsDeposit ? -newAmount : newAmount;
+        var newCashDelta = newIsDeposit ? newAmount + newCommission : newCommission - newAmount;
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction();
+
+            var accounts = EnsureAccounts(connection, transaction);
+            var oldWalletAccount = EnsureAccountById(connection, transaction, oldWalletAccountId, walletKind);
+            var newWalletAccount = EnsureAccountById(connection, transaction, newWalletAccountId, walletKind);
+            var cashAccount = accounts[FinancialAccountKind.Cash];
+
+            // 1) Reverse the original effect on the wallet and cash balances.
+            decimal walletAfterReverse;
+            using (var revWallet = CreateCommand(connection, transaction, @"
+UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
+OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
+            {
+                AddMoney(revWallet, "@Signed", -oldWalletDelta);
+                revWallet.Parameters.Add("@Id", SqlDbType.Int).Value = oldWalletAccount;
+                walletAfterReverse = (decimal)revWallet.ExecuteScalar()!;
+            }
+
+            decimal cashAfterReverse;
+            using (var revCash = CreateCommand(connection, transaction, @"
+UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
+OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
+            {
+                AddMoney(revCash, "@Signed", -oldCashDelta);
+                revCash.Parameters.Add("@Id", SqlDbType.Int).Value = cashAccount;
+                cashAfterReverse = (decimal)revCash.ExecuteScalar()!;
+            }
+
+            RecordWalletMovement(connection, transaction, oldWalletAccount, walletAfterReverse,
+                -oldWalletDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId);
+            RecordWalletMovement(connection, transaction, cashAccount, cashAfterReverse,
+                -oldCashDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId);
+
+            // 2) Apply the new effect on the wallet and cash balances.
+            decimal walletAfterNew;
+            using (var newWallet = CreateCommand(connection, transaction, @"
+UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
+OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
+            {
+                AddMoney(newWallet, "@Signed", newWalletDelta);
+                newWallet.Parameters.Add("@Id", SqlDbType.Int).Value = newWalletAccount;
+                walletAfterNew = (decimal)newWallet.ExecuteScalar()!;
+            }
+
+            decimal cashAfterNew;
+            using (var newCash = CreateCommand(connection, transaction, @"
+UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
+OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
+            {
+                AddMoney(newCash, "@Signed", newCashDelta);
+                newCash.Parameters.Add("@Id", SqlDbType.Int).Value = cashAccount;
+                cashAfterNew = (decimal)newCash.ExecuteScalar()!;
+            }
+
+            RecordWalletMovement(connection, transaction, newWalletAccount, walletAfterNew,
+                newWalletDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId);
+            RecordWalletMovement(connection, transaction, cashAccount, cashAfterNew,
+                newCashDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId);
+
+            // 3) Update the transfer row in place with the new values (keeps the original Id and active status).
+            using (var update = CreateCommand(connection, transaction, @"
+UPDATE dbo.CustomerTransfers SET FinancialAccountId = @Account, OperationKind = @OpKind, CustomerNumber = @Customer,
+     Amount = @Amount, Commission = @Commission, CashDelta = @CashDelta, WalletBalanceAfter = @WalletBalance, Note = @Note
+WHERE Id = @Id AND OperationStatus = 0;"))
+            {
+                update.Parameters.Add("@Account", SqlDbType.Int).Value = newWalletAccount;
+                update.Parameters.Add("@OpKind", SqlDbType.TinyInt).Value = newIsDeposit ? (byte)1 : (byte)2;
+                update.Parameters.Add("@Customer", SqlDbType.NVarChar, 30).Value = newCustomerNumber;
+                AddMoney(update, "@Amount", newAmount);
+                AddMoney(update, "@Commission", newCommission);
+                AddMoney(update, "@CashDelta", newCashDelta);
+                AddMoney(update, "@WalletBalance", walletAfterNew);
+                update.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = newNote;
+                update.Parameters.Add("@Id", SqlDbType.Int).Value = transferId;
+                if (update.ExecuteNonQuery() == 0)
+                    throw new FinancialDataException("تعذّر تعديل السجل: العملية معكوسة بالفعل أو غير موجودة.");
+            }
+
+            transaction.Commit();
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر تعديل السجل المالي.");
+        }
+    }
+
     /// <summary>Loads customer transfer operations of one wallet kind, newest first.</summary>
     public void LoadCustomerTransfersInto(
         ObservableCollection<VodafoneTransferOperation> vodafoneTarget,
