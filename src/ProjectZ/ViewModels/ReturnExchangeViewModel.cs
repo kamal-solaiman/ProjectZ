@@ -933,6 +933,12 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             return;
         }
 
+        if (NeedsCustomerPayment && TotalDiffPaid == 0m)
+        {
+            // Nothing typed yet: assume the customer pays the whole difference in cash (the operator can split it).
+            DiffCashText = PosFormatting.FormatPlainNumber(SettlementMagnitude);
+        }
+
         if (NeedsCustomerPayment)
         {
             if (TotalDiffPaid > SettlementMagnitude)

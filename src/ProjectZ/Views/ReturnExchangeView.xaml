@@ -121,6 +121,17 @@
                         Margin="0,0,8,0"
                         FontSize="12" />
 
+                <Button Content="🔄 تحديث من قاعدة البيانات"
+                        Command="{Binding RefreshFromDatabaseCommand}"
+                        Padding="12,8"
+                        Margin="0,0,8,0"
+                        FontSize="12"
+                        Cursor="Hand"
+                        Background="#0F766E"
+                        Foreground="White"
+                        BorderThickness="0"
+                        ToolTip="إعادة قراءة الفواتير وعمليات المرتجع والاستبدال من SQL Server" />
+
                 <Button Content="{Binding HistoryTabLabel}"
                         Command="{Binding SelectHistoryTabCommand}"
                         Margin="0,0,6,0">
@@ -160,6 +171,19 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="12"
                            Foreground="#64748B" />
+                <Border Margin="0,4,0,0"
+                        Padding="9,3"
+                        CornerRadius="11"
+                        HorizontalAlignment="Right"
+                        Background="#E0F2FE"
+                        BorderBrush="#BAE6FD"
+                        BorderThickness="1">
+                    <TextBlock Text="{Binding DataSourceLabel}"
+                               Style="{StaticResource PosCenterTextStyle}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="#0369A1" />
+                </Border>
             </StackPanel>
         </Grid>
 
@@ -1427,11 +1451,16 @@
                              TextAlignment="Right"
                              ToolTip="ابحث برقم العملية أو رقم الفاتورة أو العميل أو السبب" />
 
-                    <ComboBox Grid.Column="1"
-                              ItemsSource="{Binding HistoryTypeFilters}"
-                              SelectedItem="{Binding SelectedHistoryTypeFilter}"
-                              Style="{StaticResource PosComboBoxStyle}"
-                              Margin="10,0,0,0" />
+                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                        <ComboBox ItemsSource="{Binding HistoryTypeFilters}"
+                                  SelectedItem="{Binding SelectedHistoryTypeFilter}"
+                                  Style="{StaticResource PosComboBoxStyle}" />
+                        <TextBlock Text="{Binding HistorySourceLabel}"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   Margin="0,4,0,0"
+                                   FontSize="10.5"
+                                   Foreground="#64748B" />
+                    </StackPanel>
                 </Grid>
             </Border>
 
