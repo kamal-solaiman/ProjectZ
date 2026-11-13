@@ -509,6 +509,16 @@ for token in (
 ):
     assert token in return_exchange_xaml, f'ReturnExchange UI missing expected token: {token}'
 
+# The four quick-view KPI cards were removed from this screen on request; the history tab and the
+# workspace keep the same information per operation.
+for removed_kpi in ('إجمالي عمليات المرتجع والاستبدال', 'قطع سليمة عادت للمخزون',
+                    'قطع تالفة رُحلت للهالك', 'إجمالي المسترد للعملاء'):
+    assert removed_kpi not in return_exchange_xaml, f'removed return/exchange KPI card is back: {removed_kpi}'
+for removed_binding in ('TotalOperationsCount', 'OperationsKpiSummary', 'TotalGoodReturnedKpi',
+                        'TotalDamagedReturnedKpi', 'TotalRefundedValueKpiDisplay',
+                        'TotalExchangeUpgradesKpiSubtext'):
+    assert removed_binding not in return_exchange_xaml, f'removed return/exchange KPI binding is back: {removed_binding}'
+
 return_exchange_vm = (root / 'src/ProjectZ/ViewModels/ReturnExchangeViewModel.cs').read_text(encoding='utf-8')
 sales_repository = (root / 'src/ProjectZ/Data/SalesRepository.cs').read_text(encoding='utf-8')
 return_exchange_permissions = (root / 'sql/11_EnableReturnExchange.sql').read_text(encoding='utf-8')

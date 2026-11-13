@@ -517,16 +517,9 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     }
 
     public bool HasNoHistoryRecords => FilteredOperations.Count == 0;
+
+    // The history tab label stays, because it is the tab title in the header (not a KPI card).
     public string HistoryTabLabel => $"سجل المرتجع والاستبدال ({sharedOperations.Count})";
-    public int TotalOperationsCount => sharedOperations.Count;
-    public string OperationsKpiSummary =>
-        $"مرتجع: {sharedOperations.Count(o => o.IsReturn)} · استبدال: {sharedOperations.Count(o => o.IsExchange)}";
-    public int TotalGoodReturnedKpi => sharedOperations.Sum(o => o.GoodReturnedUnitsCount);
-    public int TotalDamagedReturnedKpi => sharedOperations.Sum(o => o.DamagedReturnedUnitsCount);
-    public decimal TotalRefundedValueKpi => sharedOperations.Where(o => o.NetDifference < 0m).Sum(o => Math.Abs(o.NetDifference));
-    public decimal TotalExchangeUpgradesKpi => sharedOperations.Where(o => o.NetDifference > 0m).Sum(o => o.NetDifference);
-    public string TotalRefundedValueKpiDisplay => PosFormatting.FormatCurrency(TotalRefundedValueKpi);
-    public string TotalExchangeUpgradesKpiSubtext => $"فروق استبدال محصلة: {PosFormatting.FormatCurrency(TotalExchangeUpgradesKpi)}";
 
     public string StatusMessage
     {
@@ -1432,16 +1425,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         NotifyOperationKpis();
     }
 
-    private void NotifyOperationKpis()
-    {
-        Changed(nameof(HistoryTabLabel));
-        Changed(nameof(TotalOperationsCount));
-        Changed(nameof(OperationsKpiSummary));
-        Changed(nameof(TotalGoodReturnedKpi));
-        Changed(nameof(TotalDamagedReturnedKpi));
-        Changed(nameof(TotalRefundedValueKpiDisplay));
-        Changed(nameof(TotalExchangeUpgradesKpiSubtext));
-    }
+    private void NotifyOperationKpis() => Changed(nameof(HistoryTabLabel));
 
     public void NotifyExternalDataChanged()
     {
