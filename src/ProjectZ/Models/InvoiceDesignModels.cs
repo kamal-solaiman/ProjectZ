@@ -31,6 +31,9 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
 {
     private int returnedQuantity;
 
+    /// <summary>Primary key in dbo.SalesInvoiceLines; 0 for lines that only exist in design/sample data.</summary>
+    public int DatabaseLineId { get; init; }
+
     public int LineNumber { get; init; }
     public int ProductId { get; init; }
     public string Barcode { get; init; } = "";
@@ -132,6 +135,9 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     public DateTime IssuedAt { get; init; }
     public string CashierName { get; init; } = "";
     public int CustomerId { get; init; }
+
+    /// <summary>SQL Server ROWVERSION for invoices loaded from dbo.SalesInvoices; null for sample rows.</summary>
+    public byte[]? DatabaseRowVersion { get; set; }
 
     public string CustomerName
     {

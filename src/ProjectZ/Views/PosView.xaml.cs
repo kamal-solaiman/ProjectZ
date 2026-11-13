@@ -36,7 +36,15 @@ public partial class PosView : UserControl
 
     private void OpenAddCustomerDialog(string? initialQuery, Action<PosCustomerDesignItem> onCreated)
     {
-        var dialog = new AddCustomerWindow(initialQuery);
+        var dialog = DataContext is PosViewModel { IsDatabaseBacked: true }
+            ? new AddCustomerWindow(
+                initialQuery,
+                null,
+                null,
+                "إضافة عميل جديد إلى الدليل الموحد",
+                "سيُحفظ العميل في قاعدة البيانات مباشرة ويُختار في الفاتورة الحالية.",
+                "حفظ وإدراج في الفاتورة")
+            : new AddCustomerWindow(initialQuery);
         if (Window.GetWindow(this) is { } owner)
             dialog.Owner = owner;
 

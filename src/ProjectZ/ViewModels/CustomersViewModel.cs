@@ -701,6 +701,7 @@ public sealed class CustomersViewModel : ObservableObject
             RebuildEntriesAndRefresh(selectCustomerId: keepCustomerId);
             notifyExternalFinancialDataChanged?.Invoke();
             SetStatus($"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber} وتحديث رصيد العميل.", false);
+            return null;
         });
 
         OpenCollectSalesPaymentRequested?.Invoke(vm);

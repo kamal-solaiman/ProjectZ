@@ -139,15 +139,15 @@
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
-                        Background="#E0F2FE"
-                        BorderBrush="#BAE6FD"
+                        Background="#DCFCE7"
+                        BorderBrush="#BBF7D0"
                         BorderThickness="1"
                         VerticalAlignment="Center">
-                    <TextBlock Text="تصميم الواجهة — بدون Backend"
+                    <TextBlock Text="متصل بقاعدة البيانات"
                                Style="{StaticResource PosCenterTextStyle}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
-                               Foreground="#0369A1" />
+                               Foreground="#15803D" />
                 </Border>
             </StackPanel>
         </Grid>

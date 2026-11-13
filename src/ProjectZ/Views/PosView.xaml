@@ -186,7 +186,7 @@
                         Command="{Binding ActiveInvoice.ClearInvoiceCommand}" />
             </StackPanel>
 
-            <!-- Physical Right: POS Title + Design Mode Pill -->
+            <!-- Physical Right: POS Title + SQL connection pill -->
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
                         HorizontalAlignment="Right"
@@ -201,16 +201,23 @@
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
-                        Background="#E0F2FE"
-                        BorderBrush="#BAE6FD"
+                        Background="#DCFCE7"
+                        BorderBrush="#BBF7D0"
                         BorderThickness="1"
                         VerticalAlignment="Center">
-                    <TextBlock Text="تصميم الواجهة — بدون Backend"
+                    <TextBlock Text="متصل بقاعدة البيانات"
                                Style="{StaticResource PosCenterTextStyle}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
-                               Foreground="#0369A1" />
+                               Foreground="#15803D" />
                 </Border>
+                <Button Margin="10,0,0,0"
+                        Padding="12,5"
+                        Content="تحديث الأصناف"
+                        Command="{Binding RefreshCatalogCommand}"
+                        Style="{StaticResource PosSecondaryButtonStyle}"
+                        FontSize="11.5"
+                        ToolTip="إعادة تحميل الأصناف والمخزون من قاعدة البيانات" />
             </StackPanel>
         </Grid>
 

@@ -16,8 +16,10 @@
 - `sql/07_CreateReportingViews.sql`: طرق عرض المخزون والأرباح والمتبقي والمدفوعات واستخدام الحدود.
 - `sql/08_VerifyFullSchema.sql`: تحقق قراءة فقط من الجداول والعلاقات وطرق العرض.
 - [تصميم قاعدة البيانات](docs/DATABASE.md): خريطة الجداول وقرارات الاتساق وترتيب التنفيذ.
+- [ربط نقطة البيع بقاعدة البيانات](docs/POS_SALES.md): ما يُكتب عند حفظ فاتورة، وحدود المرحلة، وخطوات القبول على Windows وSQL Server.
 - `sql/03_VerifyEnvironment.sql`: استعلامات التحقق من البيئة فقط.
 - `sql/04_SetupLanSqlAuth.sql`: تفعيل Mixed Mode وإنشاء حساب اتصال الشبكة `ProjectZClient` بصلاحيات الدخول والمخزون المحددة فقط، دون منحه ملكية القاعدة.
+- `sql/09_EnablePosSales.sql`: صلاحيات `ProjectZClient` لشاشة نقطة البيع والفواتير والمرتجع (العملاء، الفواتير وبنودها ووحداتها، الدفعات، الأنشطة، المالية، ترقيم المستندات). إلزامي قبل أول حفظ بيع؛ قابل لإعادة التشغيل.
 - `src/ProjectZ/connectionsettings.json`: إعدادات خارجية؛ يلزم استبدال عنوان الخادم.
 - [تجهيز الجهاز الرئيسي](docs/SERVER.md) · [العملاء وتغيير الخادم والنشر](docs/CLIENTS.md).
 - `.github/workflows/windows-build.yml`: بناء Windows واختبارات hashing ونشر artifact؛ لا يحل محل اختبار SQL/WPF الفعلي.
