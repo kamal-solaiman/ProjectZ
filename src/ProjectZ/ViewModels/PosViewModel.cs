@@ -408,7 +408,7 @@ public sealed class PosViewModel : ObservableObject
                 return;
             }
 
-            // Closing the invoice is safe now: stock, units and customers were reloaded from SQL already.
+            // The invoice screen already reloaded stock in SQL, so closing here cannot resurrect stale units.
             CloseInvoice(invoice);
 
             SetStatus(

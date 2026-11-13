@@ -234,6 +234,14 @@ VALUES(@Invoice,@LineNumber,@Product,@Barcode,@Name,@Category,@Unit,@Track,@Tier
                     foreach (var unit in units)
                         AllocateUnit(connection, transaction, invoiceId, lineId, invoiceNumber, line, unit);
 
+                    // Units are optional: a product tracked only by StockMovements still moves its balance.
+                    var untrackedQuantity = line.Quantity - units.Count;
+                    if (untrackedQuantity > 0)
+                    {
+                        RecordUntrackedSale(connection, transaction, invoiceId, invoiceNumber, line,
+                            untrackedQuantity, unitCost);
+                    }
+
                     lineNumber++;
                 }
 
@@ -756,8 +764,9 @@ VALUES(@Account,SYSUTCDATETIME(),0,N'رد مرتجع مبيعات',@Amount,@Bala
                     ledger.ExecuteNonQuery();
                 }
 
+                var allReturned = AllLinesReturned(connection, transaction, request.Invoice.Id);
                 AddActivity(connection, transaction, request.Invoice.Id,
-                    request.Lines.Sum(l => l.Quantity) == 0 ? "مرتجع" : "مرتجع جزئي",
+                    allReturned ? "مرتجع كلي" : "مرتجع جزئي",
                     $"مرتجع بقيمة {returnedValue:0.00} ج.م ({(request.RefundCashToCustomer ? "رد نقدي" : "خصم من الرصيد")}) — {request.Reason}.",
                     returnedValue);
                 Audit(connection, transaction, "CreateReturn", request.Invoice.Id,
@@ -776,6 +785,16 @@ VALUES(@Account,SYSUTCDATETIME(),0,N'رد مرتجع مبيعات',@Amount,@Bala
         {
             throw Describe(ex, "تعذر حفظ المرتجع في قاعدة البيانات.");
         }
+    }
+
+    /// <summary>True when every line of the invoice is fully returned — read from SQL, not from the UI model.</summary>
+    private static bool AllLinesReturned(SqlConnection connection, SqlTransaction transaction, int invoiceId)
+    {
+        using var command = CreateCommand(connection, transaction, @"
+SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.SalesInvoiceLines WHERE SalesInvoiceId = @Invoice AND ReturnedQuantity < Quantity)
+            THEN 0 ELSE 1 END;");
+        command.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
+        return Convert.ToInt32(command.ExecuteScalar()!) == 1;
     }
 
     private sealed record LineSnapshot(int ProductId, string ProductName, int RemainingQuantity);
@@ -973,31 +992,81 @@ VALUES(@Account,SYSUTCDATETIME(),0,N'رد فاتورة ملغاة',@Amount,@Bala
 
     private sealed record ClaimedUnit(int Id, decimal Cost);
 
+    /// <summary>
+    /// Locks and returns the units this line will sell. A product whose stock only exists as
+    /// StockMovements rows (no registered units) sells against that balance without unit rows.
+    /// </summary>
     private static List<ClaimedUnit> ClaimAvailableUnits(
         SqlConnection connection, SqlTransaction transaction, PosSaleLineRequest line)
     {
         var units = new List<ClaimedUnit>();
+        var registered = 0;
+
         using (var command = CreateCommand(connection, transaction, @"
-SELECT TOP (@Quantity) iu.Id, iu.PurchaseCost
-FROM dbo.InventoryUnits iu WITH (UPDLOCK, HOLDLOCK)
-WHERE iu.ProductId = @ProductId AND iu.UnitStatus = 0
-ORDER BY iu.RegisteredAtUtc, iu.Id;"))
+SELECT Id, PurchaseCost FROM (
+    SELECT TOP (@Quantity) iu.Id, iu.PurchaseCost, iu.RegisteredAtUtc
+    FROM dbo.InventoryUnits iu WITH (UPDLOCK, HOLDLOCK)
+    WHERE iu.ProductId = @ProductId AND iu.UnitStatus = 0
+    ORDER BY iu.RegisteredAtUtc, iu.Id
+) AS claimed ORDER BY RegisteredAtUtc, Id;
+SELECT COUNT(*) FROM dbo.InventoryUnits WITH (UPDLOCK, HOLDLOCK) WHERE ProductId = @ProductId;"))
         {
             command.Parameters.Add("@Quantity", SqlDbType.Int).Value = line.Quantity;
             command.Parameters.Add("@ProductId", SqlDbType.Int).Value = line.ProductId;
             using var reader = command.ExecuteReader();
             while (reader.Read())
                 units.Add(new ClaimedUnit(reader.GetInt32(0), reader.GetDecimal(1)));
+
+            reader.NextResult();
+            if (reader.Read()) registered = reader.GetInt32(0);
         }
 
-        if (units.Count < line.Quantity)
+        if (units.Count >= line.Quantity) return units;
+
+        // No registered units at all: the unit-less balance is checked by the movement sum below.
+        if (registered == 0 && units.Count == 0)
         {
+            var balance = GetUnregisteredStockBalance(connection, transaction, line.ProductId);
+            if (balance >= line.Quantity) return units;
+
             throw new SalesDataException(
-                $"المتاح من «{line.ProductName}» هو {units.Count} قطعة فقط، والمطلوب {line.Quantity}. " +
+                $"المتاح من «{line.ProductName}» هو {Math.Max(0, balance)} قطعة فقط، والمطلوب {line.Quantity}. " +
                 "حدّث الأصناف من قاعدة البيانات وعدّل الكمية.");
         }
 
-        return units;
+        throw new SalesDataException(
+            $"المتاح من «{line.ProductName}» هو {units.Count} قطعة فقط، والمطلوب {line.Quantity}. " +
+            "حدّث الأصناف من قاعدة البيانات وعدّل الكمية.");
+    }
+
+    /// <summary>Sum of StockMovements for a product that has no registered units.</summary>
+    private static int GetUnregisteredStockBalance(
+        SqlConnection connection, SqlTransaction transaction, int productId)
+    {
+        using var command = CreateCommand(connection, transaction, @"
+SELECT COALESCE(SUM(m.QuantityDelta), 0) FROM dbo.StockMovements m WHERE m.ProductId = @ProductId;");
+        command.Parameters.Add("@ProductId", SqlDbType.Int).Value = productId;
+        return Convert.ToInt32(command.ExecuteScalar()!);
+    }
+
+    /// <summary>Records the sold quantity of a product that has no unit rows against its movement ledger.</summary>
+    private void RecordUntrackedSale(
+        SqlConnection connection, SqlTransaction transaction, int invoiceId, string invoiceNumber,
+        PosSaleLineRequest line, int quantity, decimal unitCost)
+    {
+        using var movement = CreateCommand(connection, transaction, @"
+INSERT dbo.StockMovements(ProductId,InventoryUnitId,MovementType,QuantityDelta,UnitCost,ActorUserId,SourceEntityType,SourceEntityId,Reason)
+VALUES(@Product,NULL,N'Sale',-@Quantity,@Cost,@Actor,N'SalesInvoice',@Invoice,@Reason);");
+        movement.Parameters.Add("@Product", SqlDbType.Int).Value = line.ProductId;
+        movement.Parameters.Add("@Quantity", SqlDbType.Int).Value = quantity;
+        movement.Parameters.Add("@Cost", SqlDbType.Decimal).Value = unitCost;
+        movement.Parameters["@Cost"].Precision = 19;
+        movement.Parameters["@Cost"].Scale = 2;
+        movement.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        movement.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
+        movement.Parameters.Add("@Reason", SqlDbType.NVarChar, 1000).Value =
+            Trim($"بيع من نقطة البيع بدون تسجيل وحدات — {invoiceNumber}", 1000, "");
+        movement.ExecuteNonQuery();
     }
 
     private void AllocateUnit(

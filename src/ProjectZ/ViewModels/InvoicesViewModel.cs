@@ -455,6 +455,18 @@ public sealed class InvoicesViewModel : ObservableObject
     private SalesInvoiceDesignItem PersistCompletedPosSale(PosInvoiceViewModel posInvoice)
     {
         var customer = posInvoice.SelectedCustomer;
+
+        // Snapshot the cart before the SQL write: reloading stock afterwards must not change what was sold.
+        var soldLines = posInvoice.Items
+            .Select(item => new
+            {
+                item.Product,
+                item.SelectedPriceTier,
+                item.Quantity,
+                item.UnitPrice
+            })
+            .ToList();
+
         var request = new PosSaleRequest(
             customer.IsWalkIn ? null : customer.Id,
             customer.Name,
@@ -463,7 +475,7 @@ public sealed class InvoicesViewModel : ObservableObject
             customer.IsWalkIn,
             posInvoice.InvoicePriceTier,
             posInvoice.EffectiveDiscount,
-            posInvoice.Items.Select(item => new PosSaleLineRequest(
+            soldLines.Select(item => new PosSaleLineRequest(
                 item.Product.Id,
                 item.Product.Barcode,
                 item.Product.Name,
@@ -504,7 +516,7 @@ public sealed class InvoicesViewModel : ObservableObject
         };
 
         var lineNo = 1;
-        foreach (var posLine in posInvoice.Items)
+        foreach (var posLine in soldLines)
         {
             invoice.Items.Add(new SalesInvoiceLineDesignItem
             {
