@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Globalization;
+using ProjectZ.Data;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 
@@ -160,6 +161,7 @@ public sealed class CustomersViewModel : ObservableObject
     private readonly Action<PosCustomerDesignItem>? startMaintenanceForCustomer;
     private readonly Action<MaintenanceOrderDesignItem>? openOrderInMaintenanceActions;
     private readonly Action? notifyExternalFinancialDataChanged;
+    private readonly SalesRepository? repository;
 
     private readonly List<CustomerDirectoryEntryViewModel> allEntries = [];
     private CustomerDirectoryEntryViewModel? selectedCustomerEntry;
@@ -314,6 +316,11 @@ public sealed class CustomersViewModel : ObservableObject
     public bool HasNoSelectedCustomerSales => SelectedCustomerSalesInvoices.Count == 0;
     public bool HasNoSelectedCustomerMaintenance => SelectedCustomerMaintenanceOrders.Count == 0;
 
+    /// <summary>Explains the empty maintenance tab: the maintenance screens are a separate future task.</summary>
+    public string MaintenanceEmptyMessage => repository is not null
+        ? "لا توجد تذاكر صيانة مسجلة في قواعد البيانات بعد (ربط شاشات الصيانة مهمة مستقلة)."
+        : "لا توجد تذاكر صيانة مسجلة لهذا العميل حتى الآن.";
+
 
     public string StatusMessage
     {
@@ -339,6 +346,12 @@ public sealed class CustomersViewModel : ObservableObject
     }
 
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+
+    public bool IsConnectedToDatabase => repository is not null;
+
+    public string DataSourceLabel => repository is null
+        ? "معاينة تصميم — بدون قاعدة بيانات"
+        : "متصل بقاعدة البيانات — dbo.Customers";
 
     public ActionCommand AddCustomerCommand { get; }
     public ActionCommand EditSelectedCustomerCommand { get; }
@@ -385,7 +398,8 @@ public sealed class CustomersViewModel : ObservableObject
         Action<PosCustomerDesignItem>? startPosSaleForCustomer = null,
         Action<PosCustomerDesignItem>? startMaintenanceForCustomer = null,
         Action<MaintenanceOrderDesignItem>? openOrderInMaintenanceActions = null,
-        Action? notifyExternalFinancialDataChanged = null)
+        Action? notifyExternalFinancialDataChanged = null,
+        SalesRepository? repository = null)
     {
         this.currentUserName = currentUserName;
         this.sharedCustomers = sharedCustomers;
@@ -395,6 +409,7 @@ public sealed class CustomersViewModel : ObservableObject
         this.startMaintenanceForCustomer = startMaintenanceForCustomer;
         this.openOrderInMaintenanceActions = openOrderInMaintenanceActions;
         this.notifyExternalFinancialDataChanged = notifyExternalFinancialDataChanged;
+        this.repository = repository;
 
         this.sharedCustomers.CollectionChanged += OnExternalCollectionChanged;
         this.sharedSalesInvoices.CollectionChanged += OnExternalCollectionChanged;
@@ -405,11 +420,7 @@ public sealed class CustomersViewModel : ObservableObject
         DeleteSelectedCustomerCommand = new ActionCommand(() => DeleteCustomer(SelectedCustomerEntry));
         StartSaleForCustomerCommand = new ActionCommand(StartSaleForSelected);
         StartMaintenanceForCustomerCommand = new ActionCommand(StartMaintenanceForSelected);
-        RefreshDataCommand = new ActionCommand(() =>
-        {
-            NotifyExternalDataChanged();
-            SetStatus("تم تحديث دليل العملاء وجميع أرصدة المبيعات والصيانة.", false);
-        });
+        RefreshDataCommand = new ActionCommand(NotifyExternalDataChangedCallback);
         ClearFiltersCommand = new ActionCommand(ClearAllFilters);
         ClearSearchCommand = new ActionCommand(() => SearchText = "");
         SelectCustomerCommand = new RelayCommand<CustomerDirectoryEntryViewModel>(entry =>
@@ -445,7 +456,57 @@ public sealed class CustomersViewModel : ObservableObject
 
     public void NotifyExternalDataChanged()
     {
+        // With SQL the shared collections are owned by the repository, so refresh from the rows first.
+        if (repository is not null)
+        {
+            RefreshFromDatabase();
+            return;
+        }
+
         RebuildEntriesAndRefresh();
+    }
+
+    /// <summary>Re-reads dbo.Customers so the directory shows the live rows.</summary>
+    public bool RefreshFromDatabase()
+    {
+        if (repository is null)
+        {
+            NotifyExternalDataChanged();
+            return false;
+        }
+
+        try
+        {
+            var previousId = SelectedCustomerEntry?.Customer.Id;
+            repository.LoadCustomersInto(sharedCustomers);
+            RebuildEntriesAndRefresh(previousId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is SalesDataException data ? data.Message : "تعذر تحميل دليل العملاء من قاعدة البيانات.", true);
+            return false;
+        }
+    }
+
+    /// <summary>Refreshes the directory and reports the outcome on the status strip.</summary>
+    private void NotifyExternalDataChangedCallback()
+    {
+        if (RefreshFromDatabase())
+        {
+            SetStatus("تم تحديث دليل العملاء وجميع أرصدة المبيعات والصيانة من قاعدة البيانات.", false);
+            return;
+        }
+
+        // Design mode, or the database load failed inside RefreshFromDatabase (which set the error).
+        if (repository is null)
+            RebuildEntriesAndRefresh();
+
+        SetStatus(
+            repository is null
+                ? "تم تحديث دليل العملاء وجميع أرصدة المبيعات والصيانة."
+                : "تعذر تحديث دليل العملاء من قاعدة البيانات.",
+            repository is not null);
     }
 
     private void OnExternalCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -492,6 +553,28 @@ public sealed class CustomersViewModel : ObservableObject
             ValidateDuplicatePhone,
             created =>
             {
+                if (repository is not null)
+                {
+                    PosCustomerDesignItem saved;
+                    try
+                    {
+                        saved = repository.CreateCustomer(
+                            created.Name, created.Phone, created.SecondaryPhone,
+                            created.Address, created.Notes, created.DefaultPriceTier);
+                    }
+                    catch (Exception ex)
+                    {
+                        SetStatus(ex is SalesDataException data ? data.Message : "تعذر حفظ العميل في قاعدة البيانات.", true);
+                        return;
+                    }
+
+                    RefreshFromDatabase();
+                    RebuildEntriesAndRefresh(selectCustomerId: saved.Id);
+                    notifyExternalFinancialDataChanged?.Invoke();
+                    SetStatus($"تم تسجيل العميل «{saved.Name}» ({saved.CustomerCodeDisplay}) في قاعدة البيانات ومشاركته مع المبيعات والصيانة.", false);
+                    return;
+                }
+
                 var nextId = sharedCustomers.Select(c => c.Id).DefaultIfEmpty(0).Max() + 1;
                 var newCustomer = new PosCustomerDesignItem
                 {
@@ -526,7 +609,27 @@ public sealed class CustomersViewModel : ObservableObject
             ValidateDuplicatePhone,
             updated =>
             {
-                // Sync snapshot info on linked sales invoices & maintenance orders for this customer
+                if (repository is not null)
+                {
+                    try
+                    {
+                        // Old invoices keep their sale-time snapshots; only dbo.Customers is updated.
+                        repository.UpdateCustomer(updated);
+                    }
+                    catch (Exception ex)
+                    {
+                        SetStatus(ex is SalesDataException data ? data.Message : "تعذر حفظ تعديلات العميل في قاعدة البيانات.", true);
+                        return;
+                    }
+
+                    RefreshFromDatabase();
+                    RebuildEntriesAndRefresh(selectCustomerId: updated.Id);
+                    notifyExternalFinancialDataChanged?.Invoke();
+                    SetStatus($"تم تحديث بيانات العميل «{updated.Name}» ({updated.CustomerCodeDisplay}) في قاعدة البيانات.", false);
+                    return;
+                }
+
+                // Design mode: sync snapshot info on linked sales invoices & maintenance orders for this customer
                 foreach (var inv in sharedSalesInvoices.Where(i => !i.IsWalkInCustomer && i.CustomerId == updated.Id))
                 {
                     inv.CustomerName = updated.Name;
@@ -585,6 +688,27 @@ public sealed class CustomersViewModel : ObservableObject
 
     private void ConfirmDeleteCustomer(PosCustomerDesignItem customer)
     {
+        if (repository is not null)
+        {
+            try
+            {
+                var hardDeleted = repository.DeleteCustomer(customer.Id);
+                RefreshFromDatabase();
+                notifyExternalFinancialDataChanged?.Invoke();
+                SetStatus(
+                    hardDeleted
+                        ? $"تم حذف العميل «{customer.Name}» من قاعدة البيانات نهائيًا."
+                        : $"تمت أرشفة العميل «{customer.Name}» (IsActive=0) للحفاظ على سجل فواتير المبيعات وتذاكر الصيانة.",
+                    false);
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex is SalesDataException data ? data.Message : "تعذر حذف العميل من قاعدة البيانات.", true);
+            }
+
+            return;
+        }
+
         if (!sharedCustomers.Remove(customer)) return;
 
         RebuildEntriesAndRefresh();
@@ -616,6 +740,22 @@ public sealed class CustomersViewModel : ObservableObject
         var vm = new CollectInvoicePaymentViewModel(invoice, submission =>
         {
             var paidNow = submission.CashAmount + submission.VodafoneAmount + submission.InstaPayAmount;
+
+            if (repository is not null && invoice.Id > 0)
+            {
+                try
+                {
+                    repository.CollectPayment(invoice.Id, submission.CashAmount, submission.VodafoneAmount,
+                        submission.InstaPayAmount, invoice.RemainingAmount, invoice.CustomerName, submission.Note);
+                }
+                catch (Exception ex)
+                {
+                    return ex is SalesDataException data
+                        ? data.Message
+                        : "تعذر حفظ التحصيل في قاعدة البيانات؛ لم يُسجل أي مبلغ.";
+                }
+            }
+
             invoice.CashPaid += submission.CashAmount;
             invoice.VodafoneCashPaid += submission.VodafoneAmount;
             invoice.InstaPayPaid += submission.InstaPayAmount;
@@ -642,7 +782,11 @@ public sealed class CustomersViewModel : ObservableObject
             var keepCustomerId = SelectedCustomerEntry?.Customer.Id;
             RebuildEntriesAndRefresh(selectCustomerId: keepCustomerId);
             notifyExternalFinancialDataChanged?.Invoke();
-            SetStatus($"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber} وتحديث رصيد العميل.", false);
+            SetStatus(
+                repository is not null
+                    ? $"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber} وحفظها في قاعدة البيانات وتحديث رصيد العميل."
+                    : $"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber} وتحديث رصيد العميل.",
+                false);
             return null;
         });
 
