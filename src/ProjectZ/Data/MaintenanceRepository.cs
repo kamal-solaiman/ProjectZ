@@ -306,6 +306,9 @@ WHERE Id = @Id AND IsActive = 1;"))
             return sql.Number switch
             {
                 2601 or 2627 => new MaintenanceDataException("البيانات مكررة: قطعة الغيار مسجلة بالفعل. أعد المحاولة.", sql),
+                208 => new MaintenanceDataException("جدول قطع الغيار غير موجود. شغّل sql/06_CreateFullSchema.sql على الخادم ثم أعد المحاولة.", sql),
+                53 or 4060 => new MaintenanceDataException("لا يمكن الاتصال بقاعدة البيانات. تحقق من اتصال الخادم وتحديثه.", sql),
+                18456 => new MaintenanceDataException("فشل تسجيل الدخول إلى قاعدة البيانات. تحقق من المستخدم وكلمة المرور.", sql),
                 547 => new MaintenanceDataException("لا يمكن إتمام العملية لارتباط السجل بسجل صرف آخر.", sql),
                 1205 => new MaintenanceDataException("تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 229 or 230 => new MaintenanceDataException(

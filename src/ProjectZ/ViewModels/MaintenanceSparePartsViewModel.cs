@@ -233,8 +233,9 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         BeginEditCommand = new RelayCommand<MaintenanceSparePartItem>(BeginEdit);
         DeletePartCommand = new RelayCommand<MaintenanceSparePartItem>(RequestDelete);
 
-        RebuildCategoryFilterOptions();
-        RefreshFilteredSpareParts();
+        // Load the inventory from the database (when a repository is present) and rebuild the
+        // filter/display collections.
+        NotifyExternalDataChanged();
     }
 
     public void NotifyExternalDataChanged()
