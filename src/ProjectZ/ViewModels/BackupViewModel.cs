@@ -260,7 +260,7 @@ public sealed class BackupViewModel : ObservableObject
             RefreshFromDatabase();
             RestoreFilePath = "";
             Changed(nameof(RestoreFilePath));
-            SetStatus($"تم استرجاع النسخة الاحتياطية "{fileToRestore}" بنجاح. تمت إعادة تحميل بيانات القاعدة.", false);
+            SetStatus($"تم استرجاع النسخة الاحتياطية {fileToRestore} بنجاح. تمت إعادة تحميل بيانات القاعدة.", false);
         });
     }
 
