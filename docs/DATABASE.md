@@ -77,7 +77,7 @@
 - `PurchasePayments`: المدفوع للمورد والمسترد منه كحركتين واضحتين، لا كقيمة موجبة غامضة.
 - `PurchaseInvoiceActivities`: تاريخ إجراءات الفاتورة.
 - `vwPurchaseInvoiceSummary`: صافي الشراء والمدفوع والمسترد والمتبقي للمورد.
-- حفظ فاتورة الشراء (`PurchaseRepository.CreateInvoice`) يكتب كل شيء في معاملة `Serializable` واحدة: الرأس ← بند لكل صنف (ويُقرأ `Id` البند من `OUTPUT inserted.Id` لأنه مفتاح ربط القطع) ← قطعة في `InventoryUnits` مع صف ربط في `PurchaseInvoiceLineUnits` وحركة `Supply` في `StockMovements` لكل قطعة ← الدفعات في `PurchasePayments` مع `FinancialTransactions` المرتبطة بالفاتورة ← سطر الأنشطة وسطر `AuditLog`. أي معامل SQL غير مربوط في الاستعلام يُفشل الحفظ كله برسالة 8178، ولهذا يفحص `tools/static_checks.py` كل معاملات أوامر المشتريات.
+- حفظ فاتورة الشراء (`PurchaseRepository.CreateInvoice`) يكتب كل شيء في معاملة `Serializable` واحدة: الرأس ← بند لكل صنف (ويُقرأ `Id` البند من `OUTPUT inserted.Id` لأنه مفتاح ربط القطع) ← قطعة في `InventoryUnits` مع صف ربط في `PurchaseInvoiceLineUnits` وحركة `Supply` في `StockMovements` لكل قطعة ← الدفعات في `PurchasePayments` مع `FinancialTransactions` المرتبطة بالفاتورة ← سطر الأنشطة وسطر `AuditLog`. أي معامل SQL غير مربوط في الاستعلام يُفشل الحفظ كله؛ الخطأ الفعلي الذي أُصلح كان 137 (`@Invoice` في إدراج وحدات المخزون). يفحص `tools/static_checks.py` كل معاملات أوامر المشتريات بما فيها النصوص الحرفية متعددة الأسطر. التفاصيل والاختبار الآلي في [إصلاح حفظ فاتورة الشراء](PURCHASING.md).
 
 ### الصيانة
 
@@ -224,4 +224,4 @@ ORDER BY t.Id DESC;
 - كل المبالغ تُمرَّر بمعاملات `DECIMAL(19,2)` صريحة؛ `AddWithValue` يستنتج `DECIMAL(38,x)` فترفض القاعدة التخزين في عمود `DECIMAL(19,2)`.
 - الحالة والأرصدة تُقرأ دائمًا من القاعدة داخل المعاملة قبل الكتابة، فلا تعتمد الواجهة على نموذج محلي قد يكون قديمًا.
 - الواجهة تعيد تحميل الفواتير والموردين والمخزون بعد كل عملية ناجحة، وتُظهر شارة المصدر «متصل بقاعدة البيانات — SQL Server» بدلًا من شارة «مرحلة التصميم».
-- لا يمكن تشغيل WPF أو SQL Server داخل بيئة الفحص النصي؛ التحقق يعتمد على `tools/static_checks.py` وبناء Windows CI، ويبقى القبول اليدوي على SQL Server 2016 SP1+ مطلوبًا.
+- لا يمكن تشغيل WPF أو SQL Server داخل بيئة الفحص النصي المحلية؛ التحقق المحلي يعتمد على `tools/static_checks.py`. يضيف Windows CI بناء WPF واختبار `PurchaseRepository` على SQL Server LocalDB معزول (إنشاء/تعديل/سداد/تراجع/صلاحيات). يبقى القبول اليدوي على SQL Server 2016 SP1+ وأجهزة LAN مطلوبًا.

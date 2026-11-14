@@ -4,7 +4,7 @@
 
 ## حالة التسليم — غير مكتمل الاعتماد
 
-تم إعداد المصدر والسكربتات وإعدادات النشر والأدلة. **لم يُبنَ EXE في هذه البيئة، ولم يتم تشغيل WPF أو اختبار SQL Server 2016 SP1 فعليًا أو جهازين على LAN.** البيئة Linux بلا .NET SDK أو SQL Server. لا يعد المشروع مكتملًا حتى تنفيذ [سجل القبول](docs/ACCEPTANCE.md) على البيئة المطلوبة. فحص XML أو مراجعة SQL لا يعادل اختبار تشغيل.
+تم إعداد المصدر والسكربتات وإعدادات النشر والأدلة. بناء Windows CI ينتج EXE ويرفع artifact، واختبار SQL آلي يعيد إنتاج خطأ حفظ المشتريات ثم يتحقق من إصلاحه على LocalDB معزول. **لم يُشغّل WPF يدويًا في هذه الجلسة، ولم يُختبر SQL Server 2016 SP1 على أجهزة LAN الفعلية.** بيئة العمل المحلية Linux بلا .NET SDK أو SQL Server؛ اختبارات .NET وSQL تُنفذ في Windows CI. لا يعد المشروع مكتمل الاعتماد حتى تنفيذ [سجل القبول](docs/ACCEPTANCE.md) على البيئة المطلوبة.
 
 ## الملفات
 
@@ -19,6 +19,7 @@
 - [ربط نقطة البيع بقاعدة البيانات](docs/POS_SALES.md): ما يُكتب عند حفظ فاتورة، وحدود المرحلة، وخطوات القبول على Windows وSQL Server.
 - [شاشة التصنيفات وقائمة التصنيف](docs/CATEGORIES.md): ما يُكتب في `dbo.Categories`، وقرار منع حذف التصنيف المستخدم، وخطوات القبول.
 - [شاشة المرتجع والاستبدال](docs/RETURN_EXCHANGE.md): ما يُكتب في `dbo.ReturnExchanges` والبنود والوحدات، وتسوية فرق الاستبدال ماليًا، والربط بالمخزون والفواتير، وخطوات القبول.
+- [إصلاح حفظ فاتورة الشراء](docs/PURCHASING.md): السبب المؤكد للخطأ 137، المعاملات المربوطة، اختبار SQL الآلي، وخطوات النشر دون تعديل بيانات القاعدة.
 - [شاشة المخزون](docs/INVENTORY.md): قراءة الأصناف والوحدات والموردين والتصنيفات وسجل الحركات من SQL، وربط كل إجراء بقاعدة البيانات وباقي الشاشات، وخطوات القبول.
 - [شاشة الاعدادات العامة](docs/GENERAL_SETTINGS.md): بيانات المحل والإعدادات العامة في `dbo.SystemSettings`، وكيف يتغير اسم البرنامج فورًا في القوائم والنوافذ وشاشة الدخول والمطبوعات، وخطوات القبول.
 - [شاشة النسخ الاحتياطي والاسترجاع](docs/BACKUP.md): BACKUP/RESTORE من SQL Server، مسارات جهاز الخادم، الصلاحيات المطلوبة، ومنع الكتابة فوق النسخة السابقة باسم متكرر.
@@ -42,7 +43,7 @@
 - `sql/18_EnableBackupRestore.sql`: يمنح `ProjectZClient` عضوية `db_owner` على قاعدة البيانات وعضوية `dbcreator` على الخادم اللازمتين لـ `BACKUP DATABASE` و`RESTORE DATABASE`. إلزامي قبل أول نسخة احتياطية أو استرجاع؛ idempotent ولا يحذف صلاحيات. التفاصيل في [النسخ الاحتياطي](docs/BACKUP.md).
 - `src/ProjectZ/connectionsettings.json`: إعدادات خارجية؛ يلزم استبدال عنوان الخادم.
 - [تجهيز الجهاز الرئيسي](docs/SERVER.md) · [العملاء وتغيير الخادم والنشر](docs/CLIENTS.md).
-- `.github/workflows/windows-build.yml`: بناء Windows واختبارات hashing ونشر artifact؛ لا يحل محل اختبار SQL/WPF الفعلي.
+- `.github/workflows/windows-build.yml`: بناء Windows واختبارات hashing ونشر artifact، واختبار حفظ المشتريات على SQL Server LocalDB معزول؛ لا يحل محل القبول اليدوي على خادم المحل وWPF/LAN.
 
 ## شاشة الاعدادات العامة واسم البرنامج
 
@@ -66,11 +67,12 @@
 
 ```powershell
 dotnet run --project tests/ProjectZ.Security.Tests -c Release
+pwsh tests/ProjectZ.Purchase.Sql.Tests/Run.ps1
 dotnet build ProjectZ.sln -c Release
 dotnet publish src/ProjectZ/ProjectZ.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o publish/win-x64
 ```
 
-النتيجة المتوقعة بعد نجاح الأمر: `publish/win-x64/ProjectZ.exe` و`connectionsettings.json`. انسخ **محتويات مجلد النشر بالكامل**. ملف الإعدادات مقصود أن يبقى منفصلًا. يمكن أيضًا استخدام ملف تعريف FolderProfile من Visual Studio. من GitHub Actions بعد دفع الفرع وتشغيل workflow، نزّل artifact باسم `ProjectZ-win-x64`؛ لم يتم تشغيله أو رفعه في هذه الجلسة.
+النتيجة المتوقعة بعد نجاح الأمر: `publish/win-x64/ProjectZ.exe` و`connectionsettings.json`. انسخ **محتويات مجلد النشر بالكامل**. ملف الإعدادات مقصود أن يبقى منفصلًا. يمكن أيضًا استخدام ملف تعريف FolderProfile من Visual Studio. من GitHub Actions بعد دفع الفرع وتشغيل workflow، نزّل artifact باسم `ProjectZ-win-x64`. عند التحديث احتفظ بملف `connectionsettings.json` المضبوط للعميل ولا تستبدله بإعدادات خادم آخر.
 
 Microsoft.Data.SqlClient مثبت على **6.1.3** (خط 6.1 LTS ويدعم SQL Server 2016؛ تأكيد اتصال SP1 الفعلي ما زال مطلوبًا). النقل يستخدم SqlConnection وSqlCommand وSqlDataReader وSqlParameter؛ اسم المستخدم parameter من نوع NVARCHAR(100). PBKDF2-HMAC-SHA256 بعدد 600,000 دورة، salt عشوائي 16 بايت، ناتج 32 بايت، ومقارنة ثابتة الزمن. لا تُرسل كلمة مرور مستخدم التطبيق إلى SQL؛ يُجلب hash ويُفحص محليًا. حساب SQL للاتصال مختلف عن حساب التطبيق admin.
 

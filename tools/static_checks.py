@@ -715,6 +715,7 @@ assert 'newLineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
 assert '137 or 8178' in purchase_repository, 'an unbound SQL parameter must be reported instead of a generic save error'
 assert 'SET ARITHABORT ON;' in purchase_repository and 'SET NUMERIC_ROUNDABORT OFF;' in purchase_repository, \
     'purchase writes to filtered indexes must restore the required session options on pooled connections'
+print('PASS: purchase SQL parameter checker covers multiline verbatim commands (SQL 137 regression)')
 print('PASS: purchase invoice screens and the supplier directory read and write SQL Server')
 
 purchase_entry_xaml_path = root / 'src/ProjectZ/Views/PurchaseEntryView.xaml'
@@ -1799,4 +1800,4 @@ string_breaks = [
 ]
 assert not string_breaks, 'unterminated C# string literal (build breaker): ' + ', '.join(string_breaks)
 print('PASS: no C# string literal is left open across lines anywhere in src/ProjectZ')
-print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
+print('NOT RUN locally: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish (Windows CI covers .NET build/tests, publish and isolated LocalDB integration)')
