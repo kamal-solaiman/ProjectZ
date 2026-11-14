@@ -8,15 +8,16 @@ using ProjectZ.Helpers;
 namespace ProjectZ.ViewModels;
 
 /// <summary>
-/// شاشة النسخ الاحتياطي والاسترجاع لقاعدة بيانات ProjectZ.
+/// شاشة النسخ الاحتياطي والاسترجاع لقاعدة البيانات المضبوطة في connectionsettings.json.
 /// جميع العمليات تُنفذ مباشرة على SQL Server عبر BackupRepository، والواجهة تُعلم بالنتيجة بالعربية.
+/// مسارات الملفات تُقيَّم على جهاز SQL Server، وليس على جهاز العميل.
 /// </summary>
 public sealed class BackupViewModel : ObservableObject
 {
     private readonly BackupRepository? repository;
-    private readonly string cashierName;
     private string statusMessage = "";
     private bool isErrorStatus;
+    private bool isBusy;
 
     public ObservableCollection<BackupRepository.BackupFileInfo> AvailableBackups { get; } = [];
     public BackupRepository.DatabaseInfo? DatabaseInfo { get; private set; }
@@ -28,24 +29,68 @@ public sealed class BackupViewModel : ObservableObject
     public string BackupFolderPath
     {
         get => backupFolderPath;
-        set { if (backupFolderPath == value) return; backupFolderPath = value; Changed(); }
+        set
+        {
+            var clean = value ?? "";
+            if (backupFolderPath == clean) return;
+            backupFolderPath = clean;
+            Changed();
+            Changed(nameof(HasBackupFolder));
+            Changed(nameof(EmptyBackupsMessage));
+            // A different folder invalidates the old list; the user refreshes or browses to repopulate it.
+            ClearAvailableBackups();
+        }
     }
 
-    private string backupFileName = $"ProjectZ_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
+    public bool HasBackupFolder => !string.IsNullOrWhiteSpace(BackupFolderPath);
+
+    private string backupFileName = CreateDefaultBackupFileName();
     public string BackupFileName
     {
         get => backupFileName;
-        set { if (backupFileName == value) return; backupFileName = value; Changed(); }
+        set
+        {
+            var clean = value ?? "";
+            if (backupFileName == clean) return;
+            backupFileName = clean;
+            Changed();
+        }
     }
 
     private string restoreFilePath = "";
     public string RestoreFilePath
     {
         get => restoreFilePath;
-        set { if (restoreFilePath == value) return; restoreFilePath = value; Changed(); }
+        set
+        {
+            var clean = value ?? "";
+            if (restoreFilePath == clean) return;
+            restoreFilePath = clean;
+            Changed();
+        }
     }
 
     public bool HasAvailableBackups => AvailableBackups.Count > 0;
+
+    /// <summary>رسالة واضحة عندما لا تكون القائمة محلية أو لا توجد ملفات في المسار.</summary>
+    public string EmptyBackupsMessage => string.IsNullOrWhiteSpace(BackupFolderPath)
+        ? "اختر مجلد النسخ أولًا لعرض الملفات الموجودة فيه."
+        : "لا توجد ملفات .bak في هذا المسار من جهاز العميل. إذا كان SQL Server على جهاز آخر، اكتب مسار الخادم يدويًا أو استخدم مشاركة UNC.";
+
+    /// <summary>True while a backup/restore command is running; the form is disabled to prevent overlap.</summary>
+    public bool IsBusy
+    {
+        get => isBusy;
+        private set
+        {
+            if (isBusy == value) return;
+            isBusy = value;
+            Changed();
+            Changed(nameof(IsIdle));
+        }
+    }
+
+    public bool IsIdle => !IsBusy;
 
     public string StatusMessage
     {
@@ -64,6 +109,7 @@ public sealed class BackupViewModel : ObservableObject
 
     public ActionCommand BrowseBackupFolderCommand { get; }
     public ActionCommand BrowseRestoreFileCommand { get; }
+    public ActionCommand NewBackupFileNameCommand { get; }
     public AsyncCommand BackupCommand { get; }
     public AsyncCommand RestoreCommand { get; }
     public ActionCommand RefreshCommand { get; }
@@ -74,14 +120,16 @@ public sealed class BackupViewModel : ObservableObject
     public Action<Action<string>>? BrowseRestoreFileRequested { get; set; }
     /// <summary>تُنفذ من العرض لفتح نافذة تأكيد قبل الاسترجاع.</summary>
     public Action<ConfirmActionViewModel, Action>? OpenConfirmDialogRequested { get; set; }
+    /// <summary>Raised after a successful restore so the shell can reload data read from the replaced database.</summary>
+    public Action? DatabaseRestored { get; set; }
 
-    public BackupViewModel(string cashierName = "المشرف", BackupRepository? repository = null)
+    public BackupViewModel(BackupRepository? repository = null)
     {
-        this.cashierName = cashierName;
         this.repository = repository;
 
         BrowseBackupFolderCommand = new ActionCommand(BrowseBackupFolder);
         BrowseRestoreFileCommand = new ActionCommand(BrowseRestoreFile);
+        NewBackupFileNameCommand = new ActionCommand(() => BackupFileName = CreateDefaultBackupFileName());
         BackupCommand = new AsyncCommand(ExecuteBackupAsync);
         RestoreCommand = new AsyncCommand(ExecuteRestoreAsync);
         RefreshCommand = new ActionCommand(RefreshFromDatabase);
@@ -117,22 +165,40 @@ public sealed class BackupViewModel : ObservableObject
         }
 
         RefreshAvailableBackups();
-        SetStatus($"تم تحميل معلومات قاعدة بيانات ProjectZ (الحجم: {DatabaseInfo?.SizeDisplay ?? "غير معروف"}).", false);
+        var folderNote = string.IsNullOrWhiteSpace(BackupFolderPath)
+            ? " اختر مجلد النسخ لعرض الملفات الموجودة."
+            : " يمكنك تحديث قائمة الملفات من الزر أعلاه.";
+        SetStatus($"تم تحميل معلومات قاعدة البيانات (الحجم: {DatabaseInfo?.SizeDisplay ?? "غير معروف"}).{folderNote}", false);
     }
 
     private void RefreshAvailableBackups()
     {
-        if (string.IsNullOrWhiteSpace(BackupFolderPath)) return;
+        AvailableBackups.Clear();
+
+        if (repository is null || string.IsNullOrWhiteSpace(BackupFolderPath))
+        {
+            Changed(nameof(HasAvailableBackups));
+            return;
+        }
 
         try
         {
-            var files = repository is null ? [] : repository.GetAvailableBackups(BackupFolderPath);
-            AvailableBackups.Clear();
-            foreach (var file in files)
+            foreach (var file in repository.GetAvailableBackups(BackupFolderPath))
                 AvailableBackups.Add(file);
-            Changed(nameof(HasAvailableBackups));
         }
-        catch { /* تُعرض القائمة فارغة إذا تعذر قراءة المجلد. */ }
+        catch
+        {
+            // القائمة المحلية قد لا تكون متاحة إذا كان الخادم بعيدًا؛ لا نُخفي بقية الشاشة.
+        }
+
+        Changed(nameof(HasAvailableBackups));
+    }
+
+    private void ClearAvailableBackups()
+    {
+        if (AvailableBackups.Count == 0) return;
+        AvailableBackups.Clear();
+        Changed(nameof(HasAvailableBackups));
     }
 
     private void BrowseBackupFolder()
@@ -174,7 +240,13 @@ public sealed class BackupViewModel : ObservableObject
 
     private async Task ExecuteBackupAsync()
     {
-        if (repository is null) return;
+        if (repository is null)
+        {
+            SetStatus("وضع العرض التجريبي: لا يمكن أخذ نسخة بدون قاعدة بيانات.", true);
+            return;
+        }
+
+        if (IsBusy) return;
 
         var folder = BackupFolderPath.Trim();
         var fileName = BackupFileName.Trim();
@@ -185,9 +257,10 @@ public sealed class BackupViewModel : ObservableObject
             return;
         }
 
-        if (!Directory.Exists(folder))
+        if (fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || fileName.Contains('/') || fileName.Contains('\\'))
         {
-            SetStatus("المجلد المحدد غير موجود. اختر مجلدًا صحيحًا.", true);
+            SetStatus("اسم الملف لا يجب أن يحتوي على فواصل مسارات أو رموز غير مسموح بها. اكتب اسم الملف فقط.", true);
             return;
         }
 
@@ -198,8 +271,20 @@ public sealed class BackupViewModel : ObservableObject
             return;
         }
 
-        var fullPath = Path.Combine(folder, fileName);
+        // The path is sent to SQL Server as-is; SQL Server may be on another machine. Do not call
+        // Directory.Exists here, because a valid server path often does not exist on this client.
+        string fullPath;
+        try
+        {
+            fullPath = Path.Combine(folder, fileName);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        {
+            SetStatus("مسار الحفظ غير صالح. راجع اسم المجلد واسم الملف.", true);
+            return;
+        }
 
+        IsBusy = true;
         try
         {
             await repository.BackupDatabaseAsync(fullPath);
@@ -209,7 +294,13 @@ public sealed class BackupViewModel : ObservableObject
             SetStatus(DescribeError(ex, "تعذر أخذ النسخة الاحتياطية."), true);
             return;
         }
+        finally
+        {
+            IsBusy = false;
+        }
 
+        // Never reuse the timestamp of the previous backup: WITH INIT would overwrite that file.
+        BackupFileName = CreateDefaultBackupFileName();
         RefreshAvailableBackups();
         RefreshFromDatabase();
         SetStatus($"تم حفظ النسخة الاحتياطية بنجاح في: {fullPath}", false);
@@ -217,25 +308,33 @@ public sealed class BackupViewModel : ObservableObject
 
     private async Task ExecuteRestoreAsync()
     {
-        if (repository is null) return;
+        if (repository is null)
+        {
+            SetStatus("وضع العرض التجريبي: لا يمكن استرجاع نسخة بدون قاعدة بيانات.", true);
+            return;
+        }
 
-        if (string.IsNullOrWhiteSpace(RestoreFilePath))
+        if (IsBusy) return;
+
+        var path = RestoreFilePath.Trim();
+        if (string.IsNullOrWhiteSpace(path))
         {
             SetStatus("يرجى اختيار ملف نسخة احتياطية (.bak) للاسترجاع أولاً.", true);
             return;
         }
 
-        if (!File.Exists(RestoreFilePath))
+        if (!string.Equals(Path.GetExtension(path), ".bak", StringComparison.OrdinalIgnoreCase))
         {
-            SetStatus("ملف النسخة الاحتياطية غير موجود. اختر ملفًا صحيحًا.", true);
+            SetStatus("يجب أن يكون ملف الاسترجاع بامتداد .bak.", true);
             return;
         }
 
-        var fileToRestore = Path.GetFileName(RestoreFilePath);
+        // Deliberately no File.Exists: the file is read by SQL Server, which may not be this machine.
+        var fileToRestore = Path.GetFileName(path);
         var confirm = new ConfirmActionViewModel(
             "تأكيد استرجاع النسخة الاحتياطية",
             fileToRestore,
-            "سيؤدي استرجاع هذه النسخة إلى استبدال قاعدة بيانات ProjectZ الحالية ببيانات الملف المحدد، وستفقد أي بيانات أُضيفت بعد تاريخ النسخة. تأكد من إغلاق جميع الشاشات التي تستخدم القاعدة قبل المتابعة.",
+            "سيؤدي استرجاع هذه النسخة إلى استبدال قاعدة البيانات الحالية ببيانات الملف المحدد، وستفقد أي بيانات أُضيفت بعد تاريخ النسخة. تأكد من إغلاق جميع الشاشات التي تستخدم القاعدة قبل المتابعة.",
             "استرجاع النسخة");
 
         if (OpenConfirmDialogRequested is null)
@@ -246,22 +345,35 @@ public sealed class BackupViewModel : ObservableObject
 
         OpenConfirmDialogRequested(confirm, async () =>
         {
+            if (IsBusy) return;
+
+            IsBusy = true;
+            var succeeded = false;
             try
             {
-                await repository.RestoreDatabaseAsync(RestoreFilePath);
+                await repository.RestoreDatabaseAsync(path);
+                succeeded = true;
             }
             catch (Exception ex)
             {
                 SetStatus(DescribeError(ex, "تعذر استرجاع النسخة الاحتياطية."), true);
-                return;
+            }
+            finally
+            {
+                IsBusy = false;
             }
 
-            RefreshFromDatabase();
+            if (!succeeded) return;
+
             RestoreFilePath = "";
-            Changed(nameof(RestoreFilePath));
-            SetStatus($"تم استرجاع النسخة الاحتياطية «{fileToRestore}» بنجاح. تمت إعادة تحميل بيانات القاعدة.", false);
+            RefreshFromDatabase();
+            DatabaseRestored?.Invoke();
+            SetStatus($"تم استرجاع النسخة الاحتياطية «{fileToRestore}» بنجاح. تمت إعادة تحميل بيانات القاعدة؛ أعد تحميل بقية الشاشات من أزرار التحديث.", false);
         });
     }
+
+    private static string CreateDefaultBackupFileName()
+        => $"ProjectZ_{DateTime.Now:yyyyMMdd_HHmmss}.bak";
 
     private void SetStatus(string message, bool isError)
     {

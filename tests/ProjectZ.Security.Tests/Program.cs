@@ -64,3 +64,16 @@ Check(StoreIdentity.Current.Headline == "Third", "Headline omits an empty taglin
 var defaults = StoreProfile.Defaults;
 Check(defaults.StoreName == "ProjectZ" && defaults.CurrencyLabel == "ج.م" && defaults.DefaultLowStockAlert == StoreProfile.DefaultLowStockAlertValue,
     "Fallback profile keeps the ProjectZ defaults");
+
+// Closing a screen detaches it from the static identity notifications, but must not re-raise the
+// instance Disconnected event from inside its own handler (that recursed until a stack overflow).
+var closeNotifications = 0;
+void OnScreenClosing()
+{
+    closeNotifications++;
+    StoreIdentity.Disconnect(OnScreenClosing);
+}
+StoreIdentity.Current.Disconnected += OnScreenClosing;
+StoreIdentity.NotifyClosing();
+StoreIdentity.Current.Disconnected -= OnScreenClosing;
+Check(closeNotifications == 1, "Closing a screen does not recurse through StoreIdentity.NotifyClosing");

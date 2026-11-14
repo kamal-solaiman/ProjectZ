@@ -378,7 +378,9 @@ public sealed class MainViewModel : ObservableObject
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
         GeneralSettings = new GeneralSettingsViewModel(user.DisplayName, settingsRepository);
-        Backup = new BackupViewModel(user.DisplayName, backupRepository);
+        Backup = new BackupViewModel(backupRepository);
+        // A restore replaces dbo.SystemSettings too, so re-read the store identity after it finishes.
+        Backup.DatabaseRestored = OnDatabaseRestored;
 
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
@@ -472,7 +474,22 @@ public sealed class MainViewModel : ObservableObject
     /// The store name changed in the general settings. Titles and receipt headers bind to StoreIdentity
     /// directly, so only the strings computed here need a refresh notice.
     /// </summary>
-    private void OnStoreIdentityDisconnected() => StoreIdentity.Disconnect(OnStoreIdentityChanged);
+    private void OnStoreIdentityDisconnected()
+    {
+        StoreIdentity.Disconnect(OnStoreIdentityChanged);
+        // The window is going away; detach the close handler too so the VM is not retained.
+        StoreIdentity.Current.Disconnected -= OnStoreIdentityDisconnected;
+    }
+
+    /// <summary>
+    /// The backup screen replaced the database. Re-read the settings sheet so the window title, sidebar
+    /// and receipts show the restored store name; other screens refresh when the user opens them.
+    /// </summary>
+    private void OnDatabaseRestored()
+    {
+        if (!GeneralSettings.HasUnsavedChanges)
+            GeneralSettings.RefreshFromDatabase();
+    }
 
     private void OnStoreIdentityChanged()
     {

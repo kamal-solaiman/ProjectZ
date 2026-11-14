@@ -13,23 +13,44 @@ public sealed class BackupDataException(string message, Exception? inner = null)
 
 /// <summary>
 /// نسخ احتياطي لقاعدة بيانات ProjectZ واسترجاعها مباشرة من SQL Server عبر أوامر
-/// <c>BACKUP DATABASE</c> و <c>RESTORE DATABASE</c>. جميع مسارات الملفات تُتحقق منها من جانب العميل
-/// قبل إرسال أي أمر إلى قاعدة البيانات، واسم القاعدة يُثبت من الإعدادات ولا يُقبل من المستخدم.
+/// <c>BACKUP DATABASE</c> و <c>RESTORE DATABASE</c>. مسار الملف يُرسل إلى SQL Server ويُقيَّم هناك،
+/// لذا يعمل مع مسار محلي على الخادم أو مشاركة UNC؛ واسم القاعدة يُثبت من الإعدادات ولا يُقبل من المستخدم.
 /// </summary>
 public sealed class BackupRepository(ConnectionSettingsProvider settings)
 {
-    private const string DatabaseName = "ProjectZ";
     // لا مهلة للأوامر: أخذ النسخة والاسترجاع قد يستغرقان وقتًا طويلًا حسب حجم القاعدة.
     private const int CommandTimeoutSeconds = 0;
+
+    /// <summary>
+    /// اسم القاعدة الفعلي من connectionsettings.json، وليس ثابتًا. كل شاشات البرنامج تتصل
+    /// بالقاعدة Configured هناك، والنسخ الاحتياطي يجب أن يتبعها بدل قاعدة ProjectZ مفترضة.
+    /// </summary>
+    private string DatabaseName
+    {
+        get
+        {
+            var builder = new SqlConnectionStringBuilder(settings.GetConnectionString());
+            var name = builder.InitialCatalog;
+            if (string.IsNullOrWhiteSpace(name))
+                throw new BackupDataException("اسم قاعدة البيانات (Database) غير محدد في connectionsettings.json.");
+
+            return name.Trim();
+        }
+    }
+
+    /// <summary>يضع اسم القاعدة بين أقواس SQL مع تهريب القوس المغلق؛ الاسم مقروء من الإعدادات لا من المستخدم.</summary>
+    private static string QuoteIdentifier(string name) => "[" + name.Replace("]", "]]", StringComparison.Ordinal) + "]";
 
     /// <summary>معلومات عن قاعدة البيانات الحالية للعرض في الشاشة.</summary>
     public sealed class DatabaseInfo
     {
         public long SizeBytes { get; init; }
         public string SizeDisplay => FormatSize(SizeBytes);
-        public DateTime? LastBackupUtc { get; init; }
-        public string LastBackupDisplay => LastBackupUtc is { } last
-            ? last.ToLocalTime().ToString("yyyy/MM/dd HH:mm", CultureInfo.CurrentCulture)
+        // backup_start_date is written by SQL Server in the server's local time, not UTC. Converting
+        // it again adds the client offset and shows a misleading timestamp.
+        public DateTime? LastBackupAt { get; init; }
+        public string LastBackupDisplay => LastBackupAt is { } last
+            ? last.ToString("yyyy/MM/dd HH:mm", CultureInfo.CurrentCulture)
             : "غير معروف";
     }
 
@@ -84,7 +105,7 @@ FROM sys.database_files;";
             throw Describe(ex, "تعذر قراءة حجم قاعدة البيانات من SQL Server.");
         }
 
-        DateTime? lastBackupUtc = null;
+        DateTime? lastBackupAt = null;
         try
         {
             using var connection = OpenConnection();
@@ -99,8 +120,7 @@ ORDER BY backup_start_date DESC;";
             using var reader = command.ExecuteReader();
             if (reader.Read())
             {
-                var value = reader.GetDateTime(0);
-                lastBackupUtc = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+                lastBackupAt = reader.GetDateTime(0);
             }
         }
         catch (Exception ex) when (ex is SqlException or InvalidOperationException)
@@ -108,7 +128,7 @@ ORDER BY backup_start_date DESC;";
             // جدول msdb.dbo.backupset قد يكون غير متاح لهذا الحساب؛ لا تُوقف الشاشة بسببه، بل تُعرض "غير معروف".
         }
 
-        return new DatabaseInfo { SizeBytes = sizeBytes, LastBackupUtc = lastBackupUtc };
+        return new DatabaseInfo { SizeBytes = sizeBytes, LastBackupAt = lastBackupAt };
     }
 
     /// <summary>ملفات النسخ الاحتياطي (*.bak) في المجلد المحدد، الأحدث أولاً.</summary>
@@ -152,10 +172,10 @@ ORDER BY backup_start_date DESC;";
             await using var connection = new SqlConnection(settings.GetConnectionString());
             await connection.OpenAsync(cancellationToken);
 
-            // اسم القاعدة ثابت من الإعدادات؛ المسار يمر كمعامل سيكور (SqlParameter) لحماية المسار من حقن الأوامر.
+            // اسم القاعدة مقروء من connectionsettings.json؛ المسار يمر كمعامل سيكور (SqlParameter) لحماية المسار من حقن الأوامر.
             using var command = connection.CreateCommand();
             command.CommandText = @$"
-BACKUP DATABASE [{DatabaseName}]
+BACKUP DATABASE {QuoteIdentifier(DatabaseName)}
 TO DISK = @Path
 WITH INIT, FORMAT, CHECKSUM;";
             command.CommandTimeout = CommandTimeoutSeconds;
@@ -179,7 +199,14 @@ WITH INIT, FORMAT, CHECKSUM;";
 
         try
         {
-            await using var connection = new SqlConnection(settings.GetConnectionString());
+            // The target database is about to go SINGLE_USER and be replaced. A connection whose
+            // Initial Catalog is the configured database would itself keep that database busy, so
+            // the restore runs from master exactly like SSMS does.
+            var masterConnectionString = new SqlConnectionStringBuilder(settings.GetConnectionString())
+            {
+                InitialCatalog = "master"
+            }.ConnectionString;
+            await using var connection = new SqlConnection(masterConnectionString);
             await connection.OpenAsync(cancellationToken);
 
             try
@@ -188,7 +215,7 @@ WITH INIT, FORMAT, CHECKSUM;";
                 using (var singleUser = connection.CreateCommand())
                 {
                     singleUser.CommandText = @$"
-ALTER DATABASE [{DatabaseName}]
+ALTER DATABASE {QuoteIdentifier(DatabaseName)}
 SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
                     singleUser.CommandTimeout = CommandTimeoutSeconds;
                     await singleUser.ExecuteNonQueryAsync(cancellationToken);
@@ -197,7 +224,7 @@ SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
                 using (var restore = connection.CreateCommand())
                 {
                     restore.CommandText = @$"
-RESTORE DATABASE [{DatabaseName}]
+RESTORE DATABASE {QuoteIdentifier(DatabaseName)}
 FROM DISK = @Path
 WITH REPLACE, RECOVERY;";
                     restore.CommandTimeout = CommandTimeoutSeconds;
@@ -211,7 +238,7 @@ WITH REPLACE, RECOVERY;";
                 {
                     using var multiUser = connection.CreateCommand();
                     multiUser.CommandText = @$"
-ALTER DATABASE [{DatabaseName}]
+ALTER DATABASE {QuoteIdentifier(DatabaseName)}
 SET MULTI_USER;";
                     multiUser.CommandTimeout = CommandTimeoutSeconds;
                     await multiUser.ExecuteNonQueryAsync(cancellationToken);
@@ -229,7 +256,7 @@ SET MULTI_USER;";
         }
     }
 
-    /// <summary>يتحقق من المسار ويضمن امتداد .bak وم Presence المجلد عند المطالبة.</summary>
+    /// <summary>يتحقق من شكل المسار ويضمن امتداد .bak؛ وجود المجلد يُترك لـ SQL Server.</summary>
     private static string NormalizeBackupPath(string backupFilePath, bool requireExistingDirectory)
     {
         if (string.IsNullOrWhiteSpace(backupFilePath))
@@ -240,8 +267,8 @@ SET MULTI_USER;";
         if (string.IsNullOrEmpty(directory))
             throw new BackupDataException("مسار الملف غير صالح.");
 
-        if (requireExistingDirectory && !Directory.Exists(directory))
-            throw new BackupDataException($"المجلد غير موجود: {directory}");
+        // Kept for source compatibility: paths are evaluated by SQL Server, not by this client.
+        _ = requireExistingDirectory;
 
         var extension = Path.GetExtension(path);
         if (!string.Equals(extension, ".bak", StringComparison.OrdinalIgnoreCase))
@@ -253,16 +280,24 @@ SET MULTI_USER;";
     private static BackupDataException Describe(Exception exception, string fallback)
     {
         if (exception is BackupDataException data) return data;
+        if (exception is ConnectionConfigurationException configuration)
+            return new BackupDataException(configuration.Message, configuration);
         if (exception is SqlException sql)
         {
             return sql.Number switch
             {
-                229 or 230 => new BackupDataException(
+                229 or 230 or 262 => new BackupDataException(
                     "حساب الاتصال لا يملك صلاحية النسخ الاحتياطي أو الاسترجاع على قاعدة البيانات. " +
-                    "منح حساب ProjectZClient دور db_owner على قاعدة ProjectZ ودور dbcreator على الخادم (انظر docs/BACKUP.md).",
+                    "منح حساب ProjectZClient دور db_owner على قاعدة البيانات المضبوطة ودور dbcreator على الخادم (انظر docs/BACKUP.md).",
                     sql),
                 3101 => new BackupDataException("فشل النسخ الاحتياطي: لا يمكن كتابة ملف النسخة في المسار المحدد.", sql),
+                3201 => new BackupDataException(
+                    "تعذّر على SQL Server فتح مسار ملف النسخة. المسار يُقرأ على جهاز SQL Server نفسه، وليس على جهاز العميل؛ " +
+                    "تأكد من وجود المجلد على الخادم أو من مشاركة UNC يصل إليها حساب خدمة SQL Server.", sql),
+                3202 => new BackupDataException("تعذّر على SQL Server قراءة ملف النسخة الاحتياطية. تحقق من المسار وصلاحية القراءة.", sql),
+                3204 => new BackupDataException("تعذّر تجهيز جهاز النسخ الاحتياطي على SQL Server. تحقق من المسار والمساحة المتاحة.", sql),
                 3203 => new BackupDataException("فشل استرجاع النسخة: ملف النسخة الاحتياطي تالف أو غير صحيح.", sql),
+                3013 => new BackupDataException($"فشلت عملية SQL Server: {sql.Message}", sql),
                 3159 => new BackupDataException("فشل الاسترجاع لأن القاعدة مستخدمة من مستخدمين آخرين. أغلق الشاشات الأخرى وحاول مرة أخرى.", sql),
                 18456 => new BackupDataException("فشل تسجيل الدخول إلى SQL Server. تأكد من اسم المستخدم وكلمة المرور في connectionsettings.json.", sql),
                 2 => new BackupDataException("تعذر الاتصال بخادم SQL Server. تأكد من عنوان الخادم (Server) في connectionsettings.json.", sql),

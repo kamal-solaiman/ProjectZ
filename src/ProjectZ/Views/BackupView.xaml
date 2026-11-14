@@ -6,45 +6,48 @@
 
     <UserControl.Resources>
         <Style x:Key="BackupCardTitle" TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#102E48" />
+        </Style>
+        <Style x:Key="BackupLabel" TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
+            <Setter Property="FontSize" Value="12.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#475569" />
-            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style x:Key="BackupHint" TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Foreground" Value="#64748B" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="BackupMetricValue" TargetType="TextBlock" BasedOn="{StaticResource PosCenterTextStyle}">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="Bold" />
         </Style>
     </UserControl.Resources>
 
-    <Grid FlowDirection="LeftToRight">
+    <Grid FlowDirection="LeftToRight" Margin="16,14">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- ROW 0: Header strip -->
+        <!-- Header: title and connection state stay right aligned; the refresh action gets its own
+             row so it cannot collide with the Arabic title at the 960 px minimum. -->
         <Grid Grid.Row="0" Margin="0,0,0,12" FlowDirection="LeftToRight">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-            <Button Grid.Column="0"
-                    Content="تحديث"
-                    Style="{StaticResource PosOutlineTealButtonStyle}"
-                    Padding="12,7"
-                    FontSize="12.5"
-                    VerticalAlignment="Center"
-                    Command="{Binding RefreshCommand}" />
-
-            <StackPanel Grid.Column="1"
+            <StackPanel Grid.Row="0"
                         Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         FlowDirection="RightToLeft">
-                <TextBlock Text="النسخ الاحتياطي"
+                <TextBlock Text="النسخ الاحتياطي والاسترجاع"
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="21"
                            FontWeight="Bold"
@@ -83,299 +86,288 @@
                     </TextBlock>
                 </Border>
             </StackPanel>
+
+            <StackPanel Grid.Row="1"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Left"
+                        Margin="0,8,0,0"
+                        FlowDirection="LeftToRight">
+                <Button Content="تحديث"
+                        Style="{StaticResource PosOutlineTealButtonStyle}"
+                        Padding="12,7"
+                        FontSize="12.5"
+                        Command="{Binding RefreshCommand}"
+                        IsEnabled="{Binding IsIdle}" />
+            </StackPanel>
         </Grid>
 
-        <!-- ROW 1: Database info card -->
-        <Border Grid.Row="1"
-                Margin="0,0,0,12"
-                Padding="14"
-                CornerRadius="14"
-                Background="#F8FAFC"
-                BorderBrush="#E2E8F0"
-                BorderThickness="1"
-                FlowDirection="LeftToRight"
-                Visibility="{Binding HasDatabaseInfo, Converter={StaticResource BoolToVis}}">
-            <Grid FlowDirection="LeftToRight">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+        <!-- The whole page scrolls, so 960x560 and 200% DPI never hide the status or restore button. -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      FlowDirection="LeftToRight">
+            <StackPanel Margin="0,0,4,0" FlowDirection="LeftToRight">
 
-                <Border Grid.Column="0"
-                        Padding="12,10"
-                        CornerRadius="10"
-                        Background="#EFF6FF"
-                        BorderBrush="#BFDBFE"
-                        BorderThickness="1">
-                    <TextBlock Text="{Binding DatabaseInfo.SizeDisplay}"
-                               Style="{StaticResource PosCenterTextStyle}"
-                               FontSize="14"
-                               FontWeight="Bold"
-                               Foreground="#1D4ED8" />
-                </Border>
-                <TextBlock Grid.Column="0"
-                           Text="حجم القاعدة"
-                           Style="{StaticResource PosRtlTextStyle}"
-                           FontSize="11.5"
-                           FontWeight="SemiBold"
-                           Foreground="#64748B"
-                           VerticalAlignment="Bottom"
-                           Margin="0,0,0,2" />
-
-                <Border Grid.Column="2"
-                        Padding="12,10"
-                        CornerRadius="10"
-                        Background="#ECFDF5"
-                        BorderBrush="#A7F3D0"
-                        BorderThickness="1">
-                    <TextBlock Text="{Binding DatabaseInfo.LastBackupDisplay}"
-                               Style="{StaticResource PosCenterTextStyle}"
-                               FontSize="14"
-                               FontWeight="Bold"
-                               Foreground="#047857" />
-                </Border>
-                <TextBlock Grid.Column="2"
-                           Text="آخر نسخة مسجلة"
-                           Style="{StaticResource PosRtlTextStyle}"
-                           FontSize="11.5"
-                           FontWeight="SemiBold"
-                           Foreground="#64748B"
-                           VerticalAlignment="Bottom"
-                           Margin="0,0,0,2" />
-
-                <TextBlock Grid.Column="4"
-                           Text="معلومات تُقرأ مباشرة من جداول SQL Server (sys.database_files و msdb.dbo.backupset)."
-                           Style="{StaticResource PosRtlTextStyle}"
-                           VerticalAlignment="Center"
-                           FontSize="11.5"
-                           Foreground="#94A3B8" />
-            </Grid>
-        </Border>
-
-        <!-- ROW 2: Backup card -->
-        <Border Grid.Row="2"
-                Margin="0,0,0,12"
-                Padding="16"
-                CornerRadius="14"
-                Background="White"
-                BorderBrush="#E2E8F0"
-                BorderThickness="1"
-                FlowDirection="LeftToRight">
-            <Grid FlowDirection="LeftToRight">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0"
-                           Text="أخذ نسخة احتياطية من قاعدة البيانات"
-                           Style="{StaticResource BackupCardTitle}" />
-
-                <!-- Folder -->
-                <Grid Grid.Row="1" Margin="0,0,0,10" FlowDirection="LeftToRight">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="150" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBox Grid.Column="0"
-                             Style="{StaticResource PosCompactTextBoxStyle}"
-                             FlowDirection="LeftToRight"
-                             Text="{Binding BackupFolderPath, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock Grid.Column="0"
-                               Text="اختر مجلد الحفظ..."
-                               Style="{StaticResource PosRtlTextStyle}"
-                               VerticalAlignment="Center"
-                               FontSize="12.5"
-                               Foreground="#94A3B8"
-                               IsHitTestVisible="False"
-                               Visibility="{Binding BackupFolderPath, Converter={StaticResource StringEmptyToVis}}" />
-
-                    <Button Grid.Column="2"
-                            Content="استعراض"
-                            Style="{StaticResource PosSecondaryButtonStyle}"
-                            Padding="14,7"
-                            MinHeight="36"
-                            Command="{Binding BrowseBackupFolderCommand}" />
-                </Grid>
-
-                <!-- File name -->
-                <Grid Grid.Row="2" FlowDirection="LeftToRight">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="150" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBox Grid.Column="0"
-                             Style="{StaticResource PosCompactTextBoxStyle}"
-                             FlowDirection="LeftToRight"
-                             Text="{Binding BackupFileName, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock Grid.Column="0"
-                               Text="اسم ملف النسخة (مثلاً ProjectZ_20261114_1200.bak)"
-                               Style="{StaticResource PosRtlTextStyle}"
-                               VerticalAlignment="Center"
-                               FontSize="12.5"
-                               Foreground="#94A3B8"
-                               IsHitTestVisible="False"
-                               Visibility="{Binding BackupFileName, Converter={StaticResource StringEmptyToVis}}" />
-
-                    <Button Grid.Column="2"
-                            Content="أخذ النسخة الاحتياطية"
-                            Style="{StaticResource PosPrimaryCompactButtonStyle}"
-                            Padding="16,7"
-                            MinHeight="36"
-                            Command="{Binding BackupCommand}" />
-                </Grid>
-
-            </Grid>
-        </Border>
-
-        <!-- ROW 3: Restore card -->
-        <Border Grid.Row="3"
-                Margin="0,0,0,12"
-                Padding="16"
-                CornerRadius="14"
-                Background="#FEF2F2"
-                BorderBrush="#FECACA"
-                BorderThickness="1"
-                FlowDirection="LeftToRight">
-            <Grid FlowDirection="LeftToRight">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <TextBlock Grid.Row="0"
-                           Text="استرجاع نسخة احتياطية لقاعدة البيانات"
-                           Style="{StaticResource BackupCardTitle}" />
-
-                <!-- File -->
-                <Grid Grid.Row="1" Margin="0,0,0,10" FlowDirection="LeftToRight">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="150" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBox Grid.Column="0"
-                             Style="{StaticResource PosCompactTextBoxStyle}"
-                             FlowDirection="LeftToRight"
-                             Text="{Binding RestoreFilePath, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock Grid.Column="0"
-                               Text="اختر ملف النسخة (.bak)..."
-                               Style="{StaticResource PosRtlTextStyle}"
-                               VerticalAlignment="Center"
-                               FontSize="12.5"
-                               Foreground="#94A3B8"
-                               IsHitTestVisible="False"
-                               Visibility="{Binding RestoreFilePath, Converter={StaticResource StringEmptyToVis}}" />
-
-                    <Button Grid.Column="2"
-                            Content="استعراض"
-                            Style="{StaticResource PosSecondaryButtonStyle}"
-                            Padding="14,7"
-                            MinHeight="36"
-                            Command="{Binding BrowseRestoreFileCommand}" />
-                </Grid>
-
-                <Button Grid.Row="2"
-                        Content="استرجاع النسخة الاحتياطية المحددة"
-                        Style="{StaticResource PosDangerButtonStyle}"
-                        Padding="16,9"
-                        MinHeight="38"
-                        HorizontalAlignment="Right"
-                        Command="{Binding RestoreCommand}" />
-
-            </Grid>
-        </Border>
-
-        <!-- ROW 4: Available backups in the selected folder -->
-        <Border Grid.Row="4"
-                Margin="0,0,0,12"
-                Padding="16"
-                CornerRadius="14"
-                Background="White"
-                BorderBrush="#E2E8F0"
-                BorderThickness="1"
-                FlowDirection="LeftToRight"
-                Visibility="{Binding HasAvailableBackups, Converter={StaticResource BoolToVis}}">
-            <Grid FlowDirection="LeftToRight">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Row="0" Grid.Column="0"
-                           Text="نسخ احتياطية موجودة في المجلد المحدد (الأحدث أولاً)"
-                           Style="{StaticResource BackupCardTitle}" />
-                <Button Grid.Row="0" Grid.Column="1"
-                        Content="تحديث القائمة"
-                        Style="{StaticResource PosOutlineTealButtonStyle}"
-                        Padding="10,6"
-                        FontSize="12"
-                        Command="{Binding RefreshCommand}" HorizontalAlignment="Right" />
-
-                <ItemsControl Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                              ItemsSource="{Binding AvailableBackups}"
-                              HorizontalAlignment="Stretch">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Padding="10,6"
-                                    BorderBrush="#F1F5F9"
-                                    BorderThickness="0,0,0,1"
-                                    Background="White">
-                                <Grid FlowDirection="RightToLeft">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="120" />
-                                        <ColumnDefinition Width="150" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock Grid.Column="0"
-                                               Text="{Binding Name}"
-                                               Style="{StaticResource PosRtlTextStyle}"
-                                               VerticalAlignment="Center"
-                                               FontSize="13"
-                                               FontWeight="SemiBold"
-                                               Foreground="#172B41"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding LengthDisplay}"
-                                               Style="{StaticResource PosCenterTextStyle}"
-                                               VerticalAlignment="Center"
-                                               FontSize="12"
-                                               Foreground="#64748B" />
-                                    <TextBlock Grid.Column="2"
-                                               Text="{Binding LastWriteDisplay}"
-                                               Style="{StaticResource PosCenterTextStyle}"
-                                               VerticalAlignment="Center"
-                                               FontSize="12"
-                                               FlowDirection="LeftToRight"
-                                               Foreground="#64748B" />
-                                </Grid>
+                <!-- Database facts: label above value, never overlaid in the same grid cell. -->
+                <Border Padding="14"
+                        CornerRadius="14"
+                        Background="#F8FAFC"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        Visibility="{Binding HasDatabaseInfo, Converter={StaticResource BoolToVis}}">
+                    <StackPanel FlowDirection="LeftToRight">
+                        <WrapPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                            <Border Width="250" Margin="0,0,0,8" Padding="12,10" CornerRadius="10"
+                                    Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
+                                <StackPanel FlowDirection="RightToLeft">
+                                    <TextBlock Text="حجم قاعدة البيانات" Style="{StaticResource BackupHint}" />
+                                    <TextBlock Text="{Binding DatabaseInfo.SizeDisplay}"
+                                               Style="{StaticResource BackupMetricValue}"
+                                               Foreground="#1D4ED8" />
+                                </StackPanel>
                             </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </Grid>
-        </Border>
+                            <Border Width="250" Margin="0,0,0,8" Padding="12,10" CornerRadius="10"
+                                    Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1">
+                                <StackPanel FlowDirection="RightToLeft">
+                                    <TextBlock Text="آخر نسخة مسجلة في msdb" Style="{StaticResource BackupHint}" />
+                                    <TextBlock Text="{Binding DatabaseInfo.LastBackupDisplay}"
+                                               Style="{StaticResource BackupMetricValue}"
+                                               Foreground="#047857" />
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+                        <TextBlock Text="القيم تُقرأ مباشرة من SQL Server: sys.database_files و msdb.dbo.backupset. توقيت آخر نسخة هو توقيت جهاز SQL Server."
+                                   Style="{StaticResource BackupHint}" />
+                    </StackPanel>
+                </Border>
 
-        <!-- ROW 5: spacer -->
-        <Grid Grid.Row="5" />
+                <!-- Backup actions -->
+                <Border Margin="0,12,0,0"
+                        Padding="16"
+                        CornerRadius="14"
+                        Background="White"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        IsEnabled="{Binding IsDatabaseBacked}">
+                    <StackPanel FlowDirection="LeftToRight">
+                        <TextBlock Text="إنشاء نسخة احتياطية" Style="{StaticResource BackupCardTitle}" />
+                        <TextBlock Margin="0,4,0,12"
+                                   Text="اكتب مسارًا على جهاز SQL Server أو مشاركة UNC يراه حساب خدمة SQL Server. زر الاستعراض يختار مجلدًا من هذا الجهاز فقط."
+                                   Style="{StaticResource BackupHint}" />
 
-        <!-- ROW 6: Status strip -->
-        <Border Grid.Row="6"
+                        <TextBlock Text="مجلد الحفظ (على جهاز SQL Server)" Style="{StaticResource BackupLabel}" />
+                        <Grid FlowDirection="LeftToRight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="130" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0">
+                                <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                         FlowDirection="LeftToRight"
+                                         TextAlignment="Left"
+                                         Text="{Binding BackupFolderPath, UpdateSourceTrigger=PropertyChanged}"
+                                         IsEnabled="{Binding IsIdle}"
+                                         AutomationProperties.Name="مجلد النسخ الاحتياطي" />
+                                <TextBlock Text="مثال: C:\ProjectZ\Backups أو \\SERVER\Backups"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="#94A3B8"
+                                           IsHitTestVisible="False"
+                                           Visibility="{Binding BackupFolderPath, Converter={StaticResource StringEmptyToVis}}" />
+                            </Grid>
+                            <Button Grid.Column="2"
+                                    Content="استعراض"
+                                    Style="{StaticResource PosSecondaryButtonStyle}"
+                                    Padding="12,7"
+                                    MinHeight="36"
+                                    Command="{Binding BrowseBackupFolderCommand}"
+                                    IsEnabled="{Binding IsIdle}" />
+                        </Grid>
+
+                        <TextBlock Text="اسم ملف النسخة (.bak)" Style="{StaticResource BackupLabel}" Margin="0,12,0,6" />
+                        <Grid FlowDirection="LeftToRight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="130" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Style="{StaticResource PosCompactTextBoxStyle}"
+                                     FlowDirection="LeftToRight"
+                                     TextAlignment="Left"
+                                     Text="{Binding BackupFileName, UpdateSourceTrigger=PropertyChanged}"
+                                     IsEnabled="{Binding IsIdle}"
+                                     AutomationProperties.Name="اسم ملف النسخة الاحتياطية" />
+                            <Button Grid.Column="2"
+                                    Content="اسم جديد"
+                                    Style="{StaticResource PosOutlineTealButtonStyle}"
+                                    Padding="10,6"
+                                    FontSize="12"
+                                    Command="{Binding NewBackupFileNameCommand}"
+                                    IsEnabled="{Binding IsIdle}" />
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Right"
+                                    FlowDirection="RightToLeft"
+                                    Margin="0,14,0,0">
+                            <Button Content="أخذ النسخة الاحتياطية"
+                                    Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                                    Padding="18,9"
+                                    MinHeight="38"
+                                    Command="{Binding BackupCommand}"
+                                    IsEnabled="{Binding IsIdle}" />
+                            <TextBlock Text="يُستبدل أي ملف موجود بنفس الاسم (WITH INIT, FORMAT)."
+                                       Style="{StaticResource BackupHint}"
+                                       VerticalAlignment="Center"
+                                       Margin="10,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Restore actions -->
+                <Border Margin="0,12,0,0"
+                        Padding="16"
+                        CornerRadius="14"
+                        Background="#FEF2F2"
+                        BorderBrush="#FECACA"
+                        BorderThickness="1"
+                        IsEnabled="{Binding IsDatabaseBacked}">
+                    <StackPanel FlowDirection="LeftToRight">
+                        <TextBlock Text="استرجاع نسخة احتياطية" Style="{StaticResource BackupCardTitle}" />
+                        <TextBlock Margin="0,4,0,12"
+                                   Text="الاسترجاع يستبدل قاعدة البيانات الحالية بالكامل. أغلق بقية الشاشات، وتأكد أن الملف موجود على جهاز SQL Server. ستتم إعادة القاعدة إلى وضع MULTI_USER حتى لو فشلت العملية."
+                                   Style="{StaticResource BackupHint}"
+                                   Foreground="#991B1B" />
+
+                        <TextBlock Text="مسار ملف النسخة على جهاز SQL Server" Style="{StaticResource BackupLabel}" />
+                        <Grid FlowDirection="LeftToRight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="130" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0">
+                                <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                         FlowDirection="LeftToRight"
+                                         TextAlignment="Left"
+                                         Text="{Binding RestoreFilePath, UpdateSourceTrigger=PropertyChanged}"
+                                         IsEnabled="{Binding IsIdle}"
+                                         AutomationProperties.Name="مسار ملف الاسترجاع" />
+                                <TextBlock Text="مثال: C:\ProjectZ\Backups\ProjectZ_20261114_1200.bak"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="#94A3B8"
+                                           IsHitTestVisible="False"
+                                           Visibility="{Binding RestoreFilePath, Converter={StaticResource StringEmptyToVis}}" />
+                            </Grid>
+                            <Button Grid.Column="2"
+                                    Content="استعراض"
+                                    Style="{StaticResource PosSecondaryButtonStyle}"
+                                    Padding="12,7"
+                                    MinHeight="36"
+                                    Command="{Binding BrowseRestoreFileCommand}"
+                                    IsEnabled="{Binding IsIdle}" />
+                        </Grid>
+
+                        <Button Content="استرجاع النسخة الاحتياطية المحددة"
+                                Style="{StaticResource PosDangerButtonStyle}"
+                                Margin="0,14,0,0"
+                                Padding="18,9"
+                                MinHeight="38"
+                                HorizontalAlignment="Right"
+                                Command="{Binding RestoreCommand}"
+                                IsEnabled="{Binding IsIdle}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Local .bak discovery is best effort; a server path may not be readable from this client. -->
+                <Border Margin="0,12,0,0"
+                        Padding="16"
+                        CornerRadius="14"
+                        Background="White"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1">
+                    <StackPanel FlowDirection="LeftToRight">
+                        <Grid FlowDirection="LeftToRight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="نسخ موجودة في المجلد (من جهاز العميل)"
+                                       Style="{StaticResource BackupCardTitle}" />
+                            <Button Grid.Column="1"
+                                    Content="تحديث القائمة"
+                                    Style="{StaticResource PosOutlineTealButtonStyle}"
+                                    Padding="10,6"
+                                    FontSize="12"
+                                    Command="{Binding RefreshCommand}"
+                                    IsEnabled="{Binding IsIdle}" />
+                        </Grid>
+                        <TextBlock Margin="0,4,0,8"
+                                   Text="هذه القائمة للاطلاع فقط؛ ملفات SQL Server قد لا تكون مرئية من هذا الجهاز. استخدم المسار الكامل في بطاقة الاسترجاع."
+                                   Style="{StaticResource BackupHint}" />
+
+                        <TextBlock Text="{Binding EmptyBackupsMessage}"
+                                   Style="{StaticResource BackupHint}"
+                                   Margin="0,4,0,4"
+                                   Visibility="{Binding HasAvailableBackups, Converter={StaticResource InverseBoolToVis}}" />
+
+                        <ScrollViewer MaxHeight="190"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Visibility="{Binding HasAvailableBackups, Converter={StaticResource BoolToVis}}">
+                            <ItemsControl ItemsSource="{Binding AvailableBackups}" HorizontalAlignment="Stretch">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="10,7"
+                                                BorderBrush="#F1F5F9"
+                                                BorderThickness="0,0,0,1"
+                                                Background="White">
+                                            <Grid FlowDirection="RightToLeft">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="90" />
+                                                    <ColumnDefinition Width="130" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Name}"
+                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="12.5"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#172B41"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding LengthDisplay}"
+                                                           Style="{StaticResource PosCenterTextStyle}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="11.5"
+                                                           Foreground="#64748B" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding LastWriteDisplay}"
+                                                           Style="{StaticResource PosCenterTextStyle}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="11.5"
+                                                           FlowDirection="LeftToRight"
+                                                           Foreground="#64748B" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Status strip stays outside the scroll area so the result is always visible. -->
+        <Border Grid.Row="2"
                 Margin="0,10,0,0"
                 Padding="12,8"
                 CornerRadius="10"
@@ -412,4 +404,3 @@
         </Border>
     </Grid>
 </UserControl>
-

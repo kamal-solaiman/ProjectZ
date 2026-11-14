@@ -48,6 +48,12 @@ IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'PrintFooter
     INSERT dbo.SystemSettings(SettingKey, SettingValue, ValueType, Description)
     VALUES (N'PrintFooterNote', N'شكرًا لتعاملكم معنا · يُرجى الاحتفاظ بالفاتورة للضمان والاستبدال', N'string',
             N'عبارة أسفل الفواتير والإيصالات');
+IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'CurrencyNameAr')
+    INSERT dbo.SystemSettings(SettingKey, SettingValue, ValueType, Description)
+    VALUES (N'CurrencyNameAr', N'ج.م', N'string', N'رمز العملة الظاهر بجوار المبالغ');
+IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'CurrencyCode')
+    INSERT dbo.SystemSettings(SettingKey, SettingValue, ValueType, Description)
+    VALUES (N'CurrencyCode', N'EGP', N'string', N'كود العملة ISO');
 IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'DefaultLowStockAlert')
     INSERT dbo.SystemSettings(SettingKey, SettingValue, ValueType, Description)
     VALUES (N'DefaultLowStockAlert', N'5', N'integer', N'حد التنبيه الافتراضي للمخزون عند إضافة صنف');

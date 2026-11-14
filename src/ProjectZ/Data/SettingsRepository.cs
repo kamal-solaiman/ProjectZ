@@ -41,7 +41,7 @@ public sealed class SettingsRepository(ConnectionSettingsProvider settings, int 
 
     /// <summary>
     /// Loads the store profile. Missing keys fall back to the ProjectZ defaults, so the screen works on a
-    /// database where sql/16_EnableGeneralSettings.sql was not run yet (saving is what needs the grant).
+    /// database where sql/17_EnableGeneralSettings.sql was not run yet (saving is what needs the grant).
     /// </summary>
     public StoreProfile Load()
     {
@@ -203,16 +203,19 @@ VALUES(@Key, @Value, @Type, @Description, @Actor);");
         using var command = CreateCommand(connection, transaction, @"
 INSERT dbo.AuditLog(ActorUserId,Module,ActionName,EntityType,EntityId,NewValuesJson)
 VALUES(@Actor,N'Settings',N'UpdateGeneralSettings',N'SystemSetting',N'General',
-       JSON_MODIFY(N'{}',N'$.storeName',@StoreName));");
+       JSON_MODIFY(JSON_MODIFY(N'{}',N'$.storeName',@StoreName),N'$.changes',@Changes));");
         object actor = actorUserId > 0 ? actorUserId : DBNull.Value;
         command.Parameters.Add("@Actor", SqlDbType.Int).Value = actor;
-        command.Parameters.Add("@StoreName", SqlDbType.NVarChar, 160).Value = details;
+        command.Parameters.Add("@StoreName", SqlDbType.NVarChar, 60).Value = saved.StoreName;
+        command.Parameters.Add("@Changes", SqlDbType.NVarChar, 1000).Value = details;
         command.ExecuteNonQuery();
     }
 
     private static StoreProfile Validate(StoreProfile profile)
     {
         var name = Require(profile.StoreName, MaxNameLength, "اسم المحل", allowEmpty: false);
+        if (profile.DefaultLowStockAlert is < 0 or > 100_000)
+            throw new SettingsDataException("حد التنبيه الافتراضي للمخزون يجب أن يكون رقمًا صحيحًا بين 0 و100000.");
         return new StoreProfile
         {
             StoreName = name,
@@ -253,7 +256,7 @@ VALUES(@Actor,N'Settings',N'UpdateGeneralSettings',N'SystemSetting',N'General',
             return sql.Number switch
             {
                 229 or 230 => new SettingsDataException(
-                    "حساب الاتصال لا يملك صلاحية قراءة/حفظ الإعدادات. شغّل sql/16_EnableGeneralSettings.sql على الخادم ثم أعد المحاولة.",
+                    "حساب الاتصال لا يملك صلاحية قراءة/حفظ الإعدادات. شغّل sql/17_EnableGeneralSettings.sql على الخادم ثم أعد المحاولة.",
                     sql),
                 1205 => new SettingsDataException("تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 208 => new SettingsDataException(

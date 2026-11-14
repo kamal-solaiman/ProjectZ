@@ -423,13 +423,23 @@
                                     <DataTrigger Binding="{Binding IsGeneralSettingsSelected}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:GeneralSettingsView DataContext="{Binding GeneralSettings}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsBackupSelected}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Grid.Style>
-                        <views:GeneralSettingsView DataContext="{Binding GeneralSettings}" />
                         <views:BackupView DataContext="{Binding Backup}" />
                     </Grid>
 
