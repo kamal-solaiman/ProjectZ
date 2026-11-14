@@ -21,35 +21,57 @@
                 <Setter Property="Padding" Value="16" />
             </Style>
 
-            <Style x:Key="SpareKpiCardStyle" TargetType="Border">
-                <Setter Property="Background" Value="White" />
-                <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Style x:Key="SpareTabButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#F1F5F9" />
+                <Setter Property="BorderBrush" Value="#CBD5E1" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="CornerRadius" Value="12" />
-                <Setter Property="Padding" Value="14,11" />
+                <Setter Property="Foreground" Value="#334155" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontWeight" Value="Bold" />
+                <Setter Property="Padding" Value="12,7" />
+                <Setter Property="Margin" Value="0,0,0,6" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid FlowDirection="LeftToRight" Margin="20,16">
+    <Grid FlowDirection="LeftToRight" Margin="16,14">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- ══════════ ROW 0: HEADER ══════════ -->
-        <Grid Grid.Row="0" Margin="0,0,0,14">
+        <Grid Grid.Row="0" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="الذهاب إلى إجراءات الصيانة"
+                <Button Content="إجراءات الصيانة"
                         Style="{StaticResource PosOutlineTealButtonStyle}"
                         Command="{Binding GoToActionsCommand}"
-                        Margin="0,0,8,0" />
+                        Margin="0,0,7,0" />
+                <Button Content="تحديث من SQL"
+                        Style="{StaticResource PosSecondaryButtonStyle}"
+                        Command="{Binding RefreshDataCommand}"
+                        Margin="0,0,7,0" />
                 <Button Content="تفريغ الحقول"
                         Style="{StaticResource PosSecondaryButtonStyle}"
                         Command="{Binding ResetFormCommand}" />
@@ -57,42 +79,82 @@
 
             <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
-                    <TextBlock Text="قطع الغيار — تسجيل وإدارة قطع غيار الصيانة فقط"
+                    <TextBlock Text="قطع الغيار — مخزون الصيانة"
                                Style="{StaticResource PosRtlTextStyle}"
-                               FontSize="22"
+                               FontSize="21"
                                FontWeight="Bold"
                                Foreground="#102E48" />
                     <Border Margin="10,0,0,0"
-                            Padding="10,4"
+                            Padding="9,4"
                             CornerRadius="8"
                             Background="#E0F2FE"
                             BorderBrush="#7DD3FC"
                             BorderThickness="1"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="مخزون صيانة مستقل · تصميم الواجهة"
+                            VerticalAlignment="Center"
+                            ToolTip="{Binding ConnectionBadgeDetail}">
+                        <TextBlock Text="{Binding ConnectionBadgeText}"
                                    Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="11.5"
+                                   FontSize="11"
                                    FontWeight="SemiBold"
                                    Foreground="#0369A1" />
                     </Border>
                 </StackPanel>
-                <TextBlock Text="سجّل قطع الغيار المخصصة لورشة الصيانة وحدّث الكميات وأسعار التكلفة والتركيب؛ تُصرف هذه القطع وتُعاد تلقائيًا عبر شاشة إجراءات الصيانة فقط."
+                <TextBlock Text="سجّل قطع الغيار وحدّد المورد والباركود وحد إعادة الطلب؛ التوريد والصرف والإرجاع تُسجَّل تلقائيًا في سجل الحركات وتظهر في الموردين والعملاء."
                            Style="{StaticResource PosRtlTextStyle}"
-                           FontSize="12.5"
+                           FontSize="12"
                            Foreground="#64748B"
-                           Margin="0,3,0,0" />
+                           Margin="0,3,0,0"
+                           TextWrapping="Wrap" />
             </StackPanel>
         </Grid>
 
-        <!-- ══════════ ROW 1: WORKSPACE (TABLE LEFT + FORM RIGHT) ══════════ -->
-        <Grid Grid.Row="1">
+        <!-- ══════════ ROW 1: COMPACT SUMMARY STRIP (no KPI cards) ══════════ -->
+        <Border Grid.Row="1"
+                Margin="0,0,0,10"
+                Padding="12,8"
+                CornerRadius="10"
+                Background="#F8FAFC"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1">
+            <Grid FlowDirection="RightToLeft">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="{Binding InventorySummaryText}"
+                           Style="{StaticResource PosRtlTextStyle}"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="#102E48"
+                           TextTrimming="CharacterEllipsis" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding MovementsSummaryText}"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="11"
+                               Foreground="#0F766E"
+                               Margin="0,0,12,0" />
+                    <TextBlock Text="آخر تحديث: "
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="10.5"
+                               Foreground="#94A3B8" />
+                    <TextBlock Text="{Binding LastRefreshDisplay}"
+                               Style="{StaticResource PosLtrTextStyle}"
+                               FontSize="10.5"
+                               Foreground="#64748B" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ══════════ ROW 2: WORKSPACE ══════════ -->
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="14" />
-                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="300" />
             </Grid.ColumnDefinitions>
 
-            <!-- LEFT: SPARE PARTS TABLE + SEARCH & CATEGORY FILTER -->
+            <!-- LEFT: INVENTORY + MOVEMENT LEDGER -->
             <Border Grid.Column="0" Style="{StaticResource SpareSectionCardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -101,397 +163,866 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <!-- Title + Search + Filter -->
-                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <!-- Filters: search on its own row, then the three pickers, so the table keeps
+                         its columns on a narrow window instead of squeezing the search box. -->
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="7" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Grid Grid.Column="0">
+                                <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                         FlowDirection="RightToLeft"
+                                         TextAlignment="Left"
+                                         Padding="34,7,12,7"
+                                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="ابحث بالاسم أو الباركود أو المورد أو الكود..."
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           Margin="12,0,34,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="#94A3B8"
+                                           IsHitTestVisible="False"
+                                           Visibility="{Binding SearchText, Converter={StaticResource StringEmptyToVis}}" />
+                                <Button Content="×"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Margin="6,0,0,0"
+                                        Width="24"
+                                        Height="24"
+                                        Style="{StaticResource PosDangerIconButtonStyle}"
+                                        ToolTip="مسح البحث"
+                                        Command="{Binding ClearSearchCommand}"
+                                        Visibility="{Binding SearchText, Converter={StaticResource StringNotEmptyToVis}}" />
+                            </Grid>
+
+                            <Button Grid.Column="2"
+                                    Content="إلغاء الفلاتر"
+                                    Style="{StaticResource PosSecondaryButtonStyle}"
+                                    Padding="10,7"
+                                    Command="{Binding ClearFiltersCommand}" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="7" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="7" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <ComboBox Grid.Column="0"
+                                      Style="{StaticResource PosComboBoxStyle}"
+                                      ItemsSource="{Binding CategoryFilterOptions}"
+                                      SelectedItem="{Binding SelectedCategoryFilter}"
+                                      FlowDirection="RightToLeft"
+                                      ToolTip="فلتر الفئة" />
+
+                            <ComboBox Grid.Column="2"
+                                      Style="{StaticResource PosComboBoxStyle}"
+                                      ItemsSource="{Binding SupplierFilterOptions}"
+                                      SelectedItem="{Binding SelectedSupplierFilter}"
+                                      FlowDirection="RightToLeft"
+                                      ToolTip="فلتر المورد" />
+
+                            <ComboBox Grid.Column="4"
+                                      Style="{StaticResource PosComboBoxStyle}"
+                                      ItemsSource="{Binding StockFilterOptions}"
+                                      SelectedItem="{Binding SelectedStockFilter}"
+                                      FlowDirection="RightToLeft"
+                                      ToolTip="فلتر حالة الرصيد" />
+                        </Grid>
+                    </Grid>
+
+                    <!-- Workspace tabs -->
+                    <Grid Grid.Row="1" FlowDirection="RightToLeft" Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="10" />
-                            <ColumnDefinition Width="205" />
-                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="190" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="190" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
                         <Button Grid.Column="0"
-                                Content="إلغاء الفلاتر"
-                                Style="{StaticResource PosSecondaryButtonStyle}"
-                                Padding="12,7"
-                                Command="{Binding ClearFiltersCommand}" />
+                                Content="{Binding InventoryTabTitle}"
+                                Command="{Binding SelectWorkspaceTabCommand}"
+                                CommandParameter="0">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource SpareTabButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsInventoryTabSelected}" Value="True">
+                                            <Setter Property="Background" Value="#147D92" />
+                                            <Setter Property="BorderBrush" Value="#147D92" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
 
-                        <ComboBox Grid.Column="2"
-                                  Style="{StaticResource PosComboBoxStyle}"
-                                  ItemsSource="{Binding CategoryFilterOptions}"
-                                  SelectedItem="{Binding SelectedCategoryFilter}"
-                                  FlowDirection="RightToLeft" />
+                        <Button Grid.Column="2"
+                                Content="{Binding MovementsTabTitle}"
+                                Command="{Binding SelectWorkspaceTabCommand}"
+                                CommandParameter="1">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource SpareTabButtonStyle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMovementsTabSelected}" Value="True">
+                                            <Setter Property="Background" Value="#102E48" />
+                                            <Setter Property="BorderBrush" Value="#102E48" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
 
-                        <Grid Grid.Column="4">
-                            <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
-                                     FlowDirection="RightToLeft"
-                                     TextAlignment="Left"
-                                     Padding="34,7,12,7"
-                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="ابحث باسم قطعة الغيار أو الفئة أو الكود..."
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       Margin="12,0,34,0"
-                                       VerticalAlignment="Center"
-                                       FontSize="12.5"
-                                       Foreground="#94A3B8"
-                                       IsHitTestVisible="False"
-                                       Visibility="{Binding SearchText, Converter={StaticResource StringEmptyToVis}}" />
-                            <Button Content="×"
-                                    HorizontalAlignment="Left"
+                    <!-- INVENTORY TAB -->
+                    <Grid Grid.Row="2" Visibility="{Binding IsInventoryTabSelected, Converter={StaticResource BoolToVis}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0"
+                                Background="#F8FAFC"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="9,8"
+                                Margin="0,0,0,6">
+                            <Grid FlowDirection="RightToLeft">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="84" />
+                                    <ColumnDefinition Width="72" />
+                                    <ColumnDefinition Width="84" />
+                                    <ColumnDefinition Width="110" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="الكود" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="1" Text="القطعة" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="2" Text="المورد" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="3" Text="الرصيد" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="4" Text="الأسعار" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="5" Text="الإجراءات" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#475569" />
+                            </Grid>
+                        </Border>
+
+                        <Grid Grid.Row="1">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding FilteredSpareParts}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,0,6" Padding="9,8" CornerRadius="10">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="White" />
+                                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                                        <Setter Property="BorderThickness" Value="1" />
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#F8FAFC" />
+                                                                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                            </Trigger>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Background" Value="#ECFEFF" />
+                                                                <Setter Property="BorderBrush" Value="#147D92" />
+                                                                <Setter Property="BorderThickness" Value="1.5" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+
+                                                <Grid FlowDirection="RightToLeft">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44" />
+                                                        <ColumnDefinition Width="2*" />
+                                                        <ColumnDefinition Width="84" />
+                                                        <ColumnDefinition Width="72" />
+                                                        <ColumnDefinition Width="84" />
+                                                        <ColumnDefinition Width="110" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding CodeDisplay}"
+                                                               Style="{StaticResource PosLtrTextStyle}"
+                                                               HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="11"
+                                                               FontWeight="Bold"
+                                                               Foreground="#147D92" />
+
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                                   FontSize="12.5"
+                                                                   FontWeight="Bold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip="{Binding Name}" />
+                                                        <TextBlock Text="{Binding BarcodeDisplay}"
+                                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                                   HorizontalAlignment="Right"
+                                                                   FontSize="9.5"
+                                                                   Foreground="#94A3B8"
+                                                                   Margin="0,1,0,0"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding CategoryUnitDisplay}"
+                                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                                   HorizontalAlignment="Right"
+                                                                   FontSize="9"
+                                                                   Foreground="#64748B"
+                                                                   Margin="0,1,0,0"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+
+
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding SupplierDisplay}"
+                                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                                   FontSize="10.5"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#0F766E"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip="{Binding SupplierDisplay}" />
+                                                        <TextBlock Text="{Binding StorageDisplay}"
+                                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                                   FontSize="9.5"
+                                                                   Foreground="#94A3B8"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip="{Binding StorageDisplay}" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                                        <Border HorizontalAlignment="Center" Padding="8,3" CornerRadius="7">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="#DCFCE7" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsLowStock}" Value="True">
+                                                                            <Setter Property="Background" Value="#FEF3C7" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsOutOfStock}" Value="True">
+                                                                            <Setter Property="Background" Value="#FEE2E2" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="{Binding QuantityDisplay}" FontSize="10.5" FontWeight="Bold">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PosCenterTextStyle}">
+                                                                        <Setter Property="Foreground" Value="#166534" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsLowStock}" Value="True">
+                                                                                <Setter Property="Foreground" Value="#B45309" />
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsOutOfStock}" Value="True">
+                                                                                <Setter Property="Foreground" Value="#B42318" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding StockAlertDisplay}"
+                                                                   Style="{StaticResource PosCenterTextStyle}"
+                                                                   FontSize="8.5"
+                                                                   Foreground="#94A3B8"
+                                                                   Margin="0,2,0,0"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding CostPriceDisplay}"
+                                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                                   HorizontalAlignment="Center"
+                                                                   FontSize="9.5"
+                                                                   Foreground="#64748B"
+                                                                   ToolTip="سعر التكلفة"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding SellPriceDisplay}"
+                                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                                   HorizontalAlignment="Center"
+                                                                   FontSize="10"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="#0F766E"
+                                                                   ToolTip="سعر التركيب للعميل"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding UnitProfitDisplay}"
+                                                                   HorizontalAlignment="Center"
+                                                                   FontSize="8"
+                                                                   ToolTip="هامش الربح للوحدة (سالب = خسارة)"
+                                                                   TextTrimming="CharacterEllipsis">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PosLtrTextStyle}">
+                                                                    <Setter Property="Foreground" Value="#94A3B8" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsLoss}" Value="True">
+                                                                            <Setter Property="Foreground" Value="#B42318" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="5"
+                                                                Orientation="Horizontal"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center">
+                                                        <Button Content="تعديل"
+                                                                Style="{StaticResource PosOutlineTealButtonStyle}"
+                                                                Padding="3,3"
+                                                                FontSize="8.5"
+                                                                Margin="0,0,2,0"
+                                                                Command="{Binding DataContext.BeginEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="توريد"
+                                                                Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                                                                Padding="3,3"
+                                                                FontSize="8.5"
+                                                                Margin="0,0,2,0"
+                                                                ToolTip="إضافة رصيد من مورد وتسجيل حركة توريد"
+                                                                Command="{Binding DataContext.RestockPartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="حذف"
+                                                                Style="{StaticResource PosDangerButtonStyle}"
+                                                                Padding="3,3"
+                                                                FontSize="8.5"
+                                                                Command="{Binding DataContext.DeletePartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <Border Visibility="{Binding HasNoFilteredSpareParts, Converter={StaticResource BoolToVis}}"
+                                    Background="#F8FAFC"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="24"
                                     VerticalAlignment="Center"
-                                    Margin="6,0,0,0"
-                                    Width="24"
-                                    Height="24"
-                                    Style="{StaticResource PosDangerIconButtonStyle}"
-                                    ToolTip="مسح البحث"
-                                    Command="{Binding ClearSearchCommand}"
-                                    Visibility="{Binding SearchText, Converter={StaticResource StringNotEmptyToVis}}" />
+                                    HorizontalAlignment="Center">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="لا توجد قطع غيار مطابقة للبحث أو الفلتر الحالي"
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               FontSize="14.5"
+                                               FontWeight="Bold"
+                                               Foreground="#102E48" />
+                                    <TextBlock Text="جرّب تغيير البحث أو إعادة ضبط الفلاتر أو تسجيل قطعة غيار جديدة من النموذج المجاور."
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               FontSize="12"
+                                               Foreground="#64748B"
+                                               Margin="0,6,0,12" />
+                                    <Button Content="عرض جميع قطع الغيار"
+                                            Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                                            HorizontalAlignment="Center"
+                                            Command="{Binding ClearFiltersCommand}" />
+                                </StackPanel>
+                            </Border>
                         </Grid>
                     </Grid>
 
-                    <!-- Table Header (RTL columns inside LTR Grid: Actions on far left, Code on far right) -->
-                    <Border Grid.Row="1"
-                            Background="#F8FAFC"
-                            BorderBrush="#E2E8F0"
-                            BorderThickness="1"
-                            CornerRadius="9"
-                            Padding="10,9"
-                            Margin="0,0,0,6">
-                        <Grid FlowDirection="RightToLeft">
+                    <!-- MOVEMENTS TAB -->
+                    <Grid Grid.Row="2" Visibility="{Binding IsMovementsTabSelected, Converter={StaticResource BoolToVis}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,7">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="78" />
-                                <ColumnDefinition Width="2.1*" />
-                                <ColumnDefinition Width="130" />
-                                <ColumnDefinition Width="95" />
-                                <ColumnDefinition Width="105" />
-                                <ColumnDefinition Width="110" />
-                                <ColumnDefinition Width="132" />
+                                <ColumnDefinition Width="150" />
+                                <ColumnDefinition Width="7" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="7" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="الكود" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
-                            <TextBlock Grid.Column="1" Text="اسم قطعة الغيار" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
-                            <TextBlock Grid.Column="2" Text="الفئة" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
-                            <TextBlock Grid.Column="3" Text="الكمية" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
-                            <TextBlock Grid.Column="4" Text="سعر التكلفة" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
-                            <TextBlock Grid.Column="5" Text="سعر التركيب" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
-                            <TextBlock Grid.Column="6" Text="الإجراءات" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
+                            <ComboBox Grid.Column="0"
+                                      Style="{StaticResource PosComboBoxStyle}"
+                                      ItemsSource="{Binding MovementKindFilterOptions}"
+                                      SelectedItem="{Binding SelectedMovementKindFilter}"
+                                      FlowDirection="RightToLeft" />
+
+                            <Grid Grid.Column="2">
+                                <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                         FlowDirection="RightToLeft"
+                                         TextAlignment="Left"
+                                         Padding="34,7,12,7"
+                                         Text="{Binding MovementSearchText, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Text="ابحث بالقطعة أو المورد أو العميل أو رقم الأمر..."
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           Margin="12,0,34,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="#94A3B8"
+                                           IsHitTestVisible="False"
+                                           Visibility="{Binding MovementSearchText, Converter={StaticResource StringEmptyToVis}}" />
+                                <Button Content="×"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Margin="6,0,0,0"
+                                        Width="24"
+                                        Height="24"
+                                        Style="{StaticResource PosDangerIconButtonStyle}"
+                                        ToolTip="مسح البحث"
+                                        Command="{Binding ClearMovementSearchCommand}"
+                                        Visibility="{Binding MovementSearchText, Converter={StaticResource StringNotEmptyToVis}}" />
+                            </Grid>
+
+                            <Button Grid.Column="4"
+                                    Content="تحديث السجل"
+                                    Style="{StaticResource PosSecondaryButtonStyle}"
+                                    Padding="10,7"
+                                    Command="{Binding RefreshMovementsCommand}" />
                         </Grid>
-                    </Border>
 
-                    <!-- Spare Parts Rows -->
-                    <Grid Grid.Row="2">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding FilteredSpareParts}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Margin="0,0,0,6" Padding="10,9" CornerRadius="10" BorderThickness="1">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="White" />
-                                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#F8FAFC" />
-                                                            <Setter Property="BorderBrush" Value="#CBD5E1" />
-                                                        </Trigger>
-                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                            <Setter Property="Background" Value="#ECFEFF" />
-                                                            <Setter Property="BorderBrush" Value="#147D92" />
-                                                            <Setter Property="BorderThickness" Value="1.5" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
+                        <Border Grid.Row="1"
+                                Background="#F8FAFC"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="9,8"
+                                Margin="0,0,0,6">
+                            <Grid FlowDirection="RightToLeft">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="54" />
+                                    <ColumnDefinition Width="70" />
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="60" />
+                                    <ColumnDefinition Width="60" />
+                                    <ColumnDefinition Width="140" />
+                                </Grid.ColumnDefinitions>
 
-                                            <Grid FlowDirection="RightToLeft">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="78" />
-                                                    <ColumnDefinition Width="2.1*" />
-                                                    <ColumnDefinition Width="130" />
-                                                    <ColumnDefinition Width="95" />
-                                                    <ColumnDefinition Width="105" />
-                                                    <ColumnDefinition Width="110" />
-                                                    <ColumnDefinition Width="132" />
-                                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="التاريخ" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="1" Text="الحركة" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="2" Text="قطعة الغيار" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="3" Text="التغيير" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="4" Text="الرصيد" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="5" Text="المورد / العميل / الأمر" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#475569" />
+                            </Grid>
+                        </Border>
 
-                                                <TextBlock Grid.Column="0"
-                                                           Text="{Binding CodeDisplay}"
-                                                           Style="{StaticResource PosLtrTextStyle}"
-                                                           HorizontalAlignment="Right"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="12"
-                                                           FontWeight="Bold"
-                                                           Foreground="#147D92" />
+                        <Grid Grid.Row="2">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding FilteredMovements}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,0,5"
+                                                    Padding="9,7"
+                                                    CornerRadius="9"
+                                                    Background="White"
+                                                    BorderBrush="#E2E8F0"
+                                                    BorderThickness="1">
+                                                <Grid FlowDirection="RightToLeft">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="54" />
+                                                        <ColumnDefinition Width="70" />
+                                                        <ColumnDefinition Width="2*" />
+                                                        <ColumnDefinition Width="60" />
+                                                        <ColumnDefinition Width="60" />
+                                                        <ColumnDefinition Width="140" />
+                                                    </Grid.ColumnDefinitions>
 
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0">
-                                                    <TextBlock Text="{Binding Name}"
-                                                               Style="{StaticResource PosRtlTextStyle}"
-                                                               FontSize="13.5"
-                                                               FontWeight="Bold"
-                                                               TextWrapping="Wrap" />
-                                                    <TextBlock Text="{Binding UnitProfitDisplay, StringFormat='هامش الربح المتوقع للوحدة: {0}'}"
-                                                               Style="{StaticResource PosRtlTextStyle}"
-                                                               FontSize="11"
-                                                               Foreground="#64748B" />
-                                                </StackPanel>
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DateDisplay}"
+                                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                                   HorizontalAlignment="Center"
+                                                                   FontSize="8.5"
+                                                                   Foreground="#475569" />
+                                                        <TextBlock Text="{Binding TimeDisplay}"
+                                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                                   HorizontalAlignment="Center"
+                                                                   FontSize="8"
+                                                                   Foreground="#94A3B8" />
+                                                    </StackPanel>
 
-                                                <Border Grid.Column="2"
-                                                        HorizontalAlignment="Right"
-                                                        VerticalAlignment="Center"
-                                                        Padding="8,3"
-                                                        CornerRadius="6"
-                                                        Background="#F1F5F9">
-                                                    <TextBlock Text="{Binding Category}"
-                                                               Style="{StaticResource PosRtlTextStyle}"
-                                                               FontSize="11.5"
+                                                    <Border Grid.Column="1"
+                                                            HorizontalAlignment="Right"
+                                                            VerticalAlignment="Center"
+                                                            Padding="4,2"
+                                                            CornerRadius="6"
+                                                            Background="{Binding KindBadgeBackground}"
+                                                            ToolTip="{Binding KindTitle}">
+                                                        <TextBlock Text="{Binding KindShortTitle}"
+                                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                                   FontSize="8.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{Binding KindBadgeForeground}" />
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="4,0">
+                                                        <TextBlock Text="{Binding SparePartName}"
+                                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                                   FontSize="11"
+                                                                   FontWeight="Bold"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding SparePartCode}"
+                                                                       Style="{StaticResource PosLtrTextStyle}"
+                                                                       FontSize="9"
+                                                                       Foreground="#147D92" />
+                                                            <TextBlock Text=" · "
+                                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                                       FontSize="9"
+                                                                       Foreground="#94A3B8" />
+                                                            <TextBlock Text="{Binding ActorDisplay}"
+                                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                                       FontSize="9"
+                                                                       Foreground="#94A3B8"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding SignedQuantityDisplay}" FontSize="11.5" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PosCenterTextStyle}">
+                                                                    <Setter Property="Foreground" Value="#B42318" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsIncoming}" Value="True">
+                                                                            <Setter Property="Foreground" Value="#166534" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding UnitCostDisplay}"
+                                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                                   HorizontalAlignment="Center"
+                                                                   FontSize="8"
+                                                                   Foreground="#94A3B8"
+                                                                   ToolTip="تكلفة الوحدة" />
+                                                        <TextBlock Text="{Binding MovementValueDisplay}"
+                                                                   Style="{StaticResource PosLtrTextStyle}"
+                                                                   HorizontalAlignment="Center"
+                                                                   FontSize="8"
+                                                                   Foreground="#CBD5E1"
+                                                                   ToolTip="قيمة الحركة = الكمية × تكلفة الوحدة"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="4"
+                                                               Text="{Binding BalanceDisplay}"
+                                                               Style="{StaticResource PosLtrTextStyle}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="10"
                                                                FontWeight="SemiBold"
                                                                Foreground="#334155" />
-                                                </Border>
 
-                                                <Border Grid.Column="3"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        Padding="9,4"
-                                                        CornerRadius="7">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="#DCFCE7" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsLowStock}" Value="True">
-                                                                    <Setter Property="Background" Value="#FEF3C7" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsOutOfStock}" Value="True">
-                                                                    <Setter Property="Background" Value="#FEE2E2" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <TextBlock Text="{Binding QuantityDisplay}" FontSize="12" FontWeight="Bold">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource PosCenterTextStyle}">
-                                                                <Setter Property="Foreground" Value="#166534" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsLowStock}" Value="True">
-                                                                        <Setter Property="Foreground" Value="#B45309" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding IsOutOfStock}" Value="True">
-                                                                        <Setter Property="Foreground" Value="#B42318" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </Border>
 
-                                                <TextBlock Grid.Column="4"
-                                                           Text="{Binding CostPriceDisplay}"
-                                                           Style="{StaticResource PosLtrTextStyle}"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="12.5"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="#475569" />
+                                                    <StackPanel Grid.Column="5" VerticalAlignment="Center" Margin="2,0">
+                                                        <Grid Visibility="{Binding HasSupplier, Converter={StaticResource BoolToVis}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding SupplierDisplay}"
+                                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                                       FontSize="8.5"
+                                                                       Foreground="#0F766E"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center"
+                                                                       ToolTip="{Binding SupplierDisplay}" />
+                                                            <Button Grid.Column="1"
+                                                                    Content="المورد"
+                                                                    Style="{StaticResource PosSecondaryButtonStyle}"
+                                                                    Padding="3,1"
+                                                                    FontSize="8"
+                                                                    Margin="3,0,0,0"
+                                                                    Visibility="{Binding HasSupplier, Converter={StaticResource BoolToVis}}"
+                                                                    Command="{Binding DataContext.OpenSupplierCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}" />
+                                                        </Grid>
+                                                        <Grid Margin="0,1,0,0" Visibility="{Binding HasOrder, Converter={StaticResource BoolToVis}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding OrderDisplay}"
+                                                                       Style="{StaticResource PosLtrTextStyle}"
+                                                                       FontSize="8.5"
+                                                                       Foreground="#147D92"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <Button Grid.Column="1"
+                                                                    Content="الأمر"
+                                                                    Style="{StaticResource PosOutlineTealButtonStyle}"
+                                                                    Padding="3,1"
+                                                                    FontSize="8"
+                                                                    Margin="3,0,0,0"
+                                                                    ToolTip="فتح أمر الصيانة في شاشة إجراءات الصيانة"
+                                                                    Visibility="{Binding HasOrder, Converter={StaticResource BoolToVis}}"
+                                                                    Command="{Binding DataContext.OpenOrderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}" />
+                                                        </Grid>
+                                                        <Grid Margin="0,1,0,0" Visibility="{Binding HasCustomer, Converter={StaticResource BoolToVis}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding CustomerDisplay}"
+                                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                                       FontSize="8.5"
+                                                                       Foreground="#64748B"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <Button Grid.Column="1"
+                                                                    Content="العميل"
+                                                                    Style="{StaticResource PosSecondaryButtonStyle}"
+                                                                    Padding="3,1"
+                                                                    FontSize="8"
+                                                                    Margin="3,0,0,0"
+                                                                    Visibility="{Binding HasCustomer, Converter={StaticResource BoolToVis}}"
+                                                                    Command="{Binding DataContext.OpenCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding NoteWithReferenceDisplay}"
+                                                                   Style="{StaticResource PosRtlTextStyle}"
+                                                                   FontSize="8"
+                                                                   Foreground="#94A3B8"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Margin="0,1,0,0"
+                                                                   ToolTip="{Binding NoteWithReferenceDisplay}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
 
-                                                <TextBlock Grid.Column="5"
-                                                           Text="{Binding SellPriceDisplay}"
-                                                           Style="{StaticResource PosLtrTextStyle}"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           FontSize="13"
-                                                           FontWeight="Bold"
-                                                           Foreground="#0F766E" />
-
-                                                <StackPanel Grid.Column="6"
-                                                            Orientation="Horizontal"
-                                                            HorizontalAlignment="Center"
-                                                            VerticalAlignment="Center">
-                                                    <Button Content="تعديل"
-                                                            Style="{StaticResource PosOutlineTealButtonStyle}"
-                                                            Padding="10,4"
-                                                            FontSize="11.5"
-                                                            Margin="0,0,6,0"
-                                                            Command="{Binding DataContext.BeginEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                            CommandParameter="{Binding}" />
-                                                    <Button Content="حذف"
-                                                            Style="{StaticResource PosDangerButtonStyle}"
-                                                            Padding="10,4"
-                                                            FontSize="11.5"
-                                                            Command="{Binding DataContext.DeletePartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                            CommandParameter="{Binding}" />
-                                                </StackPanel>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-
-                        <!-- Empty State -->
-                        <Border Visibility="{Binding HasNoFilteredSpareParts, Converter={StaticResource BoolToVis}}"
-                                Background="#F8FAFC"
-                                BorderBrush="#CBD5E1"
-                                BorderThickness="1"
-                                CornerRadius="12"
-                                Padding="26"
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Center">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="لا توجد قطع غيار مطابقة للبحث أو الفلتر الحالي"
-                                           Style="{StaticResource PosCenterTextStyle}"
-                                           FontSize="15"
-                                           FontWeight="Bold"
-                                           Foreground="#102E48" />
-                                <TextBlock Text="جرّب تغيير كلمة البحث أو إعادة تعيين الفلتر أو تسجيل قطعة غيار جديدة من النموذج المجاور."
-                                           Style="{StaticResource PosCenterTextStyle}"
-                                           FontSize="12.5"
-                                           Foreground="#64748B"
-                                           Margin="0,6,0,12" />
-                                <Button Content="عرض جميع قطع الغيار"
-                                        Style="{StaticResource PosPrimaryCompactButtonStyle}"
-                                        HorizontalAlignment="Center"
-                                        Command="{Binding ClearFiltersCommand}" />
-                            </StackPanel>
-                        </Border>
+                            <Border Visibility="{Binding HasNoFilteredMovements, Converter={StaticResource BoolToVis}}"
+                                    Background="#F8FAFC"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="24"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="لا توجد حركات مخزون مطابقة"
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               FontSize="14.5"
+                                               FontWeight="Bold"
+                                               Foreground="#102E48" />
+                                    <TextBlock Text="تظهر هنا حركات الرصيد الافتتاحي والتوريد والصرف على أوامر الصيانة والإرجاع والتسويات."
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               FontSize="12"
+                                               Foreground="#64748B"
+                                               Margin="0,6,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </Grid>
                 </Grid>
             </Border>
 
-            <!-- RIGHT: SIMPLIFIED SPARE PART REGISTRATION / EDIT FORM -->
+            <!-- RIGHT: SPARE PART FORM -->
             <Border Grid.Column="2" Style="{StaticResource SpareSectionCardStyle}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <!-- Form Header -->
                         <Border Padding="11,9"
                                 CornerRadius="10"
-                                Margin="0,0,0,14"
+                                Margin="0,0,0,12"
                                 BorderThickness="1">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Background" Value="#F0FDFA" />
                                     <Setter Property="BorderBrush" Value="#99F6E4" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsEditMode}" Value="True">
-                                            <Setter Property="Background" Value="#FEF3C7" />
-                                            <Setter Property="BorderBrush" Value="#FCD34D" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <StackPanel>
+                            <StackPanel FlowDirection="RightToLeft">
                                 <TextBlock Text="{Binding FormHeaderTitle}"
                                            Style="{StaticResource PosRtlTextStyle}"
-                                           FontSize="15"
+                                           FontSize="14"
                                            FontWeight="Bold"
-                                           Foreground="#102E48" />
-                                <TextBlock Text="أدخل بيانات قطعة الغيار الأساسية ليتم حفظها في مخزون الصيانة فقط."
+                                           Foreground="#0F766E" />
+                                <TextBlock Text="حدّد المورد والباركود وحد إعادة الطلب حتى يظهر التنبيه المناسب في المخزون."
                                            Style="{StaticResource PosRtlTextStyle}"
-                                           FontSize="11.5"
-                                           Foreground="#475569"
-                                           TextWrapping="Wrap"
-                                           Margin="0,3,0,0" />
+                                           FontSize="10.5"
+                                           Foreground="#64748B"
+                                           Margin="0,3,0,0"
+                                           TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
 
-                        <!-- Part Name -->
                         <TextBlock Text="اسم قطعة الغيار *"
                                    Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="13"
+                                   FontSize="12.5"
                                    FontWeight="SemiBold"
                                    Margin="0,0,0,5" />
-                        <Grid Margin="0,0,0,12">
-                            <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
-                                     FlowDirection="RightToLeft"
-                                     TextAlignment="Left"
-                                     Text="{Binding PartName, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="مثال: شاشة iPhone 13 Pro Max أصلية"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       Margin="10,0"
-                                       VerticalAlignment="Center"
-                                       FontSize="12"
-                                       Foreground="#94A3B8"
-                                       IsHitTestVisible="False"
-                                       Visibility="{Binding PartName, Converter={StaticResource StringEmptyToVis}}" />
+                        <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                 FlowDirection="RightToLeft"
+                                 TextAlignment="Left"
+                                 Text="{Binding PartName, UpdateSourceTrigger=PropertyChanged}"
+                                 MaxLength="250"
+                                 Margin="0,0,0,10" />
+
+                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="الباركود / رقم القطعة"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,5" />
+                                <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                         FlowDirection="LeftToRight"
+                                         TextAlignment="Left"
+                                         Text="{Binding BarcodeText, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxLength="100" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="وحدة القياس"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,5" />
+                                <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                         FlowDirection="RightToLeft"
+                                         TextAlignment="Left"
+                                         Text="{Binding UnitText, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxLength="30" />
+                            </StackPanel>
                         </Grid>
 
-                        <!-- Category -->
                         <TextBlock Text="الفئة *"
                                    Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="13"
+                                   FontSize="12.5"
                                    FontWeight="SemiBold"
                                    Margin="0,0,0,5" />
                         <ComboBox Style="{StaticResource PosComboBoxStyle}"
                                   ItemsSource="{Binding CategoryOptions}"
                                   SelectedItem="{Binding SelectedCategory}"
                                   FlowDirection="RightToLeft"
-                                  Margin="0,0,0,12" />
+                                  Margin="0,0,0,10" />
 
-                        <!-- Optional Custom Category when 'أخرى' is chosen -->
                         <StackPanel Visibility="{Binding IsCustomCategorySelected, Converter={StaticResource BoolToVis}}"
-                                    Margin="0,0,0,12">
+                                    Margin="0,0,0,10">
                             <TextBlock Text="اسم الفئة المخصصة *"
                                        Style="{StaticResource PosRtlTextStyle}"
                                        FontSize="12.5"
                                        FontWeight="SemiBold"
                                        Margin="0,0,0,5" />
-                            <Grid>
+                            <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                     FlowDirection="RightToLeft"
+                                     TextAlignment="Left"
+                                     Text="{Binding CustomCategoryName, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="100" />
+                        </StackPanel>
+
+                        <TextBlock Text="المورد المفضل"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="12.5"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,5" />
+                        <ComboBox Style="{StaticResource PosComboBoxStyle}"
+                                  ItemsSource="{Binding SupplierOptions}"
+                                  SelectedItem="{Binding SelectedSupplier}"
+                                  DisplayMemberPath="DisplayName"
+                                  FlowDirection="RightToLeft"
+                                  Margin="0,0,0,10" />
+
+                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="الكمية المتوفرة *"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,5" />
+                                <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
+                                         Text="{Binding QuantityText, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="حد التنبيه *"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,5" />
+                                <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
+                                         Text="{Binding MinimumStockText, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="حد إعادة الطلب"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,5" />
+                                <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
+                                         Text="{Binding ReorderQuantityText, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="موقع التخزين"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="12.5"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,5" />
                                 <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
                                          FlowDirection="RightToLeft"
                                          TextAlignment="Left"
-                                         Text="{Binding CustomCategoryName, UpdateSourceTrigger=PropertyChanged}" />
-                                <TextBlock Text="أدخل اسم الفئة الجديدة..."
-                                           Style="{StaticResource PosRtlTextStyle}"
-                                           Margin="10,0"
-                                           VerticalAlignment="Center"
-                                           FontSize="12"
-                                           Foreground="#94A3B8"
-                                           IsHitTestVisible="False"
-                                           Visibility="{Binding CustomCategoryName, Converter={StaticResource StringEmptyToVis}}" />
-                            </Grid>
-                        </StackPanel>
+                                         Text="{Binding StorageLocationText, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxLength="120" />
+                            </StackPanel>
+                        </Grid>
 
-                        <!-- Quantity -->
-                        <TextBlock Text="الكمية المتوفرة *"
-                                   Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="13"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,5" />
-                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
-                                 Text="{Binding QuantityText, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,12" />
-
-                        <!-- Minimum Stock Alert -->
-                        <TextBlock Text="مؤشر الرصيد المنخفض *"
-                                   Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="13"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,5" />
-                        <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
-                                 Text="{Binding MinimumStockText, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,12" />
-
-                        <!-- Cost Price & Sell Price -->
-                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,12">
+                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="8" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="سعر التكلفة *"
                                            Style="{StaticResource PosRtlTextStyle}"
-                                           FontSize="13"
+                                           FontSize="12.5"
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,5" />
                                 <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
                                          Text="{Binding CostPriceText, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
-
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="سعر التركيب / البيع *"
+                                <TextBlock Text="سعر التركيب *"
                                            Style="{StaticResource PosRtlTextStyle}"
-                                           FontSize="13"
+                                           FontSize="12.5"
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,5" />
                                 <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
@@ -499,58 +1030,80 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- Expected Unit Profit Preview -->
-                        <Border Padding="11,9"
+                        <Border Padding="11,8"
                                 CornerRadius="9"
                                 Background="#F8FAFC"
                                 BorderBrush="#E2E8F0"
                                 BorderThickness="1"
-                                Margin="0,0,0,14">
+                                Margin="0,0,0,10">
                             <Grid FlowDirection="RightToLeft">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0"
-                                           Text="ربح القطعة المتوقع (سعر التركيب - التكلفة)"
+                                           Text="هامش الربح المتوقع للوحدة"
                                            Style="{StaticResource PosRtlTextStyle}"
                                            VerticalAlignment="Center"
-                                           FontSize="12"
+                                           FontSize="11.5"
                                            Foreground="#475569" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding PreviewProfitDisplay}"
-                                           Style="{StaticResource PosLtrTextStyle}"
                                            VerticalAlignment="Center"
-                                           FontSize="14"
+                                           FontSize="13.5"
                                            FontWeight="Bold"
-                                           Foreground="#0F766E" />
+                                           ToolTip="سالب = بيع بأقل من التكلفة">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource PosLtrTextStyle}">
+                                            <Setter Property="Foreground" Value="#0F766E" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPreviewProfitNegative}" Value="True">
+                                                    <Setter Property="Foreground" Value="#B42318" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </Grid>
                         </Border>
 
-                        <!-- Primary Action Buttons -->
+                        <TextBlock Text="ملاحظات"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="12.5"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,5" />
+                        <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                 MinHeight="56"
+                                 FlowDirection="RightToLeft"
+                                 TextAlignment="Left"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 Text="{Binding NotesText, UpdateSourceTrigger=PropertyChanged}"
+                                 MaxLength="1000"
+                                 Margin="0,0,0,12" />
+
                         <Button Content="{Binding SaveButtonText}"
                                 Style="{StaticResource PosPrimaryCompactButtonStyle}"
-                                MinHeight="42"
-                                FontSize="14"
+                                MinHeight="40"
+                                FontSize="13.5"
                                 Command="{Binding SavePartCommand}" />
 
                         <Button Content="إلغاء التعديل"
                                 Style="{StaticResource PosSecondaryButtonStyle}"
-                                MinHeight="38"
-                                Margin="0,8,0,0"
+                                MinHeight="36"
+                                Margin="0,7,0,0"
                                 Command="{Binding CancelEditCommand}"
                                 Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVis}}" />
 
-                        <!-- Informational Note -->
-                        <Border Margin="0,14,0,0"
-                                Padding="10,9"
+                        <Border Margin="0,12,0,0"
+                                Padding="10,8"
                                 CornerRadius="9"
                                 Background="#F8FAFC"
                                 BorderBrush="#E2E8F0"
                                 BorderThickness="1">
-                            <TextBlock Text="ملاحظة: عند صرف أي قطعة غيار من هذا المخزون في شاشة «إجراءات الصيانة» يتم خصم الكمية تلقائيًا، وتُعاد للرصيد عند حذف البند أو إلغاء التذكرة."
+                            <TextBlock Text="كل تغيير في الرصيد يُسجَّل في سجل الحركات: عند صرف قطعة من «إجراءات الصيانة» تُخصم وتُربط بالأمر والعميل، وعند إرجاعها أو إلغاء التذكرة تعود للمخزون، والتوريد يُربط بالمورد ويحدّث متوسط التكلفة."
                                        Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="11.5"
+                                       FontSize="10.5"
                                        Foreground="#64748B"
                                        TextWrapping="Wrap" />
                         </Border>
@@ -559,10 +1112,10 @@
             </Border>
         </Grid>
 
-        <!-- ══════════ ROW 2: STATUS BAR ══════════ -->
-        <Border Grid.Row="2"
-                Margin="0,12,0,0"
-                Padding="12,9"
+        <!-- ══════════ ROW 3: STATUS BAR ══════════ -->
+        <Border Grid.Row="3"
+                Margin="0,10,0,0"
+                Padding="12,8"
                 CornerRadius="10"
                 BorderThickness="1"
                 Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVis}}">
@@ -578,7 +1131,7 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
                         <Setter Property="Foreground" Value="#065F46" />

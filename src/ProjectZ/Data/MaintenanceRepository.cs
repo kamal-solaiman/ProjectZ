@@ -17,7 +17,23 @@ public sealed record SavedSparePart(
     int Quantity,
     int MinimumStockAlert,
     decimal CostPrice,
-    decimal SellPrice);
+    decimal SellPrice,
+    string Barcode = "",
+    string Unit = "قطعة",
+    int? SupplierId = null,
+    int ReorderQuantity = 0,
+    string StorageLocation = "",
+    string Notes = "");
+
+/// <summary>A supplier row offered by the spare-parts screen (dbo.Suppliers).</summary>
+public sealed record SparePartSupplierOption(int Id, string Name, string CompanyName, string Phone)
+{
+    public string DisplayName => string.IsNullOrWhiteSpace(CompanyName)
+        ? Name
+        : $"{Name} — {CompanyName}";
+
+    public override string ToString() => DisplayName;
+}
 
 /// <summary>Result of creating a maintenance order.</summary>
 public sealed record SavedMaintenanceOrder(
@@ -26,7 +42,6 @@ public sealed record SavedMaintenanceOrder(
     decimal TotalDepositPaid,
     byte[]? RowVersion = null);
 
-/// <summary>SQL Server persistence for the maintenance spare-parts inventory and order-part lines.</summary>
 /// <summary>A payment to persist for a maintenance order (deposit / final / refund).</summary>
 /// <param name="Account">Financial account kind the payment goes through.</param>
 /// <param name="Stage">1 deposit, 2 final.</param>
@@ -39,6 +54,7 @@ public sealed record MaintenancePaymentEntry(
     DateTime PaidAt,
     string Note);
 
+/// <summary>SQL Server persistence for maintenance orders, spare parts, the movement ledger and order-part lines.</summary>
 public sealed class MaintenanceRepository(ConnectionSettingsProvider settings, int actorUserId)
 {
     private readonly PasscodeProtector passcodeProtector = new(settings.GetPasscodeKey());
@@ -57,10 +73,15 @@ public sealed class MaintenanceRepository(ConnectionSettingsProvider settings, i
             using var connection = OpenConnection();
             using var command = connection.CreateCommand();
             command.CommandText = @"
-SELECT Id, Name, ISNULL(Category,N''), Quantity, MinimumStockAlert, CostPrice, SellPrice
-FROM dbo.MaintenanceSpareParts
-WHERE IsActive = 1
-ORDER BY Id DESC;";
+SELECT sp.Id, sp.Name, ISNULL(sp.Category,N''), sp.Quantity, sp.MinimumStockAlert, sp.CostPrice, sp.SellPrice,
+       ISNULL(sp.Barcode,N''), ISNULL(sp.Unit,N'قطعة'), sp.SupplierId,
+       ISNULL(NULLIF(LTRIM(RTRIM(s.Name)),N''), N'') AS SupplierName,
+       sp.ReorderQuantity, ISNULL(sp.StorageLocation,N''), ISNULL(sp.Notes,N''),
+       (SELECT MAX(m.OccurredAtUtc) FROM dbo.MaintenanceSparePartMovements AS m WHERE m.SparePartId = sp.Id) AS LastMovementAtUtc
+FROM dbo.MaintenanceSpareParts AS sp
+LEFT JOIN dbo.Suppliers AS s ON s.Id = sp.SupplierId
+WHERE sp.IsActive = 1
+ORDER BY sp.Id DESC;";
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
@@ -72,7 +93,15 @@ ORDER BY Id DESC;";
                     Quantity = reader.GetInt32(3),
                     MinimumStockAlert = reader.GetInt32(4),
                     CostPrice = reader.GetDecimal(5),
-                    SellPrice = reader.GetDecimal(6)
+                    SellPrice = reader.GetDecimal(6),
+                    Barcode = reader.GetString(7),
+                    Unit = reader.GetString(8),
+                    SupplierId = reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                    SupplierName = reader.GetString(10),
+                    ReorderQuantity = reader.GetInt32(11),
+                    StorageLocation = reader.GetString(12),
+                    Notes = reader.GetString(13),
+                    LastMovementAt = reader.IsDBNull(14) ? null : reader.GetDateTime(14).ToLocalTime()
                 });
             }
         }
@@ -85,7 +114,43 @@ ORDER BY Id DESC;";
         foreach (var item in loaded) target.Add(item);
     }
 
-    /// <summary>Adds a new spare part or updates an existing one; returns the persisted row.</summary>
+    /// <summary>Loads the active suppliers for the preferred-supplier and restock pickers.</summary>
+    public List<SparePartSupplierOption> LoadSparePartSuppliers()
+    {
+        var suppliers = new List<SparePartSupplierOption>();
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT s.Id, s.Name, ISNULL(s.CompanyName,N''), ISNULL(s.Phone,N'')
+FROM dbo.Suppliers AS s
+WHERE s.IsActive = 1
+   OR EXISTS (SELECT 1 FROM dbo.MaintenanceSpareParts AS sp WHERE sp.SupplierId = s.Id)
+ORDER BY s.Name;";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                suppliers.Add(new SparePartSupplierOption(
+                    reader.GetInt32(0),
+                    reader.GetString(1),
+                    reader.GetString(2),
+                    reader.GetString(3)));
+            }
+        }
+        catch (Exception ex) when (ex is SqlException or InvalidOperationException)
+        {
+            throw Describe(ex, "تعذّر تحميل قائمة الموردين من قاعدة البيانات.");
+        }
+
+        return suppliers;
+    }
+
+    /// <summary>
+    /// Adds a new spare part or updates an existing one; returns the persisted row. Every quantity
+    /// difference is written to dbo.MaintenanceSparePartMovements in the same transaction, so a
+    /// manual correction can never change the balance without an audit row.
+    /// </summary>
     public SavedSparePart SaveSparePart(
         int? existingPartId,
         string name,
@@ -93,7 +158,13 @@ ORDER BY Id DESC;";
         int quantity,
         int minimumStockAlert,
         decimal costPrice,
-        decimal sellPrice)
+        decimal sellPrice,
+        string barcode = "",
+        string unit = "قطعة",
+        int? supplierId = null,
+        int reorderQuantity = 0,
+        string storageLocation = "",
+        string notes = "")
     {
         name = Trim(name, 250, "");
         category = Trim(category, 100, "شاشات");
@@ -101,41 +172,84 @@ ORDER BY Id DESC;";
         minimumStockAlert = Math.Max(0, minimumStockAlert);
         costPrice = Math.Max(0m, costPrice);
         sellPrice = Math.Max(0m, sellPrice);
+        barcode = Trim(barcode, 100, "");
+        unit = Trim(unit, 30, "قطعة");
+        reorderQuantity = Math.Max(0, reorderQuantity);
+        storageLocation = Trim(storageLocation, 120, "");
+        notes = Trim(notes, 1000, "");
+        if (supplierId is <= 0) supplierId = null;
 
         try
         {
             using var connection = OpenConnection();
-            using var transaction = connection.BeginTransaction();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
 
             if (existingPartId is null)
             {
                 int partId;
                 using (var insert = CreateCommand(connection, transaction, @"
-INSERT dbo.MaintenanceSpareParts(Name, Category, Quantity, MinimumStockAlert, CostPrice, SellPrice, IsActive)
+INSERT dbo.MaintenanceSpareParts(Name, Category, Barcode, Unit, SupplierId, Quantity, MinimumStockAlert,
+                                 ReorderQuantity, StorageLocation, Notes, CostPrice, SellPrice, IsActive)
 OUTPUT inserted.Id
-VALUES(@Name,@Category,@Qty,@Min,@Cost,@Sell,1);"))
+VALUES(@Name,@Category,@Barcode,@Unit,@Supplier,@Qty,@Min,@Reorder,@Location,@Notes,@Cost,@Sell,1);"))
                 {
                     insert.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = name;
                     insert.Parameters.Add("@Category", SqlDbType.NVarChar, 100).Value = category;
+                    insert.Parameters.Add("@Barcode", SqlDbType.NVarChar, 100).Value = barcode.Length == 0 ? DBNull.Value : barcode;
+                    insert.Parameters.Add("@Unit", SqlDbType.NVarChar, 30).Value = unit;
+                    insert.Parameters.Add("@Supplier", SqlDbType.Int).Value = supplierId is null ? DBNull.Value : supplierId.Value;
                     insert.Parameters.Add("@Qty", SqlDbType.Int).Value = quantity;
                     insert.Parameters.Add("@Min", SqlDbType.Int).Value = minimumStockAlert;
+                    insert.Parameters.Add("@Reorder", SqlDbType.Int).Value = reorderQuantity;
+                    insert.Parameters.Add("@Location", SqlDbType.NVarChar, 120).Value = storageLocation;
+                    insert.Parameters.Add("@Notes", SqlDbType.NVarChar, 1000).Value = notes;
                     AddMoney(insert, "@Cost", costPrice);
                     AddMoney(insert, "@Sell", sellPrice);
                     partId = (int)insert.ExecuteScalar()!;
                 }
+
+                if (quantity > 0)
+                {
+                    InsertSparePartMovement(
+                        connection, transaction, partId, MaintenanceSparePartMovementKind.OpeningBalance,
+                        quantity, 0, quantity, costPrice, supplierId, 0, barcode,
+                        "الرصيد الافتتاحي عند تسجيل قطعة الغيار.");
+                }
+
                 transaction.Commit();
-                return new SavedSparePart(partId, name, category, quantity, minimumStockAlert, costPrice, sellPrice);
+                return new SavedSparePart(partId, name, category, quantity, minimumStockAlert, costPrice, sellPrice,
+                    barcode, unit, supplierId, reorderQuantity, storageLocation, notes);
+            }
+
+            int beforeQuantity;
+            using (var lockRow = CreateCommand(connection, transaction, @"
+SELECT Quantity FROM dbo.MaintenanceSpareParts WITH (UPDLOCK, HOLDLOCK)
+WHERE Id = @Id AND IsActive = 1;"))
+            {
+                lockRow.Parameters.Add("@Id", SqlDbType.Int).Value = existingPartId.Value;
+                var value = lockRow.ExecuteScalar();
+                if (value is null)
+                    throw new MaintenanceDataException("تعذّر تعديل قطعة الغيار: غير موجودة أو متوقفة.");
+                beforeQuantity = Convert.ToInt32(value);
             }
 
             using (var update = CreateCommand(connection, transaction, @"
-UPDATE dbo.MaintenanceSpareParts SET Name = @Name, Category = @Category, Quantity = @Qty,
-     MinimumStockAlert = @Min, CostPrice = @Cost, SellPrice = @Sell, UpdatedAtUtc = SYSUTCDATETIME()
+UPDATE dbo.MaintenanceSpareParts
+SET Name = @Name, Category = @Category, Barcode = @Barcode, Unit = @Unit, SupplierId = @Supplier,
+    Quantity = @Qty, MinimumStockAlert = @Min, ReorderQuantity = @Reorder, StorageLocation = @Location,
+    Notes = @Notes, CostPrice = @Cost, SellPrice = @Sell, UpdatedAtUtc = SYSUTCDATETIME()
 WHERE Id = @Id AND IsActive = 1;"))
             {
                 update.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = name;
                 update.Parameters.Add("@Category", SqlDbType.NVarChar, 100).Value = category;
+                update.Parameters.Add("@Barcode", SqlDbType.NVarChar, 100).Value = barcode.Length == 0 ? DBNull.Value : barcode;
+                update.Parameters.Add("@Unit", SqlDbType.NVarChar, 30).Value = unit;
+                update.Parameters.Add("@Supplier", SqlDbType.Int).Value = supplierId is null ? DBNull.Value : supplierId.Value;
                 update.Parameters.Add("@Qty", SqlDbType.Int).Value = quantity;
                 update.Parameters.Add("@Min", SqlDbType.Int).Value = minimumStockAlert;
+                update.Parameters.Add("@Reorder", SqlDbType.Int).Value = reorderQuantity;
+                update.Parameters.Add("@Location", SqlDbType.NVarChar, 120).Value = storageLocation;
+                update.Parameters.Add("@Notes", SqlDbType.NVarChar, 1000).Value = notes;
                 AddMoney(update, "@Cost", costPrice);
                 AddMoney(update, "@Sell", sellPrice);
                 update.Parameters.Add("@Id", SqlDbType.Int).Value = existingPartId.Value;
@@ -143,8 +257,20 @@ WHERE Id = @Id AND IsActive = 1;"))
                     throw new MaintenanceDataException("تعذّر تعديل قطعة الغيار: غير موجودة أو متوقفة.");
             }
 
+            if (beforeQuantity != quantity)
+            {
+                var kind = quantity > beforeQuantity
+                    ? MaintenanceSparePartMovementKind.AdjustmentIncrease
+                    : MaintenanceSparePartMovementKind.AdjustmentDecrease;
+                InsertSparePartMovement(
+                    connection, transaction, existingPartId.Value, kind,
+                    Math.Abs(quantity - beforeQuantity), beforeQuantity, quantity, costPrice, supplierId, 0, barcode,
+                    "تعديل يدوي للرصيد من شاشة قطع الغيار.");
+            }
+
             transaction.Commit();
-            return new SavedSparePart(existingPartId.Value, name, category, quantity, minimumStockAlert, costPrice, sellPrice);
+            return new SavedSparePart(existingPartId.Value, name, category, quantity, minimumStockAlert, costPrice, sellPrice,
+                barcode, unit, supplierId, reorderQuantity, storageLocation, notes);
         }
         catch (Exception ex)
         {
@@ -153,26 +279,35 @@ WHERE Id = @Id AND IsActive = 1;"))
     }
 
     /// <summary>
-    /// Deletes a spare part. A part that has been used in an order-part line is deactivated
-    /// (IsActive = 0) instead of being removed, to preserve the audit trail; an unused part is
-    /// deleted permanently.
+    /// Deletes a spare part. A part that has been used in an order or has stock movements is
+    /// deactivated (IsActive = 0) instead of being removed, to preserve the audit trail; an
+    /// untouched part is deleted permanently.
     /// </summary>
     public (bool Deleted, string Message) DeleteSparePart(int partId, string name)
     {
         try
         {
             using var connection = OpenConnection();
-            using var transaction = connection.BeginTransaction();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
 
-            int usageCount;
+            int historyCount;
+            int quantity;
             using (var count = CreateCommand(connection, transaction, @"
-SELECT COUNT(1) FROM dbo.MaintenanceOrderParts WHERE SparePartId = @Id;"))
+SELECT sp.Quantity,
+       (SELECT COUNT(1) FROM dbo.MaintenanceOrderParts WHERE SparePartId = @Id)
+     + (SELECT COUNT(1) FROM dbo.MaintenanceSparePartMovements WHERE SparePartId = @Id)
+FROM dbo.MaintenanceSpareParts AS sp
+WHERE sp.Id = @Id AND sp.IsActive = 1;"))
             {
                 count.Parameters.Add("@Id", SqlDbType.Int).Value = partId;
-                usageCount = (int)count.ExecuteScalar()!;
+                using var reader = count.ExecuteReader();
+                if (!reader.Read())
+                    throw new MaintenanceDataException("تعذّر حذف قطعة الغيار: غير موجودة أو متوقفة.");
+                quantity = reader.GetInt32(0);
+                historyCount = reader.GetInt32(1);
             }
 
-            if (usageCount == 0)
+            if (historyCount == 0 && quantity == 0)
             {
                 using (var delete = CreateCommand(connection, transaction, @"
 DELETE FROM dbo.MaintenanceSpareParts WHERE Id = @Id AND IsActive = 1;"))
@@ -193,7 +328,7 @@ WHERE Id = @Id AND IsActive = 1;"))
                 deactivate.ExecuteNonQuery();
             }
             transaction.Commit();
-            return (false, $"يوجد سجل صرف لـ «{name}»، تم إيقافه مؤقتًا بدل الحذف النهائي.");
+            return (false, $"يوجد سجل صرف أو حركات مخزون أو رصيد متبقٍ لـ «{name}»، تم إيقافه بدل الحذف النهائي للحفاظ على السجل.");
         }
         catch (Exception ex)
         {
@@ -204,8 +339,9 @@ WHERE Id = @Id AND IsActive = 1;"))
     /// <summary>
     /// Deducts stock from a spare part and records the order-part line. In one transaction it:
     /// validates the available stock, updates the spare-part quantity (optimistic concurrency via
-    /// RowVersion), and inserts a MaintenanceOrderParts row referencing the spare part. When orderId
-    /// is 0 the part stock is still deducted but no order-part line is written.
+    /// RowVersion), inserts a MaintenanceOrderParts row referencing the spare part, and appends an
+    /// Issue movement linked to the order and its customer. When orderId is 0 the part stock is
+    /// still deducted but no order-part line is written.
     /// </summary>
     public void DeductSparePartStock(
         int sparePartId,
@@ -215,7 +351,7 @@ WHERE Id = @Id AND IsActive = 1;"))
         string barcode,
         decimal unitCost,
         decimal unitSellPrice,
-        int lineNumber)
+        string note = "")
     {
         quantity = Math.Max(1, quantity);
         productName = Trim(productName, 250, "");
@@ -226,7 +362,7 @@ WHERE Id = @Id AND IsActive = 1;"))
         try
         {
             using var connection = OpenConnection();
-            using var transaction = connection.BeginTransaction();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
 
             int currentQty;
             byte[] rowVersion;
@@ -247,20 +383,36 @@ WHERE Id = @Id AND IsActive = 1;"))
 
             int newQty;
             using (var update = CreateCommand(connection, transaction, @"
-UPDATE dbo.MaintenanceSpareParts SET Quantity = Quantity - @Qty, UpdatedAtUtc = SYSUTCDATETIME()
+UPDATE dbo.MaintenanceSpareParts
+SET Quantity = Quantity - @Qty, LastIssueAtUtc = SYSUTCDATETIME(), UpdatedAtUtc = SYSUTCDATETIME()
 OUTPUT inserted.Quantity
 WHERE Id = @Id AND IsActive = 1 AND RowVersion = @RV;"))
             {
                 update.Parameters.Add("@Qty", SqlDbType.Int).Value = quantity;
                 update.Parameters.Add("@Id", SqlDbType.Int).Value = sparePartId;
                 update.Parameters.Add("@RV", SqlDbType.VarBinary).Value = rowVersion;
-                newQty = (int)update.ExecuteScalar()!;
+                var result = update.ExecuteScalar();
+                if (result is null)
+                    throw new MaintenanceDataException("تغيّر رصيد قطعة الغيار بواسطة مستخدم آخر. أعد المحاولة.");
+                newQty = Convert.ToInt32(result);
             }
 
             if (orderId > 0)
             {
                 // A spare-part line links dbo.MaintenanceOrderParts.SparePartId and keeps ProductId
                 // NULL (the POS catalog is a different table). See sql/13_EnableMaintenanceInvoices.sql.
+                // The next free line number is computed under the same lock, so a ticket saved with
+                // gaps or after a removed line can never collide with UQ_MaintenanceOrderParts_Line.
+                int nextLineNumber;
+                using (var nextLine = CreateCommand(connection, transaction, @"
+SELECT ISNULL(MAX(LineNumber), 0) + 1
+FROM dbo.MaintenanceOrderParts WITH (UPDLOCK, HOLDLOCK)
+WHERE MaintenanceOrderId = @Order;"))
+                {
+                    nextLine.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
+                    nextLineNumber = Convert.ToInt32(nextLine.ExecuteScalar() ?? 1);
+                }
+
                 using (var insert = CreateCommand(connection, transaction, @"
 INSERT dbo.MaintenanceOrderParts(MaintenanceOrderId, SparePartId, ProductId, LineNumber, BarcodeSnapshot,
  ProductNameSnapshot, Quantity, UnitCost, UnitSellPrice, IsManualPart)
@@ -268,7 +420,7 @@ VALUES(@Order,@Spare,NULL,@Line,@Barcode,@Name,@Qty,@Cost,@Sell,0);"))
                 {
                     insert.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
                     insert.Parameters.Add("@Spare", SqlDbType.Int).Value = sparePartId;
-                    insert.Parameters.Add("@Line", SqlDbType.Int).Value = lineNumber;
+                    insert.Parameters.Add("@Line", SqlDbType.Int).Value = nextLineNumber;
                     insert.Parameters.Add("@Barcode", SqlDbType.NVarChar, 100).Value = barcode;
                     insert.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = productName;
                     insert.Parameters.Add("@Qty", SqlDbType.Int).Value = quantity;
@@ -278,6 +430,11 @@ VALUES(@Order,@Spare,NULL,@Line,@Barcode,@Name,@Qty,@Cost,@Sell,0);"))
                 }
             }
 
+            InsertSparePartMovement(
+                connection, transaction, sparePartId, MaintenanceSparePartMovementKind.Issue,
+                quantity, currentQty, newQty, unitCost, null, orderId, barcode,
+                string.IsNullOrWhiteSpace(note) ? $"صرف {productName} على أمر صيانة." : note);
+
             transaction.Commit();
         }
         catch (Exception ex)
@@ -286,29 +443,307 @@ VALUES(@Order,@Spare,NULL,@Line,@Barcode,@Name,@Qty,@Cost,@Sell,0);"))
         }
     }
 
-    /// <summary>Restores stock back to a spare part after an order-part line is removed or reversed.</summary>
-    public void RestoreSparePartStock(int sparePartId, int quantity)
+    /// <summary>
+    /// Restores stock back to a spare part after an order-part line is removed or its ticket is
+    /// cancelled. Works even when the part itself was deactivated, and appends a Return movement
+    /// linked to the order and customer.
+    /// </summary>
+    public void RestoreSparePartStock(int sparePartId, int quantity, int orderId = 0, string note = "")
     {
         quantity = Math.Max(1, quantity);
         try
         {
             using var connection = OpenConnection();
-            using var transaction = connection.BeginTransaction();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
 
+            int beforeQuantity;
+            using (var lockRow = CreateCommand(connection, transaction, @"
+SELECT Quantity FROM dbo.MaintenanceSpareParts WITH (UPDLOCK, HOLDLOCK)
+WHERE Id = @Id;"))
+            {
+                lockRow.Parameters.Add("@Id", SqlDbType.Int).Value = sparePartId;
+                var value = lockRow.ExecuteScalar();
+                if (value is null)
+                    throw new MaintenanceDataException("تعذّر استرجاع القطعة: قطعة الغيار غير موجودة.");
+                beforeQuantity = Convert.ToInt32(value);
+            }
+
+            int newQuantity;
             using (var update = CreateCommand(connection, transaction, @"
-UPDATE dbo.MaintenanceSpareParts SET Quantity = Quantity + @Qty, UpdatedAtUtc = SYSUTCDATETIME()
-WHERE Id = @Id AND IsActive = 1;"))
+UPDATE dbo.MaintenanceSpareParts
+SET Quantity = Quantity + @Qty, UpdatedAtUtc = SYSUTCDATETIME()
+OUTPUT inserted.Quantity
+WHERE Id = @Id;"))
             {
                 update.Parameters.Add("@Qty", SqlDbType.Int).Value = quantity;
                 update.Parameters.Add("@Id", SqlDbType.Int).Value = sparePartId;
-                update.ExecuteNonQuery();
+                newQuantity = Convert.ToInt32(update.ExecuteScalar()!);
             }
+
+            InsertSparePartMovement(
+                connection, transaction, sparePartId, MaintenanceSparePartMovementKind.Return,
+                quantity, beforeQuantity, newQuantity, 0m, null, orderId, "",
+                string.IsNullOrWhiteSpace(note) ? "إرجاع قطعة من أمر صيانة إلى المخزون." : note);
+
             transaction.Commit();
         }
         catch (Exception ex)
         {
             throw Describe(ex, "تعذّر استرجاع رصيد قطعة الغيار.");
         }
+    }
+
+    /// <summary>
+    /// Returns several spare-part lines to stock in one transaction when a whole maintenance order
+    /// is cancelled. The batch is all-or-nothing: if one part is missing or a movement cannot be
+    /// written, no quantity is changed, so the order and the ledger cannot drift apart.
+    /// </summary>
+    public void RestoreSparePartStockForOrder(
+        int orderId,
+        IEnumerable<(int SparePartId, int Quantity)> lines,
+        string note = "")
+    {
+        if (lines is null) return;
+        var items = lines.Where(line => line.SparePartId > 0 && line.Quantity > 0).ToList();
+        if (items.Count == 0) return;
+        note = Trim(note, 1000, "");
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+
+            foreach (var line in items)
+            {
+                int beforeQuantity;
+                using (var lockRow = CreateCommand(connection, transaction, @"
+SELECT Quantity FROM dbo.MaintenanceSpareParts WITH (UPDLOCK, HOLDLOCK)
+WHERE Id = @Id;"))
+                {
+                    lockRow.Parameters.Add("@Id", SqlDbType.Int).Value = line.SparePartId;
+                    var value = lockRow.ExecuteScalar();
+                    if (value is null)
+                        throw new MaintenanceDataException($"تعذّر استرجاع القطعة: قطعة الغيار رقم {line.SparePartId} غير موجودة.");
+                    beforeQuantity = Convert.ToInt32(value);
+                }
+
+                var afterQuantity = beforeQuantity + line.Quantity;
+                using (var update = CreateCommand(connection, transaction, @"
+UPDATE dbo.MaintenanceSpareParts
+SET Quantity = @Qty, UpdatedAtUtc = SYSUTCDATETIME()
+WHERE Id = @Id;"))
+                {
+                    update.Parameters.Add("@Qty", SqlDbType.Int).Value = afterQuantity;
+                    update.Parameters.Add("@Id", SqlDbType.Int).Value = line.SparePartId;
+                    update.ExecuteNonQuery();
+                }
+
+                InsertSparePartMovement(
+                    connection, transaction, line.SparePartId, MaintenanceSparePartMovementKind.Return,
+                    line.Quantity, beforeQuantity, afterQuantity, 0m, null, orderId, "",
+                    string.IsNullOrWhiteSpace(note) ? "إرجاع قطع الغيار عند إلغاء أمر الصيانة." : note);
+            }
+
+            transaction.Commit();
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر إرجاع قطع الغيار إلى المخزون.");
+        }
+    }
+
+    /// <summary>
+    /// Adds stock to a spare part (a purchase from a supplier). In one transaction it raises the
+    /// quantity, keeps the moving-average cost, links the preferred supplier when supplied and
+    /// appends a Purchase movement with the supplier, reference and note.
+    /// </summary>
+    public SavedSparePart RestockSparePart(
+        int partId,
+        int quantity,
+        decimal unitCost,
+        int? supplierId,
+        string reference,
+        string note)
+    {
+        quantity = Math.Max(1, quantity);
+        unitCost = Math.Max(0m, unitCost);
+        reference = Trim(reference, 100, "");
+        note = Trim(note, 1000, "");
+        if (supplierId is <= 0) supplierId = null;
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+
+            string name, category, barcode, unit, storageLocation, notes;
+            int beforeQuantity, minimumStockAlert, reorderQuantity;
+            decimal currentCost, sellPrice;
+            int? currentSupplierId;
+            using (var lockRow = CreateCommand(connection, transaction, @"
+SELECT Name, ISNULL(Category,N''), ISNULL(Barcode,N''), ISNULL(Unit,N'قطعة'), Quantity, MinimumStockAlert,
+       ReorderQuantity, CostPrice, SellPrice, SupplierId, ISNULL(StorageLocation,N''), ISNULL(Notes,N'')
+FROM dbo.MaintenanceSpareParts WITH (UPDLOCK, HOLDLOCK)
+WHERE Id = @Id AND IsActive = 1;"))
+            {
+                lockRow.Parameters.Add("@Id", SqlDbType.Int).Value = partId;
+                using var reader = lockRow.ExecuteReader();
+                if (!reader.Read())
+                    throw new MaintenanceDataException("تعذّر توريد القطعة: قطعة الغيار غير موجودة أو متوقفة.");
+                name = reader.GetString(0);
+                category = reader.GetString(1);
+                barcode = reader.GetString(2);
+                unit = reader.GetString(3);
+                beforeQuantity = reader.GetInt32(4);
+                minimumStockAlert = reader.GetInt32(5);
+                reorderQuantity = reader.GetInt32(6);
+                currentCost = reader.GetDecimal(7);
+                sellPrice = reader.GetDecimal(8);
+                currentSupplierId = reader.IsDBNull(9) ? null : reader.GetInt32(9);
+                storageLocation = reader.GetString(10);
+                notes = reader.GetString(11);
+            }
+
+            var effectiveSupplierId = supplierId ?? currentSupplierId;
+            var newCost = currentCost;
+            var totalUnits = beforeQuantity + quantity;
+            if (unitCost > 0m && totalUnits > 0)
+                newCost = Math.Round(((beforeQuantity * currentCost) + (quantity * unitCost)) / totalUnits, 2, MidpointRounding.AwayFromZero);
+            else if (unitCost > 0m && beforeQuantity == 0)
+                newCost = unitCost;
+
+            var newQuantity = beforeQuantity + quantity;
+            using (var update = CreateCommand(connection, transaction, @"
+UPDATE dbo.MaintenanceSpareParts
+SET Quantity = @Qty, CostPrice = @Cost, SupplierId = @Supplier,
+    LastPurchaseAtUtc = SYSUTCDATETIME(), UpdatedAtUtc = SYSUTCDATETIME()
+WHERE Id = @Id AND IsActive = 1;"))
+            {
+                update.Parameters.Add("@Qty", SqlDbType.Int).Value = newQuantity;
+                AddMoney(update, "@Cost", newCost);
+                update.Parameters.Add("@Supplier", SqlDbType.Int).Value = effectiveSupplierId is null ? DBNull.Value : effectiveSupplierId.Value;
+                update.Parameters.Add("@Id", SqlDbType.Int).Value = partId;
+                update.ExecuteNonQuery();
+            }
+
+            InsertSparePartMovement(
+                connection, transaction, partId, MaintenanceSparePartMovementKind.Purchase,
+                quantity, beforeQuantity, newQuantity, unitCost, effectiveSupplierId, 0, reference,
+                string.IsNullOrWhiteSpace(note) ? "توريد قطعة غيار من المورد." : note);
+
+            transaction.Commit();
+            return new SavedSparePart(partId, name, category, newQuantity, minimumStockAlert, newCost, sellPrice,
+                barcode, unit, effectiveSupplierId, reorderQuantity, storageLocation, notes);
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر توريد قطعة الغيار.");
+        }
+    }
+
+    /// <summary>Loads the movement audit trail (newest first), optionally for one spare part.</summary>
+    public void LoadSparePartMovementsInto(
+        ObservableCollection<MaintenanceSparePartMovementItem> target,
+        int? sparePartId = null,
+        int limit = 500)
+    {
+        var loaded = new List<MaintenanceSparePartMovementItem>();
+        limit = Math.Clamp(limit, 1, 2000);
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT TOP (@Limit)
+       m.Id, m.SparePartId, sp.Name, m.MovementKind, m.Quantity, m.QuantityBefore, m.QuantityAfter, m.UnitCost,
+       m.SupplierId, ISNULL(NULLIF(LTRIM(RTRIM(s.Name)),N''), N'') AS SupplierName,
+       m.MaintenanceOrderId, ISNULL(mo.OrderNumber,N'') AS OrderNumber,
+       m.CustomerId, ISNULL(NULLIF(LTRIM(RTRIM(c.Name)),N''), N'') AS CustomerName,
+       ISNULL(m.Reference,N''), ISNULL(m.Note,N''),
+       ISNULL(NULLIF(LTRIM(RTRIM(u.DisplayName)),N''), N'') AS ActorName, m.OccurredAtUtc
+FROM dbo.MaintenanceSparePartMovements AS m
+INNER JOIN dbo.MaintenanceSpareParts AS sp ON sp.Id = m.SparePartId
+LEFT JOIN dbo.Suppliers AS s ON s.Id = m.SupplierId
+LEFT JOIN dbo.MaintenanceOrders AS mo ON mo.Id = m.MaintenanceOrderId
+LEFT JOIN dbo.Customers AS c ON c.Id = m.CustomerId
+LEFT JOIN dbo.Users AS u ON u.Id = m.ActorUserId
+WHERE (@PartId IS NULL OR m.SparePartId = @PartId)
+ORDER BY m.OccurredAtUtc DESC, m.Id DESC;";
+            command.Parameters.Add("@Limit", SqlDbType.Int).Value = limit;
+            command.Parameters.Add("@PartId", SqlDbType.Int).Value = sparePartId is > 0 ? sparePartId.Value : DBNull.Value;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var partId = reader.GetInt32(1);
+                loaded.Add(new MaintenanceSparePartMovementItem
+                {
+                    Id = reader.GetInt32(0),
+                    SparePartId = partId,
+                    SparePartName = reader.GetString(2),
+                    SparePartCode = $"SPR-{partId:000}",
+                    Kind = (MaintenanceSparePartMovementKind)reader.GetByte(3),
+                    Quantity = reader.GetInt32(4),
+                    QuantityBefore = reader.GetInt32(5),
+                    QuantityAfter = reader.GetInt32(6),
+                    UnitCost = reader.GetDecimal(7),
+                    SupplierId = reader.IsDBNull(8) ? null : reader.GetInt32(8),
+                    SupplierName = reader.GetString(9),
+                    MaintenanceOrderId = reader.IsDBNull(10) ? null : reader.GetInt32(10),
+                    OrderNumber = reader.GetString(11),
+                    CustomerId = reader.IsDBNull(12) ? null : reader.GetInt32(12),
+                    CustomerName = reader.GetString(13),
+                    Reference = reader.GetString(14),
+                    Note = reader.GetString(15),
+                    ActorName = reader.GetString(16),
+                    OccurredAt = reader.GetDateTime(17).ToLocalTime()
+                });
+            }
+        }
+        catch (Exception ex) when (ex is SqlException or InvalidOperationException)
+        {
+            throw Describe(ex, "تعذّر تحميل سجل حركات قطع الغيار من قاعدة البيانات.");
+        }
+
+        target.Clear();
+        foreach (var item in loaded) target.Add(item);
+    }
+
+    /// <summary>Appends one audit row to dbo.MaintenanceSparePartMovements inside the caller's transaction.</summary>
+    private void InsertSparePartMovement(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        int sparePartId,
+        MaintenanceSparePartMovementKind kind,
+        int quantity,
+        int quantityBefore,
+        int quantityAfter,
+        decimal unitCost,
+        int? supplierId,
+        int orderId,
+        string reference,
+        string note)
+    {
+        using var command = CreateCommand(connection, transaction, @"
+INSERT dbo.MaintenanceSparePartMovements(SparePartId, MovementKind, Quantity, QuantityBefore, QuantityAfter,
+    UnitCost, SupplierId, MaintenanceOrderId, CustomerId, Reference, Note, ActorUserId, OccurredAtUtc)
+SELECT @Part, @Kind, @Qty, @Before, @After, @Cost, COALESCE(@Supplier, sp.SupplierId),
+       CASE WHEN @Order > 0 THEN @Order END,
+       CASE WHEN @Order > 0 THEN mo.CustomerId END, @Ref, @Note, @Actor, SYSUTCDATETIME()
+FROM dbo.MaintenanceSpareParts AS sp
+LEFT JOIN dbo.MaintenanceOrders AS mo ON mo.Id = @Order
+WHERE sp.Id = @Part;");
+        command.Parameters.Add("@Part", SqlDbType.Int).Value = sparePartId;
+        command.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
+        command.Parameters.Add("@Qty", SqlDbType.Int).Value = quantity;
+        command.Parameters.Add("@Before", SqlDbType.Int).Value = quantityBefore;
+        command.Parameters.Add("@After", SqlDbType.Int).Value = quantityAfter;
+        AddMoney(command, "@Cost", unitCost);
+        command.Parameters.Add("@Supplier", SqlDbType.Int).Value = supplierId is null ? DBNull.Value : supplierId.Value;
+        command.Parameters.Add("@Order", SqlDbType.Int).Value = Math.Max(0, orderId);
+        command.Parameters.Add("@Ref", SqlDbType.NVarChar, 100).Value = reference;
+        command.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
+        command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+        command.ExecuteNonQuery();
     }
 
     // ---------------------------------------------------------------- maintenance orders
@@ -1051,16 +1486,17 @@ VALUES(@Kind,@Alias,@Identifier,0,1,1,N'أنشئت تلقائيًا لأوامر
         {
             return sql.Number switch
             {
-                2601 or 2627 => new MaintenanceDataException("البيانات مكررة: قطعة الغيار مسجلة بالفعل. أعد المحاولة.", sql),
+                2601 or 2627 => new MaintenanceDataException(
+                    "البيانات مكررة: اسم قطعة الغيار أو باركودها مسجل بالفعل لقطعة أخرى.", sql),
                 207 or 208 => new MaintenanceDataException(
-                    "مخطط قاعدة البيانات ناقص (جدول أو عمود غير موجود). شغّل sql/06_CreateFullSchema.sql ثم sql/13_EnableMaintenanceInvoices.sql على الخادم وأعد المحاولة.", sql),
+                    "مخطط قاعدة البيانات ناقص (جدول أو عمود غير موجود). شغّل sql/06_CreateFullSchema.sql ثم sql/13_EnableMaintenanceInvoices.sql وsql/16_EnableMaintenanceSpareParts.sql على الخادم وأعد المحاولة.", sql),
                 53 or 4060 => new MaintenanceDataException("لا يمكن الاتصال بقاعدة البيانات. تحقق من اتصال الخادم وتحديثه.", sql),
                 18456 => new MaintenanceDataException("فشل تسجيل الدخول إلى قاعدة البيانات. تحقق من المستخدم وكلمة المرور.", sql),
                 547 => new MaintenanceDataException(
-                    "تعذّر حفظ بند قطعة الغيار: قيد بنود الصيانة في قاعدة البيانات ما زال النسخة القديمة. شغّل sql/13_EnableMaintenanceInvoices.sql على الخادم ثم أعد المحاولة.", sql),
+                    "تعذّر حفظ البيانات بسبب ارتباط غير صالح (مورد أو أمر صيانة أو قيد بنود قديم). شغّل sql/13_EnableMaintenanceInvoices.sql وsql/16_EnableMaintenanceSpareParts.sql على الخادم ثم أعد المحاولة.", sql),
                 1205 => new MaintenanceDataException("تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 229 or 230 => new MaintenanceDataException(
-                    "حساب الاتصال لا يملك صلاحية العمل على فواتير الصيانة. شغّل sql/09_EnablePosSales.sql وsql/13_EnableMaintenanceInvoices.sql على الخادم ثم أعد المحاولة.", sql),
+                    "حساب الاتصال لا يملك صلاحية العمل على مخزون قطع الغيار. شغّل sql/09_EnablePosSales.sql وsql/16_EnableMaintenanceSpareParts.sql على الخادم ثم أعد المحاولة.", sql),
                 >= 50000 => new MaintenanceDataException(sql.Message, sql),
                 _ => new MaintenanceDataException(fallback, sql)
             };
@@ -1080,6 +1516,20 @@ VALUES(@Kind,@Alias,@Identifier,0,1,1,N'أنشئت تلقائيًا لأوامر
     {
         var connection = new SqlConnection(settings.GetConnectionString());
         connection.Open();
+        // The spare-part register has filtered unique indexes (active names/barcodes). SQL Server
+        // requires these session options for every INSERT/UPDATE that touches them.
+        using (var options = connection.CreateCommand())
+        {
+            options.CommandText = @"
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET NUMERIC_ROUNDABORT OFF;";
+            options.ExecuteNonQuery();
+        }
         return connection;
     }
 }

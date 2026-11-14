@@ -11,6 +11,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     private readonly ObservableCollection<MaintenanceOrderDesignItem> sharedOrders;
     private readonly ObservableCollection<MaintenanceSparePartItem> sharedSpareParts;
     private readonly Action? navigateToIntake;
+    private readonly Action? navigateToSpareParts;
     private readonly Action? notifySparePartsChanged;
     private readonly Data.MaintenanceRepository? repository;
     private readonly Action? onOrdersSaved;
@@ -459,6 +460,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     // Commands
     public ActionCommand GoToIntakeCommand { get; }
+    public ActionCommand GoToSparePartsCommand { get; }
     public ActionCommand RefreshDataCommand { get; }
     public RelayCommand<string> SetStageFilterCommand { get; }
     public RelayCommand<MaintenanceOrderDesignItem> SelectOrderCommand { get; }
@@ -508,12 +510,14 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         Action? navigateToIntake = null,
         Action? notifySparePartsChanged = null,
         Data.MaintenanceRepository? repository = null,
-        Action? onOrdersSaved = null)
+        Action? onOrdersSaved = null,
+        Action? navigateToSpareParts = null)
     {
         this.currentUserName = currentUserName;
         this.sharedOrders = sharedOrders;
         this.sharedSpareParts = sharedSpareParts;
         this.navigateToIntake = navigateToIntake;
+        this.navigateToSpareParts = navigateToSpareParts;
         this.notifySparePartsChanged = notifySparePartsChanged;
         this.repository = repository;
         this.onOrdersSaved = onOrdersSaved;
@@ -524,6 +528,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         this.sharedSpareParts.CollectionChanged += OnSparePartsCollectionChanged;
 
         GoToIntakeCommand = new ActionCommand(() => this.navigateToIntake?.Invoke());
+        GoToSparePartsCommand = new ActionCommand(() => this.navigateToSpareParts?.Invoke());
         RefreshDataCommand = new ActionCommand(() =>
         {
             if (!NotifyExternalDataChanged()) return;
@@ -633,7 +638,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         ReloadTechnicianDirectory();
         NotifyStageAndKpiCounts();
         RefreshFilteredOrders(selectedId);
-        RefreshFilteredCatalogParts();
+        RefreshFilteredCatalogParts(allowClearSelection: true);
 
         if (failure.Length > 0)
         {
@@ -722,7 +727,18 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     }
 
     private void OnSparePartsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        => RefreshFilteredCatalogParts();
+    {
+        // A Clear/Add reload or a delete can leave the issue form pointing at an instance that is
+        // no longer in the shared collection. Drop that selection before rebuilding the list.
+        if (selectedCatalogPart is not null && !sharedSpareParts.Contains(selectedCatalogPart))
+        {
+            selectedCatalogPart = null;
+            Changed(nameof(SelectedCatalogPart));
+            Changed(nameof(HasSelectedCatalogPart));
+        }
+
+        RefreshFilteredCatalogParts();
+    }
 
     /// <summary>
     /// Rebuilds the technician drop-down from SQL Server (or the design samples when no database is
@@ -1171,13 +1187,51 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             if (vm.ShouldReturnParts && order.UsedParts.Count > 0)
             {
                 var partsCopy = order.UsedParts.ToList();
+                var spareLines = partsCopy
+                    .Where(part => part.IsSparePartLine)
+                    .Select(part => (SparePartId: part.EffectiveSparePartId, part.Quantity))
+                    .ToList();
+
+                // Return every spare line in one transaction first. If anything fails, the order is
+                // left untouched instead of losing lines while only part of the stock came back.
+                if (repository is not null && spareLines.Count > 0)
+                {
+                    try
+                    {
+                        repository.RestoreSparePartStockForOrder(
+                            order.Id,
+                            spareLines,
+                            $"إرجاع قطع الغيار عند إلغاء الأمر {order.OrderNumber}.");
+                    }
+                    catch (Exception ex)
+                    {
+                        SetStatus($"تعذّر إرجاع قطع الغيار، ولم يتم إلغاء الأمر: {ex.Message}", true);
+                        return;
+                    }
+                }
+
                 foreach (var part in partsCopy)
                 {
-                    if (!RestorePartStockToInventory(part))
-                        return;   // Keep the ticket open so the returned stock and the lines stay in sync.
+                    if (repository is null)
+                    {
+                        if (!RestorePartStockToInventory(part, order))
+                            return;
+                    }
+                    else if (part.IsSparePartLine)
+                    {
+                        // The atomic SQL batch already raised the database quantity; mirror it in
+                        // the shared item so the open screens update without an extra round-trip.
+                        var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == part.EffectiveSparePartId);
+                        if (sparePart is not null)
+                        {
+                            sparePart.Quantity += part.Quantity;
+                            sparePart.LastMovementAt = DateTime.Now;
+                        }
+                    }
 
                     order.UsedParts.Remove(part);
-                    returnedCount += part.Quantity;
+                    if (part.IsSparePartLine)
+                        returnedCount += part.Quantity;
                 }
                 order.RecalculateWorkshopTotal();
                 RefreshFilteredCatalogParts();
@@ -1296,14 +1350,23 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
+        if (repository is not null && order.Id <= 0)
+        {
+            SetStatus("احفظ أمر الصيانة أولًا قبل صرف قطع الغيار من المخزون.", true);
+            return;
+        }
+
         if (repository is not null)
         {
             try
             {
-                var lineNumber = order.UsedParts.Count + 1;
+                var barcode = string.IsNullOrWhiteSpace(sparePart.Barcode)
+                    ? sparePart.CodeDisplay
+                    : sparePart.Barcode;
                 repository.DeductSparePartStock(
-                    sparePart.Id, qty, order.Id, sparePart.Name, sparePart.CodeDisplay,
-                    sparePart.CostPrice, sparePart.SellPrice, lineNumber);
+                    sparePart.Id, qty, order.Id, sparePart.Name, barcode,
+                    sparePart.CostPrice, sparePart.SellPrice,
+                    $"صرف {sparePart.Name} على الأمر {order.OrderNumber}.");
             }
             catch (Exception ex)
             {
@@ -1313,13 +1376,14 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         }
 
         sparePart.Quantity -= qty;
+        sparePart.LastMovementAt = DateTime.Now;
 
         var partItem = new MaintenancePartUsageItem
         {
             // Spare-part lines link dbo.MaintenanceSpareParts through SparePartId; ProductId is
             // reserved for POS catalog products and stays 0 here.
             SparePartId = sparePart.Id,
-            Barcode = sparePart.CodeDisplay,
+            Barcode = string.IsNullOrWhiteSpace(sparePart.Barcode) ? sparePart.CodeDisplay : sparePart.Barcode,
             ProductName = sparePart.Name,
             Quantity = qty,
             UnitCost = sparePart.CostPrice,
@@ -1332,14 +1396,15 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         order.RecalculateWorkshopTotal();
         Changed(nameof(LiveComputedTotalDisplay));
 
-        RecordActivity(order, new MaintenanceActivityEntry
+        var issueActivity = new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = "صرف قطعة غيار من مخزون الصيانة",
             Details = $"صرف {qty} × {sparePart.Name} ({partItem.LineTotalDisplay}) وخصمها من مخزون قطع الغيار.",
             ActorName = currentUserName,
             Amount = partItem.LineTotal
-        });
+        };
+        RecordActivity(order, issueActivity);
 
         CatalogPartQuantityText = "1";
         RefreshFilteredCatalogParts();
@@ -1347,10 +1412,46 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         notifySparePartsChanged?.Invoke();
 
         if (order.Id > 0)
-            TryPersistOrder(
-                order,
-                $"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.",
-                "تعذّر حفظ قطعة الغيار المصروفة");
+        {
+            if (!TryPersistOrder(
+                    order,
+                    $"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.",
+                    "تعذّر حفظ قطعة الغيار المصروفة"))
+            {
+                // The stock deduction already committed in its own transaction. Try to undo it
+                // through the ledger; only drop the local line when the quantity really returned.
+                if (RestorePartStockToInventory(partItem, order))
+                {
+                    // A failed save reloads the order from SQL, so the local instance may already be
+                    // stale. Only touch it when the reload failed and it is still the selected order.
+                    if (ReferenceEquals(order, SelectedOrder))
+                    {
+                        order.UsedParts.Remove(partItem);
+                        order.ActivityLog.Remove(issueActivity);
+                        pendingActivities.Remove(issueActivity);
+                        SyncLaborBeforeWorkshopRecalc(order);
+                        order.RecalculateWorkshopTotal();
+                        Changed(nameof(LiveComputedTotalDisplay));
+                    }
+                    SetStatus($"تعذّر حفظ القطعة «{sparePart.Name}» في الأمر {order.OrderNumber}؛ أُرجعت الكمية إلى المخزون ولم تُضف إلى التذكرة.", true);
+                }
+                else
+                {
+                    // A successful reload replaced the order with the SQL copy, which has no line;
+                    // claiming the line is still visible would be wrong. Only say so when the reload
+                    // itself failed and the local ticket still holds it.
+                    var lineStillVisible = ReferenceEquals(order, SelectedOrder);
+                    SetStatus(lineStillVisible
+                        ? $"تعذّر حفظ القطعة «{sparePart.Name}» في الأمر {order.OrderNumber} وتعذّر إرجاع كميتها؛ بقي البند في الشاشة ويمكن إعادة المحاولة بعد مراجعة الحالة."
+                        : $"تعذّر حفظ القطعة «{sparePart.Name}» في الأمر {order.OrderNumber} وتعذّر إرجاع كميتها؛ أُعيد تحميل الأمر من قاعدة البيانات فلم يبقَ البند ظاهرًا، والمخزون يحتاج تسوية يدوية من سجل الحركات.", true);
+                }
+
+                RefreshFilteredCatalogParts();
+                NotifyStageAndKpiCounts();
+                notifySparePartsChanged?.Invoke();
+                return;
+            }
+        }
         else
             SetStatus($"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.", false);
     }
@@ -1444,9 +1545,12 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        if (!RestorePartStockToInventory(part))
+        if (!RestorePartStockToInventory(part, order))
+        {
+            // Never remove the order line when the stock return failed; otherwise the line and
+            // the inventory would disagree as soon as the ticket is saved.
             return;
-
+        }
         order.UsedParts.Remove(part);
         SyncLaborBeforeWorkshopRecalc(order);
         order.RecalculateWorkshopTotal();
@@ -1494,18 +1598,24 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     /// is still returned instead of being lost. Returns false when the stock write failed, so the
     /// caller must keep the line on the ticket.
     /// </summary>
-    private bool RestorePartStockToInventory(MaintenancePartUsageItem part)
+    private bool RestorePartStockToInventory(MaintenancePartUsageItem part, MaintenanceOrderDesignItem? order = null)
     {
         if (!part.IsSparePartLine) return true;
 
         var sparePartId = part.EffectiveSparePartId;
         if (sparePartId <= 0) return true;
 
+        // The SQL restore must run even when the part was deactivated: it is no longer in the
+        // active shared collection, but its order line still has to return stock to the ledger.
         if (repository is not null)
         {
             try
             {
-                repository.RestoreSparePartStock(sparePartId, part.Quantity);
+                repository.RestoreSparePartStock(
+                    sparePartId,
+                    part.Quantity,
+                    order?.Id ?? 0,
+                    $"إرجاع {part.ProductName} من {order?.OrderNumber ?? "أمر صيانة"}.");
             }
             catch (Exception ex)
             {
@@ -1516,8 +1626,10 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
         var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == sparePartId);
         if (sparePart is not null)
+        {
             sparePart.Quantity += part.Quantity;
-
+            sparePart.LastMovementAt = DateTime.Now;
+        }
         return true;
     }
 
@@ -1655,9 +1767,10 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         Changed(nameof(HasNoFilteredOrders));
     }
 
-    private void RefreshFilteredCatalogParts()
+    private void RefreshFilteredCatalogParts(bool allowClearSelection = false)
     {
         var query = PartSearchText.Trim();
+        var selectedId = selectedCatalogPart?.Id;
         FilteredCatalogParts.Clear();
 
         foreach (var item in sharedSpareParts)
@@ -1669,6 +1782,22 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             {
                 FilteredCatalogParts.Add(item);
             }
+        }
+
+        // Reloading the spare-parts screen replaces its item instances. Keep the issue form
+        // pointing at the new instance with the same Id instead of a stale quantity/cost. During
+        // the Clear/Add sequence the target row may not exist yet, so only a full refresh may
+        // clear a selection that was really deleted or deactivated.
+        if (selectedId.HasValue)
+        {
+            var replacement = sharedSpareParts.FirstOrDefault(p => p.Id == selectedId.Value);
+            if (replacement is not null)
+                selectedCatalogPart = replacement;
+            else if (allowClearSelection)
+                selectedCatalogPart = null;
+
+            Changed(nameof(SelectedCatalogPart));
+            Changed(nameof(HasSelectedCatalogPart));
         }
     }
 
