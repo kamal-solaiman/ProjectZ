@@ -37,7 +37,7 @@
 الإصلاح: يستبدل `ThemeManager` كل فرشاة `Theme.Legacy.*` وفرش POS ومفتاح `Accent` على مستوى التطبيق بالفرشاة الحية للدور؛ وأضيفت أربعة أدوار نصوص مستقلة في المخصص (العناوين، القائمة الجانبية، الثانوي للقائمة، الأزرار) مع فحص تباين لكل مجموعة، وهجرة تلقائية لملفات الإصدار 1. القائمة الجانبية تستخدم الآن `NavigationInk`/`NavigationMuted` صراحة، والعناوين تستخدم `Heading`.
 
 - [Windows CI run 43644591672](https://github.com/kamal-solaiman/ProjectZ/actions/runs/43644591672) على Commit `937d63a` (2026-11-14): فشل متوقع لحارس النص قبل الإصلاح (`FAIL: PosRtlTextStyle effective Foreground changes between themes`)، ونجح `purchase-sql`.
-- نتيجة CI بعد الإصلاح: تُسجل هنا بعد التشغيل.
+- [Windows CI run 43645868469](https://github.com/kamal-solaiman/ProjectZ/actions/runs/43645868469) على Commit `84ada71` (2026-11-14): نجح `build` و`purchase-sql` بعد الإصلاح، بما في ذلك حارس `TextColorTests` الذي يقيس اللون الفعلي للنص والعنوان والزر والقائمة الجانبية وأسماء الإرث، واختبارات الاستقلالية والهجرة والتباين.
 - الحد: تحقق آلي على Windows CI وليس قبولًا بصريًا يدويًا؛ الاختبارات 35–37 أدناه مطلوبة على جهاز المحل.
 
 ## اختبارات التشغيل الإلزامية
