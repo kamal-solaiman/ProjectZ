@@ -26,7 +26,7 @@ public sealed class AppearanceViewModel : ObservableObject
     public AppearanceViewModel(IAppearanceRuntime? runtime = null)
     {
         this.runtime = runtime ?? new DesignAppearanceRuntime();
-        draft = this.runtime.Active.Clone();
+        draft = this.runtime.Active.Copy();
         Themes = ThemeCatalog.All.Select(theme => new ThemeOptionViewModel(theme)).ToArray();
         Colors =
         [
@@ -139,7 +139,7 @@ public sealed class AppearanceViewModel : ObservableObject
         try
         {
             runtime.Preview(settings);
-            draft = settings.Clone();
+            draft = settings.Copy();
             RefreshAll();
             SetStatus("المعاينة مباشرة على النوافذ المفتوحة. اضغط «حفظ المظهر» لتثبيت الاختيار على هذا الجهاز.", false);
         }
@@ -172,7 +172,7 @@ public sealed class AppearanceViewModel : ObservableObject
     private void RestoreSaved()
     {
         runtime.RestoreSaved();
-        draft = runtime.Saved.Clone();
+        draft = runtime.Saved.Copy();
         RefreshAll();
         SetStatus($"تمت استعادة «{SavedThemeTitle}» المحفوظ وإلغاء المعاينة غير المحفوظة.", false);
     }
@@ -224,9 +224,9 @@ public sealed class AppearanceViewModel : ObservableObject
         public AppearanceSettings Saved { get; private set; } = new();
         public string? LoadWarning => null;
         public string StoragePath => AppearanceStore.DefaultFilePath;
-        public void Preview(AppearanceSettings settings) { ThemeCatalog.Validate(settings); Active = settings.Clone(); }
-        public void Save() { Saved = Active.Clone(); }
-        public void RestoreSaved() => Active = Saved.Clone();
+        public void Preview(AppearanceSettings settings) { ThemeCatalog.Validate(settings); Active = settings.Copy(); }
+        public void Save() { Saved = Active.Copy(); }
+        public void RestoreSaved() => Active = Saved.Copy();
     }
 }
 

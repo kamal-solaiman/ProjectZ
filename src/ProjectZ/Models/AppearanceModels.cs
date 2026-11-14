@@ -13,7 +13,7 @@ public sealed record AppearanceSettings
     public double SurfaceOpacity { get; init; } = 1;
     public double CornerRadius { get; init; } = 12;
     public bool ReduceMotion { get; init; }
-    public AppearanceSettings Clone() => this with { CustomPalette = CustomPalette with { } };
+    public AppearanceSettings Copy() => this with { CustomPalette = CustomPalette with { } };
 }
 
 public sealed record ThemePalette(

@@ -50,7 +50,7 @@ public sealed class ThemeManager(AppearanceStore store) : ObservableObject, IApp
     public void Initialize()
     {
         var result = Store.Load();
-        Saved = result.Settings.Clone();
+        Saved = result.Settings.Copy();
         LoadWarning = result.Warning;
         Preview(Saved);
     }
@@ -58,7 +58,7 @@ public sealed class ThemeManager(AppearanceStore store) : ObservableObject, IApp
     public void Preview(AppearanceSettings settings)
     {
         ThemeCatalog.Validate(settings);
-        Active = settings.Clone();
+        Active = settings.Copy();
         ApplyResources(Active);
         Changed(nameof(Active));
         Changed(nameof(Saved));
@@ -78,7 +78,7 @@ public sealed class ThemeManager(AppearanceStore store) : ObservableObject, IApp
     public void Save()
     {
         Store.Save(Active);
-        Saved = Active.Clone();
+        Saved = Active.Copy();
         Changed(nameof(Saved));
     }
 

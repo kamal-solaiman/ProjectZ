@@ -115,12 +115,12 @@ sealed class TestRuntime(AppearanceStore store) : IAppearanceRuntime
     public string? LoadWarning => null;
     public string StoragePath => store.FilePath;
     public bool FailNextSave { get; set; }
-    public void Preview(AppearanceSettings settings) { ThemeCatalog.Validate(settings); Active = settings.Clone(); }
+    public void Preview(AppearanceSettings settings) { ThemeCatalog.Validate(settings); Active = settings.Copy(); }
     public void Save()
     {
         if (FailNextSave) throw new IOException("Simulated disk failure");
         store.Save(Active);
-        Saved = Active.Clone();
+        Saved = Active.Copy();
     }
-    public void RestoreSaved() => Active = Saved.Clone();
+    public void RestoreSaved() => Active = Saved.Copy();
 }
