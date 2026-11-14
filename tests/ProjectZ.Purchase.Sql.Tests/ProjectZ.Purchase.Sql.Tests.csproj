@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+    <Compile Include="../../src/ProjectZ/Data/PurchaseRepository.cs" Link="Data/PurchaseRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Services/ConnectionSettingsProvider.cs" Link="Services/ConnectionSettingsProvider.cs" />
+    <Compile Include="../../src/ProjectZ/Services/StoreIdentity.cs" Link="Services/StoreIdentity.cs" />
+    <Compile Include="../../src/ProjectZ/Models/ConnectionSettings.cs" Link="Models/ConnectionSettings.cs" />
+    <Compile Include="../../src/ProjectZ/Models/StoreProfile.cs" Link="Models/StoreProfile.cs" />
+    <Compile Include="../../src/ProjectZ/Models/PosDesignModels.cs" Link="Models/PosDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/InventoryDesignModels.cs" Link="Models/InventoryDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/FinanceDesignModels.cs" Link="Models/FinanceDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/PurchaseDesignModels.cs" Link="Models/PurchaseDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Helpers/ObservableObject.cs" Link="Helpers/ObservableObject.cs" />
+  </ItemGroup>
+</Project>
