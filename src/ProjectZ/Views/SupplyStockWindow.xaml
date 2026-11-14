@@ -1,7 +1,7 @@
 <Window x:Class="ProjectZ.Views.SupplyStockWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ProjectZ | توريد كمية للمخزون"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | توريد كمية للمخزون'}"
         Width="520"
         Height="530"
         MinWidth="450"

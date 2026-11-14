@@ -1,4 +1,5 @@
 using ProjectZ.Helpers;
+using ProjectZ.Services;
 using ProjectZ.Models;
 
 namespace ProjectZ.ViewModels;
@@ -24,7 +25,7 @@ public sealed class AddCustomerViewModel : ObservableObject
     public IReadOnlyList<PriceTierOption> PriceTierOptions => PosFormatting.PriceTierOptions;
 
     public bool IsEditMode => existingCustomer is not null;
-    public string WindowTitle => IsEditMode ? "ProjectZ | تعديل بيانات العميل" : "ProjectZ | إضافة عميل جديد";
+    public string WindowTitle => IsEditMode ? "تعديل بيانات العميل" : "إضافة عميل جديد";
     public string HeaderTitle => IsEditMode ? "تعديل بيانات العميل" : "إضافة عميل جديد";
     public string HeaderSubtitle => customHeaderSubtitle
         ?? (IsEditMode

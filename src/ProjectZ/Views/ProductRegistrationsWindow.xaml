@@ -1,7 +1,7 @@
 <Window x:Class="ProjectZ.Views.ProductRegistrationsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ProjectZ | قائمة تسجيلات المنتج والموردين"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | قائمة تسجيلات المنتج والموردين'}"
         Width="960"
         Height="650"
         MinWidth="760"
