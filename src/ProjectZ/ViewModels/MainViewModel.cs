@@ -632,7 +632,11 @@ public sealed class MainViewModel : ObservableObject
         else if (ReferenceEquals(item, Categories[5].Items[0]))
             Users.RefreshFromDatabase();
         else if (ReferenceEquals(item, Categories[6].Items[0]))
-            GeneralSettings.RefreshFromDatabase();
+        {
+            // Re-entering the settings screen keeps unsaved edits instead of silently reloading over them.
+            if (!GeneralSettings.HasUnsavedChanges)
+                GeneralSettings.RefreshFromDatabase();
+        }
 
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));

@@ -46,6 +46,20 @@
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
+                        Background="#FFFBEB"
+                        BorderBrush="#FDE68A"
+                        BorderThickness="1"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="تغييرات غير محفوظة"
+                               Style="{StaticResource PosCenterTextStyle}"
+                               FontSize="11.5"
+                               FontWeight="SemiBold"
+                               Foreground="#B45309" />
+                </Border>
+                <Border Margin="10,0,0,0"
+                        Padding="10,4"
+                        CornerRadius="12"
                         BorderThickness="1"
                         VerticalAlignment="Center">
                     <Border.Style>

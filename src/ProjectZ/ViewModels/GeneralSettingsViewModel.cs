@@ -49,7 +49,7 @@ public sealed class GeneralSettingsViewModel : ObservableObject
         }
         else
         {
-            SetStatus("تُقرأ الإعدادات من جدول dbo.SystemSettings، وأي عرض يعتمد على اسم المحل يتحدث فور الحفظ. المظهر والنسخ الاحتياطي في شاشتيهما المستقلتين.", false);
+            SetStatus("تُقرأ الإعدادات من جدول dbo.SystemSettings، وأي عرض يعتمد على اسم المحل يتحدث فور الحفظ. المظهر والنسخ الاحتياطي في شاشتيهما المستقلتين، ولا تُدار من هنا.", false);
         }
     }
 
@@ -138,6 +138,9 @@ public sealed class GeneralSettingsViewModel : ObservableObject
     public string PreviewFooter => string.IsNullOrWhiteSpace(FooterNote) ? "—" : FooterNote.Trim();
     public string PreviewAmount => $"1,250.00 {CurrencyLabel.Trim()}";
 
+    /// <summary>Visible hint so an unsaved rename is never left behind by switching screens.</summary>
+    public string UnsavedHint => "توجد تغييرات لم تُحفظ بعد. اضغط «حفظ الإعدادات» لتثبيتها في قاعدة البيانات.";
+
     public string StoreNameHint =>
         $"سيظهر «{PreviewTitle}» في: عنوان النافذة الرئيسية، شريط القائمة الجانبية، شاشة تسجيل الدخول، عناوين نوافذ الإضافة والتعديل، رؤوس المطبوعات (الفواتير وإيصالات الصيانة والشراء)، وعبارة الترحيب.";
 
@@ -152,6 +155,8 @@ public sealed class GeneralSettingsViewModel : ObservableObject
             if (isDirty == value) return;
             isDirty = value;
             Changed();
+            Changed(nameof(HasUnsavedChanges));
+            if (value) StatusMessage = UnsavedHint;
         }
     }
 
@@ -168,6 +173,7 @@ public sealed class GeneralSettingsViewModel : ObservableObject
     }
 
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+    public bool HasUnsavedChanges => IsDirty;
 
     public bool IsErrorStatus
     {
@@ -273,6 +279,7 @@ public sealed class GeneralSettingsViewModel : ObservableObject
         currencyCode = profile.CurrencyCode;
         lowStockAlertText = profile.DefaultLowStockAlert.ToString(CultureInfo.InvariantCulture);
         IsDirty = false;
+        SetStatus("", false);
 
         Changed(string.Empty);
         Changed(nameof(StoreName));
