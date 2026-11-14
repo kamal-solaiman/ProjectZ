@@ -136,7 +136,7 @@
                                 </StackPanel>
                             </Border>
                         </WrapPanel>
-                        <TextBlock Text="القيم تُقرأ مباشرة من SQL Server: sys.database_files و msdb.dbo.backupset. توقيت آخر نسخة هو توقيت جهاز SQL Server."
+                        <TextBlock Text="القيم تُقرأ مباشرة من SQL Server: sys.database_files و msdb.dbo.backupset. توقيت آخر نسخة هو توقيت جهاز SQL Server. إذا ظهر خطأ صلاحية، نفّذ sql/18_EnableBackupRestore.sql بحساب sysadmin."
                                    Style="{StaticResource BackupHint}" />
                     </StackPanel>
                 </Border>

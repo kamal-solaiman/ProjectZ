@@ -1714,6 +1714,23 @@ for token in ('BackupFolderPath', 'BackupFileName', 'RestoreFilePath', 'Availabl
               'IsIdle', 'NewBackupFileNameCommand', 'BackupCommand', 'RestoreCommand'):
     assert token in backup_xaml, f'backup UI missing expected token: {token}'
 
+# Permissions: the app connects as ProjectZClient, which cannot promote itself. The SQL script is the
+# supported fix for SQL 229/230/262 and must stay idempotent and callable by an administrator.
+backup_grant_path = root / 'sql/18_EnableBackupRestore.sql'
+assert backup_grant_path.is_file(), 'missing sql/18_EnableBackupRestore.sql'
+backup_grant = backup_grant_path.read_text(encoding='utf-8')
+for guard in ('ALTER SERVER ROLE [dbcreator] ADD MEMBER [ProjectZClient]',
+              'ALTER ROLE [db_owner] ADD MEMBER [ProjectZClient]',
+              "SUSER_ID(N'ProjectZClient')", "DATABASE_PRINCIPAL_ID(N'ProjectZClient')",
+              'IS_SRVROLEMEMBER', 'IS_ROLEMEMBER'):
+    assert guard in backup_grant, f'sql/18 is missing permission guard: {guard}'
+assert 'sql/18_EnableBackupRestore.sql' in backup_repository, \
+    'the permission error must name the script the administrator has to run'
+assert 'SqlConnection.ClearAllPools()' in backup_repository, \
+    'a permission error should discard the pooled token before retry'
+assert 'sql/18_EnableBackupRestore.sql' in (root / 'docs/BACKUP.md').read_text(encoding='utf-8'), \
+    'backup docs must point at the permission script'
+
 # The add-product form starts from the configured default low-stock alert.
 assert 'StoreIdentity.Current.DefaultLowStockAlert' in add_product_vm_text
 print('PASS: general settings save the store identity in dbo.SystemSettings and rename the program everywhere')
