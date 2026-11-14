@@ -1428,6 +1428,12 @@ for forbidden in ('private string password', 'public string Password', 'string P
     assert forbidden not in users_editor_vm, 'the dialog must not store the plain password in a field'
 assert 'clearPasswords' in users_editor_vm and 'readPassword()' in users_editor_vm
 
+# The dialog receives the clearing delegate as a field (clearPasswords), never as a method of its own.
+assert 'ClearPasswords(' not in users_editor_vm, \
+    'the dialog view model must invoke its clearPasswords delegate, not an undefined ClearPasswords()'
+assert users_editor_vm.count('clearPasswords();') == 2, \
+    'both the create and the password-reset paths must clear the password boxes after saving'
+
 users_xaml = (root / 'src/ProjectZ/Views/UsersView.xaml').read_text(encoding='utf-8')
 for token in ('FilteredUsers', 'SearchText', 'StatusFilters', 'AddUserCommand', 'RefreshUsersCommand',
               'ToggleActiveCommand', 'DeleteCommand', 'ChangePasswordCommand', 'LinkedRecordsDisplay',
