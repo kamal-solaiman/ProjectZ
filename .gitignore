@@ -13,6 +13,9 @@ dist/
 *.suo
 *.userosscache
 *.sln.docstates
+
+# Disposable SQL integration-test settings (generated; never the application's settings)
+tests/ProjectZ.Purchase.Sql.Tests/connectionsettings.json
 *.rsuser
 
 # ===== ReSharper / Rider =====
