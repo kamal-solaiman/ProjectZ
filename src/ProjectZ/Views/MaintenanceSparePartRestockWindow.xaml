@@ -1,7 +1,7 @@
 <Window x:Class="ProjectZ.Views.MaintenanceSparePartRestockWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ProjectZ | توريد قطعة غيار"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | توريد قطعة غيار'}"
         Width="560"
         Height="620"
         MinWidth="500"
