@@ -673,13 +673,18 @@ for grant in (
     assert grant in purchase_permissions, f'sql/12 is missing a grant: {grant}'
 # Every SQL parameter declared in a purchase statement must also be bound in C#, and every
 # INSERT..OUTPUT inserted.Id must be read back. A missing binding makes SQL Server reject the whole
-# save with 8178 ("must declare the scalar variable"), which surfaced as the generic
+# save with 137 ("must declare the scalar variable"), which surfaced as the generic
 # "تعذر حفظ فاتورة الشراء في قاعدة البيانات." message on the purchase entry screen.
 def _unbound_parameters(source, path):
     import re as _re
     missing = []
-    for match in _re.finditer(r'"((?:SELECT|INSERT|UPDATE|DELETE|MERGE)[^"]*)"', source):
-        statement = match.group(1).replace('""', '"')
+    # SQL usually starts on the NEXT line inside a C# verbatim string (@"..."). Matching
+    # only "SELECT... immediately after the quote silently skipped the broken ReceiveUnits
+    # INSERT and let SQL 137 (undeclared @Invoice) reach production. Cover both string forms.
+    for match in _re.finditer(r'@\$?"((?:[^"]|"")*)"|"(?:\\.|[^"\\])*"', source):
+        statement = (match.group(1) if match.group(1) is not None else match.group(0)[1:-1]).replace('""', '"')
+        if not _re.match(r'^\s*(?:SELECT|INSERT|UPDATE|DELETE|MERGE)\b', statement, _re.I):
+            continue
         declared = set(_re.findall(r'@[A-Za-z_]\w*', statement))
         if not declared:
             continue
@@ -691,6 +696,13 @@ def _unbound_parameters(source, path):
             missing.append(f'{path}:{source[:match.start()].count(chr(10)) + 1} needs a binding for {name}')
     return missing
 
+# Regression-test the checker itself: the old regex accepted both of these broken commands.
+for broken in (
+    'var cmd = NewCommand(@"\nINSERT dbo.T(x) VALUES(@Invoice);"); cmd.ExecuteNonQuery();',
+    'var cmd = NewCommand("INSERT dbo.T(x) VALUES(@Invoice);"); cmd.ExecuteNonQuery();',
+):
+    assert any('@Invoice' in item for item in _unbound_parameters(broken, 'sample.cs')), \
+        'parameter checker must inspect multiline verbatim SQL and ordinary SQL strings'
 unbound = _unbound_parameters(purchase_repository, 'PurchaseRepository.cs')
 assert not unbound, 'unbound SQL parameters break the purchase save: ' + '; '.join(unbound)
 # PurchaseInvoiceLines carries OUTPUT inserted.Id on both the create and the edit path; the id feeds
@@ -700,7 +712,10 @@ assert 'lineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
     'the created purchase line id must be read back for its stock units'
 assert 'newLineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
     'an added purchase line id must be read back for its stock units'
-assert '8178' in purchase_repository, 'a schema/parameter fault must be reported instead of a generic save error'
+assert '137 or 8178' in purchase_repository, 'an unbound SQL parameter must be reported instead of a generic save error'
+assert 'SET ARITHABORT ON;' in purchase_repository and 'SET NUMERIC_ROUNDABORT OFF;' in purchase_repository, \
+    'purchase writes to filtered indexes must restore the required session options on pooled connections'
+print('PASS: purchase SQL parameter checker covers multiline verbatim commands (SQL 137 regression)')
 print('PASS: purchase invoice screens and the supplier directory read and write SQL Server')
 
 purchase_entry_xaml_path = root / 'src/ProjectZ/Views/PurchaseEntryView.xaml'
@@ -1785,4 +1800,4 @@ string_breaks = [
 ]
 assert not string_breaks, 'unterminated C# string literal (build breaker): ' + ', '.join(string_breaks)
 print('PASS: no C# string literal is left open across lines anywhere in src/ProjectZ')
-print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
+print('NOT RUN locally: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish (Windows CI covers .NET build/tests, publish and isolated LocalDB integration)')

@@ -1092,6 +1092,7 @@ WHERE Id=@Id;"))
                             update.Parameters.Add("@Cost", SqlDbType.Decimal).Value = line.UnitPurchaseCost;
                             update.Parameters["@Cost"].Precision = 19;
                             update.Parameters["@Cost"].Scale = 2;
+                            update.Parameters.Add("@Id", SqlDbType.Int).Value = existingId;
                             update.ExecuteNonQuery();
                         }
 
@@ -1268,6 +1269,9 @@ FROM dbo.PurchaseInvoices i WHERE i.Id=@Invoice;"))
             {
                 insert.Parameters.Add("@Product", SqlDbType.Int).Value = line.ProductId;
                 insert.Parameters.Add("@InvoiceNumber", SqlDbType.NVarChar, 100).Value = Trim(invoiceNumber, 100, "");
+                // The SELECT reads the supplier from this invoice; without @Invoice SQL Server
+                // raises 137 and the whole purchase transaction rolls back.
+                insert.Parameters.Add("@Invoice", SqlDbType.Int).Value = invoiceId;
                 insert.Parameters.Add("@Cost", SqlDbType.Decimal).Value = line.UnitPurchaseCost;
                 insert.Parameters["@Cost"].Precision = 19;
                 insert.Parameters["@Cost"].Scale = 2;
@@ -1296,6 +1300,7 @@ INSERT dbo.StockMovements(ProductId,InventoryUnitId,MovementType,QuantityDelta,U
 VALUES(@Product,@Unit,N'Supply',1,@Cost,@Actor,N'PurchaseInvoice',@Invoice,@Reason);");
             movement.Parameters.Add("@Product", SqlDbType.Int).Value = line.ProductId;
             movement.Parameters.Add("@Unit", SqlDbType.Int).Value = unitId;
+            movement.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
             movement.Parameters.Add("@Cost", SqlDbType.Decimal).Value = line.UnitPurchaseCost;
             movement.Parameters["@Cost"].Precision = 19;
             movement.Parameters["@Cost"].Scale = 2;
@@ -1557,6 +1562,9 @@ VALUES(@Account,SYSUTCDATETIME(),@Incoming,@Category,@Amount,@Balance,@Counterpa
         command.Parameters.Add("@Amount", SqlDbType.Decimal).Value = amount;
         command.Parameters["@Amount"].Precision = 19;
         command.Parameters["@Amount"].Scale = 2;
+        command.Parameters.Add("@Balance", SqlDbType.Decimal).Value = balanceAfter;
+        command.Parameters["@Balance"].Precision = 19;
+        command.Parameters["@Balance"].Scale = 2;
         command.Parameters.Add("@Counterparty", SqlDbType.NVarChar, 250).Value = Trim(counterparty, 250, "مورد");
         command.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = Trim(note, 1000, "");
         command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
@@ -1718,6 +1726,7 @@ VALUES(@Invoice,SYSUTCDATETIME(),@Title,@Details,@Amount,@Actor);");
         command.Parameters.Add("@Amount", SqlDbType.Decimal).Value = amount;
         command.Parameters["@Amount"].Precision = 19;
         command.Parameters["@Amount"].Scale = 2;
+        command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
         command.ExecuteNonQuery();
     }
 
@@ -1748,14 +1757,18 @@ VALUES(@Actor,@Module,@Action,@EntityType,@EntityId,JSON_MODIFY(N'{}',N'$.detail
                 1205 => new PurchaseDataException("تعارضت العملية مع مستخدم آخر. حدّث الشاشة ثم أعد المحاولة.", sql),
                 2 => new PurchaseDataException("انتهت مهلة الاتصال بالخادم أثناء حفظ الفاتورة. تحقق من الشبكة ثم أعد المحاولة.", sql),
                 2628 => new PurchaseDataException("أحد النصوص أطول من المسموح في قاعدة البيانات. اختصر اسم الصنف أو المورد أو الملاحظات.", sql),
-                // 208 = missing table/column, 8178 = a SQL parameter was never bound.
-                // Both are schema/code faults, so the raw SQL message is shown instead of a generic one.
-                208 or 207 or 8178 or 8144 => new PurchaseDataException(
+                // SQL Server reports an undeclared command parameter as 137 (8178 can also occur
+                // with RPC/parameter metadata faults). Show the exact fault, not a schema guess.
+                137 or 8178 => new PurchaseDataException(
+                    $"خطأ في معاملات أمر حفظ المشتريات: {sql.Message}", sql),
+                // Missing table/column or parameter-metadata faults: show the schema object involved.
+                208 or 207 or 8144 => new PurchaseDataException(
                     $"تعذر حفظ فاتورة الشراء: {sql.Message} — تحقق من تنفيذ sql/06_CreateFullSchema.sql ثم أعد المحاولة.", sql),
                 229 or 230 => new PurchaseDataException(
                     "حساب الاتصال لا يملك صلاحية حفظ المشتريات. شغّل sql/12_EnablePurchasing.sql على الخادم ثم أعد المحاولة.", sql),
                 >= 50000 => new PurchaseDataException(sql.Message, sql),
-                _ => new PurchaseDataException(fallback, sql)
+                // Never hide an unmapped SQL fault behind a message that cannot be diagnosed.
+                _ => new PurchaseDataException($"{fallback} (SQL {sql.Number}: {sql.Message})", sql)
             };
         }
 
@@ -1772,8 +1785,30 @@ VALUES(@Actor,@Module,@Action,@EntityType,@EntityId,JSON_MODIFY(N'{}',N'$.detail
     private SqlConnection OpenConnection()
     {
         var connection = new SqlConnection(settings.GetConnectionString());
-        connection.Open();
-        return connection;
+        try
+        {
+            connection.Open();
+            // Purchases write Products/InventoryUnits, which carry filtered unique indexes.
+            // Restore the required SET options on EVERY pooled checkout; a previous caller may
+            // have left incompatible options on the same physical session (SQL Server 1934).
+            using var options = connection.CreateCommand();
+            options.CommandTimeout = 30;
+            options.CommandText = @"
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET NUMERIC_ROUNDABORT OFF;";
+            options.ExecuteNonQuery();
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
     }
 
     private static SqlCommand CreateCommand(SqlConnection connection, SqlTransaction transaction, string sql) =>

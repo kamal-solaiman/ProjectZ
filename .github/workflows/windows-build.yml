@@ -30,3 +30,30 @@ jobs:
           name: ProjectZ-win-x64
           path: publish/win-x64/
           if-no-files-found: error
+
+  purchase-sql:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Purchase repository against disposable SQL Server LocalDB
+        shell: pwsh
+        run: |
+          ./tests/ProjectZ.Purchase.Sql.Tests/Run.ps1 2>&1 |
+            Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'purchase-sql.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Surface SQL failure details
+        if: failure()
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'purchase-sql.log'
+          if (Test-Path $path) {
+            $text = Get-Content $path -Raw
+            $text = $text.Substring([Math]::Max(0, $text.Length - 12000))
+            $escaped = $text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Purchase SQL integration::$escaped"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "``````text`n$text`n``````"
+          }
