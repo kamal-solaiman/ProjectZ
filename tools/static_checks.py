@@ -772,6 +772,28 @@ for token in (
 ):
     assert token in maintenance_intake_xaml, f'MaintenanceIntake UI missing expected token: {token}'
 
+# The intake screen must stay SQL-backed: the sequence badge, the sync stamp, the header badge and
+# the customer creation path all read/write SQL Server, and the design-mode wording must not return.
+maintenance_intake_vm = (root / 'src/ProjectZ/ViewModels/MaintenanceIntakeViewModel.cs').read_text(encoding='utf-8')
+maintenance_repository_text = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
+passcode_protection_path = root / 'src/ProjectZ/Services/PasscodeProtection.cs'
+assert passcode_protection_path.is_file(), 'PasscodeProtection service is missing'
+for token in ('IsDatabaseBacked', 'DataConnectionBadgeText', 'LastSyncedDisplay', 'RefreshFromDatabaseCommand',
+              'PasscodeProtectionHint', 'ValidateFieldLengths', 'CreateCustomerFromDialog',
+              'ValidateNewCustomerPhone', 'HasOpenOrderWithSerial'):
+    assert token in maintenance_intake_vm, f'Maintenance intake view model missing expected token: {token}'
+for token in ('IsDatabaseBacked', 'DataConnectionBadgeText', 'LastSyncedDisplay', 'RefreshFromDatabaseCommand',
+              'PasscodeProtectionHint'):
+    assert token in maintenance_intake_xaml, f'Maintenance intake UI is not SQL-backed: {token}'
+for stale in ('تصميم الواجهة — بدون Backend', 'بدون Backend', 'MNT-2026-'):
+    assert stale not in maintenance_intake_xaml, f'design-mode leftover is back in the intake UI: {stale}'
+assert 'MNT-2026-' not in maintenance_intake_vm, 'the intake view model still guesses a fixed-year order number'
+for token in ('PeekNextOrderNumber', 'HasOpenOrderWithSerial', 'AppendMaintenanceActivity', 'PasscodeProtector'):
+    assert token in maintenance_repository_text, f'Maintenance repository missing expected token: {token}'
+assert 'enc:v1:' in passcode_protection_path.read_text(encoding='utf-8')
+assert (root / 'sql/14_EnableMaintenanceIntake.sql').is_file(), 'sql/14_EnableMaintenanceIntake.sql is missing'
+print('PASS: maintenance intake writes orders, deposits and activities to SQL with a real sequence number')
+
 maintenance_receipt_xaml = maintenance_receipt_xaml_path.read_text(encoding='utf-8')
 for token in (
     'SelectCustomerReceiptModeCommand',
