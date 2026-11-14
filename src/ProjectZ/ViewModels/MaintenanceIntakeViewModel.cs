@@ -41,6 +41,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     private readonly ObservableCollection<MaintenanceOrderDesignItem> sharedMaintenanceOrders;
     private readonly string currentUserName;
     private readonly Data.MaintenanceRepository? repository;
+    private readonly Action? onOrdersSaved;
     private int nextOrderId;
 
     // Customer selection & quick contact
@@ -612,10 +613,12 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         string currentUserName,
         ObservableCollection<PosCustomerDesignItem>? sharedCustomers = null,
         ObservableCollection<MaintenanceOrderDesignItem>? sharedMaintenanceOrders = null,
-        Data.MaintenanceRepository? repository = null)
+        Data.MaintenanceRepository? repository = null,
+        Action? onOrdersSaved = null)
     {
         this.currentUserName = currentUserName;
         this.repository = repository;
+        this.onOrdersSaved = onOrdersSaved;
         this.sharedCustomers = sharedCustomers
             ?? new ObservableCollection<PosCustomerDesignItem>(PosDesignSeedData.CreateSampleCustomers());
         this.sharedMaintenanceOrders = sharedMaintenanceOrders ?? MaintenanceDesignSeedData.CreateSharedSampleOrders(this.sharedCustomers);
@@ -972,6 +975,9 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
 
         sharedMaintenanceOrders.Insert(0, order);
         LastSavedOrder = order;
+
+        // Let the other maintenance screens (which own their own collections) reload.
+        onOrdersSaved?.Invoke();
 
         ResetForm();
         SetStatus(

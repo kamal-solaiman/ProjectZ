@@ -610,9 +610,12 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     public void SelectOrderFromExternal(MaintenanceOrderDesignItem order)
     {
-        if (!sharedOrders.Contains(order)) return;
+        // Match by Id so an order coming from another screen's own collection (e.g. invoices)
+        // still resolves to the actions screen's copy.
+        var target = sharedOrders.FirstOrDefault(o => o.Id == order.Id) ?? order;
+        if (target.Id <= 0) return;
 
-        if (!FilteredOrders.Contains(order))
+        if (!FilteredOrders.Contains(target))
         {
             searchText = "";
             selectedStageFilter = "كل الحالات";
@@ -626,8 +629,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             RefreshFilteredOrders();
         }
 
-        SelectedOrder = order;
-        SetStatus($"تم فتح الأمر {order.OrderNumber} في إجراءات الصيانة للمتابعة والتعديل.", false);
+        SelectedOrder = target;
+        SetStatus($"تم فتح الأمر {target.OrderNumber} في إجراءات الصيانة للمتابعة والتعديل.", false);
     }
 
     private void OnOrdersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

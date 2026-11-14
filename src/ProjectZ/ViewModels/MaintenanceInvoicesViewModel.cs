@@ -8,7 +8,9 @@ namespace ProjectZ.ViewModels;
 public sealed class MaintenanceInvoicesViewModel : ObservableObject
 {
     private readonly string currentUserName;
-    private readonly ObservableCollection<MaintenanceOrderDesignItem> sharedOrders;
+    // The invoices screen owns its own orders collection and loads it directly from the
+    // database, so it has a self-contained backend independent of the intake screen.
+    private readonly ObservableCollection<MaintenanceOrderDesignItem> seedOrders;
     private readonly Action? navigateToIntake;
     private readonly Action<MaintenanceOrderDesignItem>? openInMaintenanceActions;
     private readonly Action? notifyMaintenanceOrdersChanged;
@@ -34,6 +36,7 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     private string statusMessage = "فواتير الصيانة الشاملة: اضغط على أي فاتورة لعرض كافة تفاصيلها والبنود والسجل، أو استخدم الفلاتر المتقدمة للفرز والتحليل.";
     private bool isErrorStatus;
 
+    public ObservableCollection<MaintenanceOrderDesignItem> Orders { get; } = [];
     public ObservableCollection<MaintenanceOrderDesignItem> FilteredOrders { get; } = [];
 
     public IReadOnlyList<string> DatePresets { get; } =
@@ -317,15 +320,23 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         Action? onOrdersSaved = null)
     {
         this.currentUserName = currentUserName;
-        this.sharedOrders = sharedOrders;
+        this.seedOrders = sharedOrders;
         this.navigateToIntake = navigateToIntake;
         this.openInMaintenanceActions = openInMaintenanceActions;
         this.notifyMaintenanceOrdersChanged = notifyMaintenanceOrdersChanged;
         this.repository = repository;
         this.onOrdersSaved = onOrdersSaved;
 
+        // Design mode (no repository): seed the screen with the sample orders. With a
+        // repository the collection stays empty until NotifyExternalDataChanged loads DB.
+        if (repository is null)
+        {
+            foreach (var order in seedOrders)
+                Orders.Add(order);
+        }
+
         TechnicianFilterOptions = new[] { "كل الفنيين" }.Concat(MaintenanceDesignSeedData.Technicians).ToArray();
-        this.sharedOrders.CollectionChanged += OnOrdersCollectionChanged;
+        this.Orders.CollectionChanged += OnOrdersCollectionChanged;
 
         GoToIntakeCommand = new ActionCommand(() => this.navigateToIntake?.Invoke());
         RefreshDataCommand = new ActionCommand(() =>
@@ -360,19 +371,20 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         RefreshFilteredOrders();
     }
 
+    /// <summary>Loads the invoice orders directly from the database into the screen's own collection.</summary>
     public void NotifyExternalDataChanged()
     {
         if (repository is not null)
         {
             try
             {
-                repository.LoadMaintenanceOrdersInto(sharedOrders);
+                repository.LoadMaintenanceOrdersInto(Orders);
                 pendingActivities.Clear();
                 pendingPayments.Clear();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // The status strip reports the failure; the in-memory list stays as-is.
+                SetStatus($"تعذّر تحميل فواتير الصيانة من قاعدة البيانات: {ex.Message}", true);
             }
         }
         RefreshFilteredOrders();
@@ -594,7 +606,7 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         if (normalizedFrom.HasValue && normalizedTo.HasValue && normalizedFrom.Value > normalizedTo.Value)
             (normalizedFrom, normalizedTo) = (normalizedTo, normalizedFrom);
 
-        var matches = sharedOrders.Where(order =>
+        var matches = Orders.Where(order =>
         {
             // Date basis + date preset filter
             DateTime? targetDate = IsDeliveryDateBasis ? order.DeliveredAt?.Date : order.ReceivedAt.Date;
