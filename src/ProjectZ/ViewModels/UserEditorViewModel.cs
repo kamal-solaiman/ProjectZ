@@ -210,13 +210,13 @@ public sealed class UserEditorViewModel : ObservableObject
             if (IsCreateMode)
             {
                 var created = repository.Create(Username, DisplayName, password, IsActive);
-                ClearPasswords();
+                clearPasswords();
                 onSaved(created);
                 return;
             }
 
             repository.ResetPassword(original!.Id, password);
-            ClearPasswords();
+            clearPasswords();
             onSaved(original);
         }
         catch (Exception ex)
