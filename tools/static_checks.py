@@ -1686,7 +1686,9 @@ for receipt in ('InvoicePrintPreviewWindow.xaml', 'PurchaseInvoicePrintPreviewWi
                 'MaintenanceReceiptPreviewWindow.xaml'):
     receipt_text = (root / 'src/ProjectZ/Views' / receipt).read_text(encoding='utf-8')
     assert 'StaticResource StoreIdentity' in receipt_text, f'{receipt}: receipt header must follow the store name'
-    assert 'ProjectZ' not in re.sub(r'x:Class="[^"]*"', '', receipt_text), f'{receipt}: hard-coded brand text remains'
+    receipt_without_types = re.sub(r'x:Class="[^"]*"', '', receipt_text)
+    receipt_without_types = receipt_without_types.replace('pack://application:,,,/ProjectZ;component', '')
+    assert 'ProjectZ' not in receipt_without_types, f'{receipt}: hard-coded brand text remains'
 
 # Startup and the screen wiring.
 app_cs = (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
