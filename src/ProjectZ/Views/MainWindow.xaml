@@ -13,7 +13,7 @@
     <Window.Resources>
         <Style x:Key="SidebarBaseButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.DCE8EE.Muted}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Brush.NavigationMuted}" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="14,11" />
@@ -58,7 +58,7 @@
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsExpanded}" Value="True">
                     <Setter Property="Background" Value="{DynamicResource Theme.Legacy.1D455F.Navigation}" />
-                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
+                    <Setter Property="Foreground" Value="{DynamicResource Theme.Brush.NavigationInk}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -67,12 +67,12 @@
                BasedOn="{StaticResource SidebarBaseButtonStyle}">
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Normal" />
-            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Brush.NavigationInk}" />
             <!-- Indent submenu labels on the right so they line up under the category title (after the icon). -->
             <Setter Property="Padding" Value="12,9,50,9" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                    <Setter Property="Background" Value="{StaticResource Accent}" />
+                    <Setter Property="Background" Value="{DynamicResource Theme.Brush.Accent}" />
                     <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                     <Setter Property="FontWeight" Value="SemiBold" />
                 </DataTrigger>
@@ -191,13 +191,14 @@
                         <TextBlock Text="{Binding SelectedCategoryTitle}"
                                    FontSize="16"
                                    FontWeight="SemiBold"
-                                   Foreground="{StaticResource Accent}"
+                                   Foreground="{DynamicResource Theme.Brush.Accent}"
                                    HorizontalAlignment="Center"
                                    TextAlignment="Center" />
                         <TextBlock Text="{Binding SelectedPageTitle}"
                                    Margin="0,12,0,12"
                                    FontSize="32"
                                    FontWeight="Bold"
+                                   Foreground="{DynamicResource Theme.Brush.Heading}"
                                    HorizontalAlignment="Center"
                                    TextAlignment="Center"
                                    TextWrapping="Wrap" />
@@ -589,7 +590,7 @@
                                    HorizontalAlignment="Right"
                                    FlowDirection="RightToLeft"
                                    FontSize="13"
-                                   Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}"
+                                   Foreground="{DynamicResource Theme.Brush.NavigationMuted}"
                                    Style="{StaticResource SidebarExpandedOnlyTextStyle}" />
                     </Grid>
 
@@ -645,7 +646,7 @@
                                                            VerticalAlignment="Center"
                                                            FontSize="17"
                                                            FlowDirection="LeftToRight"
-                                                           Foreground="{DynamicResource Theme.Legacy.85AABC.Muted}"
+                                                           Foreground="{DynamicResource Theme.Brush.NavigationMuted}"
                                                            TextAlignment="Center" />
                                             </StackPanel>
                                         </Button>
@@ -702,7 +703,7 @@
                                FlowDirection="RightToLeft"
                                Text="إدارة النظام"
                                FontSize="12"
-                               Foreground="{DynamicResource Theme.Legacy.85AABC.Muted}"
+                               Foreground="{DynamicResource Theme.Brush.NavigationMuted}"
                                Style="{StaticResource SidebarExpandedOnlyTextStyle}" />
                 </Grid>
             </Border>

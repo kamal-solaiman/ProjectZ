@@ -13,7 +13,7 @@
     <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
         <Border Padding="18,14" CornerRadius="16" Background="{DynamicResource Theme.Legacy.102E48.Navigation}" Margin="0,0,0,14"><StackPanel FlowDirection="RightToLeft">
             <TextBlock Text="{Binding HeaderTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
-            <TextBlock Text="{Binding HeaderSubtitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" TextWrapping="Wrap" Margin="0,3,0,0" />
+            <TextBlock Text="{Binding HeaderSubtitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="{DynamicResource Theme.Brush.NavigationMuted}" TextWrapping="Wrap" Margin="0,3,0,0" />
         </StackPanel></Border>
         <Border Grid.Row="1" Padding="20" CornerRadius="16" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
             <Border Padding="10,8" CornerRadius="8" Background="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}" BorderBrush="{DynamicResource Theme.Legacy.99F6E4.Border}" BorderThickness="1" Margin="0,0,0,14"><TextBlock Text="تصميم بدون Backend · اكتب صفرًا في أي حد ليعمل بلا قيود. لا تتغير قيمة الرصيد عند تعديل الحدود." Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" TextWrapping="Wrap" /></Border>
@@ -30,7 +30,7 @@
                 <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Text="{Binding OpeningBalanceText, UpdateSourceTrigger=PropertyChanged}" />
             </StackPanel>
             <Border Margin="0,16,0,0" Padding="12" CornerRadius="10" Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1"><StackPanel>
-                <TextBlock Text="حدود الإيداع والسحب" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                <TextBlock Text="حدود الإيداع والسحب" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                 <TextBlock Text="كل محفظة تعمل بحدود مستقلة، ويظهر استهلاكها اليومي والشهري في ملفها." Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" Margin="0,2,0,12" />
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <StackPanel><TextBlock Text="حد السحب اليومي" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Margin="0,0,0,5" /><TextBox Style="{StaticResource PosNumericTextBoxStyle}" Text="{Binding DailyWithdrawalLimitText, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>

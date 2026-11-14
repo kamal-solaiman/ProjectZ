@@ -13,7 +13,7 @@ Check(ThemeCatalog.All.Count == 9, "Eight requested presets plus a full custom s
 Check(ThemeCatalog.All.Select(theme => theme.Id).Distinct().Count() == 9, "Theme ids are unique");
 foreach (var id in new[] { "glassmorphism", "liquid-glass", "dark-glass", "aurora", "holographic", "fui", "chrome", "fluent", "custom" })
     Check(ThemeCatalog.Find(id).Id == id, "Catalog contains " + id);
-Check(ThemeCatalog.All.All(theme => theme.Palette.IsValid()), "Every preset has eight valid HEX roles");
+Check(ThemeCatalog.All.All(theme => theme.Palette.IsValid()), "Every preset has twelve valid HEX roles");
 Check(Math.Abs(ThemeColorMath.Contrast("#000000", "#FFFFFF") - 21) < .001, "WCAG black/white contrast is 21:1");
 Check(ThemeColorMath.Mix("#000000", "#FFFFFF", .5) == "#808080", "sRGB channel mix rounds deterministically");
 foreach (var invalid in new[] { "", "#FFF", "#GGGGGG", "147D92", "#147D92FF", null })
@@ -22,7 +22,10 @@ foreach (var theme in ThemeCatalog.All)
 {
     var p = theme.Palette;
     Check(ThemeColorMath.Contrast(ThemeColorMath.EnsureTextContrast(p.Text, p.Surface), p.Surface) >= 4.5, theme.Id + " body text can reach 4.5:1");
-    Check(ThemeColorMath.Contrast(ThemeColorMath.ReadableInk(p.Accent), p.Accent) >= 4.5, theme.Id + " action text is readable");
+    Check(ThemeColorMath.Contrast(ThemeColorMath.EnsureTextContrast(p.ButtonText!, p.Accent), p.Accent) >= 4.5, theme.Id + " action text is readable");
+    Check(ThemeColorMath.Contrast(ThemeColorMath.EnsureTextContrast(p.HeadingText!, p.Surface), p.Surface) >= 4.5, theme.Id + " heading text is readable");
+    Check(ThemeColorMath.Contrast(ThemeColorMath.EnsureTextContrast(p.SidebarText!, p.Sidebar), p.Sidebar) >= 4.5, theme.Id + " sidebar text is readable");
+    Check(ThemeColorMath.Contrast(ThemeColorMath.EnsureTextContrast(p.SidebarMutedText!, p.Sidebar), p.Sidebar) >= 4.5, theme.Id + " sidebar muted text is readable");
 }
 var repairedWhite = ThemeColorMath.EnsureTextContrast("#FFFFFF", "#FFFFFF");
 Check(repairedWhite != "#FFFFFF" && ThemeColorMath.Contrast(repairedWhite, "#FFFFFF") >= 4.5, "White-on-white is repaired to the nearest readable shade");
@@ -39,7 +42,7 @@ try
     var custom = new AppearanceSettings
     {
         ThemeId = "custom",
-        CustomPalette = new ThemePalette("#101820", "#202C38", "#F5F7FA", "#B8C4D0", "#39B8A8", "#4A6074", "#A8E6CF", "#152230"),
+        CustomPalette = new ThemePalette("#101820", "#202C38", "#F5F7FA", "#B8C4D0", "#39B8A8", "#4A6074", "#A8E6CF", "#152230", "#E8F6F2", "#FFFFFF", "#C3D2DC", "#10231F"),
         SurfaceOpacity = .82,
         CornerRadius = 19,
         ReduceMotion = true
@@ -53,6 +56,11 @@ try
     Check(recovered.Settings == custom && recovered.Warning is not null, "Corrupt primary recovers the backup with a visible warning");
     File.Delete(path);
     Check(store.Load().Settings == custom, "Missing primary can still recover the backup");
+    File.WriteAllText(path, "{\"Version\":1,\"ThemeId\":\"custom\",\"CustomPalette\":{\"Background\":\"#101820\",\"Surface\":\"#202C38\",\"Text\":\"#F5F7FA\",\"MutedText\":\"#B8C4D0\",\"Accent\":\"#39B8A8\",\"Border\":\"#4A6074\",\"Highlight\":\"#A8E6CF\",\"Sidebar\":\"#152230\"},\"SurfaceOpacity\":0.82,\"CornerRadius\":19,\"ReduceMotion\":true}");
+    var migrated = store.Load();
+    Check(migrated.Warning is null && migrated.Settings.Version == AppearanceSettings.CurrentVersion
+        && migrated.Settings.CustomPalette.SidebarText is not null && migrated.Settings.CustomPalette.ButtonText is not null,
+        "Schema v1 files migrate to independent text roles without losing the saved palette");
     File.WriteAllText(path, "{\"Version\":99,\"ThemeId\":\"dark-glass\"}");
     File.WriteAllText(path + ".bak", "{\"Version\":99,\"ThemeId\":\"dark-glass\"}");
     var fallback = store.Load();
@@ -73,10 +81,23 @@ try
     Check(new AppearanceStore(runtime.StoragePath).Load().Settings.ThemeId == "dark-glass", "Saved selection is read back from disk");
 
     studio.SelectedTheme = studio.Themes.First(theme => theme.Id == "custom");
-    Check(studio.IsCustomSelected && studio.Colors.Count == 8, "Custom studio exposes all eight color roles");
+    Check(studio.IsCustomSelected && studio.Colors.Count == 12, "Custom studio exposes all twelve color roles");
     studio.Colors[2].Hex = "#FFFFFF";
     Check(runtime.Active.CustomPalette.Text == "#FFFFFF", "Valid HEX updates the live custom palette");
     Check(studio.ContrastChecks.All(check => check.Ratio >= 4.5), "Contrast report uses effective readable text");
+    Check(studio.ContrastChecks.Count == 7, "Contrast report covers body, muted, heading, background, button and both sidebar text groups");
+    var sidebarEditor = studio.Colors.First(color => color.Role == "SidebarText");
+    sidebarEditor.Hex = "#FFD166";
+    Check(runtime.Active.CustomPalette.SidebarText == "#FFD166" && runtime.Active.CustomPalette.Text == "#FFFFFF",
+        "Sidebar text is independent from body text");
+    var buttonEditor = studio.Colors.First(color => color.Role == "ButtonText");
+    buttonEditor.Hex = "#10231F";
+    Check(runtime.Active.CustomPalette.ButtonText == "#10231F" && runtime.Active.CustomPalette.SidebarText == "#FFD166",
+        "Button text is independent from sidebar text");
+    var headingEditor = studio.Colors.First(color => color.Role == "HeadingText");
+    headingEditor.Hex = "#A8E6CF";
+    Check(runtime.Active.CustomPalette.HeadingText == "#A8E6CF" && runtime.Active.CustomPalette.Text == "#FFFFFF",
+        "Heading text is independent from body text");
     studio.Colors[2].Hex = "#12";
     Check(studio.HasInvalidColors && !studio.CanSave, "Partial HEX blocks saving");
     var savedBeforeInvalid = runtime.Saved;

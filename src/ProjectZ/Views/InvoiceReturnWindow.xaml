@@ -77,7 +77,7 @@
                            Margin="0,0,0,8"
                            FontSize="13"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding ReturnLines}">

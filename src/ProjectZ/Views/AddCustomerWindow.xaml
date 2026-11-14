@@ -58,7 +58,7 @@
                                Style="{StaticResource PosRtlTextStyle}"
                                Margin="0,3,0,0"
                                FontSize="12"
-                               Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
+                               Foreground="{DynamicResource Theme.Brush.NavigationMuted}" />
                 </StackPanel>
             </StackPanel>
         </Border>

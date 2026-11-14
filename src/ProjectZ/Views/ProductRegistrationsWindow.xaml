@@ -58,7 +58,7 @@
                                Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}"
                                TextTrimming="CharacterEllipsis" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" FlowDirection="RightToLeft" Margin="0,3,0,0">
-                        <TextBlock Text="قائمة جميع التسجيلات والقطع · باركود:" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
+                        <TextBlock Text="قائمة جميع التسجيلات والقطع · باركود:" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="{DynamicResource Theme.Brush.NavigationMuted}" />
                         <TextBlock Text="{Binding Product.Barcode}" Style="{StaticResource PosLtrTextStyle}" Margin="6,0,0,0" FontSize="12" FontFamily="Consolas, Segoe UI" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}" />
                     </StackPanel>
                 </StackPanel>
@@ -99,7 +99,7 @@
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="11.5"
                                            FontWeight="SemiBold"
-                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -277,7 +277,7 @@
                                                        FontFamily="Consolas, Segoe UI"
                                                        FontSize="12"
                                                        FontWeight="Bold"
-                                                       Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                       Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
 
                                             <!-- Product Name and serial persistence -->
                                             <StackPanel Grid.Column="1" Margin="6,0" VerticalAlignment="Center">
@@ -461,7 +461,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="12.5"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            Margin="0,0,0,6" />
                 <ItemsControl Grid.Row="1" MaxHeight="120" ItemsSource="{Binding UnitMovements}">
                     <ItemsControl.Template>
@@ -492,7 +492,7 @@
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="11.5"
                                            FontWeight="SemiBold"
-                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                 <TextBlock Grid.Column="2"
                                            Text="{Binding ReasonDisplay}"
                                            Style="{StaticResource PosRtlTextStyle}"

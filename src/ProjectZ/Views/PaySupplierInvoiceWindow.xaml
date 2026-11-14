@@ -48,7 +48,7 @@
                                Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" FlowDirection="RightToLeft" Margin="0,3,0,0">
                         <TextBlock Text="{Binding Invoice.InvoiceNumber}" Style="{StaticResource PosLtrTextStyle}" FontFamily="Consolas, Segoe UI" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}" />
-                        <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
+                        <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" Foreground="{DynamicResource Theme.Brush.NavigationMuted}" />
                         <TextBlock Text="{Binding Invoice.SupplierName}" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" Foreground="{DynamicResource Theme.Legacy.DCE8EE.NavigationMuted}" />
                     </StackPanel>
                 </StackPanel>
@@ -145,7 +145,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="المتبقي بعد السداد" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
-                            <TextBlock Text="{Binding RemainingAfterPaymentDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="15.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                            <TextBlock Text="{Binding RemainingAfterPaymentDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="15.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                         </StackPanel>
                     </Grid>
                 </Border>

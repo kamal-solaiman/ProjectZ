@@ -53,7 +53,7 @@
                                        Style="{StaticResource PosRtlTextStyle}"
                                        FontSize="12.5"
                                        FontWeight="Bold"
-                                       Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                       Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             <TextBlock Text="{Binding ReorderDisplay}"
                                        Style="{StaticResource PosRtlTextStyle}"
                                        Margin="0,3,0,0"

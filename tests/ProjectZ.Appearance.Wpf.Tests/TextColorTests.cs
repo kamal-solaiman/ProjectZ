@@ -79,6 +79,30 @@ internal static class TextColorTests
         var aliasDark = ((SolidColorBrush)Application.Current.Resources["Theme.Legacy.172B41.Text"]).Color;
         check(aliasGlass != aliasDark && aliasDark == Resource("Text"),
             "Legacy DynamicResource text aliases follow replacement of frozen theme brushes");
+
+        // The same already-open controls must honor independent custom text roles without recreation.
+        var custom = new AppearanceSettings
+        {
+            ThemeId = "custom",
+            CustomPalette = ThemeCatalog.CustomPalette with
+            {
+                Text = "#172B41",
+                HeadingText = "#6D28D9",
+                SidebarText = "#FFD166",
+                SidebarMutedText = "#C6CDD3",
+                ButtonText = "#10231F"
+            }
+        };
+        runtime.Preview(custom);
+        PumpDispatcher();
+        check(Effective(heading) == Resource("Heading") && Effective(heading) != Effective(body),
+            "Custom heading text is independent and effective on an already-open heading");
+        check(((SolidColorBrush)sidebar.Foreground).Color == Resource("NavigationInk")
+            && ((SolidColorBrush)sidebar.Foreground).Color != Resource("Text"),
+            "Custom sidebar text is independent and effective on an already-open menu button");
+        check(((SolidColorBrush)button.Foreground).Color == Resource("OnAccent")
+            && ((SolidColorBrush)button.Foreground).Color != Resource("NavigationInk"),
+            "Custom button text is independent and effective on an already-open action button");
     }
 
     private static void PumpDispatcher()

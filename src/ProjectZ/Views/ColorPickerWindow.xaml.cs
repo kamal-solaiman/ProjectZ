@@ -10,9 +10,10 @@ public partial class ColorPickerWindow : Window
     private bool ready;
     public string SelectedHex { get; private set; } = "#147D92";
 
-    public ColorPickerWindow(string initialHex)
+    public ColorPickerWindow(string initialHex, string? roleLabel = null)
     {
         InitializeComponent();
+        if (!string.IsNullOrWhiteSpace(roleLabel)) Title += " — " + roleLabel;
         SetHex(ThemeColorMath.IsHex(initialHex) ? initialHex : "#147D92");
         ready = true;
     }

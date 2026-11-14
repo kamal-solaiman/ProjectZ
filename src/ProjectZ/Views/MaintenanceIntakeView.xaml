@@ -92,7 +92,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="20.5"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            VerticalAlignment="Center" />
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
@@ -171,7 +171,7 @@
                                Style="{StaticResource PosRtlTextStyle}"
                                FontSize="15"
                                FontWeight="Bold"
-                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                Margin="0,0,0,8" />
 
                     <!-- Mini KPI Strip -->
@@ -179,7 +179,7 @@
                         <Border Padding="8,6" CornerRadius="9" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                             <StackPanel>
                                 <TextBlock Text="مستلم اليوم" Style="{StaticResource PosCenterTextStyle}" FontSize="10" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                                <TextBlock Text="{Binding TodayCountDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                <TextBlock Text="{Binding TodayCountDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             </StackPanel>
                         </Border>
                         <Border Margin="0,0,6,0" Padding="8,6" CornerRadius="9" Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}" BorderBrush="{DynamicResource Theme.Legacy.BFDBFE.InfoBorder}" BorderThickness="1">
@@ -289,7 +289,7 @@
                                                                    FontFamily="Consolas, Segoe UI"
                                                                    FontSize="13"
                                                                    FontWeight="Bold"
-                                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                         <TextBlock Text="{Binding ReceivedTimeDisplay}"
                                                                    Style="{StaticResource PosLtrTextStyle}"
                                                                    Margin="6,0,0,0"
@@ -436,7 +436,7 @@
                                                    VerticalAlignment="Center"
                                                    FontSize="14.5"
                                                    FontWeight="Bold"
-                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                         <Button Grid.Column="1"
                                                 Content="+ عميل جديد"
                                                 Style="{StaticResource PosOutlineTealButtonStyle}"
@@ -493,7 +493,7 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding SelectedCustomer.Name}" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                <TextBlock Text="{Binding SelectedCustomer.Name}" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                 <TextBlock Text="{Binding SelectedCustomer.Address}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" Visibility="{Binding SelectedCustomer.Address, Converter={StaticResource StringNotEmptyToVis}}" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="2">
@@ -580,7 +580,7 @@
                                                Style="{StaticResource PosRtlTextStyle}"
                                                FontSize="14.5"
                                                FontWeight="Bold"
-                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                                Margin="0,0,0,8" />
 
                                     <!-- Device Type Chips -->
@@ -622,7 +622,7 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
-                                            <TextBlock Text="الموديل *" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,3" />
+                                            <TextBlock Text="الموديل *" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" Margin="0,0,0,3" />
                                             <TextBox x:Name="DeviceModelInput"
                                                      Style="{StaticResource PosCompactTextBoxStyle}"
                                                      MinHeight="32"
@@ -712,7 +712,7 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2" Visibility="{Binding NeedsPasscodeInput, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="{Binding PasscodeInputLabel}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,3" />
+                                            <TextBlock Text="{Binding PasscodeInputLabel}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" Margin="0,0,0,3" />
                                             <Grid>
                                                 <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
                                                          MinHeight="32"
@@ -755,7 +755,7 @@
                                                Style="{StaticResource PosRtlTextStyle}"
                                                FontSize="14.5"
                                                FontWeight="Bold"
-                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                                Margin="0,0,0,6" />
 
                                     <!-- Quick Faults -->
@@ -776,7 +776,7 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
-                                    <TextBlock Text="وصف العطل بالتفصيل *" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,3" />
+                                    <TextBlock Text="وصف العطل بالتفصيل *" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" Margin="0,0,0,3" />
                                     <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
                                              MinHeight="46"
                                              Padding="10,6"
@@ -869,7 +869,7 @@
                                                Style="{StaticResource PosRtlTextStyle}"
                                                FontSize="14.5"
                                                FontWeight="Bold"
-                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                                Margin="0,0,0,8" />
 
                                     <!-- Priority, Technician & Delivery -->
@@ -997,7 +997,7 @@
                                                                Style="{StaticResource PosRtlTextStyle}"
                                                                FontSize="12.5"
                                                                FontWeight="Bold"
-                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                     <TextBlock Text="{Binding TotalDepositPaidDisplay, StringFormat='المقدم / العربون المحصل: {0}'}"
                                                                Style="{StaticResource PosRtlTextStyle}"
                                                                FontSize="11.5"
@@ -1008,7 +1008,7 @@
 
                                             <!-- Deposit Channel Selector -->
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                                <TextBlock Text="تحصيل عربون / رسوم فحص الآن:" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                <TextBlock Text="تحصيل عربون / رسوم فحص الآن:" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                 <Button Content="بدون مقدم (0)" Command="{Binding SetNoDepositModeCommand}">
                                                     <Button.Style>
                                                         <Style TargetType="Button" BasedOn="{StaticResource MntChipButtonStyle}">

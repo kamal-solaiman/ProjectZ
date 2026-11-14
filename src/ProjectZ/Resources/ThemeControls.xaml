@@ -159,7 +159,7 @@
     </Style>
     <Style x:Key="ThemeSectionTitle" TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
         <Setter Property="FontSize" Value="16" /><Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{DynamicResource Theme.Brush.Text}" />
+        <Setter Property="Foreground" Value="{DynamicResource Theme.Brush.Heading}" />
     </Style>
     <Style x:Key="ThemeHintStyle" TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
         <Setter Property="FontSize" Value="12" /><Setter Property="TextWrapping" Value="Wrap" />

@@ -68,7 +68,7 @@
     </Style>
 
     <Style x:Key="PosPrimaryCompactButtonStyle" TargetType="Button">
-        <Setter Property="Background" Value="{StaticResource PosTealBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Theme.Brush.Accent}" />
         <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="FontSize" Value="13.5" />
@@ -98,7 +98,7 @@
 
     <Style x:Key="PosDangerButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource Theme.Legacy.B42318.Danger}" />
-        <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
+        <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnDanger}" />
         <Setter Property="Padding" Value="14,8" />
         <Setter Property="FontSize" Value="13.5" />
         <Setter Property="FontWeight" Value="SemiBold" />
@@ -320,7 +320,7 @@
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource Theme.Legacy.147D92.Accent}" />
-                                        <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>

@@ -58,7 +58,7 @@
                                Style="{StaticResource PosRtlTextStyle}"
                                Margin="0,3,0,0"
                                FontSize="12"
-                               Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
+                               Foreground="{DynamicResource Theme.Brush.NavigationMuted}" />
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -172,7 +172,7 @@
                     <!-- Transfer details -->
                     <Border Margin="0,16,0,0" Padding="12" CornerRadius="10" Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                         <StackPanel>
-                            <TextBlock Text="بيانات التحويل للمورد" Style="{StaticResource PosRtlTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                            <TextBlock Text="بيانات التحويل للمورد" Style="{StaticResource PosRtlTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             <TextBlock Text="تظهر هذه البيانات في ملف المورد لتسهيل السداد ومراجعته." Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" Margin="0,2,0,10" />
                             <Grid>
                                 <Grid.ColumnDefinitions>

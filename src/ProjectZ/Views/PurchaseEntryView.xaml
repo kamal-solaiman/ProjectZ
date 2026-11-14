@@ -118,7 +118,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="22"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            VerticalAlignment="Center" />
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
@@ -284,7 +284,7 @@
                                                     </Setter>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Brush.NavigationMuted}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -340,7 +340,7 @@
                                            VerticalAlignment="Center"
                                            FontSize="14"
                                            FontWeight="Bold"
-                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             </Grid>
 
                             <!-- Prompt if no supplier selected yet -->
@@ -386,7 +386,7 @@
                                                    Style="{StaticResource PosRtlTextStyle}"
                                                    FontSize="13.5"
                                                    FontWeight="Bold"
-                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" FlowDirection="RightToLeft" Margin="0,2,0,0">
                                             <TextBlock Text="{Binding ActiveInvoice.SelectedSupplier.DisplayPhone}"
                                                        Style="{StaticResource PosLtrTextStyle}"
@@ -666,7 +666,7 @@
                                 <Border Grid.Column="0" Padding="7,2" CornerRadius="6" Background="{DynamicResource Theme.Legacy.E0F2FE.InfoSoft}">
                                     <TextBlock Text="{Binding ActiveInvoice.DraftStatusTitle}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.0369A1.InfoInk}" />
                                 </Border>
-                                <TextBlock Grid.Column="1" Text="تجزئة ووسائل الدفع للمورد" Style="{StaticResource PosRtlTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="تجزئة ووسائل الدفع للمورد" Style="{StaticResource PosRtlTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" VerticalAlignment="Center" />
                             </Grid>
 
                             <!-- Quick Presets -->
@@ -1167,7 +1167,7 @@
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="14"
                                            FontWeight="Bold"
-                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             </Grid>
                         </Border>
 
@@ -1282,7 +1282,7 @@
                                                                VerticalAlignment="Center"
                                                                FontSize="13"
                                                                FontWeight="Bold"
-                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
 
                                                     <!-- Remove -->
                                                     <Button Grid.Column="5"

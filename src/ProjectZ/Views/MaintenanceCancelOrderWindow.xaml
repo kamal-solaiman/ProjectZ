@@ -42,7 +42,7 @@
             <StackPanel FlowDirection="RightToLeft">
                 <Border Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}" BorderBrush="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="سبب الإلغاء / رفض الإصلاح *" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,6" />
+                        <TextBlock Text="سبب الإلغاء / رفض الإصلاح *" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" Margin="0,0,0,6" />
                         <ItemsControl ItemsSource="{Binding Reasons}" Margin="0,0,0,8">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>

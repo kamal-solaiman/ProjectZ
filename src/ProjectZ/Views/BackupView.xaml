@@ -8,7 +8,7 @@
         <Style x:Key="BackupCardTitle" TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.102E48.Text}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.102E48.Heading}" />
         </Style>
         <Style x:Key="BackupLabel" TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
             <Setter Property="FontSize" Value="12.5" />
@@ -51,7 +51,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="21"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            VerticalAlignment="Center" />
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
