@@ -50,11 +50,20 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     private string statusMessage = "";
     private bool isErrorStatus;
+    private bool isBulkReload;
+    private DateTime? lastSyncedAt;
 
     public ObservableCollection<MaintenanceOrderDesignItem> FilteredOrders { get; } = [];
     public ObservableCollection<MaintenanceSparePartItem> FilteredCatalogParts { get; } = [];
 
-    public IReadOnlyList<string> Technicians => MaintenanceDesignSeedData.Technicians;
+    /// <summary>
+    /// Technician names offered by the workshop editor. With SQL Server behind the screen the list is
+    /// read from dbo.MaintenanceOrders and dbo.Users (see <see cref="Data.MaintenanceRepository.LoadTechnicianDirectory"/>),
+    /// so the drop-down can never offer a name that has no row behind it. It falls back to the design
+    /// samples only when no database is connected.
+    /// </summary>
+    public ObservableCollection<string> Technicians { get; } = [];
+
     public IReadOnlyList<string> DeliverySlotOptions => MaintenanceDesignSeedData.DeliverySlotOptions;
     public IReadOnlyList<string> DiagnosisSnippets => MaintenanceDesignSeedData.DiagnosisSnippets;
     public IReadOnlyList<string> StageFilterOptions { get; } =
@@ -71,7 +80,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     ];
     public IReadOnlyList<string> PriorityFilterOptions { get; } =
         ["كل الأولويات", "مستعجل", "عادي", "ضمان / إعادة فحص"];
-    public IReadOnlyList<string> TechnicianFilterOptions { get; }
+    public ObservableCollection<string> TechnicianFilterOptions { get; } = [];
 
     public MaintenanceOrderDesignItem? SelectedOrder
     {
@@ -88,6 +97,19 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             Changed(nameof(SelectedOrderSummaryTitle));
         }
     }
+
+    /// <summary>True when this screen reads and writes SQL Server; the header badge follows it.</summary>
+    public bool IsDatabaseBacked => repository is not null;
+
+    public string DataConnectionBadgeText => IsDatabaseBacked
+        ? "متصل بقاعدة البيانات — SQL Server"
+        : "وضع عرض — بدون قاعدة بيانات";
+
+    public string LastSyncedDisplay => lastSyncedAt is { } at
+        ? $"آخر مزامنة: {at:yyyy-MM-dd HH:mm:ss}"
+        : IsDatabaseBacked
+            ? "لم تتم المزامنة بعد"
+            : "بيانات تجريبية في الذاكرة";
 
     public bool HasSelectedOrder => SelectedOrder is not null;
     public bool HasNoSelectedOrder => SelectedOrder is null;
@@ -184,7 +206,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         get => selectedTechnicianFilter;
         set
         {
-            if (selectedTechnicianFilter == value) return;
+            // Rebuilding the ComboBox items (a SQL directory reload) clears SelectedItem and would push
+            // null/empty back here; an empty filter must never turn into "match nobody".
+            if (string.IsNullOrWhiteSpace(value) || selectedTechnicianFilter == value) return;
             selectedTechnicianFilter = value;
             Changed();
             RefreshFilteredOrders();
@@ -494,7 +518,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         this.repository = repository;
         this.onOrdersSaved = onOrdersSaved;
 
-        TechnicianFilterOptions = new[] { "كل الفنيين" }.Concat(MaintenanceDesignSeedData.Technicians).ToArray();
+        ReloadTechnicianDirectory();
 
         this.sharedOrders.CollectionChanged += OnOrdersCollectionChanged;
         this.sharedSpareParts.CollectionChanged += OnSparePartsCollectionChanged;
@@ -502,8 +526,22 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         GoToIntakeCommand = new ActionCommand(() => this.navigateToIntake?.Invoke());
         RefreshDataCommand = new ActionCommand(() =>
         {
-            NotifyExternalDataChanged();
-            SetStatus("تم تحديث قائمة أجهزة الصيانة ومخزون قطع الغيار.", false);
+            if (!NotifyExternalDataChanged()) return;
+
+            try
+            {
+                notifySparePartsChanged?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر تحديث مخزون قطع الغيار: {ex.Message}", true);
+                return;
+            }
+
+            RefreshFilteredCatalogParts();
+            SetStatus(
+                $"تم تحديث أوامر الصيانة ({sharedOrders.Count}) ومخزون قطع الغيار ({sharedSpareParts.Count}) وقائمة الفنيين من قاعدة البيانات.",
+                false);
         });
         SetStageFilterCommand = new RelayCommand<string>(stage =>
         {
@@ -551,31 +589,64 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         RefreshFilteredOrders();
         RefreshFilteredCatalogParts();
         SelectedOrder = FilteredOrders.FirstOrDefault() ?? sharedOrders.FirstOrDefault();
-        SetStatus("شاشة إجراءات الصيانة: تحكم كامل بحالات الأجهزة، تقارير الفحص، قطع غيار الصيانة، والتسليم والضمان.", false);
+        SetStatus(
+            repository is null
+                ? "وضع عرض بدون قاعدة بيانات: تُحفظ التغييرات في الذاكرة فقط حتى يُضبط الاتصال."
+                : "جاهز للتحكم: تُحفظ الحالات وتقارير الفحص وقطع الغيار والتحصيل والتسليم مباشرة في SQL Server.",
+            false);
+        if (repository is not null)
+            lastSyncedAt = DateTime.Now;
     }
 
-    public void NotifyExternalDataChanged()
+    /// <summary>
+    /// Reloads the orders (and the technician directory) from SQL Server while keeping the ticket the
+    /// user is working on selected. Without the id-based restore the panel jumped to the newest order
+    /// after every save, because a reload replaces every item instance in the shared collection.
+    /// </summary>
+    /// <returns>False when the reload failed; the status strip then carries the reason.</returns>
+    public bool NotifyExternalDataChanged()
     {
+        var selectedId = SelectedOrder?.Id ?? 0;
+        var failure = "";
+
         if (repository is not null)
         {
+            isBulkReload = true;
             try
             {
                 repository.LoadMaintenanceOrdersInto(sharedOrders);
                 pendingActivities.Clear();
                 pendingPayments.Clear();
+                lastSyncedAt = DateTime.Now;
+                Changed(nameof(LastSyncedDisplay));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // The status strip reports the failure; the in-memory list stays as-is.
+                failure = ex.Message;
+            }
+            finally
+            {
+                isBulkReload = false;
             }
         }
+
+        ReloadTechnicianDirectory();
         NotifyStageAndKpiCounts();
-        RefreshFilteredOrders();
+        RefreshFilteredOrders(selectedId);
         RefreshFilteredCatalogParts();
+
+        if (failure.Length > 0)
+        {
+            SetStatus($"تعذّر تحميل أوامر الصيانة من قاعدة البيانات: {failure}", true);
+            return false;
+        }
+
         if (SelectedOrder is null && FilteredOrders.Count > 0)
             SelectedOrder = FilteredOrders[0];
         else
             LoadEditableFieldsFromSelected();
+
+        return true;
     }
 
     /// <summary>Flushes accumulated activities/payments and the order state to the database.</summary>
@@ -596,7 +667,14 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            SetStatus($"{errorPrefix}: {ex.Message}", true);
+            // The in-memory ticket now holds changes SQL Server never accepted (a lost update from
+            // another client, a stock conflict, a dropped connection...). Reload the truth so the
+            // screen never shows a state the database does not have, and say so in the message.
+            var message = $"{errorPrefix}: {ex.Message}";
+            if (NotifyExternalDataChanged())
+                message += " — أُعيد تحميل الأمر من قاعدة البيانات بحالته المحفوظة فعليًا.";
+
+            SetStatus(message, true);
             return false;
         }
     }
@@ -635,12 +713,67 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     private void OnOrdersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // A SQL reload adds row by row; refreshing the queue for every row is wasted work and would
+        // reset the selection, so the caller refreshes once when the bulk load finishes.
+        if (isBulkReload) return;
+
         NotifyStageAndKpiCounts();
         RefreshFilteredOrders();
     }
 
     private void OnSparePartsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         => RefreshFilteredCatalogParts();
+
+    /// <summary>
+    /// Rebuilds the technician drop-down from SQL Server (or the design samples when no database is
+    /// connected) and keeps the currently assigned/selected names so a stale list never clears them.
+    /// </summary>
+    private void ReloadTechnicianDirectory()
+    {
+        var names = new List<string>();
+        if (repository is not null)
+        {
+            try
+            {
+                names = repository.LoadTechnicianDirectory();
+            }
+            catch (Exception)
+            {
+                // Fall back to the design list; the status strip reports real load failures elsewhere.
+                names.Clear();
+            }
+        }
+
+        if (names.Count == 0)
+            names.AddRange(MaintenanceDesignSeedData.Technicians);
+
+        foreach (var extra in new[] { SelectedOrder?.AssignedTechnician, EditAssignedTechnician })
+        {
+            var trimmed = extra?.Trim() ?? "";
+            if (trimmed.Length > 0 && !names.Contains(trimmed, StringComparer.Ordinal))
+                names.Add(trimmed);
+        }
+
+        names.Sort(StringComparer.Ordinal);
+
+        Technicians.Clear();
+        foreach (var name in names)
+            Technicians.Add(name);
+
+        var previousFilter = SelectedTechnicianFilter;
+        TechnicianFilterOptions.Clear();
+        TechnicianFilterOptions.Add("كل الفنيين");
+        foreach (var name in names)
+            TechnicianFilterOptions.Add(name);
+
+        if (!TechnicianFilterOptions.Contains(previousFilter))
+        {
+            selectedTechnicianFilter = "كل الفنيين";
+            Changed(nameof(SelectedTechnicianFilter));
+            NotifyStageFilterSelection();
+            RefreshFilteredOrders();
+        }
+    }
 
     private void LoadEditableFieldsFromSelected()
     {
@@ -667,6 +800,16 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
                 : (SelectedOrder.IsEstimatePendingInspection ? 0m : Math.Max(0m, SelectedOrder.EstimatedCost - SelectedOrder.PartsTotal));
             editLaborCostText = PosFormatting.FormatPlainNumber(laborVal);
             editDiscountText = PosFormatting.FormatPlainNumber(SelectedOrder.DiscountAmount);
+        }
+
+        // A technician saved on the ticket (from intake or another client) may be missing from the
+        // last directory load; keep it selectable so the ComboBox never clears the field.
+        var assigned = SelectedOrder?.AssignedTechnician?.Trim() ?? "";
+        if (assigned.Length > 0 && !Technicians.Contains(assigned))
+        {
+            Technicians.Add(assigned);
+            if (!TechnicianFilterOptions.Contains(assigned))
+                TechnicianFilterOptions.Add(assigned);
         }
 
         Changed(nameof(EditPriority));
@@ -732,6 +875,12 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return false;
         }
 
+        if (ValidateWorkshopFieldLengths() is { } lengthProblem)
+        {
+            SetStatus(lengthProblem, true);
+            return false;
+        }
+
         var changes = new List<string>();
 
         if (order.Priority != EditPriority)
@@ -740,9 +889,13 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             changes.Add($"الأولوية: {order.PriorityTitle}");
         }
 
-        if (order.AssignedTechnician != EditAssignedTechnician)
+        var technician = (EditAssignedTechnician ?? "").Trim();
+        if (technician.Length == 0)
+            technician = order.AssignedTechnician;
+
+        if (order.AssignedTechnician != technician)
         {
-            order.AssignedTechnician = EditAssignedTechnician;
+            order.AssignedTechnician = technician;
             changes.Add($"الفني: {order.AssignedTechnicianDisplay}");
         }
 
@@ -859,7 +1012,10 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     {
         if (order.Status == nextStatus) return;
 
-        SaveWorkshopUpdates(showSuccessMessage: false);
+        // Persist whatever the workshop form holds first; if that fails (invalid amount, conflict with
+        // another client) the stage must not change, otherwise the UI and the database disagree.
+        if (!SaveWorkshopUpdates(showSuccessMessage: false))
+            return;
 
         var prevTitle = order.StatusTitle;
         order.Status = nextStatus;
@@ -1017,7 +1173,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
                 var partsCopy = order.UsedParts.ToList();
                 foreach (var part in partsCopy)
                 {
-                    RestorePartStockToInventory(part);
+                    if (!RestorePartStockToInventory(part))
+                        return;   // Keep the ticket open so the returned stock and the lines stay in sync.
+
                     order.UsedParts.Remove(part);
                     returnedCount += part.Quantity;
                 }
@@ -1080,18 +1238,33 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     private void RecordPrintActivity(MaintenanceOrderDesignItem order, string modeLabel)
     {
-        RecordActivity(order, new MaintenanceActivityEntry
+        var entry = new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = "معاينة / طباعة مستند صيانة",
             Details = $"صيغة الطباعة: {modeLabel}.",
             ActorName = currentUserName
-        });
+        };
 
-        if (repository is not null && order.Id > 0)
-            TryPersistOrder(order, $"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}».", "تعذّر حفظ سجل الطباعة");
-        else
+        // Printing is a read-only action on the ticket: append the log row on its own so the order
+        // columns, its part lines and its RowVersion are not rewritten.
+        order.ActivityLog.Add(entry);
+
+        if (repository is null || order.Id <= 0)
+        {
             SetStatus($"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}».", false);
+            return;
+        }
+
+        try
+        {
+            repository.AppendMaintenanceActivity(order.Id, entry);
+            SetStatus($"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}» وحفظ السجل في قاعدة البيانات.", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"تعذّر حفظ سجل الطباعة في قاعدة البيانات: {ex.Message}", true);
+        }
     }
 
     // --- Spare Parts Stock Allocation & Release (Maintenance Spare Parts Only) ---
@@ -1198,6 +1371,12 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
+        if (ManualPartName.Trim().Length > 250)
+        {
+            SetStatus("اسم البند اليدوي أطول من الحد المسموح (250 حرفًا). اختصره ثم أعد الإضافة.", true);
+            return;
+        }
+
         if (!PosFormatting.TryParseAmount(ManualPartCostText, out var cost) || cost < 0m)
         {
             SetStatus("أدخل تكلفة شراء صحيحة للبند اليدوي.", true);
@@ -1265,7 +1444,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        RestorePartStockToInventory(part);
+        if (!RestorePartStockToInventory(part))
+            return;
+
         order.UsedParts.Remove(part);
         SyncLaborBeforeWorkshopRecalc(order);
         order.RecalculateWorkshopTotal();
@@ -1307,27 +1488,37 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             order.DiscountAmount = discount;
     }
 
-    private void RestorePartStockToInventory(MaintenancePartUsageItem part)
+    /// <summary>
+    /// Returns a spare-part line to dbo.MaintenanceSpareParts before the line is dropped from the
+    /// ticket. The id comes from the line itself, so a part that is no longer in the loaded catalog
+    /// is still returned instead of being lost. Returns false when the stock write failed, so the
+    /// caller must keep the line on the ticket.
+    /// </summary>
+    private bool RestorePartStockToInventory(MaintenancePartUsageItem part)
     {
-        if (!part.IsSparePartLine) return;
+        if (!part.IsSparePartLine) return true;
 
-        var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == part.EffectiveSparePartId);
-        if (sparePart is not null)
+        var sparePartId = part.EffectiveSparePartId;
+        if (sparePartId <= 0) return true;
+
+        if (repository is not null)
         {
-            if (repository is not null)
+            try
             {
-                try
-                {
-                    repository.RestoreSparePartStock(sparePart.Id, part.Quantity);
-                }
-                catch (Exception ex)
-                {
-                    SetStatus($"تعذّر استرجاع رصيد قطعة الغيار: {ex.Message}", true);
-                    return;
-                }
+                repository.RestoreSparePartStock(sparePartId, part.Quantity);
             }
-            sparePart.Quantity += part.Quantity;
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر استرجاع رصيد قطعة الغيار: {ex.Message}", true);
+                return false;
+            }
         }
+
+        var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == sparePartId);
+        if (sparePart is not null)
+            sparePart.Quantity += part.Quantity;
+
+        return true;
     }
 
     private void SetExtraDepositMode(MaintenanceDepositMode mode)
@@ -1397,10 +1588,11 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             SetStatus($"تم تحصيل دفعة إضافية {PosFormatting.FormatCurrency(amount)} على الأمر {order.OrderNumber} ({channelTitle}).", false);
     }
 
-    private void RefreshFilteredOrders()
+    private void RefreshFilteredOrders(int preferredOrderId = 0)
     {
         var query = SearchText.Trim();
         var previouslySelected = SelectedOrder;
+        var targetId = preferredOrderId > 0 ? preferredOrderId : (previouslySelected?.Id ?? 0);
         FilteredOrders.Clear();
 
         foreach (var order in sharedOrders)
@@ -1444,11 +1636,21 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         }
 
         if (previouslySelected is not null && FilteredOrders.Contains(previouslySelected))
+        {
             SelectedOrder = previouslySelected;
+        }
+        else if (targetId > 0 && FilteredOrders.FirstOrDefault(o => o.Id == targetId) is { } sameOrder)
+        {
+            SelectedOrder = sameOrder;
+        }
         else if (FilteredOrders.Count > 0)
+        {
             SelectedOrder = FilteredOrders[0];
+        }
         else
+        {
             SelectedOrder = null;
+        }
 
         Changed(nameof(HasNoFilteredOrders));
     }
@@ -1496,6 +1698,24 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         Changed(nameof(CancelledCount));
         Changed(nameof(UrgentActiveCount));
         Changed(nameof(ExpectedCollectionDisplay));
+    }
+
+    /// <summary>
+    /// Mirrors the column widths in sql/06 for the fields this screen writes, so an over-long value
+    /// produces an Arabic message here instead of SQL Server error 8152 on save.
+    /// </summary>
+    private string? ValidateWorkshopFieldLengths()
+    {
+        if (EditDiagnosisNotes.Trim().Length > 2000)
+            return "تقرير الفحص أطول من الحد المسموح (2000 حرف). اختصره ثم أعد الحفظ.";
+
+        if ((EditAssignedTechnician ?? "").Trim().Length > 150)
+            return "اسم الفني أطول من الحد المسموح (150 حرفًا).";
+
+        if (EditExpectedDeliveryLabel.Trim().Length > 200)
+            return "وصف موعد التسليم أطول من الحد المسموح (200 حرف).";
+
+        return null;
     }
 
     private void SetStatus(string message, bool isError)

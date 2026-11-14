@@ -277,6 +277,13 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     public DateTime ReceivedAt { get; init; }
     public string ReceivedByName { get; init; } = "";
 
+    /// <summary>
+    /// dbo.MaintenanceOrders.RowVersion as last read from (or written to) SQL Server. The repository
+    /// sends it back with every UPDATE so a ticket changed by another client is not overwritten
+    /// silently; null means "not tracked yet" (design mode or a row not loaded from SQL).
+    /// </summary>
+    public byte[]? DatabaseRowVersion { get; set; }
+
     public DateTime? ExpectedDeliveryAt
     {
         get => expectedDeliveryAt;

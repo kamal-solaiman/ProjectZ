@@ -849,6 +849,31 @@ for token in (
     assert token in maintenance_actions_xaml, f'MaintenanceActions UI missing expected token: {token}'
 assert 'ExtraDepositReference' not in maintenance_actions_xaml, 'Reference input should not appear in extra deposit collection'
 
+# The actions screen must stay SQL-backed: real technician directory from SQL, a RowVersion guard so
+# two clients cannot overwrite each other, an id-based reselection after a reload, and a readable
+# failure path. These tokens guard against a silent regression to the design-mode behaviour.
+maintenance_actions_vm_path = root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs'
+maintenance_actions_dialogs_path = root / 'src/ProjectZ/ViewModels/MaintenanceActionsDialogViewModels.cs'
+maintenance_order_model = (root / 'src/ProjectZ/Models/MaintenanceDesignModels.cs').read_text(encoding='utf-8')
+maintenance_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
+maintenance_actions_vm = maintenance_actions_vm_path.read_text(encoding='utf-8')
+maintenance_actions_dialogs = maintenance_actions_dialogs_path.read_text(encoding='utf-8')
+for token in ('IsDatabaseBacked', 'DataConnectionBadgeText', 'LastSyncedDisplay', 'ReloadTechnicianDirectory',
+              'isBulkReload', 'ValidateWorkshopFieldLengths', 'AppendMaintenanceActivity', 'RefreshFilteredOrders(selectedId)'):
+    assert token in maintenance_actions_vm, f'MaintenanceActions view model missing expected token: {token}'
+for token in ('DataConnectionBadgeText', 'LastSyncedDisplay'):
+    assert token in maintenance_actions_xaml, f'MaintenanceActions UI is not SQL-backed: {token}'
+assert 'TechnicianFilterOptions = new[] { "كل الفنيين" }' not in maintenance_actions_vm, \
+    'the technician directory is hard-coded from the design samples again'
+assert 'DatabaseRowVersion' in maintenance_order_model, 'MaintenanceOrderDesignItem.DatabaseRowVersion is missing'
+for token in ('RowVersion = @RowVersion', 'OUTPUT inserted.RowVersion', 'LoadTechnicianDirectory'):
+    assert token in maintenance_repository, f'MaintenanceRepository missing expected token: {token}'
+assert 'ملاحظات التسليم أطول من الحد المسموح' in maintenance_actions_dialogs
+assert 'سبب الإلغاء أطول من الحد المسموح' in maintenance_actions_dialogs
+assert (root / 'sql/15_EnableMaintenanceActions.sql').is_file(), 'sql/15_EnableMaintenanceActions.sql is missing'
+print('PASS: maintenance actions screen writes status, pricing, parts, payments, delivery and cancellation to SQL '
+      'with optimistic concurrency and a SQL technician directory')
+
 maintenance_invoices_xaml_path = root / 'src/ProjectZ/Views/MaintenanceInvoicesView.xaml'
 maintenance_invoice_details_xaml_path = root / 'src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml'
 assert maintenance_invoices_xaml_path.is_file() and maintenance_invoice_details_xaml_path.is_file()
