@@ -1822,6 +1822,8 @@ for guard in ('LocalApplicationData', 'appearance.json', 'File.Replace', 'Flush(
 assert 'SqlConnection' not in appearance_store and 'SystemSettings' not in appearance_store, 'appearance must stay independent of SQL'
 assert 'themeManager.Initialize();' in app_cs
 assert app_cs.index('themeManager.Initialize();') < app_cs.index('ShowLogin();'), 'saved theme must load before the login window'
+assert 'NativeTitleBar.Apply' in app_cs and 'EventManager.RegisterClassHandler(typeof(Window)' in app_cs
+assert (root / 'src/ProjectZ/Services/NativeTitleBar.cs').is_file()
 assert 'new AppearanceViewModel(themeManager)' in app_cs
 assert 'IsAppearanceSelected' in main_viewmodel_text and 'Appearance = appearance ?? new AppearanceViewModel();' in main_viewmodel_text
 assert 'IsAppearanceSelected' in main_xaml_text and 'AppearanceView DataContext="{Binding Appearance}"' in main_xaml_text
