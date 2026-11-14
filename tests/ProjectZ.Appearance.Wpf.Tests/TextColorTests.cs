@@ -62,13 +62,10 @@ internal static class TextColorTests
         check(plainGlass != plainDark, "Unstyled TextBlock effective Foreground changes between light and dark themes");
         check(plainDark == Resource("Text"), "Unstyled TextBlock inherits the live theme Text role");
         check(bodyGlass != bodyDark, "PosRtlTextStyle effective Foreground changes between themes");
-        Console.WriteLine($"DEBUG heading glass={headingGlass} want={ResourceAt("glassmorphism", "Heading")} dark={headingDark} want={ResourceAt("dark-glass", "Heading")}");
         check(headingGlass == ResourceAt("glassmorphism", "Heading") && headingDark == ResourceAt("dark-glass", "Heading"),
             "Section headings use the independent Heading role");
-        Console.WriteLine($"DEBUG button glass={buttonGlass} want={ResourceAt("glassmorphism", "OnAccent")} dark={buttonDark} want={ResourceAt("dark-glass", "OnAccent")}");
         check(buttonGlass == ResourceAt("glassmorphism", "OnAccent") && buttonDark == ResourceAt("dark-glass", "OnAccent"),
             "Action buttons use the live OnAccent/button-text role");
-        Console.WriteLine($"DEBUG sidebar glass={sidebarGlass} want={ResourceAt("glassmorphism", "NavigationInk")} dark={sidebarDark} want={ResourceAt("dark-glass", "NavigationInk")}");
         check(sidebarGlass == ResourceAt("glassmorphism", "NavigationInk") && sidebarDark == ResourceAt("dark-glass", "NavigationInk"),
             "Sidebar menu text uses the independent sidebar-text role");
         check(sidebarGlass != sidebarDark, "Sidebar text visibly differs between presets");
