@@ -108,7 +108,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="20.5"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            VerticalAlignment="Center" />
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
@@ -368,7 +368,7 @@
                                                                FontFamily="Consolas, Segoe UI"
                                                                FontSize="12.5"
                                                                FontWeight="Bold"
-                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                     <TextBlock Text="{Binding SupplierInvoiceNumberDisplay, StringFormat='مرجع: {0}'}"
                                                                Style="{StaticResource PosRtlTextStyle}"
                                                                Margin="0,2,0,0"

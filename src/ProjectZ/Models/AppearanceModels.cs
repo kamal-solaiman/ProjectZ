@@ -7,7 +7,7 @@ namespace ProjectZ.Models;
 /// <summary>Device-local appearance. No credentials, store data or SQL settings belong in this file.</summary>
 public sealed record AppearanceSettings
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public int Version { get; init; } = CurrentVersion;
     public string ThemeId { get; init; } = "glassmorphism";
     public ThemePalette CustomPalette { get; init; } = ThemeCatalog.CustomPalette;
@@ -19,10 +19,27 @@ public sealed record AppearanceSettings
 
 public sealed record ThemePalette(
     string Background, string Surface, string Text, string MutedText,
-    string Accent, string Border, string Highlight, string Sidebar)
+    string Accent, string Border, string Highlight, string Sidebar,
+    string? HeadingText = null, string? SidebarText = null,
+    string? SidebarMutedText = null, string? ButtonText = null)
 {
     public bool IsValid() => new[] { Background, Surface, Text, MutedText, Accent, Border, Highlight, Sidebar }
-        .All(ThemeColorMath.IsHex);
+        .All(ThemeColorMath.IsHex)
+        && new[] { HeadingText, SidebarText, SidebarMutedText, ButtonText }
+            .All(color => color is null || ThemeColorMath.IsHex(color));
+
+    /// <summary>Fills the independent text roles added in schema v2; v1 files keep their old derived look.</summary>
+    public ThemePalette Resolve()
+    {
+        var navInk = ThemeColorMath.ReadableInk(Sidebar);
+        return this with
+        {
+            HeadingText = HeadingText ?? ThemeColorMath.Mix(Text, Accent, .12),
+            SidebarText = SidebarText ?? navInk,
+            SidebarMutedText = SidebarMutedText ?? ThemeColorMath.Mix(navInk, Sidebar, .24),
+            ButtonText = ButtonText ?? ThemeColorMath.ReadableInk(Accent)
+        };
+    }
 }
 
 public sealed record ThemeDefinition(
@@ -32,52 +49,53 @@ public sealed record ThemeDefinition(
 public static partial class ThemeCatalog
 {
     public static ThemePalette CustomPalette { get; } = new(
-        "#EAF0F6", "#FFFFFF", "#172B41", "#52647A", "#147D92", "#B8C9D8", "#087F8C", "#102E48");
+        "#EAF0F6", "#FFFFFF", "#172B41", "#52647A", "#147D92", "#B8C9D8", "#087F8C", "#102E48",
+        "#17354B", "#FFFFFF", "#C6CDD3", "#FFFFFF");
 
     public static IReadOnlyList<ThemeDefinition> All { get; } =
     [
         new("glassmorphism", "الزجاج الشفاف", "Glassmorphism",
             "طبقات هادئة وشفافية ناعمة، مع حواف مضيئة وخلفية بلون السماء.",
             "شفافية · عمق · نعومة", "\uE737",
-            new("#E8F1FA", "#FFFFFF", "#18334C", "#52677E", "#147D92", "#B6CCDF", "#087F8C", "#173C56"), .76, 16),
+            new("#E8F1FA", "#FFFFFF", "#18334C", "#52677E", "#147D92", "#B6CCDF", "#087F8C", "#173C56", "#183C54", "#EAF6FF", "#B8CDDC", "#FFFFFF"), .76, 16),
         new("liquid-glass", "الزجاج السائل", "Liquid Glass",
             "انعكاسات لؤلؤية وانحناءات مضيئة فوق طبقات زجاجية بلون الجليد.",
             "انسياب · انعكاس · لؤلؤ", "\uE793",
-            new("#E2EDFA", "#F8FCFF", "#173451", "#506984", "#2879B9", "#A6C9E6", "#167BB5", "#1C4565"), .66, 22),
+            new("#E2EDFA", "#F8FCFF", "#173451", "#506984", "#2879B9", "#A6C9E6", "#167BB5", "#1C4565", "#193C5D", "#E8F7FF", "#B9D2E4", "#FFFFFF"), .66, 22),
         new("dark-glass", "الزجاج الداكن", "Dark Glass",
             "زجاج ليلي عميق، نصوص فاتحة ولمسات فيروزية تمنح البيانات وضوحًا.",
             "ليلي · هادئ · مركز", "\uE708",
-            new("#0B1220", "#1B293D", "#ECF3FC", "#AFBED2", "#36B8C4", "#40536D", "#79E2D5", "#101C2E"), .83, 16),
+            new("#0B1220", "#1B293D", "#ECF3FC", "#AFBED2", "#36B8C4", "#40536D", "#79E2D5", "#101C2E", "#D6ECF5", "#D6ECF5", "#A9C2D6", "#111827"), .83, 16),
         new("aurora", "الشفق القطبي", "Aurora UI",
             "أشرطة ضوئية زمردية وبنفسجية تتحرك بهدوء فوق سماء ليلية.",
             "ضوء · حركة · خيال", "\uE706",
-            new("#10182D", "#202B46", "#F0F5FF", "#B7C4DA", "#4BBDA8", "#465779", "#9DE7CE", "#17243C"), .82, 18),
+            new("#10182D", "#202B46", "#F0F5FF", "#B7C4DA", "#4BBDA8", "#465779", "#9DE7CE", "#17243C", "#DCEEF5", "#E4FBF0", "#B7D2C8", "#111827"), .82, 18),
         new("holographic", "التصميم الهولوجرافي", "Holographic UI",
             "ألوان طيفية وحدود قزحية ولمعة رقمية دقيقة على أسطح بلورية.",
             "طيف · بلور · مستقبل", "\uE7F4",
-            new("#ECEAF8", "#FCFAFF", "#30294D", "#68617F", "#7862BA", "#C2B5DE", "#7554AD", "#3D355F"), .77, 14),
+            new("#ECEAF8", "#FCFAFF", "#30294D", "#68617F", "#7862BA", "#C2B5DE", "#7554AD", "#3D355F", "#39305A", "#F1EAFF", "#C9BEDF", "#FFFFFF"), .77, 14),
         new("fui", "واجهات الخيال العلمي", "FUI / HUD",
             "شبكة هندسية، زوايا حادة وبيانات بلون الرادار؛ طابع مركز قيادة.",
             "دقة · هندسة · رادار", "\uE950",
-            new("#071722", "#102B38", "#E0F7FA", "#9BBBC7", "#29ABC3", "#326476", "#E9BB64", "#0B2230"), .91, 2),
+            new("#071722", "#102B38", "#E0F7FA", "#9BBBC7", "#29ABC3", "#326476", "#E9BB64", "#0B2230", "#CAEEF3", "#D7F6FB", "#A9C8D2", "#111827"), .91, 2),
         new("chrome", "الكروم والمعدن السائل", "Chrome / Liquid Metal",
             "تدرجات فضية مصقولة، ظلال معدنية وخطوط ضوء تعبر الأسطح.",
             "معدن · لمعان · نقاء", "\uE7F8",
-            new("#DCE2E9", "#F5F7FA", "#253443", "#566576", "#4C6D88", "#A2AFBD", "#3E6685", "#344656"), .92, 10),
+            new("#DCE2E9", "#F5F7FA", "#253443", "#566576", "#4C6D88", "#A2AFBD", "#3E6685", "#344656", "#2A3B4B", "#F2F6FA", "#C2CDD8", "#FFFFFF"), .92, 10),
         new("fluent", "تصميم Microsoft", "Fluent Design",
             "أسطح محايدة، لمعة ضوئية عند التفاعل، ولمسة زرقاء بروح Windows.",
             "بساطة · وضوح · انسجام", "\uE782",
-            new("#F3F3F3", "#FDFDFD", "#1B1B1B", "#606060", "#005FB8", "#D1D1D1", "#0067C0", "#202C3A"), .96, 8),
+            new("#F3F3F3", "#FDFDFD", "#1B1B1B", "#606060", "#005FB8", "#D1D1D1", "#0067C0", "#202C3A", "#18232E", "#FFFFFF", "#C9CCD0", "#FFFFFF"), .96, 8),
         new("custom", "تصميمك المخصص", "Custom Studio",
-            "ثمانية أدوار لونية، شفافية وانحناءات قابلة للتعديل مع فحص مباشر للوضوح.",
+            "اثنا عشر دورًا لونيًا مع ألوان نصوص مستقلة للقائمة والأزرار والعناوين وفحص مباشر للوضوح.",
             "ألوانك · اختيارك · هويتك", "\uE790", CustomPalette, 1, 12)
     ];
 
     public static ThemeDefinition Find(string? id) => All.FirstOrDefault(theme => theme.Id == id)
         ?? throw new ArgumentException("المظهر المحدد غير موجود.", nameof(id));
 
-    public static ThemePalette PaletteFor(AppearanceSettings settings) => settings.ThemeId == "custom"
-        ? settings.CustomPalette : Find(settings.ThemeId).Palette;
+    public static ThemePalette PaletteFor(AppearanceSettings settings) => (settings.ThemeId == "custom"
+        ? settings.CustomPalette : Find(settings.ThemeId).Palette).Resolve();
 
     public static void Validate(AppearanceSettings settings)
     {

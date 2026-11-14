@@ -28,16 +28,21 @@ public sealed class AppearanceViewModel : ObservableObject
         this.runtime = runtime ?? new DesignAppearanceRuntime();
         draft = this.runtime.Active.Copy();
         Themes = ThemeCatalog.All.Select(theme => new ThemeOptionViewModel(theme)).ToArray();
+        var initial = draft.CustomPalette.Resolve();
         Colors =
         [
-            new("Background", "الخلفية", draft.CustomPalette.Background, ChangeColor),
-            new("Surface", "البطاقات والأسطح", draft.CustomPalette.Surface, ChangeColor),
-            new("Text", "النص الأساسي", draft.CustomPalette.Text, ChangeColor),
-            new("MutedText", "النص الثانوي", draft.CustomPalette.MutedText, ChangeColor),
-            new("Accent", "الأزرار والإجراءات", draft.CustomPalette.Accent, ChangeColor),
-            new("Border", "الحدود والفواصل", draft.CustomPalette.Border, ChangeColor),
-            new("Highlight", "التمييز والتحديد", draft.CustomPalette.Highlight, ChangeColor),
-            new("Sidebar", "القائمة الجانبية", draft.CustomPalette.Sidebar, ChangeColor)
+            new("Background", "الخلفية", initial.Background, ChangeColor),
+            new("Surface", "البطاقات والأسطح", initial.Surface, ChangeColor),
+            new("Text", "النص الأساسي", initial.Text, ChangeColor),
+            new("MutedText", "النص الثانوي", initial.MutedText, ChangeColor),
+            new("Accent", "الأزرار والإجراءات", initial.Accent, ChangeColor),
+            new("Border", "الحدود والفواصل", initial.Border, ChangeColor),
+            new("Highlight", "التمييز والتحديد", initial.Highlight, ChangeColor),
+            new("Sidebar", "القائمة الجانبية", initial.Sidebar, ChangeColor),
+            new("HeadingText", "نص العناوين", initial.HeadingText!, ChangeColor),
+            new("SidebarText", "نص القائمة الجانبية", initial.SidebarText!, ChangeColor),
+            new("SidebarMutedText", "النص الثانوي للقائمة", initial.SidebarMutedText!, ChangeColor),
+            new("ButtonText", "نص الأزرار", initial.ButtonText!, ChangeColor)
         ];
         SaveCommand = new RelayCommand(Save);
         RestoreSavedCommand = new RelayCommand(RestoreSaved);
@@ -118,7 +123,7 @@ public sealed class AppearanceViewModel : ObservableObject
     private void ChangeColor(string role, string hex)
     {
         if (refreshing) return;
-        var p = draft.CustomPalette;
+        var p = draft.CustomPalette.Resolve();
         p = role switch
         {
             "Background" => p with { Background = hex },
@@ -129,6 +134,10 @@ public sealed class AppearanceViewModel : ObservableObject
             "Border" => p with { Border = hex },
             "Highlight" => p with { Highlight = hex },
             "Sidebar" => p with { Sidebar = hex },
+            "HeadingText" => p with { HeadingText = hex },
+            "SidebarText" => p with { SidebarText = hex },
+            "SidebarMutedText" => p with { SidebarMutedText = hex },
+            "ButtonText" => p with { ButtonText = hex },
             _ => p
         };
         ApplyDraft(draft with { ThemeId = "custom", CustomPalette = p });
@@ -184,8 +193,9 @@ public sealed class AppearanceViewModel : ObservableObject
         {
             selectedTheme = Themes.First(theme => theme.Definition.Id == draft.ThemeId);
             foreach (var theme in Themes) theme.RefreshSelected(draft.ThemeId);
-            var p = draft.CustomPalette;
-            string[] values = [p.Background, p.Surface, p.Text, p.MutedText, p.Accent, p.Border, p.Highlight, p.Sidebar];
+            var p = draft.CustomPalette.Resolve();
+            string[] values = [p.Background, p.Surface, p.Text, p.MutedText, p.Accent, p.Border, p.Highlight, p.Sidebar,
+                p.HeadingText!, p.SidebarText!, p.SidebarMutedText!, p.ButtonText!];
             for (var i = 0; i < Colors.Count; i++) Colors[i].SetHex(values[i]);
             RefreshContrast();
         }
@@ -204,9 +214,11 @@ public sealed class AppearanceViewModel : ObservableObject
         }
         Add("النص / البطاقات", p.Text, p.Surface);
         Add("النص الثانوي / البطاقات", p.MutedText, p.Surface);
+        Add("العناوين / البطاقات", p.HeadingText!, p.Surface);
         Add("النص / الخلفية", p.Text, p.Background);
-        Add("الأزرار", ThemeColorMath.ReadableInk(p.Accent), p.Accent);
-        Add("القائمة الجانبية", ThemeColorMath.ReadableInk(p.Sidebar), p.Sidebar);
+        Add("نص الأزرار / الأزرار", p.ButtonText!, p.Accent);
+        Add("نص القائمة / القائمة", p.SidebarText!, p.Sidebar);
+        Add("النص الثانوي / القائمة", p.SidebarMutedText!, p.Sidebar);
     }
 
     private void SetStatus(string message, bool error)

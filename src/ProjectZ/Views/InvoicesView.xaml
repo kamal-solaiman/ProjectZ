@@ -133,7 +133,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="20.5"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            VerticalAlignment="Center" />
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
@@ -388,7 +388,7 @@
                                         <TextBlock Text="مراجعة الفاتورة:" Style="{StaticResource PosRtlTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
                                         <TextBlock Text="{Binding SelectedInvoice.InvoiceNumber}" Style="{StaticResource PosLtrTextStyle}" Margin="6,0,0,0" FontFamily="Consolas, Segoe UI" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}" />
                                     </StackPanel>
-                                    <TextBlock Text="{Binding SelectedInvoice.IssuedFullDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" Margin="0,2,0,0" FontSize="11" Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
+                                    <TextBlock Text="{Binding SelectedInvoice.IssuedFullDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" Margin="0,2,0,0" FontSize="11" Foreground="{DynamicResource Theme.Brush.NavigationMuted}" />
                                 </StackPanel>
                             </Grid>
 
@@ -439,7 +439,7 @@
                             <!-- Card 1: Customer, Cashier & Notes -->
                             <Border Margin="0,0,0,9" Padding="11" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                                 <StackPanel FlowDirection="RightToLeft">
-                                    <TextBlock Text="بيانات العميل والفاتورة" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,6" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                    <TextBlock Text="بيانات العميل والفاتورة" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,6" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -486,7 +486,7 @@
                             <!-- Card 2: Detailed Line Items + Serials + Item Cost/Profit -->
                             <Border Margin="0,0,0,9" Padding="11" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                                 <StackPanel FlowDirection="RightToLeft">
-                                    <TextBlock Text="تفصيل بنود الفاتورة والسيريالات والربحية" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,7" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                    <TextBlock Text="تفصيل بنود الفاتورة والسيريالات والربحية" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,7" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     <ItemsControl ItemsSource="{Binding SelectedInvoice.Items}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -628,7 +628,7 @@
                             <!-- Card 4: Payment Channels & References Breakdown -->
                             <Border Margin="0,0,0,9" Padding="11" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                                 <StackPanel FlowDirection="RightToLeft">
-                                    <TextBlock Text="تفصيل السداد والتحصيل والمراجع" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,6" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                    <TextBlock Text="تفصيل السداد والتحصيل والمراجع" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,6" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -696,7 +696,7 @@
                             <!-- Card 5: Audit & Activity History Log -->
                             <Border Padding="11" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                                 <StackPanel FlowDirection="RightToLeft">
-                                    <TextBlock Text="سجل المراجعة والحركات على الفاتورة" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,6" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                    <TextBlock Text="سجل المراجعة والحركات على الفاتورة" Style="{StaticResource PosRtlTextStyle}" Margin="0,0,0,6" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     <ItemsControl ItemsSource="{Binding SelectedInvoice.ActivityLog}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -707,7 +707,7 @@
                                                                 <ColumnDefinition Width="*" />
                                                                 <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
-                                                            <TextBlock Grid.Column="0" Text="{Binding ActionTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                            <TextBlock Grid.Column="0" Text="{Binding ActionTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                             <TextBlock Grid.Column="1" Text="{Binding TimestampDisplay}" Style="{StaticResource PosLtrTextStyle}" FontFamily="Consolas, Segoe UI" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                                         </Grid>
                                                         <TextBlock Text="{Binding Details}" Style="{StaticResource PosRtlTextStyle}" Margin="0,2,0,0" FontSize="11" Foreground="{DynamicResource Theme.Legacy.334155.Text}" TextWrapping="Wrap" />
@@ -855,7 +855,7 @@
                                                                FontFamily="Consolas, Segoe UI"
                                                                FontSize="12"
                                                                FontWeight="Bold"
-                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
 
                                                     <!-- Date & Time -->
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">

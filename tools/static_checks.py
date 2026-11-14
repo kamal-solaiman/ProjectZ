@@ -1841,7 +1841,20 @@ for token in ('SelectedTheme', 'SaveCommand', 'RestoreSavedCommand', 'ResetCusto
     assert token in appearance_view, f'appearance studio missing wiring: {token}'
 theme_manager = (root / 'src/ProjectZ/Services/ThemeManager.cs').read_text(encoding='utf-8')
 assert 'EnsureTextContrast' in theme_manager and 'ClientAreaAnimation' in theme_manager
-assert 'role is "Surface" or "SurfaceRaised" or "Input" or "Subtle"' in theme_manager, 'legacy surfaces must share the translucent paint'
+assert 'resources[key] = resources["Theme.Brush." + role]' in theme_manager, 'legacy aliases must be replaced with the live role brush'
+assert ('["PosInkBrush"] = "Text"' in theme_manager
+        and 'resources["Accent"] = resources["Theme.Brush.Accent"]' in theme_manager), \
+    'POS brush keys and the legacy Accent key must follow the live theme'
+appearance_vm_text = (root / 'src/ProjectZ/ViewModels/AppearanceViewModel.cs').read_text(encoding='utf-8')
+for role in ('HeadingText', 'SidebarText', 'SidebarMutedText', 'ButtonText'):
+    assert role in appearance_model and role in appearance_vm_text, \
+        f'custom studio must expose independent text role: {role}'
+assert 'Schema v1' in appearance_store and 'CurrentVersion = 2' in appearance_model, \
+    'v1 appearance files must migrate to independent text roles'
+assert 'Theme.Brush.NavigationInk' in main_xaml_text and 'Theme.Brush.NavigationMuted' in main_xaml_text, \
+    'sidebar menu text must use the independent sidebar text roles'
+assert 'effective Foreground' in (root / 'tests/ProjectZ.Appearance.Wpf.Tests/TextColorTests.cs').read_text(encoding='utf-8'), \
+    'WPF regression must assert effective text colors, not only resource values'
 print_isolation = (root / 'src/ProjectZ/Resources/PrintIsolation.xaml').read_text(encoding='utf-8')
 assert 'DynamicResource Theme.' not in print_isolation, 'print isolation must not follow the live theme'
 for print_name in ('InvoicePrintPreviewWindow.xaml', 'PurchaseInvoicePrintPreviewWindow.xaml', 'MaintenanceReceiptPreviewWindow.xaml', 'BarcodePrintPreviewWindow.xaml'):
@@ -1860,5 +1873,5 @@ assert 'SelectItem(mainVm.Categories[6].Items[1])' in wpf_smoke and 'IsAppearanc
 workflow_text = (root / '.github/workflows/windows-build.yml').read_text(encoding='utf-8')
 assert 'ProjectZ.Appearance.Tests' in workflow_text and 'ProjectZ.Appearance.Wpf.Tests' in workflow_text
 assert 'docs/THEMES.md' in (root / 'README.md').read_text(encoding='utf-8')
-print('PASS: appearance studio has eight presets plus custom colors, atomic device-local save, live whole-app resources and isolated print colors')
+print('PASS: appearance studio has eight presets plus twelve-role custom colors, independent text groups, atomic device-local save, live whole-app resources and isolated print colors')
 print('NOT RUN locally: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish (Windows CI covers .NET build/tests, publish and isolated LocalDB integration)')

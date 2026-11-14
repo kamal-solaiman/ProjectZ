@@ -93,7 +93,7 @@
                                VerticalAlignment="Center"
                                FontSize="12.5"
                                FontWeight="Bold"
-                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                 </Grid>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -229,7 +229,7 @@
                         <UniformGrid Columns="4" FlowDirection="RightToLeft">
                             <StackPanel>
                                 <TextBlock Text="القطع المرتجعة" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.5B21B6.VioletInk}" />
-                                <TextBlock Text="{Binding TotalReturnUnitsDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                <TextBlock Text="{Binding TotalReturnUnitsDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             </StackPanel>
                             <StackPanel>
                                 <TextBlock Text="قيمة المرتجع" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.5B21B6.VioletInk}" />

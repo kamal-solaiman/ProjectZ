@@ -18,7 +18,7 @@
     <SolidColorBrush x:Key="Theme.Legacy.0F766E.SuccessInk" Color="{DynamicResource Theme.Color.SuccessInk}" />
     <SolidColorBrush x:Key="Theme.Legacy.102E48.Border" Color="{DynamicResource Theme.Color.Border}" />
     <SolidColorBrush x:Key="Theme.Legacy.102E48.Navigation" Color="{DynamicResource Theme.Color.Navigation}" />
-    <SolidColorBrush x:Key="Theme.Legacy.102E48.Text" Color="{DynamicResource Theme.Color.Text}" />
+    <SolidColorBrush x:Key="Theme.Legacy.102E48.Heading" Color="{DynamicResource Theme.Color.Heading}" />
     <SolidColorBrush x:Key="Theme.Legacy.10B981.SuccessInk" Color="{DynamicResource Theme.Color.SuccessInk}" />
     <SolidColorBrush x:Key="Theme.Legacy.147D92.Accent" Color="{DynamicResource Theme.Color.Accent}" />
     <SolidColorBrush x:Key="Theme.Legacy.147D92.AccentInk" Color="{DynamicResource Theme.Color.AccentInk}" />
@@ -68,7 +68,7 @@
     <SolidColorBrush x:Key="Theme.Legacy.7DD3FC.InfoBorder" Color="{DynamicResource Theme.Color.InfoBorder}" />
     <SolidColorBrush x:Key="Theme.Legacy.7F1D1D.Danger" Color="{DynamicResource Theme.Color.Danger}" />
     <SolidColorBrush x:Key="Theme.Legacy.7F1D1D.DangerInk" Color="{DynamicResource Theme.Color.DangerInk}" />
-    <SolidColorBrush x:Key="Theme.Legacy.85AABC.Muted" Color="{DynamicResource Theme.Color.Muted}" />
+    <SolidColorBrush x:Key="Theme.Legacy.85AABC.NavigationMuted" Color="{DynamicResource Theme.Color.NavigationMuted}" />
     <SolidColorBrush x:Key="Theme.Legacy.86EFAC.SuccessBorder" Color="{DynamicResource Theme.Color.SuccessBorder}" />
     <SolidColorBrush x:Key="Theme.Legacy.92400E.WarningInk" Color="{DynamicResource Theme.Color.WarningInk}" />
     <SolidColorBrush x:Key="Theme.Legacy.94A3B8.BorderStrong" Color="{DynamicResource Theme.Color.BorderStrong}" />
@@ -87,7 +87,7 @@
     <SolidColorBrush x:Key="Theme.Legacy.B42318.DangerInk" Color="{DynamicResource Theme.Color.DangerInk}" />
     <SolidColorBrush x:Key="Theme.Legacy.B45309.WarningBorder" Color="{DynamicResource Theme.Color.WarningBorder}" />
     <SolidColorBrush x:Key="Theme.Legacy.B45309.WarningInk" Color="{DynamicResource Theme.Color.WarningInk}" />
-    <SolidColorBrush x:Key="Theme.Legacy.B7CFDD.Text" Color="{DynamicResource Theme.Color.Text}" />
+    <SolidColorBrush x:Key="Theme.Legacy.B7CFDD.NavigationMuted" Color="{DynamicResource Theme.Color.NavigationMuted}" />
     <SolidColorBrush x:Key="Theme.Legacy.BAE6FD.InfoBorder" Color="{DynamicResource Theme.Color.InfoBorder}" />
     <SolidColorBrush x:Key="Theme.Legacy.BAE6FD.NavigationInk" Color="{DynamicResource Theme.Color.NavigationInk}" />
     <SolidColorBrush x:Key="Theme.Legacy.BBF7D0.SuccessBorder" Color="{DynamicResource Theme.Color.SuccessBorder}" />
@@ -110,7 +110,6 @@
     <SolidColorBrush x:Key="Theme.Legacy.D97706.WarningInk" Color="{DynamicResource Theme.Color.WarningInk}" />
     <SolidColorBrush x:Key="Theme.Legacy.DC2626.DangerBorder" Color="{DynamicResource Theme.Color.DangerBorder}" />
     <SolidColorBrush x:Key="Theme.Legacy.DCE8EE.Input" Color="{DynamicResource Theme.Color.Input}" />
-    <SolidColorBrush x:Key="Theme.Legacy.DCE8EE.Muted" Color="{DynamicResource Theme.Color.Muted}" />
     <SolidColorBrush x:Key="Theme.Legacy.DCE8EE.NavigationMuted" Color="{DynamicResource Theme.Color.NavigationMuted}" />
     <SolidColorBrush x:Key="Theme.Legacy.DCFCE7.SuccessSoft" Color="{DynamicResource Theme.Color.SuccessSoft}" />
     <SolidColorBrush x:Key="Theme.Legacy.DDD6FE.InfoBorder" Color="{DynamicResource Theme.Color.InfoBorder}" />

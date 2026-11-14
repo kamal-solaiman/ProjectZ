@@ -83,7 +83,7 @@
                                Style="{StaticResource PosRtlTextStyle}"
                                FontSize="21"
                                FontWeight="Bold"
-                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                     <Border Margin="10,0,0,0"
                             Padding="9,4"
                             CornerRadius="8"
@@ -126,7 +126,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="12"
                            FontWeight="SemiBold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            TextTrimming="CharacterEllipsis" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding MovementsSummaryText}"
@@ -523,7 +523,7 @@
                                                Style="{StaticResource PosCenterTextStyle}"
                                                FontSize="14.5"
                                                FontWeight="Bold"
-                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     <TextBlock Text="جرّب تغيير البحث أو إعادة ضبط الفلاتر أو تسجيل قطعة غيار جديدة من النموذج المجاور."
                                                Style="{StaticResource PosCenterTextStyle}"
                                                FontSize="12"
@@ -847,7 +847,7 @@
                                                Style="{StaticResource PosCenterTextStyle}"
                                                FontSize="14.5"
                                                FontWeight="Bold"
-                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     <TextBlock Text="تظهر هنا حركات الرصيد الافتتاحي والتوريد والصرف على أوامر الصيانة والإرجاع والتسويات."
                                                Style="{StaticResource PosCenterTextStyle}"
                                                FontSize="12"

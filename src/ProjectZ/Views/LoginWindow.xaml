@@ -54,13 +54,13 @@
                     <TextBlock Text="واجهة بسيطة. اتصال موحّد.&#xA;بيانات المؤسسة في مكان واحد."
                                FontSize="16"
                                LineHeight="28"
-                               Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}"
+                               Foreground="{DynamicResource Theme.Brush.NavigationMuted}"
                                TextAlignment="Center"
                                TextWrapping="Wrap" />
                 </StackPanel>
                 <TextBlock Text="نظام الدخول المؤسسي"
                            VerticalAlignment="Bottom"
-                           Foreground="{DynamicResource Theme.Legacy.85AABC.Muted}"
+                           Foreground="{DynamicResource Theme.Brush.NavigationMuted}"
                            TextAlignment="Center"
                            FontSize="12" />
             </Grid>
@@ -85,12 +85,13 @@
                            FontSize="16"
                            FontWeight="Bold"
                            TextAlignment="Center"
-                           Foreground="{StaticResource Accent}" />
+                           Foreground="{DynamicResource Theme.Brush.Accent}" />
                 <StackPanel Grid.Row="1" VerticalAlignment="Center">
                     <TextBlock Text="تسجيل الدخول"
                                Margin="0,0,0,8"
                                FontSize="30"
                                FontWeight="Bold"
+                               Foreground="{DynamicResource Theme.Brush.Heading}"
                                TextAlignment="Center" />
                     <TextBlock Text="مرحبًا بعودتك، أدخل بيانات حسابك للمتابعة."
                                Margin="0,0,0,28"

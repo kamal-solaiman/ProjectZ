@@ -134,7 +134,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="21"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            VerticalAlignment="Center" />
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
@@ -345,14 +345,14 @@
                                     <ColumnDefinition Width="300" />
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="اسم المنتج" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
-                                <TextBlock Grid.Column="1" Text="باركود" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
-                                <TextBlock Grid.Column="2" Text="الكمية" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                <TextBlock Grid.Column="0" Text="اسم المنتج" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
+                                <TextBlock Grid.Column="1" Text="باركود" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
+                                <TextBlock Grid.Column="2" Text="الكمية" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                 <TextBlock Grid.Column="3" Text="سعر القطاعي" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.147D92.AccentInk}" />
-                                <TextBlock Grid.Column="4" Text="سعر الجملة" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                <TextBlock Grid.Column="4" Text="سعر الجملة" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                 <TextBlock Grid.Column="5" Text="سعر المميز" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}" />
                                 <TextBlock Grid.Column="6" Text="الهالك" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
-                                <TextBlock Grid.Column="7" Text="أزرار التحكمات" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                <TextBlock Grid.Column="7" Text="أزرار التحكمات" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             </Grid>
                         </Border>
 
@@ -392,7 +392,7 @@
                                                                        Style="{StaticResource PosRtlTextStyle}"
                                                                        FontSize="12.5"
                                                                        FontWeight="Bold"
-                                                                       Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                                                       Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                                                        TextTrimming="CharacterEllipsis" />
                                                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                                                 <TextBlock Text="{Binding Category}"
@@ -466,7 +466,7 @@
                                                                VerticalAlignment="Center"
                                                                FontSize="11.5"
                                                                FontWeight="Bold"
-                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
 
                                                     <!-- 6. Special Price -->
                                                     <TextBlock Grid.Column="5"
@@ -534,7 +534,7 @@
                                                         <Button Content="تعديل"
                                                                 Style="{StaticResource InvActionBtnBaseStyle}"
                                                                 Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
-                                                                Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                                                Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                                                 BorderBrush="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}"
                                                                 ToolTip="تعديل بيانات المنتج والأسعار"
                                                                 Command="{Binding DataContext.OpenEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"

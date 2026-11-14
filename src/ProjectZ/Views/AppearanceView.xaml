@@ -17,7 +17,7 @@
                                Foreground="{DynamicResource Theme.Brush.AccentInk}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="استوديو المظهر" Style="{StaticResource PosRtlTextStyle}" FontSize="24" FontWeight="Bold" />
+                    <TextBlock Text="استوديو المظهر" Style="{StaticResource PosRtlTextStyle}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource Theme.Brush.Heading}" />
                     <TextBlock Text="اختر هوية بصرية متكاملة للبرنامج، أو صمّم لوحتك الخاصة." Style="{StaticResource ThemeHintStyle}" Margin="0,3,0,0" />
                 </StackPanel>
             </StackPanel>
@@ -38,7 +38,7 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center" Margin="0,0,22,0">
-                            <TextBlock Text="مظهرك، على مقاس عملك" Style="{StaticResource PosRtlTextStyle}" FontSize="22" FontWeight="Bold" />
+                            <TextBlock Text="مظهرك، على مقاس عملك" Style="{StaticResource PosRtlTextStyle}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Theme.Brush.Heading}" />
                             <TextBlock Text="ثمانية أنظمة بصرية مميزة، معاينة مباشرة على كل النوافذ، وحفظ محلي يعود معك عند إعادة التشغيل. ألوان المطبوعات الورقية لا تتغير."
                                        Style="{StaticResource ThemeHintStyle}" Margin="0,8,0,14" MaxWidth="520" HorizontalAlignment="Right" />
                             <WrapPanel FlowDirection="RightToLeft">
@@ -72,7 +72,7 @@
                                     </Border>
                                     <Border Grid.Column="1" Background="{DynamicResource Theme.Brush.Surface}" Padding="12,9">
                                         <StackPanel>
-                                            <TextBlock Text="معاينة مباشرة" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" />
+                                            <TextBlock Text="معاينة مباشرة" Style="{StaticResource ThemeSectionTitle}" FontSize="12" />
                                             <TextBlock Text="هكذا تبدو بياناتك" Style="{StaticResource ThemeHintStyle}" FontSize="10" Margin="0,2,0,8" />
                                             <Border Height="20" CornerRadius="{DynamicResource Theme.SmallCornerRadius}" Background="{DynamicResource Theme.Brush.Accent}">
                                                 <TextBlock Text="إجراء رئيسي" Style="{StaticResource PosCenterTextStyle}" FontSize="10" Foreground="{DynamicResource Theme.Brush.OnAccent}" VerticalAlignment="Center" />
@@ -174,6 +174,8 @@
                             <Button Grid.Column="1" Content="استعادة لوحة الافتراضية" Command="{Binding ResetCustomCommand}" Style="{StaticResource ThemeGhostButtonStyle}" Padding="10,5" />
                         </Grid>
                         <TextBlock Text="اكتب HEX أو استخدم منتقي الألوان. التعديلات تُعاين فورًا، وتُحفظ فقط عند الضغط على «حفظ المظهر»."
+                                   Style="{StaticResource ThemeHintStyle}" Margin="0,0,0,8" />
+                        <TextBlock Text="ألوان النصوص مستقلة: نص القائمة الجانبية ونصها الثانوي، نص الأزرار، نص العناوين، والنص الأساسي/الثانوي. لكل مجموعة فحص وضوح خاص بها."
                                    Style="{StaticResource ThemeHintStyle}" Margin="0,0,0,12" />
                         <ItemsControl ItemsSource="{Binding Colors}">
                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>

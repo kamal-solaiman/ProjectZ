@@ -11,7 +11,7 @@ public partial class AppearanceView : UserControl
     private void PickColor_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: ColorEditorViewModel editor }) return;
-        var picker = new ColorPickerWindow(editor.Hex) { Owner = Window.GetWindow(this) };
+        var picker = new ColorPickerWindow(editor.Hex, editor.Label) { Owner = Window.GetWindow(this) };
         if (picker.ShowDialog() == true)
             editor.Hex = picker.SelectedHex;
     }

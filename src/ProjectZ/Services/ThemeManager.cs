@@ -95,7 +95,7 @@ public sealed class ThemeManager(AppearanceStore store) : ObservableObject, IApp
         var text = ThemeColorMath.EnsureTextContrast(p.Text, p.Surface);
         var muted = ThemeColorMath.EnsureTextContrast(p.MutedText, p.Surface);
         var accentInk = ThemeColorMath.EnsureTextContrast(p.Accent, p.Surface);
-        var navInk = ThemeColorMath.ReadableInk(p.Sidebar);
+        var navInk = ThemeColorMath.EnsureTextContrast(p.SidebarText!, p.Sidebar);
         var colors = new Dictionary<string, string>
         {
             ["Background"] = p.Background,
@@ -105,19 +105,19 @@ public sealed class ThemeManager(AppearanceStore store) : ObservableObject, IApp
             ["Subtle"] = Mix(p.Surface, p.Background, .48),
             ["Text"] = text,
             ["Muted"] = muted,
-            ["Heading"] = ThemeColorMath.EnsureTextContrast(Mix(text, p.Accent, .12), p.Surface),
+            ["Heading"] = ThemeColorMath.EnsureTextContrast(p.HeadingText!, p.Surface),
             ["Border"] = p.Border,
             ["BorderStrong"] = Mix(p.Border, text, .22),
             ["Accent"] = p.Accent,
             ["AccentInk"] = accentInk,
             ["AccentSoft"] = Mix(p.Surface, p.Accent, .12),
             ["AccentSoftInk"] = ThemeColorMath.EnsureTextContrast(p.Accent, Mix(p.Surface, p.Accent, .12)),
-            ["OnAccent"] = ThemeColorMath.ReadableInk(p.Accent),
+            ["OnAccent"] = ThemeColorMath.EnsureTextContrast(p.ButtonText!, p.Accent),
             ["Highlight"] = ThemeColorMath.EnsureTextContrast(p.Highlight, p.Sidebar),
             ["Navigation"] = p.Sidebar,
             ["NavigationRaised"] = Mix(p.Sidebar, navInk, .10),
             ["NavigationInk"] = navInk,
-            ["NavigationMuted"] = ThemeColorMath.EnsureTextContrast(Mix(navInk, p.Sidebar, .24), p.Sidebar),
+            ["NavigationMuted"] = ThemeColorMath.EnsureTextContrast(p.SidebarMutedText!, p.Sidebar),
             ["OnNavigation"] = navInk,
             ["Hover"] = Mix(p.Surface, p.Accent, .10),
             ["Selection"] = Mix(p.Surface, p.Accent, .20),
@@ -172,18 +172,30 @@ public sealed class ThemeManager(AppearanceStore store) : ObservableObject, IApp
         resources["Theme.SurfaceOpacity"] = opacity;
         resources["Theme.MotionDuration"] = TimeSpan.FromMilliseconds(settings.ReduceMotion || !SystemParameters.ClientAreaAnimation ? 0 : 180);
 
-        // Legacy surface aliases must share the actual translucent/gradient paint, not just its opaque color.
-        // Overriding at application level keeps DynamicResource listeners in already-open windows alive.
-        var aliasKeys = resources.MergedDictionaries
+        // Legacy aliases and POS brush keys are overridden at application level with the fresh live
+        // brush. A DynamicResource Color inside a merged-dictionary Freezable does not reliably
+        // propagate after the source color is replaced; replacing the whole brush keeps every
+        // DynamicResource listener in already-open windows alive. Surface aliases share the actual
+        // translucent/gradient paint, not just its opaque color.
+        var mergedKeys = resources.MergedDictionaries
             .SelectMany(dictionary => dictionary.Keys.Cast<object>().OfType<string>())
-            .Where(key => key.StartsWith("Theme.Legacy.", StringComparison.Ordinal))
             .Distinct().ToArray();
-        foreach (var key in aliasKeys)
+        foreach (var key in mergedKeys.Where(key => key.StartsWith("Theme.Legacy.", StringComparison.Ordinal)))
         {
             var role = key[(key.LastIndexOf('.') + 1)..];
-            if (role is "Surface" or "SurfaceRaised" or "Input" or "Subtle")
-                resources[key] = resources["Theme.Brush." + role];
+            resources[key] = resources["Theme.Brush." + role];
         }
+        var posBrushRoles = new Dictionary<string, string>
+        {
+            ["PosNavyBrush"] = "Navigation", ["PosTealBrush"] = "Accent", ["PosMintBrush"] = "Highlight",
+            ["PosSurfaceBrush"] = "Surface", ["PosSubtleBgBrush"] = "Subtle", ["PosBorderBrush"] = "BorderStrong",
+            ["PosLightBorderBrush"] = "Border", ["PosInkBrush"] = "Text", ["PosMutedBrush"] = "Muted",
+            ["PosDangerBrush"] = "Danger", ["PosSuccessBrush"] = "Success", ["PosVodafoneBrush"] = "Danger",
+            ["PosInstaPayBrush"] = "Violet"
+        };
+        foreach (var (key, role) in posBrushRoles)
+            resources[key] = resources["Theme.Brush." + role];
+        resources["Accent"] = resources["Theme.Brush.Accent"];
     }
 
     private static string Mix(string a, string b, double amount) => ThemeColorMath.Mix(a, b, amount);

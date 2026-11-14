@@ -236,7 +236,7 @@
                                        Style="{StaticResource PosRtlTextStyle}"
                                        FontSize="13.5"
                                        FontWeight="Bold"
-                                       Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                       Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                        Margin="0,0,0,8" />
 
                             <TextBlock Text="{Binding Order.CustomerName}"
@@ -260,7 +260,7 @@
 
                             <Border Margin="0,8,0,0" Padding="10,8" CornerRadius="9" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding Order.DeviceFullTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                    <TextBlock Text="{Binding Order.DeviceFullTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     <TextBlock Style="{StaticResource PosRtlTextStyle}" Margin="0,3,0,0" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.475569.Muted}">
                                         <Run Text="النوع: " />
                                         <Run Text="{Binding Order.DeviceType, Mode=OneWay}" />
@@ -343,7 +343,7 @@
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="13.5"
                                            FontWeight="Bold"
-                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                            Margin="0,0,0,8" />
 
                                 <Grid Margin="0,2,0,0">
@@ -379,8 +379,8 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="إجمالي الفاتورة الفعّال:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Order.EstimatedCostDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                        <TextBlock Grid.Column="0" Text="إجمالي الفاتورة الفعّال:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Order.EstimatedCostDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     </Grid>
                                 </Border>
 
@@ -420,7 +420,7 @@
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="13.5"
                                            FontWeight="Bold"
-                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                            Margin="0,0,0,8" />
 
                                 <TextBlock Text="العربون / الدفعات تحت الحساب:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
@@ -596,7 +596,7 @@
                                Style="{StaticResource PosRtlTextStyle}"
                                FontSize="14"
                                FontWeight="Bold"
-                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                     <TextBlock Grid.Column="1"
                                Text="{Binding PartsTotalUnitsSummary}"
                                Style="{StaticResource PosRtlTextStyle}"
@@ -672,7 +672,7 @@
                                Style="{StaticResource PosRtlTextStyle}"
                                FontSize="14"
                                FontWeight="Bold"
-                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                     <TextBlock Grid.Column="1"
                                Text="{Binding PaymentsCountSummary}"
                                Style="{StaticResource PosRtlTextStyle}"
@@ -711,7 +711,7 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{Binding TimestampDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas, Segoe UI" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding HeaderTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding HeaderTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding ActorDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                             </StackPanel>
                                             <TextBlock Grid.Column="2" Text="{Binding Note}" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.334155.Text}" TextTrimming="CharacterEllipsis" Margin="6,0" />
@@ -747,7 +747,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="14"
                            FontWeight="Bold"
-                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            Margin="0,0,0,6" />
 
                 <Border Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1" CornerRadius="10" Padding="10">
@@ -764,7 +764,7 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{Binding TimestampDisplay}" Style="{StaticResource PosLtrTextStyle}" VerticalAlignment="Center" FontFamily="Consolas, Segoe UI" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding ActionTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                            <TextBlock Text="{Binding ActionTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                             <TextBlock Text="{Binding ActorName}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                         </StackPanel>
                                         <TextBlock Grid.Column="2" Text="{Binding Details}" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Theme.Legacy.334155.Text}" TextWrapping="Wrap" Margin="6,0" />

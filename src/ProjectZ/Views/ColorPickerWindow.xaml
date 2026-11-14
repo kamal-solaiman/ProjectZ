@@ -9,7 +9,7 @@
         <Grid Margin="24" FlowDirection="RightToLeft">
             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <StackPanel Margin="0,0,0,16">
-                <TextBlock Text="اختيار لون مخصص" Style="{StaticResource PosRtlTextStyle}" FontSize="22" FontWeight="Bold" />
+                <TextBlock Text="اختيار لون مخصص" Style="{StaticResource PosRtlTextStyle}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Theme.Brush.Heading}" />
                 <TextBlock Text="اضبط القنوات الثلاث أو أدخل HEX مباشرة. يعاين المربع اللون قبل اعتماده." Style="{StaticResource ThemeHintStyle}" Margin="0,5,0,0" />
             </StackPanel>
             <Grid Grid.Row="1" Margin="0,0,0,14">

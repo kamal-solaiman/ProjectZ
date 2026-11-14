@@ -137,7 +137,7 @@
                                            VerticalAlignment="Center"
                                            FontSize="14"
                                            FontWeight="Bold"
-                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             </Grid>
 
                             <Grid Margin="0,0,0,10" FlowDirection="LeftToRight">
@@ -189,7 +189,7 @@
                                 <!-- Wholesale (Center) -->
                                 <Border Grid.Column="2" Padding="10" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.102E48.Border}" BorderThickness="1.5">
                                     <StackPanel>
-                                        <TextBlock Text="سعر جملة *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,5" />
+                                        <TextBlock Text="سعر جملة *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" Margin="0,0,0,5" />
                                         <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Text="{Binding WholesalePriceText, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBlock Text="{Binding WholesaleMarginText}" Margin="0,4,0,0" FontSize="11" FontWeight="SemiBold" Visibility="{Binding HasCostPrice, Converter={StaticResource BoolToVis}}">
                                             <TextBlock.Style>

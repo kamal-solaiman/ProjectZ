@@ -48,6 +48,7 @@ public sealed class AppearanceStore(string? filePath = null)
     public void Save(AppearanceSettings settings)
     {
         ThemeCatalog.Validate(settings);
+        settings = settings with { CustomPalette = NormalizePalette(settings.CustomPalette) };
         var directory = Path.GetDirectoryName(Path.GetFullPath(FilePath));
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
         var temporary = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -83,6 +84,9 @@ public sealed class AppearanceStore(string? filePath = null)
             throw new InvalidDataException("ملف المظهر أكبر من الحد المسموح.");
         var settings = JsonSerializer.Deserialize<AppearanceSettings>(File.ReadAllText(path), JsonOptions)
             ?? throw new InvalidDataException("ملف المظهر فارغ.");
+        // Schema v1 stored eight colors; v2 adds independent heading/sidebar/button text roles.
+        if (settings.Version == 1)
+            settings = settings with { Version = AppearanceSettings.CurrentVersion, CustomPalette = settings.CustomPalette.Resolve() };
         ThemeCatalog.Validate(settings);
         return settings with { CustomPalette = NormalizePalette(settings.CustomPalette) };
     }
@@ -90,8 +94,10 @@ public sealed class AppearanceStore(string? filePath = null)
     private static ThemePalette NormalizePalette(ThemePalette palette)
     {
         static string Normal(string color) => color.ToUpperInvariant();
-        return new(Normal(palette.Background), Normal(palette.Surface), Normal(palette.Text), Normal(palette.MutedText),
-            Normal(palette.Accent), Normal(palette.Border), Normal(palette.Highlight), Normal(palette.Sidebar));
+        var p = palette.Resolve();
+        return new(Normal(p.Background), Normal(p.Surface), Normal(p.Text), Normal(p.MutedText),
+            Normal(p.Accent), Normal(p.Border), Normal(p.Highlight), Normal(p.Sidebar),
+            Normal(p.HeadingText!), Normal(p.SidebarText!), Normal(p.SidebarMutedText!), Normal(p.ButtonText!));
     }
 
     private static bool IsRecoverable(Exception exception) => exception is IOException or UnauthorizedAccessException

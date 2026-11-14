@@ -165,7 +165,8 @@
                 <TextBlock Text="المرتجع والاستبدال"
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="22"
-                           FontWeight="Bold" />
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource Theme.Brush.Heading}" />
                 <TextBlock Text="البحث بالعميل أو الموبايل أو رقم الفاتورة أو التاريخ لعرض الفاتورة كاملة وتنفيذ المرتجع أو الاستبدال ومزامنة المخزون والهالك"
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="12"
@@ -461,7 +462,7 @@
                                                                        FontFamily="Consolas, Segoe UI"
                                                                        FontSize="12.5"
                                                                        FontWeight="Bold"
-                                                                       Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                                       Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                             <Border Grid.Column="1" Padding="7,2" CornerRadius="6">
                                                                 <Border.Style>
                                                                     <Style TargetType="Border">
@@ -689,7 +690,7 @@
                                     <!-- Customer Details Card -->
                                     <Border Grid.Column="0" Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1" CornerRadius="10" Padding="12,10" Margin="0,0,5,0">
                                         <StackPanel>
-                                            <TextBlock Text="بيانات العميل والفاتورة" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,6" />
+                                            <TextBlock Text="بيانات العميل والفاتورة" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" Margin="0,0,0,6" />
                                             <TextBlock Text="{Binding SelectedInvoice.CustomerName}" Style="{StaticResource PosRtlTextStyle}" FontSize="13.5" FontWeight="Bold" />
                                             <TextBlock Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" Margin="0,3,0,0">
                                                 <Run Text="الهاتف: " />
@@ -714,7 +715,7 @@
                                     <!-- Financial & Channel Details Card -->
                                     <Border Grid.Column="1" Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1" CornerRadius="10" Padding="12,10" Margin="5,0,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="ملخص الفاتورة وقنوات السداد والتعديلات" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,6" />
+                                            <TextBlock Text="ملخص الفاتورة وقنوات السداد والتعديلات" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" Margin="0,0,0,6" />
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
@@ -781,7 +782,7 @@
                                                    Style="{StaticResource PosRtlTextStyle}"
                                                    FontSize="12.5"
                                                    FontWeight="Bold"
-                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                     </Expander.Header>
                                     <StackPanel Margin="4,8,4,2">
                                         <TextBlock Text="كل بنود الفاتورة:" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" Margin="0,0,0,4" />
@@ -832,7 +833,7 @@
                                                                 <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
                                                             <StackPanel Grid.Column="0">
-                                                                <TextBlock Text="{Binding ActionTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                                <TextBlock Text="{Binding ActionTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                                 <TextBlock Text="{Binding Details}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" TextWrapping="Wrap" />
                                                             </StackPanel>
                                                             <StackPanel Grid.Column="1" HorizontalAlignment="Left">
@@ -923,7 +924,7 @@
                                                                Style="{StaticResource PosRtlTextStyle}"
                                                                FontSize="13"
                                                                FontWeight="Bold"
-                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
+                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                                                     <TextBlock Text="يمكنك تقسيم نفس الصنف بين قطع سليمة تعود للبيع وقطع تالفة ترحل إلى مخزون الهالك"
                                                                Style="{StaticResource PosRtlTextStyle}"
                                                                FontSize="11"
@@ -1016,7 +1017,7 @@
                                                                 <!-- Line Return Value -->
                                                                 <StackPanel Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Center">
                                                                     <TextBlock Text="قيمة الراجع" Style="{StaticResource PosCenterTextStyle}" FontSize="10" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                                                                    <TextBlock Text="{Binding LineReturnValueDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,2,0,0" />
+                                                                    <TextBlock Text="{Binding LineReturnValueDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" Margin="0,2,0,0" />
                                                                 </StackPanel>
                                                             </Grid>
                                                         </Border>
@@ -1188,7 +1189,7 @@
                                                        Style="{StaticResource PosRtlTextStyle}"
                                                        FontSize="13"
                                                        FontWeight="Bold"
-                                                       Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
+                                                       Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                                        Margin="0,0,0,8" />
 
                                             <!-- Summary Strip -->
@@ -1509,7 +1510,7 @@
                                                     <TextBlock Text="{Binding ActorName}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.147D92.AccentInk}" FontWeight="SemiBold" />
                                                 </StackPanel>
 
-                                                <TextBlock Grid.Column="2" Text="{Binding InvoiceNumber}" Style="{StaticResource PosCenterTextStyle}" FontFamily="Consolas, Segoe UI" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding InvoiceNumber}" Style="{StaticResource PosCenterTextStyle}" FontFamily="Consolas, Segoe UI" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" VerticalAlignment="Center" />
 
                                                 <StackPanel Grid.Column="3" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding CustomerName}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
@@ -1534,7 +1535,7 @@
                                                 </StackPanel>
 
                                                 <StackPanel Grid.Column="6" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding NetDifferenceDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding NetDifferenceDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" TextWrapping="Wrap" />
                                                     <TextBlock Text="{Binding SettlementSummary}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                                 </StackPanel>
 

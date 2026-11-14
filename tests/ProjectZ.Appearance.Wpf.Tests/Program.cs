@@ -77,6 +77,7 @@ internal static class Program
         hostGrid.UpdateLayout();
         Check(hostedStudio.ActualWidth > 100 && hostedStudio.ActualHeight > 100,
             "AppearanceView is laid out with a real size, not an empty white panel");
+        ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }
 
