@@ -99,6 +99,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -144,21 +145,82 @@
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
-                        Background="#E0F2FE"
-                        BorderBrush="#BAE6FD"
-                        BorderThickness="1"
-                        VerticalAlignment="Center">
-                    <TextBlock Text="تصميم الواجهة — بدون Backend"
-                               Style="{StaticResource PosCenterTextStyle}"
+                        VerticalAlignment="Center"
+                        ToolTip="{Binding BackendStatusDetail}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#FEF3C7" />
+                            <Setter Property="BorderBrush" Value="#FCD34D" />
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDatabaseConnected}" Value="True">
+                                    <Setter Property="Background" Value="#DCFCE7" />
+                                    <Setter Property="BorderBrush" Value="#86EFAC" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding BackendStatusText}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
-                               Foreground="#0369A1" />
+                               VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource PosCenterTextStyle}">
+                                <Setter Property="Foreground" Value="#B45309" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDatabaseConnected}" Value="True">
+                                        <Setter Property="Foreground" Value="#047857" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </Border>
             </StackPanel>
         </Grid>
 
-        <!-- ROW 1: Multi-Criteria Search & Filter Bar -->
+        <!-- ROW 1: Live register summary (single compact line; the KPI cards were removed earlier) -->
         <Border Grid.Row="1"
+                Margin="0,0,0,10"
+                Padding="11,7"
+                CornerRadius="10"
+                Background="#F8FAFC"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                FlowDirection="LeftToRight">
+            <Grid FlowDirection="RightToLeft">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding RegisterCountSummaryText}"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="11.5"
+                               FontWeight="SemiBold"
+                               Foreground="#334155"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding RegisterMoneySummaryText}"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               Margin="0,2,0,0"
+                               FontSize="11"
+                               Foreground="#0F766E"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="1"
+                           Text="{Binding LastRefreshDisplay}"
+                           Style="{StaticResource PosLtrTextStyle}"
+                           Margin="12,0,0,0"
+                           FontSize="10"
+                           Foreground="#94A3B8"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- ROW 2: Multi-Criteria Search & Filter Bar -->
+        <Border Grid.Row="2"
                 Margin="0,0,0,10"
                 Padding="11,9"
                 CornerRadius="12"
@@ -391,8 +453,8 @@
             </StackPanel>
         </Border>
 
-        <!-- ROW 2: Full-Width Comprehensive Maintenance Invoices Table -->
-        <Border Grid.Row="2"
+        <!-- ROW 3: Full-Width Comprehensive Maintenance Invoices Table -->
+        <Border Grid.Row="3"
                 CornerRadius="12"
                 Background="White"
                 BorderBrush="#CBD5E1"
@@ -677,10 +739,34 @@
                             </ItemsControl>
                         </ScrollViewer>
 
-                        <!-- Empty State -->
+                        <!-- Empty State: connected to SQL but no saved orders yet -->
                         <StackPanel VerticalAlignment="Center"
                                     HorizontalAlignment="Center"
-                                    Visibility="{Binding HasNoFilteredOrders, Converter={StaticResource BoolToVis}}">
+                                    Visibility="{Binding IsDatabaseEmpty, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="قاعدة البيانات متصلة، ولا توجد أوامر صيانة محفوظة بعد."
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Foreground="#334155" />
+                            <TextBlock Margin="0,6,0,0"
+                                       Text="سجّل أول أمر صيانة من شاشة «امر صيانة»، وستظهر فاتورته هنا تلقائيًا مع المدفوعات والحالة."
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       FontSize="12"
+                                       Foreground="#64748B"
+                                       TextWrapping="Wrap"
+                                       MaxWidth="560" />
+                            <Button Margin="0,12,0,0"
+                                    Content="+ تسجيل أول أمر صيانة"
+                                    HorizontalAlignment="Center"
+                                    Style="{StaticResource PosPrimaryCompactButtonStyle}"
+                                    Padding="16,8"
+                                    Command="{Binding GoToIntakeCommand}" />
+                        </StackPanel>
+
+                        <!-- Empty State: orders exist but none match the filters -->
+                        <StackPanel VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    Visibility="{Binding ShowNoMatchEmptyState, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="لا توجد فواتير صيانة مطابقة لخيارات البحث أو التصفية الحالية."
                                        Style="{StaticResource PosCenterTextStyle}"
                                        FontSize="15"
@@ -698,8 +784,8 @@
             </ScrollViewer>
         </Border>
 
-        <!-- ROW 3: Status Banner -->
-        <Border Grid.Row="3"
+        <!-- ROW 4: Status Banner -->
+        <Border Grid.Row="4"
                 Margin="0,10,0,0"
                 Padding="12,8"
                 CornerRadius="10"

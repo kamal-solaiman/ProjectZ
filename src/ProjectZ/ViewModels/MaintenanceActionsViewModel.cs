@@ -1143,7 +1143,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
         var partItem = new MaintenancePartUsageItem
         {
-            ProductId = sparePart.Id,
+            // Spare-part lines link dbo.MaintenanceSpareParts through SparePartId; ProductId is
+            // reserved for POS catalog products and stays 0 here.
+            SparePartId = sparePart.Id,
             Barcode = sparePart.CodeDisplay,
             ProductName = sparePart.Name,
             Quantity = qty,
@@ -1307,9 +1309,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     private void RestorePartStockToInventory(MaintenancePartUsageItem part)
     {
-        if (part.IsManualPart || part.ProductId <= 0) return;
+        if (!part.IsSparePartLine) return;
 
-        var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == part.ProductId);
+        var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == part.EffectiveSparePartId);
         if (sparePart is not null)
         {
             if (repository is not null)

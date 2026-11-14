@@ -52,7 +52,12 @@ public sealed record MaintenanceActivityEntry
 
 public sealed class MaintenancePartUsageItem : ObservableObject
 {
+    /// <summary>POS catalog product id (dbo.Products.Id); 0 for spare-part and manual lines.</summary>
     public int ProductId { get; init; }
+
+    /// <summary>Maintenance spare-part id (dbo.MaintenanceSpareParts.Id); 0 for catalog/manual lines.</summary>
+    public int SparePartId { get; init; }
+
     public string Barcode { get; init; } = "";
     public string ProductName { get; init; } = "";
     public int Quantity { get; init; }
@@ -60,12 +65,58 @@ public sealed class MaintenancePartUsageItem : ObservableObject
     public decimal UnitSellPrice { get; init; }
     public bool IsManualPart { get; init; }
 
+    /// <summary>
+    /// Spare-part id actually linked to this line. Lines saved before
+    /// dbo.MaintenanceOrderParts.SparePartId existed stored the spare-part id in ProductId,
+    /// so a non-manual line without SparePartId still resolves to its spare part and is
+    /// written back to the correct column.
+    /// </summary>
+    public int EffectiveSparePartId => SparePartId > 0 ? SparePartId : (IsManualPart ? 0 : ProductId);
+
+    public bool IsSparePartLine => !IsManualPart && EffectiveSparePartId > 0;
+
     public decimal LineTotal => Quantity * UnitSellPrice;
     public decimal LineCostTotal => Quantity * UnitCost;
     public string QuantityDisplay => $"{Quantity} قطعة";
     public string UnitSellPriceDisplay => PosFormatting.FormatCurrency(UnitSellPrice);
     public string LineTotalDisplay => PosFormatting.FormatCurrency(LineTotal);
-    public string SourceBadgeText => IsManualPart ? "بند يدوي" : "قطع الغيار";
+    public string SourceBadgeText => IsManualPart ? "بند يدوي" : "قطعة غيار";
+}
+
+/// <summary>
+/// One row of dbo.MaintenancePayments as read for the invoice details window. Maintenance
+/// payments are append-only in SQL (no UPDATE/DELETE grant), so this list is display-only.
+/// </summary>
+public sealed record MaintenancePaymentHistoryItem
+{
+    public DateTime PaidAt { get; init; }
+
+    /// <summary>1 = deposit (عربون), 2 = final settlement (سداد عند التسليم).</summary>
+    public int Stage { get; init; }
+
+    /// <summary>1 = collected (تحصيل), 2 = refunded (استرداد).</summary>
+    public int Kind { get; init; }
+
+    public FinancialAccountKind Account { get; init; }
+    public decimal Amount { get; init; }
+    public string Note { get; init; } = "";
+    public string ActorName { get; init; } = "";
+
+    public bool IsRefund => Kind == 2;
+    public string StageTitle => Stage == 1 ? "عربون" : "سداد نهائي";
+    public string KindTitle => IsRefund ? "استرداد" : "تحصيل";
+    public string ChannelTitle => Account switch
+    {
+        FinancialAccountKind.VodafoneCash => "فودافون كاش",
+        FinancialAccountKind.InstaPay => "إنستاباي",
+        _ => "كاش"
+    };
+
+    public string HeaderTitle => $"{KindTitle} {StageTitle} · {ChannelTitle}";
+    public string AmountDisplay => PosFormatting.FormatCurrency(Amount);
+    public string SignedAmountDisplay => $"{(IsRefund ? "-" : "+")}{PosFormatting.FormatCurrency(Amount)}";
+    public string TimestampDisplay => PaidAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    public string ActorDisplay => string.IsNullOrWhiteSpace(ActorName) ? "غير محدد" : ActorName;
 }
 
 public sealed class MaintenanceSparePartItem : ObservableObject
@@ -319,6 +370,9 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
 
     public ObservableCollection<MaintenancePartUsageItem> UsedParts { get; } = [];
     public ObservableCollection<MaintenanceActivityEntry> ActivityLog { get; } = [];
+
+    /// <summary>Individual dbo.MaintenancePayments rows (read-only history shown on the invoice).</summary>
+    public ObservableCollection<MaintenancePaymentHistoryItem> PaymentHistory { get; } = [];
 
     public MaintenanceOrderStatus Status
     {
@@ -753,6 +807,10 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     public decimal TotalCashCollected => DepositCashPaid + FinalPaymentCashPaid;
     public decimal TotalVodafoneCollected => DepositVodafonePaid + FinalPaymentVodafonePaid;
     public decimal TotalInstaPayCollected => DepositInstaPayPaid + FinalPaymentInstaPayPaid;
+    public bool HasPaymentHistory => PaymentHistory.Count > 0;
+    public string PaymentHistorySummaryText => HasPaymentHistory
+        ? $"{PaymentHistory.Count} حركة مالية مسجلة"
+        : "لا توجد حركات مالية مسجلة على الفاتورة";
     public bool HasAnyCashCollected => TotalCashCollected > 0m;
     public bool HasAnyVodafoneCollected => TotalVodafoneCollected > 0m;
     public bool HasAnyInstaPayCollected => TotalInstaPayCollected > 0m;
@@ -882,6 +940,8 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
         Changed(nameof(TotalCashCollected));
         Changed(nameof(TotalVodafoneCollected));
         Changed(nameof(TotalInstaPayCollected));
+        Changed(nameof(HasPaymentHistory));
+        Changed(nameof(PaymentHistorySummaryText));
         Changed(nameof(HasAnyCashCollected));
         Changed(nameof(HasAnyVodafoneCollected));
         Changed(nameof(HasAnyInstaPayCollected));

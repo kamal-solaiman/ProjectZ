@@ -16,9 +16,10 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     private readonly Action? notifyMaintenanceOrdersChanged;
     private readonly Data.MaintenanceRepository? repository;
     private readonly Action? onOrdersSaved;
-    // Entries accumulated since the last DB save; flushed together with the order update.
-    private readonly List<MaintenanceActivityEntry> pendingActivities = new();
-    private readonly List<Data.MaintenancePaymentEntry> pendingPayments = new();
+    // Entries accumulated since the last DB save, grouped by order id so a failed save for one
+    // invoice can never flush its activities or payments onto another invoice.
+    private readonly List<(int OrderId, MaintenanceActivityEntry Entry)> pendingActivities = new();
+    private readonly List<(int OrderId, Data.MaintenancePaymentEntry Entry)> pendingPayments = new();
 
     private MaintenanceOrderDesignItem? selectedOrder;
     private string searchText = "";
@@ -35,6 +36,12 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
 
     private string statusMessage = "فواتير الصيانة الشاملة: اضغط على أي فاتورة لعرض كافة تفاصيلها والبنود والسجل، أو استخدم الفلاتر المتقدمة للفرز والتحليل.";
     private bool isErrorStatus;
+    private string[] technicianFilterOptions = ["كل الفنيين"];
+    private DateTime? lastRefreshedAt;
+    private bool lastLoadFailed;
+    // A database reload clears and refills Orders item by item; filtering each time would be
+    // O(n^2) work and would flash the summary strip. One refresh runs after the bulk load.
+    private bool isBulkLoading;
 
     public ObservableCollection<MaintenanceOrderDesignItem> Orders { get; } = [];
     public ObservableCollection<MaintenanceOrderDesignItem> FilteredOrders { get; } = [];
@@ -58,7 +65,7 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     public IReadOnlyList<string> PriorityFilterOptions { get; } =
         ["كل الأولويات", "مستعجل", "عادي", "ضمان / إعادة فحص"];
 
-    public IReadOnlyList<string> TechnicianFilterOptions { get; }
+    public IReadOnlyList<string> TechnicianFilterOptions => technicianFilterOptions;
 
     public IReadOnlyList<string> PaymentFilterOptions { get; } =
     [
@@ -288,6 +295,71 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
 
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
+    // ---------------------------------------------------------------- backend status
+
+    /// <summary>True when the screen is bound to SQL Server (MainViewModel supplies the repository).</summary>
+    public bool IsDatabaseConnected => repository is not null;
+
+    /// <summary>True only for the design/sample mode used when no SQL connection is configured.</summary>
+    public bool IsDesignMode => !IsDatabaseConnected;
+
+    public string BackendStatusText => IsDatabaseConnected
+        ? "متصل بقاعدة البيانات — SQL Server"
+        : "معاينة تصميم — بدون قاعدة بيانات";
+
+    public string BackendStatusDetail => IsDatabaseConnected
+        ? "الفواتير تُقرأ من dbo.MaintenanceOrders، والتحصيل والتسليم وسجل الطباعة وقطع الغيار تُكتب في قاعدة البيانات."
+        : "البيانات المعروضة تجريبية داخل الجلسة فقط ولا تُحفظ في قاعدة البيانات.";
+
+    public string LastRefreshDisplay => lastRefreshedAt.HasValue
+        ? $"آخر تحميل: {lastRefreshedAt.Value:yyyy-MM-dd HH:mm}"
+        : (IsDatabaseConnected ? "لم يتم التحميل بعد" : "بيانات نموذجية");
+
+    public string LoadedInvoicesCountDisplay => $"{Orders.Count}";
+
+    public bool HasNoOrdersAtAll => Orders.Count == 0;
+
+    /// <summary>Connected to SQL but the workshop has no saved orders yet.</summary>
+    public bool IsDatabaseEmpty => IsDatabaseConnected && Orders.Count == 0;
+
+    /// <summary>Orders exist but the current filters hide all of them (excludes the empty-database case).</summary>
+    public bool ShowNoMatchEmptyState => FilteredOrders.Count == 0 && !IsDatabaseEmpty;
+
+    // ---------------------------------------------------------------- register summary (visible list)
+
+    // The screen deliberately shows a single compact summary line instead of the KPI cards that
+    // were removed earlier from the maintenance screens (see tools/static_checks.py).
+    public int ShownInvoicesCount => FilteredOrders.Count;
+    public int ActiveCasesCount => FilteredOrders.Count(o => o.IsActiveOrder);
+    public int DeliveredCasesCount => FilteredOrders.Count(o => o.IsDelivered);
+    public int CancelledCasesCount => FilteredOrders.Count(o => o.IsCancelled);
+    public int DueCollectionCasesCount => FilteredOrders.Count(o => !o.IsCancelled && o.HasEstimatedRemaining);
+
+    public decimal ShownCollectedTotal => FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.TotalCollectedAll);
+    public decimal ShownRemainingTotal => FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.EstimatedRemaining);
+    public decimal ShownPartsCostTotal => FilteredOrders.Sum(o => o.PartsCostTotal);
+    public decimal ShownProfitTotal => FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.EstimatedProfit);
+
+    public string RegisterCountSummaryText
+    {
+        get
+        {
+            var all = Orders.Count;
+            var scope = ShownInvoicesCount == all
+                ? $"كل الفواتير ({all})"
+                : $"{ShownInvoicesCount} من {all} فاتورة";
+            return $"{scope} · نشطة بالورشة {ActiveCasesCount} · تم التسليم {DeliveredCasesCount}"
+                   + (CancelledCasesCount > 0 ? $" · ملغاة {CancelledCasesCount}" : "")
+                   + (DueCollectionCasesCount > 0 ? $" · بانتظار تحصيل {DueCollectionCasesCount}" : "");
+        }
+    }
+
+    public string RegisterMoneySummaryText =>
+        $"محصّل {PosFormatting.FormatCurrency(ShownCollectedTotal)}"
+        + $" · متبقي {PosFormatting.FormatCurrency(ShownRemainingTotal)}"
+        + $" · تكلفة القطع {PosFormatting.FormatCurrency(ShownPartsCostTotal)}"
+        + $" · أرباح تقديرية {PosFormatting.FormatCurrency(ShownProfitTotal)}";
+
     // Commands
     public ActionCommand GoToIntakeCommand { get; }
     public ActionCommand RefreshDataCommand { get; }
@@ -335,14 +407,15 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
                 Orders.Add(order);
         }
 
-        TechnicianFilterOptions = new[] { "كل الفنيين" }.Concat(MaintenanceDesignSeedData.Technicians).ToArray();
+        technicianFilterOptions = BuildTechnicianFilterOptions();
         this.Orders.CollectionChanged += OnOrdersCollectionChanged;
 
         GoToIntakeCommand = new ActionCommand(() => this.navigateToIntake?.Invoke());
         RefreshDataCommand = new ActionCommand(() =>
         {
             NotifyExternalDataChanged();
-            SetStatus($"تم تحديث سجل فواتير الصيانة ({FilteredOrders.Count} فاتورة مطابقة).", false);
+            if (lastLoadFailed) return; // the load failure is already on the status strip.
+            SetStatus($"تم تحديث سجل فواتير الصيانة ({FilteredOrders.Count} فاتورة مطابقة من {Orders.Count}).", false);
         });
         ClearFiltersCommand = new ActionCommand(ClearAllFilters);
         ClearSearchCommand = new ActionCommand(() => SearchText = "");
@@ -371,22 +444,98 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         RefreshFilteredOrders();
     }
 
-    /// <summary>Loads the invoice orders directly from the database into the screen's own collection.</summary>
+    /// <summary>
+    /// Loads the invoice orders directly from the database into the screen's own collection and
+    /// rebuilds the technician filter from the names that actually exist in SQL.
+    /// </summary>
     public void NotifyExternalDataChanged()
     {
+        var loadedOk = false;
         if (repository is not null)
         {
+            isBulkLoading = true;
             try
             {
                 repository.LoadMaintenanceOrdersInto(Orders);
                 pendingActivities.Clear();
                 pendingPayments.Clear();
+                lastRefreshedAt = DateTime.Now;
+                lastLoadFailed = false;
+                Changed(nameof(LastRefreshDisplay));
+                RefreshTechnicianFilterOptions();
+                loadedOk = true;
             }
             catch (Exception ex)
             {
+                lastLoadFailed = true;
                 SetStatus($"تعذّر تحميل فواتير الصيانة من قاعدة البيانات: {ex.Message}", true);
             }
+            finally
+            {
+                isBulkLoading = false;
+            }
         }
+
+        if (repository is null) lastLoadFailed = false;
+        RefreshFilteredOrders();
+
+        if (loadedOk)
+        {
+            SetStatus(
+                Orders.Count == 0
+                    ? "لا توجد أوامر صيانة محفوظة في قاعدة البيانات بعد. ابدأ بـ «أمر صيانة جديد» ثم ستظهر الفاتورة هنا تلقائيًا."
+                    : $"تم تحميل {Orders.Count} فاتورة صيانة من قاعدة البيانات ({FilteredOrders.Count} مطابقة للفلاتر الحالية).",
+                false);
+        }
+    }
+
+    /// <summary>Builds the technician filter list from the sample names plus the names already loaded.</summary>
+    private string[] BuildTechnicianFilterOptions()
+    {
+        var names = new List<string> { "كل الفنيين" };
+        foreach (var name in MaintenanceDesignSeedData.Technicians)
+            if (!names.Contains(name)) names.Add(name);
+        foreach (var name in Orders.Select(o => o.AssignedTechnician))
+            if (!string.IsNullOrWhiteSpace(name) && !names.Contains(name)) names.Add(name);
+        return names.ToArray();
+    }
+
+    /// <summary>
+    /// Rebuilds the technician filter from SQL (distinct technicians on orders + active users)
+    /// so the list never offers a name that cannot exist in the database.
+    /// </summary>
+    private void RefreshTechnicianFilterOptions()
+    {
+        var names = new List<string> { "كل الفنيين" };
+        if (repository is not null)
+        {
+            try
+            {
+                foreach (var name in repository.LoadTechnicianDirectory())
+                    if (!names.Contains(name)) names.Add(name);
+            }
+            catch (Data.MaintenanceDataException)
+            {
+                // The filter keeps the names already loaded; the status strip reports the failure.
+            }
+        }
+
+        foreach (var name in MaintenanceDesignSeedData.Technicians)
+            if (!names.Contains(name)) names.Add(name);
+        foreach (var name in Orders.Select(o => o.AssignedTechnician).Where(n => !string.IsNullOrWhiteSpace(n)))
+            if (!names.Contains(name)) names.Add(name);
+
+        if (names.SequenceEqual(technicianFilterOptions)) return;
+
+        technicianFilterOptions = names.ToArray();
+        Changed(nameof(TechnicianFilterOptions));
+
+        if (!technicianFilterOptions.Contains(selectedTechnicianFilter))
+        {
+            selectedTechnicianFilter = "كل الفنيين";
+            Changed(nameof(SelectedTechnicianFilter));
+        }
+
         RefreshFilteredOrders();
     }
 
@@ -397,11 +546,16 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         if (repository is null)
             return true;
 
+        // Only this invoice's pending rows are flushed; a failed save of another invoice must not
+        // write its activities or payments onto this order.
+        var activities = pendingActivities.Where(p => p.OrderId == order.Id).Select(p => p.Entry).ToList();
+        var payments = pendingPayments.Where(p => p.OrderId == order.Id).Select(p => p.Entry).ToList();
+
         try
         {
-            repository.UpdateMaintenanceOrder(order, pendingActivities, pendingPayments);
-            pendingActivities.Clear();
-            pendingPayments.Clear();
+            repository.UpdateMaintenanceOrder(order, activities, payments);
+            pendingActivities.RemoveAll(p => p.OrderId == order.Id);
+            pendingPayments.RemoveAll(p => p.OrderId == order.Id);
             onOrdersSaved?.Invoke();
             SetStatus(successMessage, false);
             return true;
@@ -417,11 +571,38 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     private void RecordActivity(MaintenanceOrderDesignItem order, MaintenanceActivityEntry entry)
     {
         order.ActivityLog.Add(entry);
-        pendingActivities.Add(entry);
+        pendingActivities.Add((order.Id, entry));
+    }
+
+    /// <summary>
+    /// Queues a payment for the database and mirrors it into the invoice's payment history so the
+    /// open details window shows the row immediately; the next reload reads the same row back.
+    /// </summary>
+    private void AddPendingPayment(
+        MaintenanceOrderDesignItem order, FinancialAccountKind account, int stage, int kind, decimal amount, string note)
+    {
+        if (amount <= 0m) return;
+
+        var paidAt = DateTime.Now;
+        pendingPayments.Add((order.Id, new Data.MaintenancePaymentEntry(account, stage, kind, amount, paidAt, note)));
+        order.PaymentHistory.Insert(0, new MaintenancePaymentHistoryItem
+        {
+            PaidAt = paidAt,
+            Stage = stage,
+            Kind = kind,
+            Account = account,
+            Amount = amount,
+            Note = note,
+            ActorName = currentUserName
+        });
+        order.NotifyFinancialsChanged();
     }
 
     private void OnOrdersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        => RefreshFilteredOrders();
+    {
+        if (isBulkLoading) return;
+        RefreshFilteredOrders();
+    }
 
     private void ClearAllFilters()
     {
@@ -516,14 +697,11 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
             var refundNew = order.RefundedDepositAmount - refundBefore;
             var totalNewCollected = cashNew + vodNew + instaNew;
 
-            if (cashNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 1, cashNew, DateTime.Now, "دفعة تسليم - كاش"));
-            if (vodNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.VodafoneCash, 2, 1, vodNew, DateTime.Now, "دفعة تسليم - فودافون كاش"));
-            if (instaNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.InstaPay, 2, 1, instaNew, DateTime.Now, "دفعة تسليم - إنستاباي"));
-            if (refundNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 2, refundNew, DateTime.Now, "رد فرق عربون عند التسليم"));
+            // stage 2 = final settlement, kind 1 = collected, kind 2 = refunded.
+            AddPendingPayment(order, FinancialAccountKind.Cash, 2, 1, cashNew, "دفعة تسليم - كاش");
+            AddPendingPayment(order, FinancialAccountKind.VodafoneCash, 2, 1, vodNew, "دفعة تسليم - فودافون كاش");
+            AddPendingPayment(order, FinancialAccountKind.InstaPay, 2, 1, instaNew, "دفعة تسليم - إنستاباي");
+            AddPendingPayment(order, FinancialAccountKind.Cash, 2, 2, refundNew, "رد فرق عربون عند التسليم");
 
             var summaryParts = new List<string>
             {
@@ -720,6 +898,27 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
             SelectedOrder = null;
 
         Changed(nameof(HasNoFilteredOrders));
+        NotifySummaryChanged();
+    }
+
+    /// <summary>Raises change notifications for the summary strip above the register.</summary>
+    private void NotifySummaryChanged()
+    {
+        Changed(nameof(ShownInvoicesCount));
+        Changed(nameof(ActiveCasesCount));
+        Changed(nameof(DeliveredCasesCount));
+        Changed(nameof(CancelledCasesCount));
+        Changed(nameof(DueCollectionCasesCount));
+        Changed(nameof(ShownCollectedTotal));
+        Changed(nameof(ShownRemainingTotal));
+        Changed(nameof(ShownPartsCostTotal));
+        Changed(nameof(ShownProfitTotal));
+        Changed(nameof(RegisterCountSummaryText));
+        Changed(nameof(RegisterMoneySummaryText));
+        Changed(nameof(LoadedInvoicesCountDisplay));
+        Changed(nameof(HasNoOrdersAtAll));
+        Changed(nameof(IsDatabaseEmpty));
+        Changed(nameof(ShowNoMatchEmptyState));
     }
 
     private void SetStatus(string message, bool isError)

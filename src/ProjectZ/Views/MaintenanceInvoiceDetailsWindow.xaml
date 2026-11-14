@@ -659,6 +659,87 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Payment History (dbo.MaintenancePayments rows, append-only in SQL) -->
+                <Grid Margin="0,0,0,6" FlowDirection="RightToLeft">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="حركات التحصيل والاسترداد المسجلة على الفاتورة"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Foreground="#102E48" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding PaymentsCountSummary}"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="#0F766E" />
+                </Grid>
+
+                <Border Padding="12,8" Background="#102E48" CornerRadius="10,10,0,0">
+                    <Grid FlowDirection="RightToLeft">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="215" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="130" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="التاريخ والوقت" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="White" />
+                        <TextBlock Grid.Column="1" Text="نوع الحركة والوسيلة" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="White" />
+                        <TextBlock Grid.Column="2" Text="الملاحظة والمنفذ" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="White" />
+                        <TextBlock Grid.Column="3" Text="المبلغ" Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="#6EE7D8" />
+                    </Grid>
+                </Border>
+
+                <Border Margin="0,0,0,14" Background="White" BorderBrush="#CBD5E1" BorderThickness="1,0,1,1" CornerRadius="0,0,10,10">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Order.PaymentHistory}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="12,9" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                                        <Grid FlowDirection="RightToLeft">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="215" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="130" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding TimestampDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas, Segoe UI" FontSize="11" Foreground="#64748B" />
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding HeaderTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#102E48" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding ActorDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#64748B" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding Note}" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" FontSize="11.5" Foreground="#334155" TextTrimming="CharacterEllipsis" Margin="6,0" />
+                                            <TextBlock Grid.Column="3" Text="{Binding SignedAmountDisplay}" VerticalAlignment="Center" FontSize="12.5" FontWeight="Bold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PosCenterTextStyle}">
+                                                        <Setter Property="Foreground" Value="#0F766E" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRefund}" Value="True">
+                                                                <Setter Property="Foreground" Value="#6D28D9" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="لا توجد حركات مالية مسجلة على هذه الفاتورة."
+                                   Style="{StaticResource PosCenterTextStyle}"
+                                   Padding="12"
+                                   FontSize="12"
+                                   Foreground="#64748B"
+                                   Visibility="{Binding Order.HasPaymentHistory, Converter={StaticResource InverseBoolToVis}}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Activity Log -->
                 <TextBlock Text="السجل الزمني الكامل لحركات التذكرة والمدفوعات"
                            Style="{StaticResource PosRtlTextStyle}"

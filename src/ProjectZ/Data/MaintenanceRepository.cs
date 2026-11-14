@@ -250,6 +250,8 @@ WHERE Id = @Id AND IsActive = 1 AND RowVersion = @RV;"))
 
             if (orderId > 0)
             {
+                // A spare-part line links dbo.MaintenanceOrderParts.SparePartId and keeps ProductId
+                // NULL (the POS catalog is a different table). See sql/13_EnableMaintenanceInvoices.sql.
                 using (var insert = CreateCommand(connection, transaction, @"
 INSERT dbo.MaintenanceOrderParts(MaintenanceOrderId, SparePartId, ProductId, LineNumber, BarcodeSnapshot,
  ProductNameSnapshot, Quantity, UnitCost, UnitSellPrice, IsManualPart)
@@ -563,13 +565,21 @@ DELETE FROM dbo.MaintenanceOrderParts WHERE MaintenanceOrderId = @Order;"))
         foreach (var part in order.UsedParts)
         {
             line++;
+
+            // Manual lines have neither id. Spare-part lines carry MaintenanceSpareParts.Id in
+            // SparePartId (legacy rows may still hold it in ProductId, hence EffectiveSparePartId)
+            // and must keep ProductId NULL so the FK to dbo.Products is never misused.
+            var sparePartId = part.IsManualPart ? 0 : part.EffectiveSparePartId;
+
             using var insert = CreateCommand(connection, transaction, @"
 INSERT dbo.MaintenanceOrderParts(MaintenanceOrderId, SparePartId, ProductId, LineNumber, BarcodeSnapshot,
  ProductNameSnapshot, Quantity, UnitCost, UnitSellPrice, IsManualPart)
 VALUES(@Order,@Spare,@Product,@Line,@Barcode,@Name,@Qty,@Cost,@Sell,@Manual);");
             insert.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
-            insert.Parameters.Add("@Spare", SqlDbType.Int).Value = part.IsManualPart ? DBNull.Value : (object)part.ProductId;
-            insert.Parameters.Add("@Product", SqlDbType.Int).Value = part.IsManualPart ? DBNull.Value : (object)part.ProductId;
+            insert.Parameters.Add("@Spare", SqlDbType.Int).Value =
+                sparePartId > 0 ? (object)sparePartId : DBNull.Value;
+            // Maintenance never writes POS catalog lines today, so the FK to dbo.Products stays NULL.
+            insert.Parameters.Add("@Product", SqlDbType.Int).Value = DBNull.Value;
             insert.Parameters.Add("@Line", SqlDbType.Int).Value = line;
             insert.Parameters.Add("@Barcode", SqlDbType.NVarChar, 100).Value = part.Barcode;
             insert.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = part.ProductName;
@@ -581,77 +591,24 @@ VALUES(@Order,@Spare,@Product,@Line,@Barcode,@Name,@Qty,@Cost,@Sell,@Manual);");
         }
     }
 
-    /// <summary>Loads maintenance orders (newest first) with their parts, activities and payments.</summary>
+    /// <summary>
+    /// Loads maintenance orders (newest first) with their parts, activities and payments.
+    /// Four set-based queries are used for the whole list (orders + receiver name, part lines,
+    /// activity log with actor names, payment history with account kinds) instead of one round
+    /// trip per order, so the invoices register stays responsive as the workshop history grows.
+    /// </summary>
     public void LoadMaintenanceOrdersInto(ObservableCollection<MaintenanceOrderDesignItem> target)
     {
-        var loaded = new List<MaintenanceOrderDesignItem>();
+        List<MaintenanceOrderDesignItem> loaded;
         try
         {
             using var connection = OpenConnection();
-            using var command = connection.CreateCommand();
-            command.CommandText = @"
-SELECT Id, OrderNumber, CustomerId, CustomerNameSnapshot, CustomerPhoneSnapshot, CustomerSecondaryPhoneSnapshot,
- CustomerAddressSnapshot, IsWalkInCustomer, ReceivedAtUtc, ReceivedByUserId, OrderStatus, Priority, AssignedTechnician,
- ExpectedDeliveryAtUtc, ExpectedDeliveryLabel, DeviceType, DeviceBrand, DeviceModel, DeviceColor, SerialOrImei,
- PasscodeType, PasscodeValueProtected, ReportedFault, PhysicalCondition, AccessoriesReceived, IntakeNotes,
- IsEstimatePendingInspection, EstimatedCost, DiagnosisNotes, LaborCost, DiscountAmount, FinalServiceCost,
- HasWorkshopPricing, DeliveredAtUtc, WarrantyDays, DeliveryNotes, CancellationReason
-FROM dbo.MaintenanceOrders
-ORDER BY ReceivedAtUtc DESC, Id DESC;";
-            using var reader = command.ExecuteReader();
-            var ordersById = new Dictionary<int, MaintenanceOrderDesignItem>();
-            while (reader.Read())
+            loaded = ReadOrders(connection);
+            if (loaded.Count > 0)
             {
-                var id = reader.GetInt32(0);
-                var order = new MaintenanceOrderDesignItem
-                {
-                    Id = id,
-                    OrderNumber = reader.GetString(1),
-                    CustomerId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
-                    CustomerName = reader.GetString(3),
-                    CustomerPhone = reader.GetString(4),
-                    CustomerSecondaryPhone = reader.GetString(5),
-                    CustomerAddress = reader.GetString(6),
-                    IsWalkInCustomer = reader.GetBoolean(7),
-                    ReceivedAt = reader.GetDateTime(8).ToLocalTime(),
-                    ReceivedByName = "",
-                    Status = (MaintenanceOrderStatus)reader.GetByte(10),
-                    Priority = (MaintenancePriority)reader.GetByte(11),
-                    AssignedTechnician = reader.GetString(12),
-                    ExpectedDeliveryAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13).ToLocalTime(),
-                    ExpectedDeliveryLabel = reader.GetString(14),
-                    DeviceType = reader.GetString(15),
-                    DeviceBrand = reader.GetString(16),
-                    DeviceModel = reader.GetString(17),
-                    DeviceColor = reader.GetString(18),
-                    SerialOrImei = reader.GetString(19),
-                    PasscodeType = (MaintenancePasscodeType)reader.GetByte(20),
-                    PasscodeValue = reader.GetString(21),
-                    ReportedFault = reader.GetString(22),
-                    PhysicalCondition = reader.GetString(23),
-                    AccessoriesReceived = reader.GetString(24),
-                    IntakeNotes = reader.GetString(25),
-                    IsEstimatePendingInspection = reader.GetBoolean(26),
-                    EstimatedCost = reader.GetDecimal(27),
-                    DiagnosisNotes = reader.GetString(28),
-                    LaborCost = reader.GetDecimal(29),
-                    DiscountAmount = reader.GetDecimal(30),
-                    FinalServiceCost = reader.IsDBNull(31) ? null : reader.GetDecimal(31),
-                    HasWorkshopPricing = reader.GetBoolean(32),
-                    DeliveredAt = reader.IsDBNull(33) ? null : reader.GetDateTime(33).ToLocalTime(),
-                    WarrantyDays = reader.GetInt32(34),
-                    DeliveryNotes = reader.GetString(35),
-                    CancellationReason = reader.GetString(36),
-                };
-                ordersById[id] = order;
-                loaded.Add(order);
-            }
-
-            foreach (var order in loaded)
-            {
-                LoadOrderParts(connection, order);
-                LoadOrderActivities(connection, order);
-                LoadOrderPayments(connection, order);
+                ReadOrderParts(connection, loaded);
+                ReadOrderActivities(connection, loaded);
+                ReadOrderPayments(connection, loaded);
             }
         }
         catch (Exception ex)
@@ -663,76 +620,175 @@ ORDER BY ReceivedAtUtc DESC, Id DESC;";
         foreach (var item in loaded) target.Add(item);
     }
 
-    private static void LoadOrderParts(SqlConnection connection, MaintenanceOrderDesignItem order)
+    private static List<MaintenanceOrderDesignItem> ReadOrders(SqlConnection connection)
     {
         using var command = connection.CreateCommand();
         command.CommandText = @"
-SELECT ProductId, BarcodeSnapshot, ProductNameSnapshot, Quantity, UnitCost, UnitSellPrice, IsManualPart, SparePartId
-FROM dbo.MaintenanceOrderParts WHERE MaintenanceOrderId = @Order ORDER BY LineNumber;";
-        command.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
+SELECT mo.Id, mo.OrderNumber, mo.CustomerId, mo.CustomerNameSnapshot, mo.CustomerPhoneSnapshot,
+ mo.CustomerSecondaryPhoneSnapshot, mo.CustomerAddressSnapshot, mo.IsWalkInCustomer, mo.ReceivedAtUtc,
+ ISNULL(NULLIF(LTRIM(RTRIM(u.DisplayName)), N''), N'') AS ReceivedByName,
+ mo.OrderStatus, mo.Priority, mo.AssignedTechnician, mo.ExpectedDeliveryAtUtc, mo.ExpectedDeliveryLabel,
+ mo.DeviceType, mo.DeviceBrand, mo.DeviceModel, mo.DeviceColor, mo.SerialOrImei, mo.PasscodeType,
+ mo.PasscodeValueProtected, mo.ReportedFault, mo.PhysicalCondition, mo.AccessoriesReceived, mo.IntakeNotes,
+ mo.IsEstimatePendingInspection, mo.EstimatedCost, mo.DiagnosisNotes, mo.LaborCost, mo.DiscountAmount,
+ mo.FinalServiceCost, mo.HasWorkshopPricing, mo.DeliveredAtUtc, mo.WarrantyDays, mo.DeliveryNotes,
+ mo.CancellationReason
+FROM dbo.MaintenanceOrders AS mo
+LEFT JOIN dbo.Users AS u ON u.Id = mo.ReceivedByUserId
+ORDER BY mo.ReceivedAtUtc DESC, mo.Id DESC;";
+
+        var loaded = new List<MaintenanceOrderDesignItem>();
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
+            loaded.Add(new MaintenanceOrderDesignItem
+            {
+                Id = reader.GetInt32(0),
+                OrderNumber = reader.GetString(1),
+                CustomerId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                CustomerName = reader.GetString(3),
+                CustomerPhone = reader.GetString(4),
+                CustomerSecondaryPhone = reader.GetString(5),
+                CustomerAddress = reader.GetString(6),
+                IsWalkInCustomer = reader.GetBoolean(7),
+                ReceivedAt = reader.GetDateTime(8).ToLocalTime(),
+                ReceivedByName = reader.GetString(9),
+                Status = (MaintenanceOrderStatus)reader.GetByte(10),
+                Priority = (MaintenancePriority)reader.GetByte(11),
+                AssignedTechnician = reader.GetString(12),
+                ExpectedDeliveryAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13).ToLocalTime(),
+                ExpectedDeliveryLabel = reader.GetString(14),
+                DeviceType = reader.GetString(15),
+                DeviceBrand = reader.GetString(16),
+                DeviceModel = reader.GetString(17),
+                DeviceColor = reader.GetString(18),
+                SerialOrImei = reader.GetString(19),
+                PasscodeType = (MaintenancePasscodeType)reader.GetByte(20),
+                PasscodeValue = reader.GetString(21),
+                ReportedFault = reader.GetString(22),
+                PhysicalCondition = reader.GetString(23),
+                AccessoriesReceived = reader.GetString(24),
+                IntakeNotes = reader.GetString(25),
+                IsEstimatePendingInspection = reader.GetBoolean(26),
+                EstimatedCost = reader.GetDecimal(27),
+                DiagnosisNotes = reader.GetString(28),
+                LaborCost = reader.GetDecimal(29),
+                DiscountAmount = reader.GetDecimal(30),
+                FinalServiceCost = reader.IsDBNull(31) ? null : reader.GetDecimal(31),
+                HasWorkshopPricing = reader.GetBoolean(32),
+                DeliveredAt = reader.IsDBNull(33) ? null : reader.GetDateTime(33).ToLocalTime(),
+                WarrantyDays = reader.GetInt32(34),
+                DeliveryNotes = reader.GetString(35),
+                CancellationReason = reader.GetString(36)
+            });
+        }
+
+        return loaded;
+    }
+
+    /// <summary>Loads every part line of the given orders in one query (ordered by order and line).</summary>
+    private static void ReadOrderParts(SqlConnection connection, List<MaintenanceOrderDesignItem> orders)
+    {
+        var ordersById = orders.ToDictionary(o => o.Id);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT MaintenanceOrderId, ProductId, SparePartId, BarcodeSnapshot, ProductNameSnapshot, Quantity,
+ UnitCost, UnitSellPrice, IsManualPart
+FROM dbo.MaintenanceOrderParts
+ORDER BY MaintenanceOrderId, LineNumber;";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (!ordersById.TryGetValue(reader.GetInt32(0), out var order)) continue;
+
             order.UsedParts.Add(new MaintenancePartUsageItem
             {
-                ProductId = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
-                Barcode = reader.GetString(1),
-                ProductName = reader.GetString(2),
-                Quantity = reader.GetInt32(3),
-                UnitCost = reader.GetDecimal(4),
-                UnitSellPrice = reader.GetDecimal(5),
-                IsManualPart = reader.GetBoolean(6)
+                ProductId = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                SparePartId = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                Barcode = reader.GetString(3),
+                ProductName = reader.GetString(4),
+                Quantity = reader.GetInt32(5),
+                UnitCost = reader.GetDecimal(6),
+                UnitSellPrice = reader.GetDecimal(7),
+                IsManualPart = reader.GetBoolean(8)
             });
         }
     }
 
-    private static void LoadOrderActivities(SqlConnection connection, MaintenanceOrderDesignItem order)
+    /// <summary>Loads the activity log of the given orders in one query, with the actor's display name.</summary>
+    private static void ReadOrderActivities(SqlConnection connection, List<MaintenanceOrderDesignItem> orders)
     {
+        var ordersById = orders.ToDictionary(o => o.Id);
+
         using var command = connection.CreateCommand();
         command.CommandText = @"
-SELECT OccurredAtUtc, ActionTitle, Details, Amount, ActorUserId
-FROM dbo.MaintenanceActivities WHERE MaintenanceOrderId = @Order ORDER BY OccurredAtUtc;";
-        command.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
+SELECT ma.MaintenanceOrderId, ma.OccurredAtUtc, ma.ActionTitle, ma.Details, ma.Amount,
+ ISNULL(NULLIF(LTRIM(RTRIM(u.DisplayName)), N''), N'') AS ActorName
+FROM dbo.MaintenanceActivities AS ma
+LEFT JOIN dbo.Users AS u ON u.Id = ma.ActorUserId
+ORDER BY ma.MaintenanceOrderId, ma.OccurredAtUtc, ma.Id;";
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
+            if (!ordersById.TryGetValue(reader.GetInt32(0), out var order)) continue;
+
             order.ActivityLog.Add(new MaintenanceActivityEntry
             {
-                Timestamp = reader.GetDateTime(0).ToLocalTime(),
-                ActionTitle = reader.GetString(1),
-                Details = reader.GetString(2),
-                Amount = reader.IsDBNull(3) ? null : reader.GetDecimal(3),
-                ActorName = ""
+                Timestamp = reader.GetDateTime(1).ToLocalTime(),
+                ActionTitle = reader.GetString(2),
+                Details = reader.GetString(3),
+                Amount = reader.IsDBNull(4) ? null : reader.GetDecimal(4),
+                ActorName = reader.GetString(5)
             });
         }
     }
 
-    private static void LoadOrderPayments(SqlConnection connection, MaintenanceOrderDesignItem order)
+    /// <summary>
+    /// Loads the payment rows of the given orders in one query and rebuilds both the per-channel
+    /// totals the invoice list shows and the payment history the details window lists.
+    /// </summary>
+    private static void ReadOrderPayments(SqlConnection connection, List<MaintenanceOrderDesignItem> orders)
     {
+        var ordersById = orders.ToDictionary(o => o.Id);
+
         using var command = connection.CreateCommand();
         command.CommandText = @"
-SELECT mp.PaymentStage, mp.PaymentKind, mp.Amount, fa.AccountKind
-FROM dbo.MaintenancePayments mp
-JOIN dbo.FinancialAccounts fa ON fa.Id = mp.FinancialAccountId
-WHERE mp.MaintenanceOrderId = @Order
-ORDER BY mp.PaidAtUtc;";
-        command.Parameters.Add("@Order", SqlDbType.Int).Value = order.Id;
+SELECT mp.MaintenanceOrderId, mp.PaymentStage, mp.PaymentKind, mp.Amount, mp.PaidAtUtc, ISNULL(mp.Note, N''),
+ fa.AccountKind, ISNULL(NULLIF(LTRIM(RTRIM(u.DisplayName)), N''), N'') AS ActorName
+FROM dbo.MaintenancePayments AS mp
+INNER JOIN dbo.FinancialAccounts AS fa ON fa.Id = mp.FinancialAccountId
+LEFT JOIN dbo.Users AS u ON u.Id = mp.ActorUserId
+ORDER BY mp.MaintenanceOrderId, mp.PaidAtUtc DESC, mp.Id DESC;";
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            var stage = reader.GetByte(0);
-            var kind = reader.GetByte(1);
-            var amount = reader.GetDecimal(2);
-            var accountKind = (FinancialAccountKind)reader.GetByte(3);
+            if (!ordersById.TryGetValue(reader.GetInt32(0), out var order)) continue;
+
+            var stage = reader.GetByte(1);
+            var kind = reader.GetByte(2);
+            var amount = reader.GetDecimal(3);
+            var accountKind = (FinancialAccountKind)reader.GetByte(6);
+
+            order.PaymentHistory.Add(new MaintenancePaymentHistoryItem
+            {
+                PaidAt = reader.GetDateTime(4).ToLocalTime(),
+                Stage = stage,
+                Kind = kind,
+                Amount = amount,
+                Note = reader.GetString(5),
+                Account = accountKind,
+                ActorName = reader.GetString(7)
+            });
 
             if (kind == 2)
             {
-                // refund (deposit or final) reduces the collected totals.
+                // A refund (deposit or final) reduces the collected totals.
                 order.RefundedDepositAmount += amount;
                 continue;
             }
 
-            // Collected payment: deposit (stage 1) or final (stage 2).
+            // Collected payment: deposit (stage 1) or final settlement (stage 2).
             if (stage == 1)
             {
                 switch (accountKind)
@@ -764,6 +820,45 @@ ORDER BY mp.PaidAtUtc;";
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Technicians actually present in the database: distinct names already assigned on orders
+    /// plus the active user accounts. The invoices screen uses this list for its technician filter
+    /// so the filter never offers a name that cannot exist in SQL.
+    /// </summary>
+    public List<string> LoadTechnicianDirectory()
+    {
+        var names = new List<string>();
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT DISTINCT TechnicianName FROM
+(
+    SELECT LTRIM(RTRIM(AssignedTechnician)) AS TechnicianName
+    FROM dbo.MaintenanceOrders
+    UNION
+    SELECT LTRIM(RTRIM(DisplayName)) AS TechnicianName
+    FROM dbo.Users
+    WHERE IsActive = 1
+) AS names
+WHERE TechnicianName <> N'';";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var name = reader.GetString(0);
+                if (!string.IsNullOrWhiteSpace(name)) names.Add(name);
+            }
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر تحميل قائمة الفنيين من قاعدة البيانات.");
+        }
+
+        names.Sort(StringComparer.Ordinal);
+        return names;
     }
 
     // ---------------------------------------------------------------- helpers
@@ -848,13 +943,15 @@ VALUES(@Kind,@Alias,@Identifier,0,1,1,N'أنشئت تلقائيًا لأوامر
             return sql.Number switch
             {
                 2601 or 2627 => new MaintenanceDataException("البيانات مكررة: قطعة الغيار مسجلة بالفعل. أعد المحاولة.", sql),
-                208 => new MaintenanceDataException("جدول قطع الغيار غير موجود. شغّل sql/06_CreateFullSchema.sql على الخادم ثم أعد المحاولة.", sql),
+                207 or 208 => new MaintenanceDataException(
+                    "مخطط قاعدة البيانات ناقص (جدول أو عمود غير موجود). شغّل sql/06_CreateFullSchema.sql ثم sql/13_EnableMaintenanceInvoices.sql على الخادم وأعد المحاولة.", sql),
                 53 or 4060 => new MaintenanceDataException("لا يمكن الاتصال بقاعدة البيانات. تحقق من اتصال الخادم وتحديثه.", sql),
                 18456 => new MaintenanceDataException("فشل تسجيل الدخول إلى قاعدة البيانات. تحقق من المستخدم وكلمة المرور.", sql),
-                547 => new MaintenanceDataException("لا يمكن إتمام العملية لارتباط السجل بسجل صرف آخر.", sql),
+                547 => new MaintenanceDataException(
+                    "تعذّر حفظ بند قطعة الغيار: قيد بنود الصيانة في قاعدة البيانات ما زال النسخة القديمة. شغّل sql/13_EnableMaintenanceInvoices.sql على الخادم ثم أعد المحاولة.", sql),
                 1205 => new MaintenanceDataException("تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 229 or 230 => new MaintenanceDataException(
-                    "حساب الاتصال لا يملك صلاحية العمل على قطع غيار الصيانة. شغّل sql/09_EnablePosSales.sql على الخادم ثم أعد المحاولة.", sql),
+                    "حساب الاتصال لا يملك صلاحية العمل على فواتير الصيانة. شغّل sql/09_EnablePosSales.sql وsql/13_EnableMaintenanceInvoices.sql على الخادم ثم أعد المحاولة.", sql),
                 >= 50000 => new MaintenanceDataException(sql.Message, sql),
                 _ => new MaintenanceDataException(fallback, sql)
             };

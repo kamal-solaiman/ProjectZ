@@ -119,7 +119,11 @@ public sealed class MaintenanceInvoiceDetailsViewModel : ObservableObject
             return;
         }
 
-        pendingPayments.Add(new Data.MaintenancePaymentEntry(account, 1, 1, amount, DateTime.Now, $"دفعة من الفاتورة - {channelTitle}"));
+        // Stage 1 rows are reconstructed as deposit totals on the next load, so the in-memory
+        // invoice is updated in the same bucket the reload will use; otherwise the window would
+        // keep showing the old "collected / remaining" numbers until it is reopened.
+        AddPendingPayment(account, 1, 1, amount, $"دفعة من الفاتورة - {channelTitle}");
+        ApplyCollectedAmountToDeposit(account, amount);
 
         RecordActivity(new MaintenanceActivityEntry
         {
@@ -169,6 +173,54 @@ public sealed class MaintenanceInvoiceDetailsViewModel : ObservableObject
         pendingActivities.Add(entry);
     }
 
+    /// <summary>
+    /// Adds a collected amount to the invoice total in memory, in the same channel bucket that
+    /// LoadMaintenanceOrdersInto rebuilds from dbo.MaintenancePayments (stage 1 → deposit totals).
+    /// </summary>
+    private void ApplyCollectedAmountToDeposit(FinancialAccountKind account, decimal amount)
+    {
+        if (amount <= 0m) return;
+
+        switch (account)
+        {
+            case FinancialAccountKind.VodafoneCash:
+                Order.DepositVodafonePaid += amount;
+                break;
+            case FinancialAccountKind.InstaPay:
+                Order.DepositInstaPayPaid += amount;
+                break;
+            default:
+                Order.DepositCashPaid += amount;
+                break;
+        }
+
+        Order.NotifyFinancialsChanged();
+    }
+
+    /// <summary>
+    /// Queues a payment row for dbo.MaintenancePayments and mirrors it into the invoice's payment
+    /// history so the window reflects it before the next database reload.
+    /// </summary>
+    private void AddPendingPayment(
+        FinancialAccountKind account, int stage, int kind, decimal amount, string note)
+    {
+        if (amount <= 0m) return;
+
+        var paidAt = DateTime.Now;
+        pendingPayments.Add(new Data.MaintenancePaymentEntry(account, stage, kind, amount, paidAt, note));
+        Order.PaymentHistory.Insert(0, new MaintenancePaymentHistoryItem
+        {
+            PaidAt = paidAt,
+            Stage = stage,
+            Kind = kind,
+            Account = account,
+            Amount = amount,
+            Note = note,
+            ActorName = currentUserName
+        });
+        Order.NotifyFinancialsChanged();
+    }
+
     private void OpenDelivery()
     {
         if (Order.IsCancelled)
@@ -198,14 +250,11 @@ public sealed class MaintenanceInvoiceDetailsViewModel : ObservableObject
             var refundNew = Order.RefundedDepositAmount - refundBefore;
             var totalNewCollected = cashNew + vodNew + instaNew;
 
-            if (cashNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 1, cashNew, DateTime.Now, "دفعة تسليم - كاش"));
-            if (vodNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.VodafoneCash, 2, 1, vodNew, DateTime.Now, "دفعة تسليم - فودافون كاش"));
-            if (instaNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.InstaPay, 2, 1, instaNew, DateTime.Now, "دفعة تسليم - إنستاباي"));
-            if (refundNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 2, refundNew, DateTime.Now, "رد فرق عربون عند التسليم"));
+            // stage 2 = final settlement, kind 1 = collected, kind 2 = refunded.
+            AddPendingPayment(FinancialAccountKind.Cash, 2, 1, cashNew, "دفعة تسليم - كاش");
+            AddPendingPayment(FinancialAccountKind.VodafoneCash, 2, 1, vodNew, "دفعة تسليم - فودافون كاش");
+            AddPendingPayment(FinancialAccountKind.InstaPay, 2, 1, instaNew, "دفعة تسليم - إنستاباي");
+            AddPendingPayment(FinancialAccountKind.Cash, 2, 2, refundNew, "رد فرق عربون عند التسليم");
 
             var summaryParts = new List<string>
             {
@@ -279,7 +328,10 @@ public sealed class MaintenanceInvoiceDetailsViewModel : ObservableObject
         Changed(nameof(HasWarrantySection));
         Changed(nameof(ProfitMarginDisplay));
         Changed(nameof(PartsTotalUnitsSummary));
+        Changed(nameof(PaymentsCountSummary));
     }
+
+    public string PaymentsCountSummary => Order.PaymentHistorySummaryText;
 
     private void SetStatus(string message, bool isError)
     {
