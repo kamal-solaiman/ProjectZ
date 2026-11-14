@@ -284,11 +284,17 @@ SET MULTI_USER;";
             return new BackupDataException(configuration.Message, configuration);
         if (exception is SqlException sql)
         {
+            // Role membership is read when the connection is opened. If an administrator has just
+            // run sql/18 while the app is running, discard the pooled connection so the next retry
+            // actually sees db_owner/dbcreator instead of failing 262 again on the old token.
+            if (sql.Number is 229 or 230 or 262)
+                SqlConnection.ClearAllPools();
+
             return sql.Number switch
             {
                 229 or 230 or 262 => new BackupDataException(
                     "حساب الاتصال لا يملك صلاحية النسخ الاحتياطي أو الاسترجاع على قاعدة البيانات. " +
-                    "منح حساب ProjectZClient دور db_owner على قاعدة البيانات المضبوطة ودور dbcreator على الخادم (انظر docs/BACKUP.md).",
+                    "نفّذ sql/18_EnableBackupRestore.sql بحساب sysadmin على خادم SQL Server (يمنح ProjectZClient دوري db_owner وdbcreator)، ثم أعد تشغيل البرنامج وأعد المحاولة. التفاصيل في docs/BACKUP.md.",
                     sql),
                 3101 => new BackupDataException("فشل النسخ الاحتياطي: لا يمكن كتابة ملف النسخة في المسار المحدد.", sql),
                 3201 => new BackupDataException(

@@ -29,21 +29,20 @@
 
 ## الصلاحيات المطلوبة على SQL Server
 
-حساب الاتصال `ProjectZClient` يحتاج صلاحيات أعلى من القراءة/الكتابة العادية:
+حساب الاتصال `ProjectZClient` يحتاج صلاحيات أعلى من القراءة/الكتابة العادية. شغّل السكربت الجاهز من SSMS **بحساب sysadmin** على خادم SQL Server:
 
 ```sql
-USE [ProjectZ];
-GO
-ALTER ROLE [db_owner] ADD MEMBER [ProjectZClient];
-GO
-
-USE [master];
-GO
-ALTER SERVER ROLE [dbcreator] ADD MEMBER [ProjectZClient];
-GO
+:r sql/18_EnableBackupRestore.sql
 ```
 
-بدونها تظهر رسالة عربية تشرح سبب نقص الصلاحية. يمكن منح صلاحيات محددة بدل `db_owner` وفق سياسة المؤسسة، لكن الاسترجاع يحتاج أيضًا `ALTER` على قاعدة ProjectZ لتغيير `SINGLE_USER`/`MULTI_USER`.
+أو افتح `sql/18_EnableBackupRestore.sql` ونفّذه كاملًا. السكربت idempotent، ويتحقق من وجود القاعدة واللوجن أولًا، ثم يضيف فقط ما ينقص:
+
+- `ALTER ROLE [db_owner] ADD MEMBER [ProjectZClient];` داخل قاعدة بيانات المشروع — يسمح بـ`BACKUP DATABASE` و`ALTER DATABASE … SINGLE_USER/MULTI_USER`.
+- `ALTER SERVER ROLE [dbcreator] ADD MEMBER [ProjectZClient];` — يسمح بـ`RESTORE DATABASE` لأنه يحتاج `CREATE DATABASE` على مستوى الخادم.
+
+بدون هذين الدورين يظهر في الشاشة خطأ 262/229 بالرسالة العربية التي تسمّي `sql/18_EnableBackupRestore.sql`. إذا كان اسم القاعدة أو اسم تسجيل الدخول مختلفًا في `connectionsettings.json`، استبدل `ProjectZ` و`ProjectZClient` في السكربت بما يطابق الإعداد. هذه صلاحيات واسعة؛ استخدم حساب نسخ احتياطي مخصصًا إن كانت سياسة المؤسسة لا تسمح بمنحها لحساب التطبيق العام.
+
+بعد تنفيذ السكربت **أغلق البرنامج وأعد فتحه** إن كانت المحاولة الفاشلة قد حدثت بالفعل، لأن صلاحيات SQL Server تُقرأ عند فتح الاتصال. الكود يفرّغ connection pool بعد خطأ الصلاحية، لكن إعادة التشغيل تضمن محاولة نظيفة.
 
 ## الاستخدام
 

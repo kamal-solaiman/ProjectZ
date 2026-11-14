@@ -39,6 +39,7 @@
 - `sql/15_EnableMaintenanceActions.sql`: فهارس دليل الفنيين وربط قطع الغيار بالأوامر لشاشة «إجراءات الصيانة»، والتحقق من `MaintenanceOrders.RowVersion` اللازم لمنع الكتابة فوق تعديلات عميل آخر، وإعادة تأكيد صلاحيات `ProjectZClient`. إلزامي قبل أول حفظ من الشاشة؛ قابل لإعادة التشغيل.
 - `sql/16_EnableMaintenanceSpareParts.sql`: يرقّي `dbo.MaintenanceSpareParts` (المورد، الباركود، الوحدة، حد إعادة الطلب، الموقع، الملاحظات، تواريخ آخر توريد/صرف)، وينشئ سجل الحركات `dbo.MaintenanceSparePartMovements`، ويملأ الأرصدة الافتتاحية، ويضيف الفهارس وصلاحيات `ProjectZClient`. إلزامي قبل أول حفظ/توريد/صرف بعد ترقية سابقة؛ قابل لإعادة التشغيل.
 - `sql/17_EnableGeneralSettings.sql`: صلاحيات `ProjectZClient` لشاشة «اعدادات عامة» (قراءة/إضافة/تعديل `dbo.SystemSettings`) مع إنشاء صفوف هوية المحل الناقصة بقيم ProjectZ الافتراضية دون تعديل أي قيمة موجودة. إلزامي قبل أول حفظ إعدادات؛ قابل لإعادة التشغيل.
+- `sql/18_EnableBackupRestore.sql`: يمنح `ProjectZClient` عضوية `db_owner` على قاعدة البيانات وعضوية `dbcreator` على الخادم اللازمتين لـ `BACKUP DATABASE` و`RESTORE DATABASE`. إلزامي قبل أول نسخة احتياطية أو استرجاع؛ idempotent ولا يحذف صلاحيات. التفاصيل في [النسخ الاحتياطي](docs/BACKUP.md).
 - `src/ProjectZ/connectionsettings.json`: إعدادات خارجية؛ يلزم استبدال عنوان الخادم.
 - [تجهيز الجهاز الرئيسي](docs/SERVER.md) · [العملاء وتغيير الخادم والنشر](docs/CLIENTS.md).
 - `.github/workflows/windows-build.yml`: بناء Windows واختبارات hashing ونشر artifact؛ لا يحل محل اختبار SQL/WPF الفعلي.
