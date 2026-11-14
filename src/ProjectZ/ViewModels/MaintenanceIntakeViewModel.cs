@@ -139,7 +139,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         ? "وضع عرض: لا يُحفظ رمز الجهاز في أي مكان."
         : IsPasscodeProtectionEnabled
             ? "يُحفظ رمز الجهاز مشفّرًا (AES-GCM) بمفتاح خارج قاعدة البيانات."
-            : "تنبيه: مفتاح تشفير الرموز غير مُهيّأ، لذا يُحفظ الرمز كنص عادي. اضبط PROJECTZ_PASSCODE_KEY أو PasscodeKey في connectionsettings.json.");
+            : "تنبيه: مفتاح تشفير الرموز غير مُهيّأ، لذا يُحفظ الرمز كنص عادي. اضبط PROJECTZ_PASSCODE_KEY أو PasscodeKey في connectionsettings.json.";
 
     /// <summary>Duplicate-phone check used by the «عميل جديد» dialog when the directory lives in SQL.</summary>
     public string? ValidateNewCustomerPhone(string? phone, int? editingCustomerId)
