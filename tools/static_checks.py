@@ -671,6 +671,36 @@ for grant in (
     'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Suppliers TO [ProjectZClient];',
 ):
     assert grant in purchase_permissions, f'sql/12 is missing a grant: {grant}'
+# Every SQL parameter declared in a purchase statement must also be bound in C#, and every
+# INSERT..OUTPUT inserted.Id must be read back. A missing binding makes SQL Server reject the whole
+# save with 8178 ("must declare the scalar variable"), which surfaced as the generic
+# "تعذر حفظ فاتورة الشراء في قاعدة البيانات." message on the purchase entry screen.
+def _unbound_parameters(source, path):
+    import re as _re
+    missing = []
+    for match in _re.finditer(r'"((?:SELECT|INSERT|UPDATE|DELETE|MERGE)[^"]*)"', source):
+        statement = match.group(1).replace('""', '"')
+        declared = set(_re.findall(r'@[A-Za-z_]\w*', statement))
+        if not declared:
+            continue
+        tail = source[match.end():]
+        execution = _re.search(r'Execute(?:NonQuery|Scalar|Reader)\s*\(', tail)
+        body = tail[:execution.start()] if execution else tail
+        bound = set(_re.findall(r'"(@\w+)"', body))
+        for name in sorted(declared - bound):
+            missing.append(f'{path}:{source[:match.start()].count(chr(10)) + 1} needs a binding for {name}')
+    return missing
+
+unbound = _unbound_parameters(purchase_repository, 'PurchaseRepository.cs')
+assert not unbound, 'unbound SQL parameters break the purchase save: ' + '; '.join(unbound)
+# PurchaseInvoiceLines carries OUTPUT inserted.Id on both the create and the edit path; the id feeds
+# PurchaseInvoiceLineUnits, so an ignored result would insert unit links against line id 0.
+assert purchase_repository.count('OUTPUT inserted.Id') >= 1
+assert 'lineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
+    'the created purchase line id must be read back for its stock units'
+assert 'newLineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
+    'an added purchase line id must be read back for its stock units'
+assert '8178' in purchase_repository, 'a schema/parameter fault must be reported instead of a generic save error'
 print('PASS: purchase invoice screens and the supplier directory read and write SQL Server')
 
 purchase_entry_xaml_path = root / 'src/ProjectZ/Views/PurchaseEntryView.xaml'

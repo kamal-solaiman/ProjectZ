@@ -75,6 +75,7 @@
 - `PurchasePayments`: المدفوع للمورد والمسترد منه كحركتين واضحتين، لا كقيمة موجبة غامضة.
 - `PurchaseInvoiceActivities`: تاريخ إجراءات الفاتورة.
 - `vwPurchaseInvoiceSummary`: صافي الشراء والمدفوع والمسترد والمتبقي للمورد.
+- حفظ فاتورة الشراء (`PurchaseRepository.CreateInvoice`) يكتب كل شيء في معاملة `Serializable` واحدة: الرأس ← بند لكل صنف (ويُقرأ `Id` البند من `OUTPUT inserted.Id` لأنه مفتاح ربط القطع) ← قطعة في `InventoryUnits` مع صف ربط في `PurchaseInvoiceLineUnits` وحركة `Supply` في `StockMovements` لكل قطعة ← الدفعات في `PurchasePayments` مع `FinancialTransactions` المرتبطة بالفاتورة ← سطر الأنشطة وسطر `AuditLog`. أي معامل SQL غير مربوط في الاستعلام يُفشل الحفظ كله برسالة 8178، ولهذا يفحص `tools/static_checks.py` كل معاملات أوامر المشتريات.
 
 ### الصيانة
 
