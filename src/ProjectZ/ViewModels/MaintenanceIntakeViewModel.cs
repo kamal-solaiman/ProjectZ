@@ -42,7 +42,15 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     private readonly string currentUserName;
     private readonly Data.MaintenanceRepository? repository;
     private readonly Action? onOrdersSaved;
+    private readonly Func<PosCustomerDesignItem, PosCustomerDesignItem>? createCustomer;
+    private readonly Func<string, int?, string?>? validateCustomerPhone;
+    private readonly Action? reloadCustomers;
     private int nextOrderId;
+
+    // SQL-backed header data: the real next order number and the last successful sync.
+    private string nextOrderNumberPreview = "";
+    private bool isNextOrderNumberPreviewExact;
+    private DateTime? lastSyncedAt;
 
     // Customer selection & quick contact
     private PosCustomerDesignItem? selectedCustomer;
@@ -83,7 +91,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     private string recentSearchText = "";
     private string recentFilterMode = "الكل";
 
-    private string statusMessage = "مرحلة التصميم (بدون Backend): اختر العميل وسجّل بيانات الجهاز والعطل والملحقات، وأضف عربونًا اختياريًا ثم احفظ أو اطبع إيصال الاستلام.";
+    private string statusMessage = "";
     private bool isErrorStatus;
 
     public ObservableCollection<PosCustomerDesignItem> Customers => sharedCustomers;
@@ -103,7 +111,39 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     public Action<MaintenanceReceiptPreviewViewModel>? OpenReceiptPreviewRequested { get; set; }
     public Action? FocusModelInputRequested { get; set; }
 
-    public string NextOrderNumberDisplay => $"رقم الأمر القادم: MNT-2026-{GetNextOrderIdPreview():0000}";
+    /// <summary>True when this screen reads and writes SQL Server; the view swaps the design badge accordingly.</summary>
+    public bool IsDatabaseBacked => repository is not null;
+
+    public string DataConnectionBadgeText => IsDatabaseBacked
+        ? "متصل بقاعدة البيانات — SQL Server"
+        : "وضع عرض — بدون قاعدة بيانات";
+
+    public string LastSyncedDisplay => lastSyncedAt is { } at
+        ? $"آخر مزامنة: {at:yyyy-MM-dd HH:mm:ss}"
+        : IsDatabaseBacked
+            ? "لم تتم المزامنة بعد"
+            : "بيانات تجريبية في الذاكرة";
+
+    /// <summary>
+    /// The next order number as dbo.DocumentSequences will hand it out. When the sequence cannot be
+    /// read the badge falls back to a hint computed from the loaded rows and says «تقريبي».
+    /// </summary>
+    public string NextOrderNumberDisplay => string.IsNullOrWhiteSpace(nextOrderNumberPreview)
+        ? "رقم الأمر القادم: —"
+        : $"رقم الأمر القادم: {nextOrderNumberPreview}{(isNextOrderNumberPreviewExact ? "" : " (تقريبي)")}";
+
+    /// <summary>True when device passcodes are encrypted with a configured AES key.</summary>
+    public bool IsPasscodeProtectionEnabled => repository?.IsPasscodeProtectionEnabled ?? false;
+
+    public string PasscodeProtectionHint => !IsDatabaseBacked
+        ? "وضع عرض: لا يُحفظ رمز الجهاز في أي مكان."
+        : IsPasscodeProtectionEnabled
+            ? "يُحفظ رمز الجهاز مشفّرًا (AES-GCM) بمفتاح خارج قاعدة البيانات."
+            : "تنبيه: مفتاح تشفير الرموز غير مُهيّأ، لذا يُحفظ الرمز كنص عادي. اضبط PROJECTZ_PASSCODE_KEY أو PasscodeKey في connectionsettings.json.";
+
+    /// <summary>Duplicate-phone check used by the «عميل جديد» dialog when the directory lives in SQL.</summary>
+    public string? ValidateNewCustomerPhone(string? phone, int? editingCustomerId)
+        => validateCustomerPhone?.Invoke(phone ?? "", editingCustomerId);
 
     // Customer properties
     public PosCustomerDesignItem? SelectedCustomer
@@ -599,6 +639,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     public ActionCommand SaveAndPrintCommand { get; }
     public ActionCommand ResetFormCommand { get; }
     public ActionCommand PreviewLastSavedCommand { get; }
+    public ActionCommand RefreshFromDatabaseCommand { get; }
 
     public RelayCommand<string> SetRecentFilterCommand { get; }
     public RelayCommand<MaintenanceOrderDesignItem> PreviewOrderReceiptCommand { get; }
@@ -614,11 +655,20 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         ObservableCollection<PosCustomerDesignItem>? sharedCustomers = null,
         ObservableCollection<MaintenanceOrderDesignItem>? sharedMaintenanceOrders = null,
         Data.MaintenanceRepository? repository = null,
-        Action? onOrdersSaved = null)
+        Action? onOrdersSaved = null,
+        Func<PosCustomerDesignItem, PosCustomerDesignItem>? createCustomer = null,
+        Func<string, int?, string?>? validateCustomerPhone = null,
+        Action? reloadCustomers = null)
     {
         this.currentUserName = currentUserName;
         this.repository = repository;
         this.onOrdersSaved = onOrdersSaved;
+        this.createCustomer = createCustomer;
+        this.validateCustomerPhone = validateCustomerPhone;
+        this.reloadCustomers = reloadCustomers;
+        statusMessage = repository is null
+            ? "وضع عرض بدون قاعدة بيانات: تُحفظ الأوامر في الذاكرة فقط حتى تُضبط الاتصال."
+            : "جاهز للاستلام: يُحفظ أمر الصيانة والعربون وسجل الأنشطة مباشرة في SQL Server.";
         this.sharedCustomers = sharedCustomers
             ?? new ObservableCollection<PosCustomerDesignItem>(PosDesignSeedData.CreateSampleCustomers());
         this.sharedMaintenanceOrders = sharedMaintenanceOrders ?? MaintenanceDesignSeedData.CreateSharedSampleOrders(this.sharedCustomers);
@@ -689,6 +739,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             if (LastSavedOrder is not null)
                 OpenReceiptPreview(LastSavedOrder);
         });
+        RefreshFromDatabaseCommand = new ActionCommand(RefreshFromDatabase);
 
         SetRecentFilterCommand = new RelayCommand<string>(mode =>
         {
@@ -705,6 +756,9 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         LastSavedOrder = this.sharedMaintenanceOrders.FirstOrDefault();
         RefreshFilteredCustomers();
         RefreshFilteredRecentOrders();
+        RefreshNextOrderNumberPreview();
+        if (repository is not null)
+            lastSyncedAt = DateTime.Now;
     }
 
     public void NotifyExternalDataChanged()
@@ -714,6 +768,8 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             try
             {
                 repository.LoadMaintenanceOrdersInto(sharedMaintenanceOrders);
+                lastSyncedAt = DateTime.Now;
+                Changed(nameof(LastSyncedDisplay));
             }
             catch (Exception ex)
             {
@@ -723,7 +779,62 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         RefreshFilteredCustomers();
         RefreshFilteredRecentOrders();
         NotifyRecentKpis();
-        Changed(nameof(NextOrderNumberDisplay));
+        RefreshNextOrderNumberPreview();
+    }
+
+    /// <summary>
+    /// Reloads the two lists this screen depends on — the maintenance orders and the customer
+    /// directory — from SQL Server and reports the result on the status strip.
+    /// </summary>
+    public void RefreshFromDatabase()
+    {
+        if (repository is null)
+        {
+            SetStatus("وضع العرض بدون قاعدة بيانات: لا يوجد ما يُحدَّث من SQL Server.", true);
+            return;
+        }
+
+        var ordersError = "";
+        var customersError = "";
+
+        try
+        {
+            repository.LoadMaintenanceOrdersInto(sharedMaintenanceOrders);
+        }
+        catch (Exception ex)
+        {
+            ordersError = ex.Message;
+        }
+
+        try
+        {
+            reloadCustomers?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            customersError = ex.Message;
+        }
+
+        RefreshFilteredRecentOrders();
+        RefreshFilteredCustomers();
+        NotifyRecentKpis();
+        RefreshNextOrderNumberPreview();
+
+        if (ordersError.Length > 0 || customersError.Length > 0)
+        {
+            var details = string.Join(" · ", new[] { ordersError, customersError }.Where(m => m.Length > 0));
+            SetStatus($"تعذّر تحديث بيانات الشاشة من قاعدة البيانات: {details}", true);
+            return;
+        }
+
+        lastSyncedAt = DateTime.Now;
+        Changed(nameof(LastSyncedDisplay));
+        if (sharedMaintenanceOrders.Count > 0)
+            LastSavedOrder = sharedMaintenanceOrders[0];
+
+        SetStatus(
+            $"تم تحديث أوامر الصيانة ({sharedMaintenanceOrders.Count}) ودليل العملاء ({sharedCustomers.Count}) من قاعدة البيانات.",
+            false);
     }
 
     public void StartNewIntakeForCustomer(PosCustomerDesignItem customer)
@@ -739,15 +850,41 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
 
     private void OnOrdersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // A reload adds row by row; the sequence badge is refreshed once by the caller instead.
         RefreshFilteredRecentOrders();
         NotifyRecentKpis();
-        Changed(nameof(NextOrderNumberDisplay));
     }
 
     private int GetNextOrderIdPreview()
     {
         var maxId = sharedMaintenanceOrders.Count > 0 ? sharedMaintenanceOrders.Max(o => o.Id) : 0;
         return Math.Max(nextOrderId, maxId + 1);
+    }
+
+    /// <summary>
+    /// Reads the real next order number from dbo.DocumentSequences. The badge is only a hint, so a
+    /// failed read never blocks the form: it degrades to the local estimate and says «تقريبي».
+    /// </summary>
+    private void RefreshNextOrderNumberPreview()
+    {
+        if (repository is not null)
+        {
+            try
+            {
+                nextOrderNumberPreview = repository.PeekNextOrderNumber();
+                isNextOrderNumberPreviewExact = true;
+                Changed(nameof(NextOrderNumberDisplay));
+                return;
+            }
+            catch (Exception)
+            {
+                // Fall through to the local estimate; the save path reports real failures.
+            }
+        }
+
+        nextOrderNumberPreview = $"MNT-{DateTime.Now.Year:0000}-{GetNextOrderIdPreview():0000}";
+        isNextOrderNumberPreviewExact = false;
+        Changed(nameof(NextOrderNumberDisplay));
     }
 
     private void SelectCustomer(PosCustomerDesignItem? customer)
@@ -766,7 +903,19 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
 
     private void RequestOpenAddCustomer()
     {
-        OpenAddCustomerRequested?.Invoke(CustomerSearchText, created =>
+        OpenAddCustomerRequested?.Invoke(CustomerSearchText, CreateCustomerFromDialog);
+    }
+
+    /// <summary>
+    /// Called when the «عميل جديد» dialog returns (or when a customer is created from the directory).
+    /// With SQL Server behind the screen the row must exist in dbo.Customers first: a fabricated
+    /// in-memory id would break the FK_MaintenanceOrders_Customer constraint on save.
+    /// </summary>
+    private void CreateCustomerFromDialog(PosCustomerDesignItem created)
+    {
+        if (created is null) return;
+
+        if (repository is null || createCustomer is null)
         {
             var nextCustId = sharedCustomers.Count > 0 ? sharedCustomers.Max(c => c.Id) + 1 : 100;
             var assigned = new PosCustomerDesignItem
@@ -781,8 +930,39 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             };
             sharedCustomers.Add(assigned);
             SelectCustomer(assigned);
-            SetStatus($"تمت إضافة العميل «{assigned.Name}» إلى النظام وربطه بأمر الصيانة.", false);
-        });
+            SetStatus($"تمت إضافة العميل «{assigned.Name}» إلى الجلسة الحالية (بدون قاعدة بيانات) وربطه بأمر الصيانة.", false);
+            return;
+        }
+
+        var duplicate = ValidateNewCustomerPhone(created.Phone, null);
+        if (!string.IsNullOrWhiteSpace(duplicate))
+        {
+            SetStatus(duplicate, true);
+            return;
+        }
+
+        PosCustomerDesignItem persisted;
+        try
+        {
+            persisted = createCustomer(created);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"تعذّر حفظ العميل «{created.Name}» في قاعدة البيانات: {ex.Message}", true);
+            return;
+        }
+
+        // The directory is reloaded from SQL after the insert, so prefer the instance the other
+        // screens already hold instead of keeping a second copy of the same customer.
+        var linked = sharedCustomers.FirstOrDefault(c => c.Id == persisted.Id);
+        if (linked is null)
+        {
+            sharedCustomers.Add(persisted);
+            linked = persisted;
+        }
+
+        SelectCustomer(linked);
+        SetStatus($"تم حفظ العميل «{linked.Name}» في قاعدة البيانات ({linked.CustomerCodeDisplay}) وربطه بأمر الصيانة.", false);
     }
 
     private void AppendCommonFault(string? fault)
@@ -860,6 +1040,26 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             return;
         }
 
+        if (!IsPlausiblePhone(trimmedPhone))
+        {
+            SetStatus("رقم هاتف التواصل يجب أن يحتوي على 7 أرقام على الأقل (مثال: 01012345678).", true);
+            return;
+        }
+
+        if (repository is not null && !SelectedCustomer.IsWalkIn && SelectedCustomer.Id <= 0)
+        {
+            SetStatus(
+                "العميل المختار غير محفوظ في قاعدة البيانات. أضفه من زر «+ عميل جديد» ليُربط به أمر الصيانة.",
+                true);
+            return;
+        }
+
+        if (ValidateFieldLengths(trimmedPhone) is { } lengthProblem)
+        {
+            SetStatus(lengthProblem, true);
+            return;
+        }
+
         var trimmedModel = DeviceModel.Trim();
         if (string.IsNullOrWhiteSpace(trimmedModel))
         {
@@ -898,13 +1098,33 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             return;
         }
 
+        var trimmedSerial = SerialOrImei.Trim();
+        if (repository is not null && trimmedSerial.Length > 0)
+        {
+            try
+            {
+                if (repository.HasOpenOrderWithSerial(trimmedSerial))
+                {
+                    SetStatus(
+                        $"يوجد أمر صيانة مفتوح آخر بنفس الرقم التسلسلي «{trimmedSerial}». راجع الأوامر النشطة أو أفرغ خانة السيريال ثم أعد الحفظ.",
+                        true);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر التحقق من الرقم التسلسلي في قاعدة البيانات: {ex.Message}", true);
+                return;
+            }
+        }
+
         int orderId = 0;
         string orderNumber = "";
         if (repository is null)
         {
             orderId = GetNextOrderIdPreview();
             nextOrderId = orderId + 1;
-            orderNumber = $"MNT-2026-{orderId:0000}";
+            orderNumber = $"MNT-{DateTime.Now.Year:0000}-{orderId:0000}";
         }
 
         var selectedConditions = ConditionChecklist.Where(c => c.IsSelected).Select(c => c.Title).ToList();
@@ -931,7 +1151,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             DeviceBrand = string.IsNullOrWhiteSpace(DeviceBrand) ? "أخرى" : DeviceBrand.Trim(),
             DeviceModel = trimmedModel,
             DeviceColor = DeviceColor.Trim(),
-            SerialOrImei = SerialOrImei.Trim(),
+            SerialOrImei = trimmedSerial,
             PasscodeType = PasscodeType,
             PasscodeValue = PasscodeType == MaintenancePasscodeType.None ? "" : PasscodeValue.Trim(),
             ReportedFault = trimmedFault,
@@ -965,6 +1185,9 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
                 var saved = repository.CreateMaintenanceOrder(order);
                 order.Id = saved.OrderId;
                 order.OrderNumber = saved.OrderNumber;
+                lastSyncedAt = DateTime.Now;
+                Changed(nameof(LastSyncedDisplay));
+                RefreshNextOrderNumberPreview();
             }
             catch (Exception ex)
             {
@@ -981,7 +1204,8 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
 
         ResetForm();
         SetStatus(
-            $"تم تسجيل أمر الصيانة {orderNumber} بنجاح للعميل «{order.CustomerName}» ({order.DeviceFullTitle}){depositDetail}.",
+            $"تم تسجيل أمر الصيانة {order.OrderNumber} بنجاح للعميل «{order.CustomerName}» ({order.DeviceFullTitle}){depositDetail}" +
+            (repository is null ? " في الذاكرة فقط." : " في قاعدة البيانات."),
             false);
 
         if (openReceiptAfter)
@@ -1013,7 +1237,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
 
         try
         {
-            repository.UpdateMaintenanceOrder(order, [entry], []);
+            repository.AppendMaintenanceActivity(order.Id, entry);
         }
         catch (Exception ex)
         {
@@ -1052,7 +1276,7 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         IsEstimatePendingInspection = false;
         EstimatedCostText = "";
         ApplyDepositMode(MaintenanceDepositMode.NoDeposit);
-        Changed(nameof(NextOrderNumberDisplay));
+        RefreshNextOrderNumberPreview();
     }
 
     private void RefreshFilteredCustomers()
@@ -1121,6 +1345,39 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         Changed(nameof(EstimatedCostSummaryDisplay));
         Changed(nameof(TotalDepositPaidDisplay));
         Changed(nameof(EstimatedRemainingDisplay));
+    }
+
+    private static bool IsPlausiblePhone(string phone) => phone.Count(char.IsDigit) >= 7;
+
+    private static string? TooLong(string value, int limit, string label)
+        => value.Length > limit
+            ? $"{label} أطول من الحد المسموح ({limit} حرفًا). اختصره ثم أعد الحفظ."
+            : null;
+
+    /// <summary>
+    /// Mirrors the column widths in sql/06 so an over-long value produces an Arabic message here
+    /// instead of SQL Server error 8152 ("String or binary data would be truncated").
+    /// </summary>
+    private string? ValidateFieldLengths(string phone)
+    {
+        var problems = new[]
+        {
+            TooLong(phone, 30, "رقم هاتف التواصل"),
+            TooLong(SerialOrImei.Trim(), 150, "الرقم التسلسلي / IMEI"),
+            TooLong(DeviceModel.Trim(), 150, "موديل الجهاز"),
+            TooLong(DeviceColor.Trim(), 80, "لون الجهاز"),
+            TooLong(string.IsNullOrWhiteSpace(DeviceBrand) ? "أخرى" : DeviceBrand.Trim(), 100, "ماركة الجهاز"),
+            TooLong(DeviceType, 100, "نوع الجهاز"),
+            TooLong(ReportedFault.Trim(), 2000, "وصف العطل"),
+            TooLong(IntakeNotes.Trim(), 1500, "ملاحظات الاستلام"),
+            TooLong(ConditionSummaryPreview, 1500, "الحالة الظاهرية"),
+            TooLong(AccessoriesSummaryPreview, 1000, "الملحقات المستلمة"),
+            TooLong(AssignedTechnician, 150, "الفني المسؤول"),
+            TooLong(ExpectedDeliveryLabel.Trim(), 200, "موعد التسليم المتوقع"),
+            TooLong(PasscodeValue.Trim(), Services.PasscodeProtector.MaxPlainLength, "رمز فتح الجهاز"),
+        };
+
+        return problems.FirstOrDefault(problem => problem is not null);
     }
 
     private void SetStatus(string message, bool isError)

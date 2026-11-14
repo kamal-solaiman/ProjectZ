@@ -37,6 +37,11 @@ public sealed record MaintenancePaymentEntry(
 
 public sealed class MaintenanceRepository(ConnectionSettingsProvider settings, int actorUserId)
 {
+    private readonly PasscodeProtector passcodeProtector = new(settings.GetPasscodeKey());
+
+    /// <summary>True when an AES key is configured, so device passcodes are stored encrypted.</summary>
+    public bool IsPasscodeProtectionEnabled => passcodeProtector.IsEnabled;
+
     // ---------------------------------------------------------------- spare parts
 
     /// <summary>Loads the active spare parts (newest first) into the given collection.</summary>
@@ -352,7 +357,7 @@ VALUES(@Num, @CustomerId, @Name, @Phone, @Phone2, @Address, @WalkIn, @Received, 
                 insert.Parameters.Add("@Color", SqlDbType.NVarChar, 80).Value = order.DeviceColor;
                 insert.Parameters.Add("@Serial", SqlDbType.NVarChar, 150).Value = order.SerialOrImei;
                 insert.Parameters.Add("@PasscodeType", SqlDbType.TinyInt).Value = (byte)order.PasscodeType;
-                insert.Parameters.Add("@Passcode", SqlDbType.NVarChar, 1000).Value = order.PasscodeValue;
+                insert.Parameters.Add("@Passcode", SqlDbType.NVarChar, 1000).Value = passcodeProtector.Protect(order.PasscodeValue);
                 insert.Parameters.Add("@Fault", SqlDbType.NVarChar, 2000).Value = order.ReportedFault;
                 insert.Parameters.Add("@Physical", SqlDbType.NVarChar, 1500).Value = order.PhysicalCondition;
                 insert.Parameters.Add("@Accessories", SqlDbType.NVarChar, 1000).Value = order.AccessoriesReceived;
@@ -393,6 +398,86 @@ VALUES(@Order,@Time,@Title,@Details,@Amount,@Actor);");
         catch (Exception ex)
         {
             throw Describe(ex, "تعذّر تسجيل أمر الصيانة.");
+        }
+    }
+
+    /// <summary>
+    /// Reads the next order number from dbo.DocumentSequences without consuming it, so the intake
+    /// screen can show the real MNT-yyyy-NNNN badge instead of guessing from the loaded rows.
+    /// </summary>
+    public string PeekNextOrderNumber()
+    {
+        var year = DateTime.Now.Year;
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT ISNULL((SELECT LastValue FROM dbo.DocumentSequences
+               WHERE DocumentType = @Type AND SequenceYear = @Year), 0) + 1;";
+            command.Parameters.Add("@Type", SqlDbType.NVarChar, 30).Value = "MaintenanceOrder";
+            command.Parameters.Add("@Year", SqlDbType.SmallInt).Value = year;
+            var next = Convert.ToInt64(command.ExecuteScalar() ?? 1L);
+            return $"MNT-{year:0000}-{next:0000}";
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر قراءة رقم أمر الصيانة القادم من قاعدة البيانات.");
+        }
+    }
+
+    /// <summary>
+    /// Detects another still-open order for the same serial/IMEI so the same device is not received
+    /// twice into the workshop by mistake. Delivered (5) and cancelled (6) orders are ignored.
+    /// </summary>
+    public bool HasOpenOrderWithSerial(string serialOrImei)
+    {
+        var serial = serialOrImei.Trim();
+        if (serial.Length == 0) return false;
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM dbo.MaintenanceOrders
+    WHERE SerialOrImei = @Serial AND OrderStatus NOT IN (5, 6)) THEN 1 ELSE 0 END;";
+            command.Parameters.Add("@Serial", SqlDbType.NVarChar, 150).Value = serial;
+            return Convert.ToInt32(command.ExecuteScalar() ?? 0) == 1;
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر التحقق من الرقم التسلسلي في قاعدة البيانات.");
+        }
+    }
+
+    /// <summary>
+    /// Inserts a single activity row (a print preview, for example) without touching the order
+    /// columns and without re-syncing its part lines, unlike <see cref="UpdateMaintenanceOrder"/>.
+    /// </summary>
+    public void AppendMaintenanceActivity(int orderId, MaintenanceActivityEntry activity)
+    {
+        if (orderId <= 0) return;
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+INSERT dbo.MaintenanceActivities(MaintenanceOrderId, OccurredAtUtc, ActionTitle, Details, Amount, ActorUserId)
+VALUES(@Order,@Time,@Title,@Details,@Amount,@Actor);";
+            command.Parameters.Add("@Order", SqlDbType.Int).Value = orderId;
+            command.Parameters.Add("@Time", SqlDbType.DateTime2).Value = activity.Timestamp.ToUniversalTime();
+            command.Parameters.Add("@Title", SqlDbType.NVarChar, 200).Value = activity.ActionTitle;
+            command.Parameters.Add("@Details", SqlDbType.NVarChar, 1500).Value = activity.Details;
+            AddMoney(command, "@Amount", activity.Amount ?? 0m);
+            command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+            command.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر حفظ سجل النشاط في قاعدة البيانات.");
         }
     }
 
@@ -620,7 +705,7 @@ VALUES(@Order,@Spare,@Product,@Line,@Barcode,@Name,@Qty,@Cost,@Sell,@Manual);");
         foreach (var item in loaded) target.Add(item);
     }
 
-    private static List<MaintenanceOrderDesignItem> ReadOrders(SqlConnection connection)
+    private List<MaintenanceOrderDesignItem> ReadOrders(SqlConnection connection)
     {
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -664,7 +749,7 @@ ORDER BY mo.ReceivedAtUtc DESC, mo.Id DESC;";
                 DeviceColor = reader.GetString(18),
                 SerialOrImei = reader.GetString(19),
                 PasscodeType = (MaintenancePasscodeType)reader.GetByte(20),
-                PasscodeValue = reader.GetString(21),
+                PasscodeValue = passcodeProtector.Unprotect(reader.GetString(21)),
                 ReportedFault = reader.GetString(22),
                 PhysicalCondition = reader.GetString(23),
                 AccessoriesReceived = reader.GetString(24),

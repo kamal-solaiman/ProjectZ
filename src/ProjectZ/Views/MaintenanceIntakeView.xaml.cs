@@ -32,7 +32,18 @@ public partial class MaintenanceIntakeView : UserControl
 
     private void OpenAddCustomerDialog(string? initialQuery, Action<PosCustomerDesignItem> onCreated)
     {
-        var dialog = new AddCustomerWindow(initialQuery);
+        // With SQL Server behind the screen the dialog must write to dbo.Customers, so it gets the
+        // database-aware texts and the duplicate-phone check instead of the design-mode wording.
+        var viewModel = DataContext as MaintenanceIntakeViewModel;
+        var dialog = viewModel is { IsDatabaseBacked: true }
+            ? new AddCustomerWindow(
+                initialQuery,
+                null,
+                viewModel.ValidateNewCustomerPhone,
+                "إضافة عميل جديد إلى دليل العملاء",
+                "سيُحفظ العميل في قاعدة البيانات مباشرة ويُربط بأمر الصيانة الحالي.",
+                "حفظ وإدراج في أمر الصيانة")
+            : new AddCustomerWindow(initialQuery);
         if (Window.GetWindow(this) is { } owner)
             dialog.Owner = owner;
 
