@@ -229,6 +229,9 @@ expected_menu = [
     ('الصيانة', ['امر صيانة', 'فواتير الصيانة', 'اجراءات الصيانة', 'قطع الغيار']),
     ('المالية', ['حساباتي', 'تحويل فودافون كاش', 'تحويل انستاباي', 'سجلات فودافون كاش', 'سجلات انستاباي']),
     ('العملاء والموردين', ['العملاء', 'الموردين']),
+    ('التقارير', ['تقارير المبيعات', 'تقارير المشتريات', 'تقارير الصيانة',
+                  'تقارير المالية', 'تقارير المصروفات', 'اجمالي التقارير']),
+    ('المصروفات', ['اضافة مصروف', 'فواتير المصروفات', 'تصنيفات المصروفات']),
     ('المستخدمين', ['المستخدمين', 'الصلاحيات']),
     ('الاعدادات', ['اعدادات عامة', 'المظهر', 'النسخ الاحتياطي']),
 ]
@@ -240,6 +243,20 @@ menu_groups = re.findall(
 actual_menu = [(title, re.findall(r'"([^"]+)"', items)) for title, _icon, items in menu_groups]
 assert actual_menu == expected_menu, f'sidebar labels/order differ: {actual_menu}'
 assert all(icon for _title, icon, _items in menu_groups), 'every category needs a rail icon'
+# «التقارير» and «المصروفات» were added as navigation only: they sit between
+# «العملاء والموردين» and «المستخدمين», and must not gain a screen host or a screen flag
+# until their screens are actually implemented.
+menu_titles = [title for title, _items in actual_menu]
+customers_pos = menu_titles.index('العملاء والموردين')
+users_pos = menu_titles.index('المستخدمين')
+assert customers_pos < menu_titles.index('التقارير') < menu_titles.index('المصروفات') < users_pos, \
+    'التقارير and المصروفات belong between العملاء والموردين and المستخدمين'
+assert 'IsReportsSelected' not in main_viewmodel and 'IsExpensesSelected' not in main_viewmodel, \
+    'menus-only categories must not pretend to have implemented screens yet'
+assert 'ReportsView' not in main_xaml and 'ExpensesView' not in main_xaml, \
+    'menus-only categories must not host a view yet'
+assert 'docs/REPORTS_EXPENSES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
+    'README must document the menus-only categories'
 assert 'ToggleSidebarCommand' in main_viewmodel and 'IsSidebarCollapsed' in main_viewmodel
 assert 'OpenCategoryFromRail' in main_viewmodel
 toggle_button = next(
@@ -256,7 +273,7 @@ assert any(
     for node in sidebar_border.iter()
 ), 'sidebar width animates between expanded and rail'
 print('PASS: sidebar toggle command, animated width, icon rail')
-assert 'SelectItem(Categories[0].Items[0]);' in main_viewmodel
+assert 'SelectItem(salesCategory.Items[0]);' in main_viewmodel
 assert 'هذا العنصر للتحديد فقط حاليًا؛ لم تُنفذ شاشته بعد.' in main_viewmodel
 assert 'itemCategory.SetExpanded(expand && ReferenceEquals(itemCategory, category));' in main_viewmodel
 assert 'category.SetExpanded(ReferenceEquals(category, item.Category));' in main_viewmodel
@@ -1868,7 +1885,7 @@ for xaml_path in (root / 'src/ProjectZ').rglob('*.xaml'):
 assert (root / 'tests/ProjectZ.Appearance.Tests/Program.cs').is_file()
 assert (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').is_file()
 wpf_smoke = (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').read_text(encoding='utf-8')
-assert 'SelectItem(mainVm.Categories[6].Items[1])' in wpf_smoke and 'IsAppearanceSelected' in wpf_smoke, \
+assert 'mainVm.SelectItem(appearanceItem);' in wpf_smoke and 'IsAppearanceSelected' in wpf_smoke, \
     'WPF smoke test must navigate to the appearance screen and verify its host becomes visible'
 workflow_text = (root / '.github/workflows/windows-build.yml').read_text(encoding='utf-8')
 assert 'ProjectZ.Appearance.Tests' in workflow_text and 'ProjectZ.Appearance.Wpf.Tests' in workflow_text
