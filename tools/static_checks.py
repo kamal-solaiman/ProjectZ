@@ -1483,4 +1483,26 @@ assert 'new UserRepository(connectionSettings, user.Id)' in app_cs
 assert 'userRepository,' in main_viewmodel and 'Users.RefreshFromDatabase();' in main_viewmodel
 assert 'IsUsersSelected' in main_xaml and 'UsersView DataContext="{Binding Users}"' in main_xaml
 print('PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes')
+# Wallet transfers: the ledger row must name its source transfer id, because dbo.FinancialTransactions
+# carries CK_FinancialTransactions_Source ((type IS NULL AND id IS NULL) OR (type and id both set)) and
+# CK_FinancialTransactions_Amount (Amount > 0). Writing N'CustomerTransfer' with a NULL id made every
+# Vodafone Cash / InstaPay deposit, withdrawal, edit and reversal fail with SQL 547, surfaced to the user as
+# "لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى".
+financial_repository = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+assert "N'CustomerTransfer',@Source" in financial_repository, 'wallet ledger rows must carry SourceEntityId'
+assert "N'CustomerTransfer',NULL" not in financial_repository, 'wallet ledger rows must not leave SourceEntityId NULL'
+assert financial_repository.count('RecordWalletMovement(connection, transaction,') == 8
+assert financial_repository.count(', transferId);') == 8, 'every wallet ledger row must be tied to its transfer'
+assert 'if (signedAmount == 0m) return;' in financial_repository, 'a zero-value ledger row violates CK_FinancialTransactions_Amount'
+assert "sql.Message.Contains(\"CHECK constraint\"" in financial_repository, 'error 547 must not blame a foreign key for a CHECK violation'
+for ledger_insert in re.finditer(r'INSERT dbo\.FinancialTransactions\([^)]*SourceEntityType,SourceEntityId\)(.*?);"', financial_repository, re.S):
+    tail = ledger_insert.group(1).split('VALUES', 1)[-1].rstrip().rstrip(')')
+    source_type, source_id = [part.strip() for part in tail.rsplit(',', 2)[-2:]]
+    both_null = source_type.upper() == 'NULL' and source_id.upper() == 'NULL'
+    both_set = source_type.startswith('@') or source_type.startswith("N'")
+    assert (both_null or both_set) and not (source_type.upper() == 'NULL') ^ (source_id.upper() == 'NULL'), \
+        f'unpaired SourceEntityType/SourceEntityId in ledger insert: {source_type}, {source_id}'
+    if both_set:
+        assert source_id.startswith('@'), f'a named source type needs a source id: {source_type}, {source_id}'
+print('PASS: wallet transfers write paired SourceEntityType/SourceEntityId ledger rows and explain 547 honestly')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

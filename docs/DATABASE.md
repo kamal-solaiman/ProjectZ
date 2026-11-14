@@ -154,6 +154,51 @@
   `dbo.FinancialAccounts` و`dbo.FinancialTransactions`، ويُنْبِه الـViewModels الأخرى عبر
   `NotifyExternalDataChanged()` فتُرى التغييرات فورًا في التحويلات والسجلات.
 
+### لماذا كانت تظهر رسالة «لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى»؟
+
+كان كل **إيداع أو سحب** في شاشتي «تحويل فودافون كاش» و«تحويل إنستاباي» — وكذلك تعديل أو عكس السجل من
+شاشتي السجلات — يفشل برسالة عامة وغير صحيحة. السبب ليس ارتباطًا بحساب أو حركة، بل **قيد تحقق**
+على دفتر الحركات:
+
+```sql
+-- sql/06_CreateFullSchema.sql
+CONSTRAINT CK_FinancialTransactions_Source CHECK (
+    (SourceEntityType IS NULL AND SourceEntityId IS NULL)
+ OR (SourceEntityType IS NOT NULL AND SourceEntityId IS NOT NULL))
+```
+
+وكانت `RecordWalletMovement` تكتب الحركة على الشكل:
+
+```sql
+-- قبل الإصلاح
+VALUES(..., N'CustomerTransfer', NULL)   -- نوع المصدر موجود والمعرّف فارغ ⇒ القيد يرفض الصف
+```
+
+فيرفع SQL Server الخطأ **547** (وهو نفس الرقم المستخدم لانتهاك المفاتيح الأجنبية، ومن هنا جاءت صياغة
+الرسالة المضللة) وتُلغى المعاملة كلها: لا يبقى `CustomerTransfers` ولا الحركات ولا تغيّر أي رصيد.
+
+**الإصلاح:** تُكتب الحركة بمعرّف التحويل نفسه `N'CustomerTransfer', @Source`، وتُتجاهل الحركة التي
+صافيها صفر (لأن `CK_FinancialTransactions_Amount` يرفض `Amount = 0` — وهي الحالة التي تتساوى فيها
+العمولة مع المبلغ). كما صار وصف الخطأ 547 يفرّق بين قيد التحقق (`CHECK`) والمفتاح الأجنبي
+(`REFERENCE`) بدل لوم الارتباط دائمًا.
+
+للتحقق على الخادم:
+
+```sql
+SELECT name, definition FROM sys.check_constraints
+WHERE parent_object_id = OBJECT_ID(N'dbo.FinancialTransactions');
+
+SELECT TOP (10) t.Id, t.CustomerNumber, t.Amount, t.Commission, t.OperationStatus,
+       f.Id AS LedgerId, f.Category, f.SourceEntityType, f.SourceEntityId
+FROM dbo.CustomerTransfers AS t
+LEFT JOIN dbo.FinancialTransactions AS f
+       ON f.SourceEntityType = N'CustomerTransfer' AND f.SourceEntityId = t.Id
+ORDER BY t.Id DESC;
+```
+
+يجب أن يعيد الاستعلام الثاني صفَّي دفتر على الأقل لكل تحويل (المحفظة + النقدي)، وأن يكون
+`SourceEntityId` مساويًا لـ`t.Id` دائمًا.
+
 ## مشتريات: كيف تُكتب البيانات فعليًا
 
 شاشتا «شراء فاتورة» و«فواتير المشتريات» و«الموردين» تتحدث مباشرة إلى SQL Server عبر `src/ProjectZ/Data/PurchaseRepository.cs`. الجداول كلها موجودة مسبقًا في `sql/06_CreateFullSchema.sql`، ولم يُضف جدول جديد؛ أُضيف سكربت صلاحيات واحد فقط (`sql/12_EnablePurchasing.sql`).

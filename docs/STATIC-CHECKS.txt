@@ -73,6 +73,7 @@ PASS: executable, assembly, namespaces, database and SQL login use ProjectZ
 PASS: return/exchange screen persists to SQL, reads its ledger back, and reloads stock across screens
 PASS: purchase invoice screens and the supplier directory read and write SQL Server
 PASS: maintenance intake writes orders, deposits and activities to SQL with a real sequence number
+PASS: maintenance actions screen writes status, pricing, parts, payments, delivery and cancellation to SQL with optimistic concurrency and a SQL technician directory
 PASS: Suppliers directory, 360 profile, invoices, payments/returns and chronological debit/credit statement
 PASS: MyAccounts cash, independent wallets, four limits, transfers and ledger UI
 PASS: AddProduct persists products/categories, refreshes SQL data, and confirms delete/archive
@@ -86,4 +87,5 @@ PASS: Vodafone and InstaPay transfer references removed from models, UI, filters
 PASS: wallet references removed globally from sales, purchases, maintenance, returns, details and printing
 PASS: categories screen and the add-product category combo both read and write dbo.Categories
 PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes
+PASS: wallet transfers write paired SourceEntityType/SourceEntityId ledger rows and explain 547 honestly
 NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish
