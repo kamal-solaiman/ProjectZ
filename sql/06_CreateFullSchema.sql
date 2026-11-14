@@ -618,6 +618,21 @@ CREATE TABLE dbo.MaintenanceSpareParts
 IF COL_LENGTH(N'dbo.MaintenanceOrderParts', N'SparePartId') IS NULL
     ALTER TABLE dbo.MaintenanceOrderParts ADD SparePartId INT NULL CONSTRAINT FK_MaintenanceParts_SpareParts FOREIGN KEY REFERENCES dbo.MaintenanceSpareParts(Id);
 
+/* The part-line source constraint has to allow a workshop spare-part line (SparePartId with no
+   POS product) now that the column exists, so it is recreated here. The same repair runs on
+   existing databases from sql/13_EnableMaintenanceInvoices.sql. */
+IF EXISTS (SELECT 1 FROM sys.check_constraints
+           WHERE parent_object_id = OBJECT_ID(N'dbo.MaintenanceOrderParts')
+             AND name = N'CK_MaintenanceOrderParts_Source')
+    ALTER TABLE dbo.MaintenanceOrderParts DROP CONSTRAINT CK_MaintenanceOrderParts_Source;
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints
+               WHERE parent_object_id = OBJECT_ID(N'dbo.MaintenanceOrderParts')
+                 AND name = N'CK_MaintenanceOrderParts_Source')
+    ALTER TABLE dbo.MaintenanceOrderParts WITH CHECK ADD CONSTRAINT CK_MaintenanceOrderParts_Source
+        CHECK (
+            (IsManualPart = 1 AND SparePartId IS NULL)
+            OR (IsManualPart = 0 AND (ProductId IS NOT NULL OR SparePartId IS NOT NULL)));
+
 IF OBJECT_ID(N'dbo.MaintenancePayments', N'U') IS NULL
 CREATE TABLE dbo.MaintenancePayments
 (
