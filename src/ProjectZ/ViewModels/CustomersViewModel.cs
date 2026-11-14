@@ -7,6 +7,35 @@ using ProjectZ.Models;
 
 namespace ProjectZ.ViewModels;
 
+/// <summary>
+/// One spare-part line used in a customer's maintenance ticket. The customer screen builds these
+/// rows from the same dbo.MaintenanceOrderParts rows shown on the maintenance invoice, so the
+/// customer profile and the spare-parts screen always agree on what was consumed.
+/// </summary>
+public sealed class CustomerSparePartUsageRow
+{
+    public MaintenanceOrderDesignItem Order { get; init; } = null!;
+    public int SparePartId { get; init; }
+    public string PartName { get; init; } = "";
+    public string PartCode { get; init; } = "";
+    public int Quantity { get; init; }
+    public decimal UnitSellPrice { get; init; }
+    public decimal LineTotal { get; init; }
+    public bool IsManualPart { get; init; }
+    public DateTime OccurredAt { get; init; }
+
+    public string OrderNumber => Order.OrderNumber;
+    public string DeviceTitle => Order.DeviceFullTitle;
+    public string StatusTitle => Order.StatusTitle;
+    public string SourceTitle => IsManualPart ? "بند يدوي" : "قطعة من المخزون";
+    public string QuantityDisplay => $"{Quantity} قطعة";
+    public string UnitSellPriceDisplay => PosFormatting.FormatCurrency(UnitSellPrice);
+    public string LineTotalDisplay => PosFormatting.FormatCurrency(LineTotal);
+    public string DateDisplay => OccurredAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    public string TimeDisplay => OccurredAt.ToString("HH:mm", CultureInfo.InvariantCulture);
+    public bool CanOpenSparePart => !IsManualPart && SparePartId > 0;
+}
+
 public sealed class CustomerDirectoryEntryViewModel : ObservableObject
 {
     private int salesInvoicesCount;
@@ -176,6 +205,7 @@ public sealed class CustomersViewModel : ObservableObject
     public ObservableCollection<CustomerDirectoryEntryViewModel> FilteredCustomers { get; } = [];
     public ObservableCollection<SalesInvoiceDesignItem> SelectedCustomerSalesInvoices { get; } = [];
     public ObservableCollection<MaintenanceOrderDesignItem> SelectedCustomerMaintenanceOrders { get; } = [];
+    public ObservableCollection<CustomerSparePartUsageRow> SelectedCustomerSpareParts { get; } = [];
 
     public IReadOnlyList<string> TierFilterOptions { get; } =
     [
@@ -213,6 +243,7 @@ public sealed class CustomersViewModel : ObservableObject
     public Func<MaintenanceDeliveryViewModel, bool?>? OpenMaintenanceDeliveryRequested { get; set; }
     public Action<MaintenanceInvoiceDetailsViewModel>? OpenMaintenanceDetailsRequested { get; set; }
     public Action<MaintenanceReceiptPreviewViewModel>? OpenMaintenanceReceiptPreviewRequested { get; set; }
+    public Action<int>? OpenSparePartRequested { get; set; }
 
     public CustomerDirectoryEntryViewModel? SelectedCustomerEntry
     {
@@ -233,8 +264,11 @@ public sealed class CustomersViewModel : ObservableObject
             Changed(nameof(HasSelectedCustomer));
             Changed(nameof(SelectedSalesTabTitle));
             Changed(nameof(SelectedMaintenanceTabTitle));
+            Changed(nameof(SelectedSparePartsTabTitle));
+            Changed(nameof(SelectedSparePartsSummary));
             Changed(nameof(HasNoSelectedCustomerSales));
             Changed(nameof(HasNoSelectedCustomerMaintenance));
+            Changed(nameof(HasNoSelectedCustomerSpareParts));
         }
     }
 
@@ -298,11 +332,13 @@ public sealed class CustomersViewModel : ObservableObject
             Changed();
             Changed(nameof(IsSalesTabSelected));
             Changed(nameof(IsMaintenanceTabSelected));
+            Changed(nameof(IsSparePartsTabSelected));
         }
     }
 
     public bool IsSalesTabSelected => ActiveDetailTabIndex == 0;
     public bool IsMaintenanceTabSelected => ActiveDetailTabIndex == 1;
+    public bool IsSparePartsTabSelected => ActiveDetailTabIndex == 2;
 
     public string SelectedSalesTabTitle => SelectedCustomerEntry is null
         ? "فواتير المبيعات (0)"
@@ -312,13 +348,22 @@ public sealed class CustomersViewModel : ObservableObject
         ? "تذاكر الصيانة (0)"
         : $"تذاكر الصيانة ({SelectedCustomerEntry.MaintenanceOrdersCount})";
 
+    public string SelectedSparePartsTabTitle => SelectedCustomerEntry is null
+        ? "قطع الغيار (0)"
+        : $"قطع الغيار ({SelectedCustomerSpareParts.Count})";
+
+    public string SelectedSparePartsSummary => SelectedCustomerSpareParts.Count == 0
+        ? "لم تُصرف قطع غيار لهذا العميل بعد."
+        : $"{SelectedCustomerSpareParts.Sum(r => r.Quantity)} قطعة · بإجمالي {PosFormatting.FormatCurrency(SelectedCustomerSpareParts.Sum(r => r.LineTotal))}";
+
     public bool HasNoFilteredCustomers => FilteredCustomers.Count == 0;
     public bool HasNoSelectedCustomerSales => SelectedCustomerSalesInvoices.Count == 0;
     public bool HasNoSelectedCustomerMaintenance => SelectedCustomerMaintenanceOrders.Count == 0;
+    public bool HasNoSelectedCustomerSpareParts => SelectedCustomerSpareParts.Count == 0;
 
-    /// <summary>Explains the empty maintenance tab: the maintenance screens are a separate future task.</summary>
+    /// <summary>Explains the empty maintenance tab without implying that maintenance is unlinked.</summary>
     public string MaintenanceEmptyMessage => repository is not null
-        ? "لا توجد تذاكر صيانة مسجلة في قواعد البيانات بعد (ربط شاشات الصيانة مهمة مستقلة)."
+        ? "لا توجد تذاكر صيانة مسجلة لهذا العميل في قاعدة البيانات بعد."
         : "لا توجد تذاكر صيانة مسجلة لهذا العميل حتى الآن.";
 
 
@@ -364,6 +409,7 @@ public sealed class CustomersViewModel : ObservableObject
     public RelayCommand<CustomerDirectoryEntryViewModel> SelectCustomerCommand { get; }
     public RelayCommand<CustomerDirectoryEntryViewModel> EditCustomerRowCommand { get; }
     public RelayCommand<string> SelectDetailTabCommand { get; }
+    public RelayCommand<CustomerSparePartUsageRow> OpenSparePartCommand { get; }
     public RelayCommand<SalesInvoiceDesignItem> CollectSalesInvoiceCommand { get; }
     public RelayCommand<SalesInvoiceDesignItem> PrintSalesInvoiceCommand { get; }
     public RelayCommand<MaintenanceOrderDesignItem> OpenMaintenanceDetailsCommand { get; }
@@ -440,6 +486,11 @@ public sealed class CustomersViewModel : ObservableObject
         {
             if (int.TryParse(idxStr, out var idx))
                 ActiveDetailTabIndex = idx;
+        });
+        OpenSparePartCommand = new RelayCommand<CustomerSparePartUsageRow>(row =>
+        {
+            if (row?.CanOpenSparePart == true)
+                OpenSparePartRequested?.Invoke(row.SparePartId);
         });
         CollectSalesInvoiceCommand = new RelayCommand<SalesInvoiceDesignItem>(OpenCollectSalesPayment);
         PrintSalesInvoiceCommand = new RelayCommand<SalesInvoiceDesignItem>(OpenSalesPrintPreview);
@@ -869,6 +920,35 @@ public sealed class CustomersViewModel : ObservableObject
         }
     }
 
+    /// <summary>Rebuilds the selected customer's spare-part usage after a maintenance issue/return.</summary>
+    public void RefreshSelectedSpareParts() => RefreshSelectedCustomerTransactions();
+
+    /// <summary>
+    /// Opens the customer selected on another screen (for example a spare-part movement) and
+    /// clears the directory filters so the row is guaranteed to be visible.
+    /// </summary>
+    public bool SelectCustomerFromExternal(int customerId)
+    {
+        searchText = "";
+        selectedTierFilter = TierFilterOptions[0];
+        selectedBalanceFilter = BalanceFilterOptions[0];
+        selectedSortOption = SortOptions[0];
+        Changed(nameof(SearchText));
+        Changed(nameof(SelectedTierFilter));
+        Changed(nameof(SelectedBalanceFilter));
+        Changed(nameof(SelectedSortOption));
+        RebuildEntriesAndRefresh(customerId);
+        var found = SelectedCustomerEntry?.Customer.Id == customerId;
+        if (found)
+        {
+            ActiveDetailTabIndex = 2;
+            SetStatus("تم فتح ملف العميل من شاشة قطع الغيار على تبويب قطع الغيار المستخدمة.", false);
+        }
+        else
+            SetStatus("لم يتم العثور على العميل المطلوب في دليل العملاء.", true);
+        return found;
+    }
+
     private void RebuildEntriesAndRefresh(int? selectCustomerId = null)
     {
         var previousSelectedId = selectCustomerId ?? SelectedCustomerEntry?.Customer.Id;
@@ -967,6 +1047,7 @@ public sealed class CustomersViewModel : ObservableObject
     {
         SelectedCustomerSalesInvoices.Clear();
         SelectedCustomerMaintenanceOrders.Clear();
+        SelectedCustomerSpareParts.Clear();
 
         if (SelectedCustomerEntry is not null)
         {
@@ -975,12 +1056,34 @@ public sealed class CustomersViewModel : ObservableObject
 
             foreach (var ord in SelectedCustomerEntry.MaintenanceOrders)
                 SelectedCustomerMaintenanceOrders.Add(ord);
+
+            foreach (var ord in SelectedCustomerEntry.MaintenanceOrders.OrderByDescending(o => o.ReceivedAt))
+            {
+                foreach (var part in ord.UsedParts)
+                {
+                    SelectedCustomerSpareParts.Add(new CustomerSparePartUsageRow
+                    {
+                        Order = ord,
+                        SparePartId = part.EffectiveSparePartId,
+                        PartName = part.ProductName,
+                        PartCode = part.Barcode,
+                        Quantity = part.Quantity,
+                        UnitSellPrice = part.UnitSellPrice,
+                        LineTotal = part.LineTotal,
+                        IsManualPart = part.IsManualPart,
+                        OccurredAt = ord.ReceivedAt
+                    });
+                }
+            }
         }
 
         Changed(nameof(SelectedSalesTabTitle));
         Changed(nameof(SelectedMaintenanceTabTitle));
+        Changed(nameof(SelectedSparePartsTabTitle));
+        Changed(nameof(SelectedSparePartsSummary));
         Changed(nameof(HasNoSelectedCustomerSales));
         Changed(nameof(HasNoSelectedCustomerMaintenance));
+        Changed(nameof(HasNoSelectedCustomerSpareParts));
     }
 
     private void SetStatus(string message, bool isError)
