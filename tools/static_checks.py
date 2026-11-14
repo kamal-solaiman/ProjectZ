@@ -1840,7 +1840,9 @@ for xaml_path in (root / 'src/ProjectZ').rglob('*.xaml'):
         continue
     assert not re.search(r'#[0-9A-Fa-f]{6,8}\b', xaml_path.read_text(encoding='utf-8')), f'unthemed color literal remains in {xaml_path.name}'
 assert (root / 'tests/ProjectZ.Appearance.Tests/Program.cs').is_file()
-assert 'ProjectZ.Appearance.Tests' in (root / '.github/workflows/windows-build.yml').read_text(encoding='utf-8')
+assert (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').is_file()
+workflow_text = (root / '.github/workflows/windows-build.yml').read_text(encoding='utf-8')
+assert 'ProjectZ.Appearance.Tests' in workflow_text and 'ProjectZ.Appearance.Wpf.Tests' in workflow_text
 assert 'docs/THEMES.md' in (root / 'README.md').read_text(encoding='utf-8')
 print('PASS: appearance studio has eight presets plus custom colors, atomic device-local save, live whole-app resources and isolated print colors')
 print('NOT RUN locally: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish (Windows CI covers .NET build/tests, publish and isolated LocalDB integration)')
