@@ -10,7 +10,7 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/Resources/PosStyles.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/PosStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="CustCardStyle" TargetType="Border">

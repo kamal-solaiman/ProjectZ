@@ -8,7 +8,7 @@
              d:DataContext="{d:DesignInstance Type=vm:SuppliersViewModel, IsDesignTimeCreatable=True}">
     <UserControl.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/Resources/PosStyles.xaml" /></ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/PosStyles.xaml" /></ResourceDictionary.MergedDictionaries>
             <Style x:Key="SupCard" TargetType="Border">
                 <Setter Property="Background" Value="{DynamicResource Theme.Legacy.FFFFFF.Surface}" /><Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.E2E8F0.Border}" />
                 <Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="14" />

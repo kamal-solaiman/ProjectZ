@@ -3,7 +3,7 @@
         xmlns:vm="clr-namespace:ProjectZ.ViewModels" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:VodafoneRecordsViewModel, IsDesignTimeCreatable=True}"
         Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | تعديل عملية فودافون كاش'}" Width="540" SizeToContent="Height" MaxHeight="780" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" FlowDirection="RightToLeft">
-    <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/Resources/PosStyles.xaml" /></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
+    <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/PosStyles.xaml" /></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
     <Grid FlowDirection="LeftToRight">
         <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="22">

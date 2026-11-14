@@ -3,7 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:ProjectZ.ViewModels" mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:InstapayRecordsViewModel, IsDesignTimeCreatable=True}">
-    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/Resources/PosStyles.xaml" /></ResourceDictionary.MergedDictionaries>
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/PosStyles.xaml" /></ResourceDictionary.MergedDictionaries>
         <Style x:Key="RecordCard" TargetType="Border"><Setter Property="Background" Value="{DynamicResource Theme.Legacy.FFFFFF.Surface}" /><Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.E2E8F0.Border}" /><Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="12" /></Style>
         <Style x:Key="FilterLabel" TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}"><Setter Property="FontSize" Value="10.5" /><Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.64748B.Muted}" /><Setter Property="Margin" Value="0,0,0,4" /></Style>
         <Style x:Key="RecordAction" TargetType="Button" BasedOn="{StaticResource PosSecondaryButtonStyle}"><Setter Property="Padding" Value="11,6" /><Setter Property="FontSize" Value="11" /><Setter Property="Margin" Value="0,0,6,0" /></Style>
