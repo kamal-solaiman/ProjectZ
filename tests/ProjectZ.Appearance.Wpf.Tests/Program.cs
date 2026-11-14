@@ -11,6 +11,9 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        // The smoke host is a separate EXE; pack URIs in the referenced WPF app must still resolve
+        // against ProjectZ.dll, exactly as they do when ProjectZ.exe is the application assembly.
+        Application.ResourceAssembly = typeof(ProjectZ.App).Assembly;
         var app = new ProjectZ.App();
         app.InitializeComponent();
         var runtime = ThemeManager.Instance;

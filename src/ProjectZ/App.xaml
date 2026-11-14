@@ -6,12 +6,12 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Resources/ThemePalette.xaml" />
-                <ResourceDictionary Source="Resources/ThemeAliases.xaml" />
-                <ResourceDictionary Source="Resources/Theme.xaml" />
-                <ResourceDictionary Source="Resources/PosStyles.xaml" />
-                <ResourceDictionary Source="Resources/ThemeControls.xaml" />
-                <ResourceDictionary Source="Resources/ThemeBackdrop.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/ThemePalette.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/ThemeAliases.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/Theme.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/PosStyles.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/ThemeControls.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/ThemeBackdrop.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <!-- Live store identity and the device-local theme runtime are available before the first window. -->
             <services:StoreIdentity x:Key="StoreIdentity" />
