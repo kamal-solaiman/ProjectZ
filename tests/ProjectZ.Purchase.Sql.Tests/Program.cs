@@ -102,6 +102,33 @@ OUTPUT inserted.Id VALUES(@Category,N'PUR-TEST-SERIAL',N'صنف شراء بسي�
     Check(invoices.Count == 3 && invoices.All(i => i.Items.Count == 2 && i.Items.Sum(l => l.UnitRegistrationIds.Count) == 3), "Saved purchases reload with their real line/unit links");
     Check(invoices.Single(i => i.Id == partial.InvoiceId).Notes == "ملاحظة شراء عربية", "Arabic notes survive the SQL round trip");
 
+    // Edit an existing line: this exercises the separate UPDATE command's @Id binding, adds one
+    // stock unit, and posts only the payment difference through the shared ledger/activity helpers.
+    var loadedPartial = invoices.Single(i => i.Id == partial.InvoiceId);
+    var editedLines = loadedPartial.Items.Select(l => new PurchaseLineEdit(
+        l.DatabaseLineId, l.ProductId, l.Barcode, l.ProductName, l.Category, l.Unit, l.TrackSerialNumber,
+        l.ProductId == ordinaryProductId ? 3 : l.Quantity,
+        l.ProductId == ordinaryProductId ? 110m : l.UnitPurchaseCost)).ToList();
+    repository.UpdateInvoice(new PurchaseInvoiceEdit(partial.InvoiceId, supplier.Id, "SUP-REF-EDIT",
+        "ملاحظة بعد التعديل", 10.5m, 100m, 50m, 0m, editedLines));
+    Check(Scalar<int>(admin, $"SELECT Quantity FROM dbo.PurchaseInvoiceLines WHERE PurchaseInvoiceId={partial.InvoiceId} AND ProductId={ordinaryProductId};") == 3
+        && Scalar<decimal>(admin, $"SELECT UnitPurchaseCost FROM dbo.PurchaseInvoiceLines WHERE PurchaseInvoiceId={partial.InvoiceId} AND ProductId={ordinaryProductId};") == 110m,
+        "Editing an existing purchase line binds its real Id and persists quantity/cost");
+    Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.PurchaseInvoiceLineUnits lu JOIN dbo.PurchaseInvoiceLines l ON l.Id=lu.PurchaseInvoiceLineId WHERE l.PurchaseInvoiceId={partial.InvoiceId};") == 4,
+        "Editing quantity adds exactly one linked stock unit");
+    Check(Scalar<decimal>(admin, $"SELECT SUM(CASE WHEN PaymentKind=1 THEN Amount ELSE -Amount END) FROM dbo.PurchasePayments WHERE PurchaseInvoiceId={partial.InvoiceId};") == 150m,
+        "Editing payments posts only the channel differences");
+    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == -550m,
+        "Edited payment differences adjust balances exactly once");
+    Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.PurchaseInvoiceActivities WHERE PurchaseInvoiceId={partial.InvoiceId} AND ActorUserId={userId};") == 2,
+        "Edit activity binds the acting user");
+
+    repository.PayInvoice(new PurchasePaymentRequest(credit.InvoiceId, 100.25m, 0m, 0m, "سداد لاحق"));
+    Check(Scalar<decimal>(admin, $"SELECT SUM(Amount) FROM dbo.PurchasePayments WHERE PurchaseInvoiceId={credit.InvoiceId} AND PaymentKind=1;") == 100.25m,
+        "A later supplier payment is persisted");
+    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == -650.25m,
+        "A later supplier payment debits the account once");
+
     // A pooled physical connection can retain incompatible SET options. Every repository checkout
     // must restore the options required by the filtered indexes on Products/InventoryUnits.
     using (var raw = new SqlConnection(settings.GetConnectionString()))
@@ -115,6 +142,7 @@ OUTPUT inserted.Id VALUES(@Category,N'PUR-TEST-SERIAL',N'صنف شراء بسي�
 
     // Fail at the LAST write, after stock and money rows exist, to prove the entire invoice is atomic.
     var beforeFailure = Counts(admin);
+    var balanceBeforeFailure = Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;");
     var sequenceBeforeFailure = Scalar<long>(admin, $"SELECT LastValue FROM dbo.DocumentSequences WHERE DocumentType=N'PurchaseInvoice' AND SequenceYear={DateTime.Now.Year};");
     Execute(admin, @"
 CREATE TRIGGER dbo.TR_PurchaseTest_FailLastWrite ON dbo.PurchaseInvoiceActivities AFTER INSERT AS
@@ -133,7 +161,7 @@ END;");
         Check(failed, "A late SQL failure is surfaced as a purchase error with the original SQL error attached");
         Check(Counts(admin) == beforeFailure, "Late failure rolls back every invoice, stock, payment, ledger and audit row");
         Check(Scalar<long>(admin, $"SELECT LastValue FROM dbo.DocumentSequences WHERE DocumentType=N'PurchaseInvoice' AND SequenceYear={DateTime.Now.Year};") == sequenceBeforeFailure, "Late failure also rolls back the document sequence");
-        Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == -475m, "Late failure restores every account balance");
+        Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == balanceBeforeFailure, "Late failure restores every account balance");
     }
     finally { Execute(admin, "DROP TRIGGER dbo.TR_PurchaseTest_FailLastWrite;"); }
 
