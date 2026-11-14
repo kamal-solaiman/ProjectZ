@@ -1077,14 +1077,18 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
 
     private void RecordPrintActivity(MaintenanceOrderDesignItem order, string modeLabel)
     {
-        order.ActivityLog.Add(new MaintenanceActivityEntry
+        RecordActivity(order, new MaintenanceActivityEntry
         {
             Timestamp = DateTime.Now,
             ActionTitle = "معاينة / طباعة مستند صيانة",
             Details = $"صيغة الطباعة: {modeLabel}.",
             ActorName = currentUserName
         });
-        SetStatus($"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}».", false);
+
+        if (repository is not null && order.Id > 0)
+            TryPersistOrder(order, $"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}».", "تعذّر حفظ سجل الطباعة");
+        else
+            SetStatus($"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}».", false);
     }
 
     // --- Spare Parts Stock Allocation & Release (Maintenance Spare Parts Only) ---
