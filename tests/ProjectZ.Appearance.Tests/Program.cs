@@ -24,7 +24,8 @@ foreach (var theme in ThemeCatalog.All)
     Check(ThemeColorMath.Contrast(ThemeColorMath.EnsureTextContrast(p.Text, p.Surface), p.Surface) >= 4.5, theme.Id + " body text can reach 4.5:1");
     Check(ThemeColorMath.Contrast(ThemeColorMath.ReadableInk(p.Accent), p.Accent) >= 4.5, theme.Id + " action text is readable");
 }
-Check(ThemeColorMath.EnsureTextContrast("#FFFFFF", "#FFFFFF") == "#000000", "White-on-white is repaired, not accepted");
+var repairedWhite = ThemeColorMath.EnsureTextContrast("#FFFFFF", "#FFFFFF");
+Check(repairedWhite != "#FFFFFF" && ThemeColorMath.Contrast(repairedWhite, "#FFFFFF") >= 4.5, "White-on-white is repaired to the nearest readable shade");
 
 // Atomic local persistence and recovery ---------------------------------------------------------
 var directory = Path.Combine(Path.GetTempPath(), "ProjectZ.Appearance.Tests", Guid.NewGuid().ToString("N"));
