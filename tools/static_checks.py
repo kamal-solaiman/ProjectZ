@@ -1827,6 +1827,15 @@ assert (root / 'src/ProjectZ/Services/NativeTitleBar.cs').is_file()
 assert 'new AppearanceViewModel(themeManager)' in app_cs
 assert 'IsAppearanceSelected' in main_viewmodel_text and 'Appearance = appearance ?? new AppearanceViewModel();' in main_viewmodel_text
 assert 'IsAppearanceSelected' in main_xaml_text and 'AppearanceView DataContext="{Binding Appearance}"' in main_xaml_text
+# Regression: every screen-visibility flag must be notified by SelectItem. A missing notification
+# leaves the host Grid Collapsed while the placeholder hides, so the screen renders empty/white
+# (this shipped once for IsAppearanceSelected).
+main_vm_class = main_viewmodel_text.split('public sealed class NavigationMenuCategoryViewModel', 1)[0]
+select_item_body = main_vm_class.split('public void SelectItem(', 1)[1]
+for screen_flag in re.findall(r'public bool (Is\w+Selected)\s*=>', main_vm_class):
+    assert f'Changed(nameof({screen_flag}))' in select_item_body, \
+        f'SelectItem must notify {screen_flag}, otherwise its screen never becomes visible'
+print('PASS: SelectItem notifies every MainViewModel screen flag (appearance white-screen regression guard)')
 appearance_view = (root / 'src/ProjectZ/Views/AppearanceView.xaml').read_text(encoding='utf-8')
 for token in ('SelectedTheme', 'SaveCommand', 'RestoreSavedCommand', 'ResetCustomCommand', 'OpacityPercent', 'CornerRadius', 'ContrastChecks', 'PickColor_Click'):
     assert token in appearance_view, f'appearance studio missing wiring: {token}'
@@ -1845,6 +1854,9 @@ for xaml_path in (root / 'src/ProjectZ').rglob('*.xaml'):
     assert not re.search(r'#[0-9A-Fa-f]{6,8}\b', xaml_path.read_text(encoding='utf-8')), f'unthemed color literal remains in {xaml_path.name}'
 assert (root / 'tests/ProjectZ.Appearance.Tests/Program.cs').is_file()
 assert (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').is_file()
+wpf_smoke = (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').read_text(encoding='utf-8')
+assert 'SelectItem(mainVm.Categories[6].Items[1])' in wpf_smoke and 'IsAppearanceSelected' in wpf_smoke, \
+    'WPF smoke test must navigate to the appearance screen and verify its host becomes visible'
 workflow_text = (root / '.github/workflows/windows-build.yml').read_text(encoding='utf-8')
 assert 'ProjectZ.Appearance.Tests' in workflow_text and 'ProjectZ.Appearance.Wpf.Tests' in workflow_text
 assert 'docs/THEMES.md' in (root / 'README.md').read_text(encoding='utf-8')

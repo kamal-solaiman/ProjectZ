@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using ProjectZ.Models;
 using ProjectZ.Services;
@@ -48,6 +49,41 @@ internal static class Program
             picker.Arrange(new Rect(0, 0, 520, 590));
             Check(true, "WPF layout and live resources apply: " + theme.Id);
         }
+        // Regression: navigating to المظهر must notify IsAppearanceSelected so the host Grid
+        // leaves Collapsed. A missing notification rendered the content area empty/white.
+        var mainVm = new MainViewModel(new UserSession(0, "smoke", "اختبار الدخان"), () => { },
+            appearance: new AppearanceViewModel(runtime));
+        main.DataContext = mainVm;
+        var notified = new List<string?>();
+        mainVm.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
+        mainVm.SelectItem(mainVm.Categories[6].Items[1]);
+        Check(mainVm.IsAppearanceSelected, "SelectItem activates the appearance screen");
+        Check(notified.Contains(nameof(MainViewModel.IsAppearanceSelected)),
+            "SelectItem notifies IsAppearanceSelected so the visibility trigger re-evaluates");
+        main.ApplyTemplate(); // force the window template even though the window is never shown
+        main.Measure(new Size(1320, 760));
+        main.Arrange(new Rect(0, 0, 1320, 760));
+        main.UpdateLayout();
+        var hostedStudio = FindDescendant<AppearanceView>(main);
+        Check(hostedStudio is not null, "MainWindow hosts AppearanceView in its visual tree");
+        Check(hostedStudio!.Parent is Grid { Visibility: Visibility.Visible },
+            "Appearance host Grid is Visible after navigating to المظهر");
+        Check(hostedStudio.ActualWidth > 100 && hostedStudio.ActualHeight > 100,
+            "AppearanceView is laid out with a real size, not an empty white panel");
         Console.WriteLine("All WPF appearance smoke tests passed.");
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        // VisualTreeHelper only accepts Visual/Visual3D; skip content elements (e.g. text inlines).
+        if (root is not Visual) return null;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match) return match;
+            var result = FindDescendant<T>(child);
+            if (result is not null) return result;
+        }
+        return null;
     }
 }

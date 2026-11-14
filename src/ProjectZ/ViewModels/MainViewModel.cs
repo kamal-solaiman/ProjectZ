@@ -726,6 +726,9 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsSuppliersSelected));
         Changed(nameof(IsUsersSelected));
         Changed(nameof(IsGeneralSettingsSelected));
+        // Must be notified like every other screen flag: without this the appearance host Grid
+        // never leaves Collapsed and the content area renders as an empty white panel.
+        Changed(nameof(IsAppearanceSelected));
         Changed(nameof(IsMyAccountsSelected));
         Changed(nameof(IsVodafoneTransferSelected));
         Changed(nameof(IsInstapayTransferSelected));
