@@ -212,7 +212,8 @@ public sealed class MainViewModel : ObservableObject
             user.DisplayName,
             sharedCustomers,
             sharedMaintenanceOrders,
-            maintenanceRepository);
+            maintenanceRepository,
+            ReloadMaintenanceData);
         // Spare parts and actions notify each other, so the spare-parts screen gets a late-bound callback
         // instead of dereferencing MaintenanceActions before it has been assigned.
         MaintenanceSpareParts = new MaintenanceSparePartsViewModel(
