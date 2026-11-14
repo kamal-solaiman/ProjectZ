@@ -1594,13 +1594,13 @@ assert 'new UserRepository(connectionSettings, user.Id)' in app_cs
 assert 'userRepository,' in main_viewmodel and 'Users.RefreshFromDatabase();' in main_viewmodel
 assert 'IsUsersSelected' in main_xaml and 'UsersView DataContext="{Binding Users}"' in main_xaml
 print('PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes')
-# --- General settings screen: store identity is the program name (SystemSettings + sql/16) ---------
+# --- General settings screen: store identity is the program name (SystemSettings + sql/17) ---------
 settings_repository_path = root / 'src/ProjectZ/Data/SettingsRepository.cs'
 store_profile_path = root / 'src/ProjectZ/Models/StoreProfile.cs'
 store_identity_path = root / 'src/ProjectZ/Services/StoreIdentity.cs'
 settings_view_path = root / 'src/ProjectZ/Views/GeneralSettingsView.xaml'
 settings_vm_path = root / 'src/ProjectZ/ViewModels/GeneralSettingsViewModel.cs'
-enable_settings_sql_path = root / 'sql/16_EnableGeneralSettings.sql'
+enable_settings_sql_path = root / 'sql/17_EnableGeneralSettings.sql'
 for required in (settings_repository_path, store_profile_path, store_identity_path,
                  settings_view_path, settings_vm_path, enable_settings_sql_path):
     assert required.is_file(), f'missing general-settings file: {required.relative_to(root)}'
@@ -1617,9 +1617,11 @@ for key in ('StoreName', 'StoreAddress', 'StorePhone', 'CurrencyNameAr', 'Defaul
 
 enable_settings_sql = enable_settings_sql_path.read_text(encoding='utf-8')
 assert 'GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SystemSettings TO [ProjectZClient]' in enable_settings_sql
-assert 'CREATE TABLE' not in enable_settings_sql, 'sql/16 must not create tables'
-assert "IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'StoreName')" in enable_settings_sql, \
-    'sql/16 must seed the store name only when it is missing'
+assert 'CREATE TABLE' not in enable_settings_sql, 'sql/17 must not create tables'
+for seeded in ('StoreName', 'StoreTagline', 'StoreAddress', 'StorePhone', 'StorePhoneAlt', 'StoreEmail',
+               'ServiceCenterName', 'PrintFooterNote', 'DefaultLowStockAlert', 'CurrencyNameAr', 'CurrencyCode'):
+    assert f"IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'{seeded}')" in enable_settings_sql, \
+        f'sql/17 must seed the missing {seeded} key without overwriting a value'
 
 # One live identity object drives every surface.
 store_identity = store_identity_path.read_text(encoding='utf-8')
@@ -1629,6 +1631,12 @@ for member in ('INotifyPropertyChanged', 'public static StoreIdentity Current', 
     assert member in store_identity, f'store identity missing: {member}'
 assert 'PosFormatting.CurrencyLabel = saved.CurrencyLabel;' in store_identity, \
     'amount formatting must follow the configured currency label'
+disconnect_body = store_identity.split('public static void Disconnect(', 1)[-1]
+assert 'Disconnected?.Invoke' not in disconnect_body, \
+    'Disconnect must not re-raise the close event from inside its own handler (recursion)'
+main_vm_text = (root / 'src/ProjectZ/ViewModels/MainViewModel.cs').read_text(encoding='utf-8')
+assert 'Current.Disconnected -= OnStoreIdentityDisconnected;' in main_vm_text, \
+    'the main window must detach its close handler from the store identity'
 assert 'public static string CurrencyLabel { get; set; } = "ج.م";' in pos_models_text, \
     'the shared formatter must accept the configured currency label'
 app_xaml = (root / 'src/ProjectZ/App.xaml').read_text(encoding='utf-8')
@@ -1676,9 +1684,40 @@ for token in ('StoreName', 'Address', 'Phone', 'CurrencyLabel', 'LowStockAlertTe
 assert 'مظهر' in settings_xaml and 'نسخ' in settings_xaml, 'the screen must say themes/backup live elsewhere'
 assert 'ادارة المظهر' not in settings_xaml
 
+# General settings and backup used to share one Grid with two separate visibility triggers. Both
+# views were visible at once, so one screen drew on top of the other. Each host must be independent.
+general_trigger = main_xaml_text.find('IsGeneralSettingsSelected')
+general_view = main_xaml_text.find('GeneralSettingsView', general_trigger)
+backup_trigger = main_xaml_text.find('IsBackupSelected')
+backup_view = main_xaml_text.find('BackupView', backup_trigger)
+assert general_trigger >= 0 and general_view > general_trigger, 'general settings needs its own host Grid'
+assert backup_trigger >= 0 and backup_view > backup_trigger, 'backup needs its own host Grid'
+assert general_view < backup_trigger, 'backup host must start after the general-settings host'
+assert 'BackupView' not in main_xaml_text[general_trigger:general_view], \
+    'backup must not be hosted inside the general-settings Grid'
+assert 'GeneralSettingsView' not in main_xaml_text[backup_trigger:backup_view], \
+    'general settings must not be hosted inside the backup Grid'
+
+# Backup screen: server-side paths, a master connection for restore, fresh file names and a busy guard.
+backup_repository = (root / 'src/ProjectZ/Data/BackupRepository.cs').read_text(encoding='utf-8')
+backup_vm = (root / 'src/ProjectZ/ViewModels/BackupViewModel.cs').read_text(encoding='utf-8')
+backup_xaml = (root / 'src/ProjectZ/Views/BackupView.xaml').read_text(encoding='utf-8')
+for guard in ('InitialCatalog = "master"', 'LastBackupAt', 'SET MULTI_USER', '3201',
+              'QuoteIdentifier', 'builder.InitialCatalog'):
+    assert guard in backup_repository, f'backup repository missing guard: {guard}'
+assert 'private const string DatabaseName' not in backup_repository, \
+    'backup must follow the configured Database, not a hard-coded catalog name'
+for guard in ('CreateDefaultBackupFileName', 'NewBackupFileNameCommand', 'IsBusy', 'EmptyBackupsMessage'):
+    assert guard in backup_vm, f'backup view-model missing guard: {guard}'
+assert 'File.Exists(RestoreFilePath)' not in backup_vm, 'restore path must be validated by SQL Server, not this client'
+for token in ('BackupFolderPath', 'BackupFileName', 'RestoreFilePath', 'AvailableBackups',
+              'IsIdle', 'NewBackupFileNameCommand', 'BackupCommand', 'RestoreCommand'):
+    assert token in backup_xaml, f'backup UI missing expected token: {token}'
+
 # The add-product form starts from the configured default low-stock alert.
 assert 'StoreIdentity.Current.DefaultLowStockAlert' in add_product_vm_text
 print('PASS: general settings save the store identity in dbo.SystemSettings and rename the program everywhere')
+print('PASS: general settings and backup have separate hosts, and backup uses master-side RESTORE with fresh file names')
 # Wallet transfers: the ledger row must name its source transfer id, because dbo.FinancialTransactions
 # carries CK_FinancialTransactions_Source ((type IS NULL AND id IS NULL) OR (type and id both set)) and
 # CK_FinancialTransactions_Amount (Amount > 0). Writing N'CustomerTransfer' with a NULL id made every

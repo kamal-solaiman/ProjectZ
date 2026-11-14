@@ -11,6 +11,9 @@ public partial class BackupView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        // DataContext can already be inherited when the control loads; the event above is the normal
+        // path, and Loaded is a second chance so the browse/confirm buttons are never dead.
+        Loaded += (_, _) => Attach(DataContext as BackupViewModel);
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -22,16 +25,20 @@ public partial class BackupView : UserControl
             oldVm.OpenConfirmDialogRequested = null;
         }
 
-        if (e.NewValue is BackupViewModel newVm)
+        Attach(e.NewValue as BackupViewModel);
+    }
+
+    private void Attach(BackupViewModel? viewModel)
+    {
+        if (viewModel is null) return;
+
+        viewModel.BrowseBackupFolderRequested = onSelected => BrowseBackupFolder(onSelected);
+        viewModel.BrowseRestoreFileRequested = onSelected => BrowseRestoreFile(onSelected);
+        viewModel.OpenConfirmDialogRequested = (vm, onConfirmed) =>
         {
-            newVm.BrowseBackupFolderRequested = onSelected => BrowseBackupFolder(onSelected);
-            newVm.BrowseRestoreFileRequested = onSelected => BrowseRestoreFile(onSelected);
-            newVm.OpenConfirmDialogRequested = (vm, onConfirmed) =>
-            {
-                if (ShowOwnedDialog(new ConfirmActionWindow(vm)) == true)
-                    onConfirmed();
-            };
-        }
+            if (ShowOwnedDialog(new ConfirmActionWindow(vm)) == true)
+                onConfirmed();
+        };
     }
 
     private void BrowseBackupFolder(Action<string> onSelected)

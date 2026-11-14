@@ -82,11 +82,14 @@ public sealed class StoreIdentity : INotifyPropertyChanged
     /// <summary>Tells every listener that the screen owning the subscription is closing.</summary>
     public static void NotifyClosing() => Current.Disconnected?.Invoke();
 
-    /// <summary>Removes a long-lived screen from <see cref="Changed"/> so a closed session is collectable.</summary>
+    /// <summary>
+    /// Removes a long-lived screen from <see cref="Changed"/> so a closed session is collectable.
+    /// This must not raise <see cref="Disconnected"/>: the window that owns the handler calls this
+    /// from inside that event, and re-raising it would recurse until the process crashes.
+    /// </summary>
     public static void Disconnect(Action? handler)
     {
         if (handler is null) return;
         Changed -= handler;
-        Current.Disconnected?.Invoke();
     }
 }

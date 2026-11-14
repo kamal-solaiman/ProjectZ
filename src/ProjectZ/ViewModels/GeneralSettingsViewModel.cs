@@ -63,7 +63,7 @@ public sealed class GeneralSettingsViewModel : ObservableObject
     public string StoreName
     {
         get => storeName;
-        set => SetField(ref storeName, value, nameof(StoreName), nameof(PreviewTitle), nameof(StoreNameHint));
+        set => SetField(ref storeName, value, nameof(StoreName), nameof(PreviewTitle), nameof(PreviewHeadline), nameof(StoreNameHint));
     }
 
     public string Tagline
@@ -136,7 +136,7 @@ public sealed class GeneralSettingsViewModel : ObservableObject
     public bool HasPreviewContactLine => BuildProfile().HasContactLine;
     public string PreviewServiceCenter => string.IsNullOrWhiteSpace(ServiceCenterName) ? "—" : ServiceCenterName.Trim();
     public string PreviewFooter => string.IsNullOrWhiteSpace(FooterNote) ? "—" : FooterNote.Trim();
-    public string PreviewAmount => $"1,250.00 {CurrencyLabel.Trim()}";
+    public string PreviewAmount => $"1,250.00 {(string.IsNullOrWhiteSpace(CurrencyLabel) ? StoreProfile.DefaultCurrencyLabel : CurrencyLabel.Trim())}";
 
     /// <summary>Visible hint so an unsaved rename is never left behind by switching screens.</summary>
     public string UnsavedHint => "توجد تغييرات لم تُحفظ بعد. اضغط «حفظ الإعدادات» لتثبيتها في قاعدة البيانات.";
@@ -260,9 +260,27 @@ public sealed class GeneralSettingsViewModel : ObservableObject
 
     private void ResetToDefaults()
     {
+        // LoadInto would treat the defaults as the saved baseline and silently mark the form clean;
+        // navigating away would then refresh it from SQL and erase the reset before it was saved.
+        var saved = loaded;
         LoadInto(StoreProfile.Defaults);
+        loaded = saved;
+        IsDirty = !SameSettings(StoreProfile.Defaults, saved);
         SetStatus("تمت إعادة الحقول إلى القيم الافتراضية (ProjectZ). اضغط «حفظ الإعدادات» لتثبيتها في قاعدة البيانات.", false);
     }
+
+    private static bool SameSettings(StoreProfile left, StoreProfile right)
+        => string.Equals(left.StoreName, right.StoreName, StringComparison.Ordinal)
+           && string.Equals(left.Tagline, right.Tagline, StringComparison.Ordinal)
+           && string.Equals(left.Address, right.Address, StringComparison.Ordinal)
+           && string.Equals(left.Phone, right.Phone, StringComparison.Ordinal)
+           && string.Equals(left.PhoneAlt, right.PhoneAlt, StringComparison.Ordinal)
+           && string.Equals(left.Email, right.Email, StringComparison.Ordinal)
+           && string.Equals(left.ServiceCenterName, right.ServiceCenterName, StringComparison.Ordinal)
+           && string.Equals(left.FooterNote, right.FooterNote, StringComparison.Ordinal)
+           && string.Equals(left.CurrencyLabel, right.CurrencyLabel, StringComparison.Ordinal)
+           && string.Equals(left.CurrencyCode, right.CurrencyCode, StringComparison.Ordinal)
+           && left.DefaultLowStockAlert == right.DefaultLowStockAlert;
 
     private void LoadInto(StoreProfile profile)
     {
@@ -370,8 +388,8 @@ public sealed class GeneralSettingsViewModel : ObservableObject
         Changed(propertyName);
         foreach (var dependent in dependents)
             Changed(dependent);
-        IsDirty = true;
         if (isErrorStatus) SetStatus("", false);
+        IsDirty = true;
     }
 
     private void SetStatus(string message, bool isError)
