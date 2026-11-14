@@ -260,9 +260,27 @@ public sealed class GeneralSettingsViewModel : ObservableObject
 
     private void ResetToDefaults()
     {
+        // LoadInto would treat the defaults as the saved baseline and silently mark the form clean;
+        // navigating away would then refresh it from SQL and erase the reset before it was saved.
+        var saved = loaded;
         LoadInto(StoreProfile.Defaults);
+        loaded = saved;
+        IsDirty = !SameSettings(StoreProfile.Defaults, saved);
         SetStatus("تمت إعادة الحقول إلى القيم الافتراضية (ProjectZ). اضغط «حفظ الإعدادات» لتثبيتها في قاعدة البيانات.", false);
     }
+
+    private static bool SameSettings(StoreProfile left, StoreProfile right)
+        => string.Equals(left.StoreName, right.StoreName, StringComparison.Ordinal)
+           && string.Equals(left.Tagline, right.Tagline, StringComparison.Ordinal)
+           && string.Equals(left.Address, right.Address, StringComparison.Ordinal)
+           && string.Equals(left.Phone, right.Phone, StringComparison.Ordinal)
+           && string.Equals(left.PhoneAlt, right.PhoneAlt, StringComparison.Ordinal)
+           && string.Equals(left.Email, right.Email, StringComparison.Ordinal)
+           && string.Equals(left.ServiceCenterName, right.ServiceCenterName, StringComparison.Ordinal)
+           && string.Equals(left.FooterNote, right.FooterNote, StringComparison.Ordinal)
+           && string.Equals(left.CurrencyLabel, right.CurrencyLabel, StringComparison.Ordinal)
+           && string.Equals(left.CurrencyCode, right.CurrencyCode, StringComparison.Ordinal)
+           && left.DefaultLowStockAlert == right.DefaultLowStockAlert;
 
     private void LoadInto(StoreProfile profile)
     {
