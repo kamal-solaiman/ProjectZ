@@ -120,7 +120,7 @@ public sealed class MainViewModel : ObservableObject
                 "العملاء", "الموردين"),
             new NavigationMenuCategoryViewModel("المستخدمين", "\U0001F464",
                 "المستخدمين", "الصلاحيات"),
-            new NavigationMenuCategoryViewModel("الاعدادات", "\\u2699",
+            new NavigationMenuCategoryViewModel("الاعدادات", "\u2699",
                 "اعدادات عامة", "المظهر", "النسخ الاحتياطي")
         };
 
