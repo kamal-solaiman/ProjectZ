@@ -4,6 +4,7 @@ using System.Globalization;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Data;
+using ProjectZ.Services;
 
 namespace ProjectZ.ViewModels;
 
@@ -31,7 +32,7 @@ public sealed class AddProductViewModel : ObservableObject
     private string wholesalePriceText = "";
 
     private string initialStockText = "10";
-    private string minStockAlertText = "5";
+    private string minStockAlertText = StoreIdentity.Current.DefaultLowStockAlert.ToString(System.Globalization.CultureInfo.InvariantCulture);
     private bool isActiveForSale = true;
     private bool trackSerialNumber = true;
     private string notes = "";
@@ -661,7 +662,7 @@ public sealed class AddProductViewModel : ObservableObject
         WholesalePriceText = "";
         SpecialPriceText = "";
         InitialStockText = "10";
-        MinStockAlertText = "5";
+        MinStockAlertText = StoreIdentity.Current.DefaultLowStockAlert.ToString(System.Globalization.CultureInfo.InvariantCulture);
         IsActiveForSale = true;
         TrackSerialNumber = true;
         Notes = "";

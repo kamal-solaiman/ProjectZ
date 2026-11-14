@@ -369,8 +369,11 @@ public static class PosFormatting
         _ => "قطاعي"
     };
 
+    /// <summary>Work-currency label from the general settings (dbo.SystemSettings.CurrencyNameAr).</summary>
+    public static string CurrencyLabel { get; set; } = "ج.م";
+
     public static string FormatCurrency(decimal amount)
-        => $"{amount.ToString("#,##0.00", CultureInfo.InvariantCulture)} ج.م";
+        => $"{amount.ToString("#,##0.00", CultureInfo.InvariantCulture)} {CurrencyLabel}";
 
     public static string FormatNumber(decimal amount)
         => amount.ToString("#,##0.00", CultureInfo.InvariantCulture);

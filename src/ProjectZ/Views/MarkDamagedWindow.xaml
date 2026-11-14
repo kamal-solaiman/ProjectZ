@@ -1,7 +1,7 @@
 <Window x:Class="ProjectZ.Views.MarkDamagedWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ProjectZ | تسجيل مخزون هالك"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | تسجيل مخزون هالك'}"
         Width="530"
         Height="520"
         MinWidth="460"

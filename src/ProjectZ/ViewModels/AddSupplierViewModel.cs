@@ -1,4 +1,5 @@
 using ProjectZ.Helpers;
+using ProjectZ.Services;
 using ProjectZ.Models;
 
 namespace ProjectZ.ViewModels;
@@ -26,7 +27,7 @@ public sealed class AddSupplierViewModel : ObservableObject
     private string error = "";
 
     public bool IsEditMode => existingSupplier is not null;
-    public string WindowTitle => IsEditMode ? "ProjectZ | تعديل بيانات المورد" : "ProjectZ | إضافة مورد جديد";
+    public string WindowTitle => IsEditMode ? "تعديل بيانات المورد" : "إضافة مورد جديد";
     public string HeaderTitle => IsEditMode ? "تعديل بيانات المورد" : "إضافة مورد جديد";
     public string HeaderSubtitle => customHeaderSubtitle ?? (IsEditMode
         ? $"تحديث الملف وبيانات التحويل ({existingSupplier!.SupplierCodeDisplay})"

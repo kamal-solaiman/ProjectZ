@@ -1,7 +1,7 @@
 <Window x:Class="ProjectZ.Views.EditProductWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ProjectZ | تعديل بيانات المنتج"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | تعديل بيانات المنتج'}"
         Width="720"
         Height="680"
         MinWidth="600"

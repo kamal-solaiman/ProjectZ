@@ -1,5 +1,6 @@
 using System.Globalization;
 using ProjectZ.Helpers;
+using ProjectZ.Services;
 using ProjectZ.Models;
 
 namespace ProjectZ.ViewModels;
@@ -32,7 +33,7 @@ public sealed class AccountEditorViewModel : ObservableObject
 
     public bool IsEditMode => existing is not null;
     public bool IsProviderSelectionVisible => !IsEditMode;
-    public string WindowTitle => IsEditMode ? "ProjectZ | تعديل المحفظة وحدودها" : "ProjectZ | إضافة محفظة جديدة";
+    public string WindowTitle => IsEditMode ? "تعديل المحفظة وحدودها" : "إضافة محفظة جديدة";
     public string HeaderTitle => IsEditMode ? "تعديل المحفظة وحدود التشغيل" : "إضافة محفظة إلكترونية";
     public string HeaderSubtitle => IsEditMode ? "تعديل الاسم وبيانات الحساب وحدود الإيداع والسحب دون تغيير الرصيد الحالي." : "أضف رقم فودافون كاش أو عنوان إنستاباي مع رصيد افتتاحي وحدود مستقلة.";
     public string SaveButtonText => IsEditMode ? "حفظ التعديلات" : "إضافة المحفظة";
@@ -98,7 +99,7 @@ public sealed class AccountTransactionViewModel : ObservableObject
     private string counterparty = "";
     private string note = "";
     private string error = "";
-    public string WindowTitle => $"ProjectZ | حركة على {account.DisplayName}";
+    public string WindowTitle => "حركة على {account.DisplayName}";
     public string HeaderTitle => "تسجيل حركة مالية";
     public string AccountSummary => $"{account.ProviderTitle} · {account.DisplayName} · الرصيد {account.BalanceDisplay}";
     public IReadOnlyList<string> MovementOptions { get; } = ["إيداع رصيد", "سحب رصيد", "تسوية بالإضافة", "تسوية بالخصم"];
@@ -163,7 +164,7 @@ public sealed class AccountTransferViewModel : ObservableObject
     private string amountText = "";
     private string note = "";
     private string error = "";
-    public string WindowTitle => "ProjectZ | تحويل بين الحسابات";
+    public string WindowTitle => "تحويل بين الحسابات";
     public string SourceSummary => $"من: {source.DisplayName} · المتاح {source.BalanceDisplay}";
     public IReadOnlyList<FinancialAccountDesignItem> Targets { get; }
     public FinancialAccountDesignItem? SelectedTarget { get => selectedTarget; set { if (ReferenceEquals(selectedTarget, value)) return; selectedTarget = value; Changed(); ClearError(); } }

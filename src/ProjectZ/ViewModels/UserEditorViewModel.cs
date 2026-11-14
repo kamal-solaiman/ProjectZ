@@ -1,5 +1,6 @@
 using ProjectZ.Data;
 using ProjectZ.Helpers;
+using ProjectZ.Services;
 
 namespace ProjectZ.ViewModels;
 
@@ -72,9 +73,9 @@ public sealed class UserEditorViewModel : ObservableObject
 
     public string WindowTitle => mode switch
     {
-        "add" => "ProjectZ | إضافة مستخدم جديد",
-        "password" => "ProjectZ | تغيير كلمة المرور",
-        _ => "ProjectZ | تعديل بيانات المستخدم"
+        "add" => "إضافة مستخدم جديد",
+        "password" => "تغيير كلمة المرور",
+        _ => "تعديل بيانات المستخدم"
     };
 
     public string HeaderTitle => mode switch

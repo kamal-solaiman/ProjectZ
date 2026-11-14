@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Data;
+using ProjectZ.Services;
 
 namespace ProjectZ.ViewModels;
 
@@ -12,6 +13,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly PurchaseRepository? purchaseRepository;
     private readonly CategoryRepository? categoryRepository;
     private readonly UserRepository? userRepository;
+    private readonly SettingsRepository? settingsRepository;
     private readonly MaintenanceRepository? maintenanceRepository;
     private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
     private NavigationMenuItemViewModel? selectedItem;
@@ -34,6 +36,7 @@ public sealed class MainViewModel : ObservableObject
     public CustomersViewModel Customers { get; }
     public SuppliersViewModel Suppliers { get; }
     public UsersViewModel Users { get; }
+    public GeneralSettingsViewModel GeneralSettings { get; }
     public MyAccountsViewModel MyAccounts { get; }
     public VodafoneTransferViewModel VodafoneTransfer { get; }
     public InstapayTransferViewModel InstapayTransfer { get; }
@@ -56,6 +59,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsCustomersSelected => ReferenceEquals(selectedItem, Categories[4].Items[0]);
     public bool IsSuppliersSelected => ReferenceEquals(selectedItem, Categories[4].Items[1]);
     public bool IsUsersSelected => ReferenceEquals(selectedItem, Categories[5].Items[0]);
+    public bool IsGeneralSettingsSelected => ReferenceEquals(selectedItem, Categories[6].Items[0]);
     public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, Categories[3].Items[0]);
     public bool IsVodafoneTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[1]);
     public bool IsInstapayTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[2]);
@@ -67,9 +71,11 @@ public sealed class MainViewModel : ObservableObject
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
         || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected
-        || IsUsersSelected;
+        || IsUsersSelected || IsGeneralSettingsSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
-    public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
+    /// <summary>The application name follows the store name saved in the general settings.</summary>
+    public string ApplicationName => StoreIdentity.Current.Name;
+    public string SelectedPageTitle => selectedItem?.Title ?? $"مرحبًا بك في {ApplicationName}";
     public string SelectedPageDescription => selectedItem is null
         ? "اختر إحدى الوظائف من القائمة الجانبية."
         : "هذا العنصر للتحديد فقط حاليًا؛ لم تُنفذ شاشته بعد.";
@@ -98,7 +104,8 @@ public sealed class MainViewModel : ObservableObject
         PurchaseRepository? purchaseRepository = null,
         FinancialRepository? financialRepository = null,
         MaintenanceRepository? maintenanceRepository = null,
-        UserRepository? userRepository = null)
+        UserRepository? userRepository = null,
+        SettingsRepository? settingsRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
@@ -106,6 +113,7 @@ public sealed class MainViewModel : ObservableObject
         this.purchaseRepository = purchaseRepository;
         this.maintenanceRepository = maintenanceRepository;
         this.userRepository = userRepository;
+        this.settingsRepository = settingsRepository;
         LogoutCommand = new RelayCommand(logout);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         Categories = new[]
@@ -325,6 +333,7 @@ public sealed class MainViewModel : ObservableObject
             salesRepository);
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
+        GeneralSettings = new GeneralSettingsViewModel(user.DisplayName, settingsRepository);
 
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
@@ -371,6 +380,18 @@ public sealed class MainViewModel : ObservableObject
         if (userRepository is not null)
             Users.RefreshFromDatabase();
 
+        // Store name and general defaults: loaded here so the title and receipts are branded from the start.
+        if (settingsRepository is not null)
+        {
+            GeneralSettings.RefreshFromDatabase();
+            OnStoreIdentityChanged();
+        }
+
+        // The window lives until logout; StoreIdentity.Disconnect is called on teardown so a closed
+        // session is not kept alive by the static event.
+        StoreIdentity.Changed += OnStoreIdentityChanged;
+        StoreIdentity.Current.Disconnected += OnStoreIdentityDisconnected;
+
         if (salesRepository is not null)
         {
             // Customer directory and the saved sales invoices both live in SQL Server.
@@ -400,6 +421,19 @@ public sealed class MainViewModel : ObservableObject
         AddProduct.NotifyInventoryLoaded();
         Invoices.NotifyExternalInvoicesChanged();
         Suppliers.NotifyExternalDataChanged();
+    }
+
+    /// <summary>
+    /// The store name changed in the general settings. Titles and receipt headers bind to StoreIdentity
+    /// directly, so only the strings computed here need a refresh notice.
+    /// </summary>
+    private void OnStoreIdentityDisconnected() => StoreIdentity.Disconnect(OnStoreIdentityChanged);
+
+    private void OnStoreIdentityChanged()
+    {
+        Changed(nameof(ApplicationName));
+        Changed(nameof(SelectedPageTitle));
+        Changed(nameof(SelectedPageDescription));
     }
 
     private void OnCategoriesChanged()
@@ -597,6 +631,8 @@ public sealed class MainViewModel : ObservableObject
             Suppliers.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[5].Items[0]))
             Users.RefreshFromDatabase();
+        else if (ReferenceEquals(item, Categories[6].Items[0]))
+            GeneralSettings.RefreshFromDatabase();
 
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
@@ -613,6 +649,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsCustomersSelected));
         Changed(nameof(IsSuppliersSelected));
         Changed(nameof(IsUsersSelected));
+        Changed(nameof(IsGeneralSettingsSelected));
         Changed(nameof(IsMyAccountsSelected));
         Changed(nameof(IsVodafoneTransferSelected));
         Changed(nameof(IsInstapayTransferSelected));

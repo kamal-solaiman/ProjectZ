@@ -1,7 +1,7 @@
 <Window x:Class="ProjectZ.Views.PaySupplierInvoiceWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ProjectZ | سداد دفعة آجل للمورد"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | سداد دفعة آجل للمورد'}"
         Width="580"
         Height="590"
         MinWidth="520"

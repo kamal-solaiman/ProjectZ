@@ -105,7 +105,9 @@ main_root = ET.fromstring(main_xaml)
 for window_root in (login_root, main_root):
     assert window_root.attrib.get('FlowDirection') == 'LeftToRight', 'keep Windows caption controls on the right'
     assert window_root.attrib.get('Language') == 'ar-EG'
-    assert 'ProjectZ' in window_root.attrib.get('Title', '')
+    # The window title carries the live store name (the program name) from the general settings.
+    assert 'StaticResource StoreIdentity' in window_root.attrib.get('Title', ''), \
+        'window titles must bind to the live store name'
 
 window_style = next(
     style for style in ET.parse(root / 'src/ProjectZ/Resources/Theme.xaml').getroot()
@@ -1458,4 +1460,89 @@ assert 'new UserRepository(connectionSettings, user.Id)' in app_cs
 assert 'userRepository,' in main_viewmodel and 'Users.RefreshFromDatabase();' in main_viewmodel
 assert 'IsUsersSelected' in main_xaml and 'UsersView DataContext="{Binding Users}"' in main_xaml
 print('PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes')
+# --- General settings screen: store identity is the program name (SystemSettings + sql/15) ---------
+settings_repository_path = root / 'src/ProjectZ/Data/SettingsRepository.cs'
+store_profile_path = root / 'src/ProjectZ/Models/StoreProfile.cs'
+store_identity_path = root / 'src/ProjectZ/Services/StoreIdentity.cs'
+settings_view_path = root / 'src/ProjectZ/Views/GeneralSettingsView.xaml'
+settings_vm_path = root / 'src/ProjectZ/ViewModels/GeneralSettingsViewModel.cs'
+enable_settings_sql_path = root / 'sql/15_EnableGeneralSettings.sql'
+for required in (settings_repository_path, store_profile_path, store_identity_path,
+                 settings_view_path, settings_vm_path, enable_settings_sql_path):
+    assert required.is_file(), f'missing general-settings file: {required.relative_to(root)}'
+
+settings_repository = settings_repository_path.read_text(encoding='utf-8')
+for operation in ('public StoreProfile Load(', 'public StoreProfile Save('):
+    assert operation in settings_repository, f'missing settings SQL operation: {operation}'
+for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK', 'dbo.SystemSettings',
+              'UPDATE dbo.SystemSettings', 'INSERT dbo.SystemSettings', 'INSERT dbo.AuditLog',
+              'UpdateGeneralSettings', 'UPDATE dbo.SystemSettings\nSET SettingValue'):
+    assert guard in settings_repository, f'missing settings persistence guard: {guard}'
+for key in ('StoreName', 'StoreAddress', 'StorePhone', 'CurrencyNameAr', 'DefaultLowStockAlert'):
+    assert f'"{key}"' in settings_repository, f'missing settings key: {key}'
+
+enable_settings_sql = enable_settings_sql_path.read_text(encoding='utf-8')
+assert 'GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SystemSettings TO [ProjectZClient]' in enable_settings_sql
+assert 'CREATE TABLE' not in enable_settings_sql, 'sql/15 must not create tables'
+assert "IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'StoreName')" in enable_settings_sql, \
+    'sql/15 must seed the store name only when it is missing'
+
+# One live identity object drives every surface.
+store_identity = store_identity_path.read_text(encoding='utf-8')
+for member in ('INotifyPropertyChanged', 'public static StoreIdentity Current', 'public static void Apply(',
+               'PropertyChanged?.Invoke(instance, new PropertyChangedEventArgs(null))', 'public string WindowTitle',
+               'public string Headline', 'public string ContactLine', 'public string ServiceCenterHeader'):
+    assert member in store_identity, f'store identity missing: {member}'
+assert 'PosFormatting.CurrencyLabel = saved.CurrencyLabel;' in store_identity, \
+    'amount formatting must follow the configured currency label'
+assert 'public static string CurrencyLabel { get; set; } = "ج.م";' in pos_models_text, \
+    'the shared formatter must accept the configured currency label'
+app_xaml = (root / 'src/ProjectZ/App.xaml').read_text(encoding='utf-8')
+assert 'x:Key="StoreIdentity"' in app_xaml, 'the store identity must be a live application resource'
+
+# The program name reaches every window title, the sidebar, the login screen and the receipts.
+for xaml_path in (root / 'src/ProjectZ/Views').glob('*.xaml'):
+    text = xaml_path.read_text(encoding='utf-8')
+    # Only Window roots have a title; UserControls live inside the main window.
+    if '<Window x:Class="ProjectZ.Views.' not in text:
+        continue
+    # A window title is either a direct binding to the store identity or a MultiBinding whose first
+    # source is that identity; either way the store name (the program name) leads the caption.
+    direct = re.search(r'Title="([^"]*)"', text)
+    branded_direct = direct is not None and 'StaticResource StoreIdentity' in direct.group(1)
+    branded_multi = '<MultiBinding' in text and 'Binding Path="Name" Source="{StaticResource StoreIdentity}"' in text
+    assert branded_direct or branded_multi, \
+        f'{xaml_path.name}: window title must follow the store name'
+login_text = (root / 'src/ProjectZ/Views/LoginWindow.xaml').read_text(encoding='utf-8')
+main_xaml_text = (root / 'src/ProjectZ/Views/MainWindow.xaml').read_text(encoding='utf-8')
+assert 'StaticResource StoreIdentity' in login_text and 'StaticResource StoreIdentity' in main_xaml_text
+for receipt in ('InvoicePrintPreviewWindow.xaml', 'PurchaseInvoicePrintPreviewWindow.xaml',
+                'MaintenanceReceiptPreviewWindow.xaml'):
+    receipt_text = (root / 'src/ProjectZ/Views' / receipt).read_text(encoding='utf-8')
+    assert 'StaticResource StoreIdentity' in receipt_text, f'{receipt}: receipt header must follow the store name'
+    assert 'ProjectZ' not in re.sub(r'x:Class="[^"]*"', '', receipt_text), f'{receipt}: hard-coded brand text remains'
+
+# Startup and the screen wiring.
+app_cs = (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
+assert 'StoreIdentity.Apply(new SettingsRepository(connectionSettings).Load());' in app_cs, \
+    'startup must load the store identity before the login window'
+assert 'new SettingsRepository(connectionSettings, user.Id)' in app_cs
+main_viewmodel_text = main_viewmodel
+assert 'GeneralSettings = new GeneralSettingsViewModel(' in main_viewmodel_text
+assert 'IsGeneralSettingsSelected' in main_xaml_text and 'GeneralSettingsView DataContext="{Binding GeneralSettings}"' in main_xaml_text
+assert 'GeneralSettings.RefreshFromDatabase();' in main_viewmodel_text
+
+settings_vm = settings_vm_path.read_text(encoding='utf-8')
+for wiring in ('repository.Load(', 'repository.Save(', 'StoreIdentity.Apply(saved)', 'StoreNameHint', 'IsDirty'):
+    assert wiring in settings_vm, f'general settings screen is not wired: {wiring}'
+settings_xaml = settings_view_path.read_text(encoding='utf-8')
+for token in ('StoreName', 'Address', 'Phone', 'CurrencyLabel', 'LowStockAlertText', 'FooterNote',
+              'PreviewTitle', 'PreviewHeadline', 'SaveCommand', 'ReloadCommand', 'ResetDefaultsCommand'):
+    assert token in settings_xaml, f'general settings UI missing expected token: {token}'
+assert 'مظهر' in settings_xaml and 'نسخ' in settings_xaml, 'the screen must say themes/backup live elsewhere'
+assert 'ادارة المظهر' not in settings_xaml
+
+# The add-product form starts from the configured default low-stock alert.
+assert 'StoreIdentity.Current.DefaultLowStockAlert' in add_product_vm_text
+print('PASS: general settings save the store identity in dbo.SystemSettings and rename the program everywhere')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

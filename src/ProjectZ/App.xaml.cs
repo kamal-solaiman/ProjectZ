@@ -27,6 +27,19 @@ public partial class App : Application
         Thread.CurrentThread.CurrentUICulture = arabicCulture;
 
         base.OnStartup(e);
+
+        // Load the store identity before the first window so the login screen already carries the store
+        // name. A missing database or missing grant must never block sign-in, so failures fall back to the
+        // ProjectZ defaults and the settings screen reports the real error later.
+        try
+        {
+            StoreIdentity.Apply(new SettingsRepository(connectionSettings).Load());
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Record(ex);
+        }
+
         service = new AuthenticationService(new UserRepository(connectionSettings));
         ShowLogin();
     }
@@ -72,7 +85,8 @@ public partial class App : Application
                 new PurchaseRepository(connectionSettings, user.Id),
                 new FinancialRepository(connectionSettings, user.Id),
                 new MaintenanceRepository(connectionSettings, user.Id),
-                new UserRepository(connectionSettings, user.Id));
+                new UserRepository(connectionSettings, user.Id),
+                new SettingsRepository(connectionSettings, user.Id));
             MainWindow = main;
             TrackWindow(main);
 
