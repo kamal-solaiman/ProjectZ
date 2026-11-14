@@ -126,12 +126,16 @@ text_setters = {setter.attrib.get('Property'): setter.attrib.get('Value') for se
 assert text_setters.get('FlowDirection') == 'RightToLeft'
 assert text_setters.get('TextAlignment') == 'Right'
 
-login_content = next(element for element in login_root if element.tag.endswith('Grid'))
+login_shell = next(element for element in login_root if element.tag.endswith('Grid'))
+assert any(element.tag.endswith('ContentControl') and element.attrib.get('Style') == '{StaticResource ThemeBackdropStyle}' for element in login_shell), 'login must render the active theme backdrop'
+login_content = next(element for element in login_shell if element.tag.endswith('Grid'))
 login_panels = [element for element in login_content if element.tag.endswith('Border')]
 assert login_content.attrib.get('FlowDirection') == 'LeftToRight'  # stable physical column order
 assert [panel.attrib.get('Grid.Column') for panel in login_panels] == ['0', '1']
 assert all(panel.attrib.get('FlowDirection') == 'RightToLeft' for panel in login_panels)
-main_content = next(element for element in main_root if element.tag.endswith('Grid'))
+main_shell = next(element for element in main_root if element.tag.endswith('Grid'))
+assert any(element.tag.endswith('ContentControl') and element.attrib.get('Style') == '{StaticResource ThemeBackdropStyle}' for element in main_shell), 'main window must render the active theme backdrop'
+main_content = next(element for element in main_shell if element.tag.endswith('Grid'))
 assert main_content.attrib.get('FlowDirection') == 'LeftToRight'  # stable physical column order
 main_body = next(
     element for element in main_content
@@ -1363,8 +1367,13 @@ print('PASS: inventory screen is fully wired to SQL (catalog, units, suppliers, 
 app_resource_keys = set()
 for rf in (
     root / 'src/ProjectZ/App.xaml',
+    root / 'src/ProjectZ/Resources/ThemePalette.xaml',
+    root / 'src/ProjectZ/Resources/ThemeAliases.xaml',
     root / 'src/ProjectZ/Resources/Theme.xaml',
     root / 'src/ProjectZ/Resources/PosStyles.xaml',
+    root / 'src/ProjectZ/Resources/ThemeControls.xaml',
+    root / 'src/ProjectZ/Resources/ThemeBackdrop.xaml',
+    root / 'src/ProjectZ/Resources/PrintIsolation.xaml',
 ):
     for elem in ET.parse(rf).getroot().iter():
         for k, v in elem.attrib.items():
@@ -1800,4 +1809,38 @@ string_breaks = [
 ]
 assert not string_breaks, 'unterminated C# string literal (build breaker): ' + ', '.join(string_breaks)
 print('PASS: no C# string literal is left open across lines anywhere in src/ProjectZ')
+
+# Appearance studio: device-local persistence, live resources, custom colors and print isolation.
+appearance_model = (root / 'src/ProjectZ/Models/AppearanceModels.cs').read_text(encoding='utf-8')
+for theme_id in ('glassmorphism', 'liquid-glass', 'dark-glass', 'aurora', 'holographic', 'fui', 'chrome', 'fluent', 'custom'):
+    assert f'"{theme_id}"' in appearance_model, f'missing theme preset: {theme_id}'
+appearance_store = (root / 'src/ProjectZ/Services/AppearanceStore.cs').read_text(encoding='utf-8')
+for guard in ('LocalApplicationData', 'appearance.json', 'File.Replace', 'Flush(flushToDisk: true)', 'ThemeCatalog.Validate', '.bak'):
+    assert guard in appearance_store, f'appearance persistence missing guard: {guard}'
+assert 'SqlConnection' not in appearance_store and 'SystemSettings' not in appearance_store, 'appearance must stay independent of SQL'
+assert 'themeManager.Initialize();' in app_cs
+assert app_cs.index('themeManager.Initialize();') < app_cs.index('ShowLogin();'), 'saved theme must load before the login window'
+assert 'new AppearanceViewModel(themeManager)' in app_cs
+assert 'IsAppearanceSelected' in main_viewmodel_text and 'Appearance = appearance ?? new AppearanceViewModel();' in main_viewmodel_text
+assert 'IsAppearanceSelected' in main_xaml_text and 'AppearanceView DataContext="{Binding Appearance}"' in main_xaml_text
+appearance_view = (root / 'src/ProjectZ/Views/AppearanceView.xaml').read_text(encoding='utf-8')
+for token in ('SelectedTheme', 'SaveCommand', 'RestoreSavedCommand', 'ResetCustomCommand', 'OpacityPercent', 'CornerRadius', 'ContrastChecks', 'PickColor_Click'):
+    assert token in appearance_view, f'appearance studio missing wiring: {token}'
+theme_manager = (root / 'src/ProjectZ/Services/ThemeManager.cs').read_text(encoding='utf-8')
+assert 'EnsureTextContrast' in theme_manager and 'ClientAreaAnimation' in theme_manager
+assert 'role is "Surface" or "SurfaceRaised" or "Input" or "Subtle"' in theme_manager, 'legacy surfaces must share the translucent paint'
+print_isolation = (root / 'src/ProjectZ/Resources/PrintIsolation.xaml').read_text(encoding='utf-8')
+assert 'DynamicResource Theme.' not in print_isolation, 'print isolation must not follow the live theme'
+for print_name in ('InvoicePrintPreviewWindow.xaml', 'PurchaseInvoicePrintPreviewWindow.xaml', 'MaintenanceReceiptPreviewWindow.xaml', 'BarcodePrintPreviewWindow.xaml'):
+    print_text = (root / 'src/ProjectZ/Views' / print_name).read_text(encoding='utf-8')
+    assert '/Resources/PrintIsolation.xaml' in print_text, f'{print_name} must isolate print colors'
+    assert 'ThemeBackdropStyle' not in print_text and 'DynamicResource Theme.' not in print_text, f'{print_name} must not be themed'
+for xaml_path in (root / 'src/ProjectZ').rglob('*.xaml'):
+    if any(part in xaml_path.name for part in ('Print', 'Receipt', 'ThemePalette', 'ColorPicker')):
+        continue
+    assert not re.search(r'#[0-9A-Fa-f]{6,8}\b', xaml_path.read_text(encoding='utf-8')), f'unthemed color literal remains in {xaml_path.name}'
+assert (root / 'tests/ProjectZ.Appearance.Tests/Program.cs').is_file()
+assert 'ProjectZ.Appearance.Tests' in (root / '.github/workflows/windows-build.yml').read_text(encoding='utf-8')
+assert 'docs/THEMES.md' in (root / 'README.md').read_text(encoding='utf-8')
+print('PASS: appearance studio has eight presets plus custom colors, atomic device-local save, live whole-app resources and isolated print colors')
 print('NOT RUN locally: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish (Windows CI covers .NET build/tests, publish and isolated LocalDB integration)')

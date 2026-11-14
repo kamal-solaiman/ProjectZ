@@ -2,8 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | تفاصيل عملية إنستاباي'}" Width="570" SizeToContent="Height" MaxHeight="780" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" FlowDirection="RightToLeft">
     <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/Resources/PosStyles.xaml" /></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="22">
-        <Border Padding="16" CornerRadius="12" Background="#102E48"><StackPanel><TextBlock Text="تفاصيل عملية إنستاباي" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="White" /></StackPanel></Border>
+        <Border Padding="16" CornerRadius="12" Background="{DynamicResource Theme.Legacy.102E48.Navigation}"><StackPanel><TextBlock Text="تفاصيل عملية إنستاباي" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" /></StackPanel></Border>
         <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
             <TextBlock Text="الحالة" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Column="1" Text="{Binding StatusTitle}" Margin="0,6" />
             <TextBlock Grid.Row="1" Text="نوع العملية" FontWeight="Bold" Margin="0,6" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding OperationTitle}" Margin="0,6" />
@@ -21,4 +23,5 @@
         </Grid>
         <Button Content="إغلاق" Style="{StaticResource PosSecondaryButtonStyle}" HorizontalAlignment="Left" Margin="0,18,0,0" Padding="22,9" Click="Close_Click" />
     </StackPanel></ScrollViewer>
+    </Grid>
 </Window>

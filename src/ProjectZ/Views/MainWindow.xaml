@@ -13,7 +13,7 @@
     <Window.Resources>
         <Style x:Key="SidebarBaseButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#DCE8EE" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.DCE8EE.Muted}" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="14,11" />
@@ -37,10 +37,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#1D455F" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Theme.Legacy.1D455F.Navigation}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#6EE7D8" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Theme.Legacy.6EE7D8.Border}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Chrome" Property="Opacity" Value="0.5" />
@@ -57,8 +57,8 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsExpanded}" Value="True">
-                    <Setter Property="Background" Value="#1D455F" />
-                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.1D455F.Navigation}" />
+                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -67,13 +67,13 @@
                BasedOn="{StaticResource SidebarBaseButtonStyle}">
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Normal" />
-            <Setter Property="Foreground" Value="#B7CFDD" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
             <!-- Indent submenu labels on the right so they line up under the category title (after the icon). -->
             <Setter Property="Padding" Value="12,9,50,9" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
                     <Setter Property="Background" Value="{StaticResource Accent}" />
-                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                     <Setter Property="FontWeight" Value="SemiBold" />
                 </DataTrigger>
             </Style.Triggers>
@@ -106,6 +106,8 @@
     </Window.Resources>
 
     <!-- Use fixed physical columns; each Arabic content region sets RTL itself. -->
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
     <Grid Margin="24" FlowDirection="LeftToRight">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="26*"/>
@@ -119,8 +121,9 @@
         <Border Grid.Row="0"
                 Margin="0,0,0,18"
                 Padding="16,12"
-                CornerRadius="16"
-                Background="#102E48" Grid.ColumnSpan="2">
+                CornerRadius="{DynamicResource Theme.CornerRadius}"
+                BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1"
+                Background="{DynamicResource Theme.Brush.Navigation}" Grid.ColumnSpan="2">
             <Grid FlowDirection="LeftToRight">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -139,12 +142,12 @@
                     <StackPanel Margin="18,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="{Binding Welcome}"
                                    FontSize="16"
-                                   Foreground="#DCE8EE"
+                                   Foreground="{DynamicResource Theme.Legacy.DCE8EE.NavigationMuted}"
                                    FontWeight="SemiBold" />
                         <TextBlock Text="{Binding Username}"
                                    Margin="0,3,0,0"
                                    FontSize="12"
-                                   Foreground="#DCE8EE"
+                                   Foreground="{DynamicResource Theme.Legacy.DCE8EE.NavigationMuted}"
                                    FlowDirection="LeftToRight" />
                     </StackPanel>
                 </StackPanel>
@@ -159,8 +162,9 @@
 
             <Border Grid.Column="0"
                     Margin="0,0,18,0"
-                    CornerRadius="18"
-                    Background="White"
+                    CornerRadius="{DynamicResource Theme.PanelCornerRadius}"
+                    Background="{DynamicResource Theme.Brush.Surface}"
+                    BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1"
                     FlowDirection="RightToLeft">
                 <Border.Style>
                     <Style TargetType="Border">
@@ -199,7 +203,7 @@
                                    TextWrapping="Wrap" />
                         <TextBlock Text="{Binding SelectedPageDescription}"
                                    MaxWidth="560"
-                                   Foreground="#64748B"
+                                   Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
                                    FontSize="16"
                                    TextAlignment="Center"
                                    TextWrapping="Wrap" />
@@ -434,6 +438,20 @@
                             <Style TargetType="Grid">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAppearanceSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:AppearanceView DataContext="{Binding Appearance}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsBackupSelected}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
@@ -478,8 +496,9 @@
               TextAlignment is flow-relative, so TextAlignment="Right" would land on the physical LEFT.
             -->
             <Border Grid.Column="1"
-                    CornerRadius="18"
-                    Background="#102E48"
+                    CornerRadius="{DynamicResource Theme.PanelCornerRadius}"
+                    Background="{DynamicResource Theme.Brush.Navigation}"
+                    BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1"
                     ClipToBounds="True"
                     FlowDirection="LeftToRight">
                 <Border.Style>
@@ -550,9 +569,9 @@
                                     AutomationProperties.Name="طي أو توسيع القائمة الجانبية"
                                     Style="{StaticResource SidebarToggleButtonStyle}">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Border Width="18" Height="2" CornerRadius="1" Background="#DCE8EE" />
-                                    <Border Width="18" Height="2" CornerRadius="1" Margin="0,4" Background="#DCE8EE" />
-                                    <Border Width="18" Height="2" CornerRadius="1" Background="#DCE8EE" />
+                                    <Border Width="18" Height="2" CornerRadius="1" Background="{DynamicResource Theme.Legacy.DCE8EE.Input}" />
+                                    <Border Width="18" Height="2" CornerRadius="1" Margin="0,4" Background="{DynamicResource Theme.Legacy.DCE8EE.Input}" />
+                                    <Border Width="18" Height="2" CornerRadius="1" Background="{DynamicResource Theme.Legacy.DCE8EE.Input}" />
                                 </StackPanel>
                             </Button>
                             <TextBlock Text="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay}"
@@ -561,7 +580,7 @@
                                        FlowDirection="LeftToRight"
                                        FontSize="22"
                                        FontWeight="Bold"
-                                       Foreground="White"
+                                       Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}"
                                        Style="{StaticResource SidebarExpandedOnlyTextStyle}" />
                         </StackPanel>
                         <TextBlock Grid.Row="1"
@@ -570,7 +589,7 @@
                                    HorizontalAlignment="Right"
                                    FlowDirection="RightToLeft"
                                    FontSize="13"
-                                   Foreground="#B7CFDD"
+                                   Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}"
                                    Style="{StaticResource SidebarExpandedOnlyTextStyle}" />
                     </Grid>
 
@@ -626,7 +645,7 @@
                                                            VerticalAlignment="Center"
                                                            FontSize="17"
                                                            FlowDirection="LeftToRight"
-                                                           Foreground="#85AABC"
+                                                           Foreground="{DynamicResource Theme.Legacy.85AABC.Muted}"
                                                            TextAlignment="Center" />
                                             </StackPanel>
                                         </Button>
@@ -683,10 +702,11 @@
                                FlowDirection="RightToLeft"
                                Text="إدارة النظام"
                                FontSize="12"
-                               Foreground="#85AABC"
+                               Foreground="{DynamicResource Theme.Legacy.85AABC.Muted}"
                                Style="{StaticResource SidebarExpandedOnlyTextStyle}" />
                 </Grid>
             </Border>
         </Grid>
+    </Grid>
     </Grid>
 </Window>

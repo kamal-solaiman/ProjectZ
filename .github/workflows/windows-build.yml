@@ -14,8 +14,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Static checks
+        run: python tools/static_checks.py
       - name: Security tests
         run: dotnet run --project tests/ProjectZ.Security.Tests -c Release
+      - name: Appearance tests
+        run: dotnet run --project tests/ProjectZ.Appearance.Tests -c Release
       - name: Build WPF
         run: dotnet build ProjectZ.sln -c Release
       - name: Publish self-contained x64

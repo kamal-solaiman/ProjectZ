@@ -1,0 +1,73 @@
+<Window x:Class="ProjectZ.Views.ColorPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | اختيار لون مخصص'}"
+        Width="520" Height="590" MinWidth="460" MinHeight="540"
+        FlowDirection="LeftToRight" Language="ar-EG" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
+        <Grid Margin="24" FlowDirection="RightToLeft">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <StackPanel Margin="0,0,0,16">
+                <TextBlock Text="اختيار لون مخصص" Style="{StaticResource PosRtlTextStyle}" FontSize="22" FontWeight="Bold" />
+                <TextBlock Text="اضبط القنوات الثلاث أو أدخل HEX مباشرة. يعاين المربع اللون قبل اعتماده." Style="{StaticResource ThemeHintStyle}" Margin="0,5,0,0" />
+            </StackPanel>
+            <Grid Grid.Row="1" Margin="0,0,0,14">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="150" /></Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="قيمة اللون HEX" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+                    <TextBox x:Name="HexBox" MaxLength="7" FlowDirection="LeftToRight" TextAlignment="Left" FontFamily="Consolas" FontSize="16" TextChanged="HexBox_TextChanged" />
+                    <TextBlock x:Name="HexError" Text="صيغة غير مكتملة؛ مثال #147D92" Style="{StaticResource ThemeHintStyle}" Foreground="{DynamicResource Theme.Brush.DangerInk}" Visibility="Collapsed" Margin="0,5,0,0" />
+                </StackPanel>
+                <Border x:Name="Preview" Grid.Column="2" CornerRadius="{DynamicResource Theme.CornerRadius}" BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1">
+                    <TextBlock x:Name="SampleText" Text="نص تجريبي" Style="{StaticResource PosCenterTextStyle}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </Border>
+            </Grid>
+            <Border Grid.Row="2" Style="{StaticResource ThemeCardStyle}" Padding="14" Margin="0,0,0,14">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="70" /><ColumnDefinition Width="*" /><ColumnDefinition Width="38" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="الأحمر" Style="{StaticResource PosRtlTextStyle}" FontSize="12" VerticalAlignment="Center" />
+                        <Slider x:Name="RedSlider" Grid.Column="1" Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Channel_ValueChanged" VerticalAlignment="Center" />
+                        <TextBlock x:Name="RedValue" Grid.Column="2" Style="{StaticResource PosLtrTextStyle}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="70" /><ColumnDefinition Width="*" /><ColumnDefinition Width="38" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="الأخضر" Style="{StaticResource PosRtlTextStyle}" FontSize="12" VerticalAlignment="Center" />
+                        <Slider x:Name="GreenSlider" Grid.Column="1" Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Channel_ValueChanged" VerticalAlignment="Center" />
+                        <TextBlock x:Name="GreenValue" Grid.Column="2" Style="{StaticResource PosLtrTextStyle}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70" /><ColumnDefinition Width="*" /><ColumnDefinition Width="38" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="الأزرق" Style="{StaticResource PosRtlTextStyle}" FontSize="12" VerticalAlignment="Center" />
+                        <Slider x:Name="BlueSlider" Grid.Column="1" Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="Channel_ValueChanged" VerticalAlignment="Center" />
+                        <TextBlock x:Name="BlueValue" Grid.Column="2" Style="{StaticResource PosLtrTextStyle}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <StackPanel Grid.Row="3">
+                <TextBlock Text="ألوان سريعة" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <UniformGrid Columns="6">
+                    <UniformGrid.Resources><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                        <Setter Property="Height" Value="30" /><Setter Property="Margin" Value="3" /><Setter Property="Padding" Value="0" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource Theme.Brush.Border}" /><Setter Property="BorderThickness" Value="1" />
+                    </Style></UniformGrid.Resources>
+                    <Button Background="#147D92" Tag="#147D92" Click="Swatch_Click" ToolTip="#147D92" />
+                    <Button Background="#005FB8" Tag="#005FB8" Click="Swatch_Click" ToolTip="#005FB8" />
+                    <Button Background="#6D28D9" Tag="#6D28D9" Click="Swatch_Click" ToolTip="#6D28D9" />
+                    <Button Background="#0F766E" Tag="#0F766E" Click="Swatch_Click" ToolTip="#0F766E" />
+                    <Button Background="#B42318" Tag="#B42318" Click="Swatch_Click" ToolTip="#B42318" />
+                    <Button Background="#B45309" Tag="#B45309" Click="Swatch_Click" ToolTip="#B45309" />
+                    <Button Background="#102E48" Tag="#102E48" Click="Swatch_Click" ToolTip="#102E48" />
+                    <Button Background="#334155" Tag="#334155" Click="Swatch_Click" ToolTip="#334155" />
+                    <Button Background="#64748B" Tag="#64748B" Click="Swatch_Click" ToolTip="#64748B" />
+                    <Button Background="#CBD5E1" Tag="#CBD5E1" Click="Swatch_Click" ToolTip="#CBD5E1" />
+                    <Button Background="#F1F5F9" Tag="#F1F5F9" Click="Swatch_Click" ToolTip="#F1F5F9" />
+                    <Button Background="#FFFFFF" Tag="#FFFFFF" Click="Swatch_Click" ToolTip="#FFFFFF" />
+                </UniformGrid>
+            </StackPanel>
+            <Grid Grid.Row="4" Margin="0,18,0,0" FlowDirection="LeftToRight">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <Button Content="إلغاء" IsCancel="True" Style="{StaticResource ThemeSecondaryButtonStyle}" MinWidth="92" FlowDirection="RightToLeft" />
+                <Button x:Name="OkButton" Grid.Column="2" Content="اعتماد اللون" IsDefault="True" Click="Ok_Click" MinWidth="130" FlowDirection="RightToLeft" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

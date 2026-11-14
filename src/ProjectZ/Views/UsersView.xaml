@@ -69,7 +69,7 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="21"
                            FontWeight="Bold"
-                           Foreground="#102E48"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
                            VerticalAlignment="Center" />
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
@@ -78,12 +78,12 @@
                         VerticalAlignment="Center">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#DCFCE7" />
-                            <Setter Property="BorderBrush" Value="#BBF7D0" />
+                            <Setter Property="Background" Value="{DynamicResource Theme.Legacy.DCFCE7.SuccessSoft}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.BBF7D0.SuccessBorder}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsDatabaseBacked}" Value="False">
-                                    <Setter Property="Background" Value="#FEF3C7" />
-                                    <Setter Property="BorderBrush" Value="#FDE68A" />
+                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.FEF3C7.WarningSoft}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.FDE68A.WarningBorder}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -93,10 +93,10 @@
                                FontWeight="SemiBold">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource PosCenterTextStyle}">
-                                <Setter Property="Foreground" Value="#15803D" />
+                                <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.15803D.SuccessInk}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsDatabaseBacked}" Value="False">
-                                        <Setter Property="Foreground" Value="#B45309" />
+                                        <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B45309.WarningInk}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -111,8 +111,8 @@
                 Margin="0,0,0,12"
                 Padding="14"
                 CornerRadius="14"
-                Background="#F8FAFC"
-                BorderBrush="#E2E8F0"
+                Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                 BorderThickness="1"
                 FlowDirection="LeftToRight">
             <Grid FlowDirection="LeftToRight">
@@ -130,38 +130,38 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom" FlowDirection="LeftToRight">
                     <Border Padding="12,8"
                             CornerRadius="9"
-                            Background="#EFF6FF"
-                            BorderBrush="#BFDBFE"
+                            Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}"
+                            BorderBrush="{DynamicResource Theme.Legacy.BFDBFE.InfoBorder}"
                             BorderThickness="1">
                         <TextBlock Text="{Binding TotalCountDisplay}"
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="13"
                                    FontWeight="Bold"
-                                   Foreground="#1D4ED8" />
+                                   Foreground="{DynamicResource Theme.Legacy.1D4ED8.InfoInk}" />
                     </Border>
                     <Border Margin="6,0,0,0"
                             Padding="12,8"
                             CornerRadius="9"
-                            Background="#ECFDF5"
-                            BorderBrush="#A7F3D0"
+                            Background="{DynamicResource Theme.Legacy.ECFDF5.SuccessSoft}"
+                            BorderBrush="{DynamicResource Theme.Legacy.A7F3D0.SuccessBorder}"
                             BorderThickness="1">
                         <TextBlock Text="{Binding ActiveCountDisplay}"
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="SemiBold"
-                                   Foreground="#047857" />
+                                   Foreground="{DynamicResource Theme.Legacy.047857.SuccessInk}" />
                     </Border>
                     <Border Margin="6,0,0,0"
                             Padding="12,8"
                             CornerRadius="9"
-                            Background="#FFF7ED"
-                            BorderBrush="#FED7AA"
+                            Background="{DynamicResource Theme.Legacy.FFF7ED.WarningSoft}"
+                            BorderBrush="{DynamicResource Theme.Legacy.FED7AA.WarningBorder}"
                             BorderThickness="1">
                         <TextBlock Text="{Binding InactiveCountDisplay}"
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="SemiBold"
-                                   Foreground="#C2410C" />
+                                   Foreground="{DynamicResource Theme.Legacy.C2410C.WarningInk}" />
                     </Border>
                 </StackPanel>
 
@@ -172,7 +172,7 @@
                                Margin="0,0,0,5"
                                FontSize="12.5"
                                FontWeight="SemiBold"
-                               Foreground="#475569" />
+                               Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
                     <Grid>
                         <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
                                  Padding="10,7,30,7"
@@ -184,7 +184,7 @@
                                    Margin="30,0,10,0"
                                    VerticalAlignment="Center"
                                    FontSize="12.5"
-                                   Foreground="#94A3B8"
+                                   Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}"
                                    IsHitTestVisible="False"
                                    Visibility="{Binding SearchText, Converter={StaticResource StringEmptyToVis}}" />
                         <Button Content="×"
@@ -206,7 +206,7 @@
                                Margin="0,0,0,5"
                                FontSize="12.5"
                                FontWeight="SemiBold"
-                               Foreground="#475569" />
+                               Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
                     <ComboBox Style="{StaticResource PosComboBoxStyle}"
                               MinHeight="36"
                               ItemsSource="{Binding StatusFilters}"
@@ -220,7 +220,7 @@
                                Margin="0,0,0,5"
                                FontSize="12.5"
                                FontWeight="SemiBold"
-                               Foreground="#102E48" />
+                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
                     <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
                         <Button Content="+ إضافة مستخدم"
                                 Style="{StaticResource PosPrimaryCompactButtonStyle}"
@@ -229,28 +229,28 @@
                                 Command="{Binding AddUserCommand}" />
                         <Button Content="الكل"
                                 Style="{StaticResource UserActionBtnBaseStyle}"
-                                Background="#F8FAFC"
-                                Foreground="#475569"
-                                BorderBrush="#C7D2DE"
+                                Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                                Foreground="{DynamicResource Theme.Legacy.475569.Muted}"
+                                BorderBrush="{DynamicResource Theme.Legacy.C7D2DE.BorderStrong}"
                                 Command="{Binding ShowAllCommand}" />
                         <Button Content="النشطون"
                                 Style="{StaticResource UserActionBtnBaseStyle}"
-                                Background="#F8FAFC"
-                                Foreground="#047857"
-                                BorderBrush="#A7F3D0"
+                                Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                                Foreground="{DynamicResource Theme.Legacy.047857.SuccessInk}"
+                                BorderBrush="{DynamicResource Theme.Legacy.A7F3D0.SuccessBorder}"
                                 Command="{Binding ShowActiveCommand}" />
                         <Button Content="المعطّلون"
                                 Style="{StaticResource UserActionBtnBaseStyle}"
-                                Background="#F8FAFC"
-                                Foreground="#C2410C"
-                                BorderBrush="#FED7AA"
+                                Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                                Foreground="{DynamicResource Theme.Legacy.C2410C.WarningInk}"
+                                BorderBrush="{DynamicResource Theme.Legacy.FED7AA.WarningBorder}"
                                 Command="{Binding ShowInactiveCommand}" />
                         <TextBlock Text="{Binding CurrentUserHint}"
                                    Style="{StaticResource PosRtlTextStyle}"
                                    Margin="12,0,0,0"
                                    VerticalAlignment="Center"
                                    FontSize="11.5"
-                                   Foreground="#64748B" />
+                                   Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                     </StackPanel>
                 </StackPanel>
             </Grid>
@@ -259,8 +259,8 @@
         <!-- ROW 2: users table -->
         <Border Grid.Row="2"
                 CornerRadius="14"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
+                BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                 BorderThickness="1"
                 FlowDirection="LeftToRight">
             <Grid>
@@ -270,7 +270,7 @@
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0"
-                        Background="#102E48"
+                        Background="{DynamicResource Theme.Legacy.102E48.Navigation}"
                         CornerRadius="13,13,0,0"
                         Padding="14,11"
                         FlowDirection="LeftToRight">
@@ -290,45 +290,45 @@
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="#B7CFDD" />
+                                   Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
                         <TextBlock Grid.Column="1"
                                    Text="اسم الدخول (Username)"
                                    Style="{StaticResource PosRtlTextStyle}"
                                    Margin="8,0"
                                    FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="White" />
+                                   Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
                         <TextBlock Grid.Column="2"
                                    Text="الاسم الظاهر"
                                    Style="{StaticResource PosRtlTextStyle}"
                                    Margin="8,0"
                                    FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="White" />
+                                   Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
                         <TextBlock Grid.Column="3"
                                    Text="الحالة"
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="#B7CFDD" />
+                                   Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
                         <TextBlock Grid.Column="4"
                                    Text="السجلات المرتبطة"
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="#B7CFDD" />
+                                   Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
                         <TextBlock Grid.Column="5"
                                    Text="آخر تحديث"
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="#B7CFDD" />
+                                   Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
                         <TextBlock Grid.Column="6"
                                    Text="التحكم"
                                    Style="{StaticResource PosCenterTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="#6EE7D8" />
+                                   Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}" />
                     </Grid>
                 </Border>
 
@@ -340,9 +340,9 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Padding="14,9"
-                                            BorderBrush="#F1F5F9"
+                                            BorderBrush="{DynamicResource Theme.Legacy.F1F5F9.Border}"
                                             BorderThickness="0,0,0,1"
-                                            Background="White">
+                                            Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}">
                                         <Grid FlowDirection="RightToLeft">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="48" />
@@ -359,7 +359,7 @@
                                                        Style="{StaticResource PosCenterTextStyle}"
                                                        VerticalAlignment="Center"
                                                        FontSize="12.5"
-                                                       Foreground="#64748B" />
+                                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
 
                                             <!-- Account names are identifiers: always LTR. -->
                                             <StackPanel Grid.Column="1"
@@ -370,13 +370,13 @@
                                                 <TextBlock Text="{Binding Username}"
                                                            FontSize="13.5"
                                                            FontWeight="SemiBold"
-                                                           Foreground="#102E48"
+                                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
                                                            TextTrimming="CharacterEllipsis" />
                                                 <Border Margin="0,2,0,0"
                                                         Padding="6,1"
                                                         CornerRadius="6"
-                                                        Background="#F0FDFA"
-                                                        BorderBrush="#99F6E4"
+                                                        Background="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}"
+                                                        BorderBrush="{DynamicResource Theme.Legacy.99F6E4.Border}"
                                                         BorderThickness="1"
                                                         HorizontalAlignment="Left"
                                                         Visibility="{Binding IsCurrentUser, Converter={StaticResource BoolToVis}}">
@@ -384,7 +384,7 @@
                                                                Style="{StaticResource PosCenterTextStyle}"
                                                                FontSize="10.5"
                                                                FontWeight="SemiBold"
-                                                               Foreground="#0F766E" />
+                                                               Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                                 </Border>
                                             </StackPanel>
 
@@ -394,7 +394,7 @@
                                                        Margin="8,0"
                                                        VerticalAlignment="Center"
                                                        FontSize="13"
-                                                       Foreground="#172B41"
+                                                       Foreground="{DynamicResource Theme.Legacy.172B41.Text}"
                                                        TextTrimming="CharacterEllipsis" />
 
                                             <Border Grid.Column="3"
@@ -405,12 +405,12 @@
                                                     BorderThickness="1">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#ECFDF5" />
-                                                        <Setter Property="BorderBrush" Value="#A7F3D0" />
+                                                        <Setter Property="Background" Value="{DynamicResource Theme.Legacy.ECFDF5.SuccessSoft}" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.A7F3D0.SuccessBorder}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsActive}" Value="False">
-                                                                <Setter Property="Background" Value="#FEF2F2" />
-                                                                <Setter Property="BorderBrush" Value="#FECACA" />
+                                                                <Setter Property="Background" Value="{DynamicResource Theme.Legacy.FEF2F2.DangerSoft}" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.FECACA.DangerBorder}" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -420,10 +420,10 @@
                                                            FontWeight="SemiBold">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PosCenterTextStyle}">
-                                                            <Setter Property="Foreground" Value="#047857" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.047857.SuccessInk}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsActive}" Value="False">
-                                                                    <Setter Property="Foreground" Value="#B42318" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -436,14 +436,14 @@
                                                     CornerRadius="9"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
-                                                    Background="#F1F5F9"
-                                                    BorderBrush="#E2E8F0"
+                                                    Background="{DynamicResource Theme.Legacy.F1F5F9.Surface}"
+                                                    BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                                                     BorderThickness="1">
                                                 <TextBlock Text="{Binding LinkedRecordsDisplay}"
                                                            Style="{StaticResource PosCenterTextStyle}"
                                                            FontSize="11.5"
                                                            FontWeight="SemiBold"
-                                                           Foreground="#334155" />
+                                                           Foreground="{DynamicResource Theme.Legacy.334155.Text}" />
                                             </Border>
 
                                             <TextBlock Grid.Column="5"
@@ -452,7 +452,7 @@
                                                        VerticalAlignment="Center"
                                                        FontSize="11.5"
                                                        FlowDirection="LeftToRight"
-                                                       Foreground="#64748B" />
+                                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
 
                                             <StackPanel Grid.Column="6"
                                                         Orientation="Horizontal"
@@ -461,32 +461,32 @@
                                                         FlowDirection="RightToLeft">
                                                 <Button Content="تعديل"
                                                         Style="{StaticResource UserActionBtnBaseStyle}"
-                                                        Background="#EFF6FF"
-                                                        Foreground="#1D4ED8"
-                                                        BorderBrush="#BFDBFE"
+                                                        Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}"
+                                                        Foreground="{DynamicResource Theme.Legacy.1D4ED8.InfoInk}"
+                                                        BorderBrush="{DynamicResource Theme.Legacy.BFDBFE.InfoBorder}"
                                                         ToolTip="تعديل اسم الدخول والاسم الظاهر وحالة الحساب"
                                                         Command="{Binding EditCommand}" />
                                                 <Button Content="كلمة المرور"
                                                         Style="{StaticResource UserActionBtnBaseStyle}"
-                                                        Background="#F5F3FF"
-                                                        Foreground="#6D28D9"
-                                                        BorderBrush="#DDD6FE"
+                                                        Background="{DynamicResource Theme.Legacy.F5F3FF.InfoSoft}"
+                                                        Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}"
+                                                        BorderBrush="{DynamicResource Theme.Legacy.DDD6FE.InfoBorder}"
                                                         ToolTip="تعيين كلمة مرور جديدة للحساب دون عرض الكلمة القديمة"
                                                         Command="{Binding ChangePasswordCommand}" />
                                                 <Button Command="{Binding ToggleActiveCommand}">
                                                     <Button.Style>
                                                         <Style TargetType="Button" BasedOn="{StaticResource UserActionBtnBaseStyle}">
                                                             <Setter Property="Content" Value="تعطيل" />
-                                                            <Setter Property="Background" Value="#FFFBEB" />
-                                                            <Setter Property="Foreground" Value="#B45309" />
-                                                            <Setter Property="BorderBrush" Value="#FDE68A" />
+                                                            <Setter Property="Background" Value="{DynamicResource Theme.Legacy.FFFBEB.WarningSoft}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B45309.WarningInk}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.FDE68A.WarningBorder}" />
                                                             <Setter Property="ToolTip" Value="إيقاف دخول الحساب مع الحفاظ على كل سجلاته" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsActive}" Value="False">
                                                                     <Setter Property="Content" Value="تنشيط" />
-                                                                    <Setter Property="Background" Value="#ECFDF5" />
-                                                                    <Setter Property="Foreground" Value="#047857" />
-                                                                    <Setter Property="BorderBrush" Value="#A7F3D0" />
+                                                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.ECFDF5.SuccessSoft}" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.047857.SuccessInk}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.A7F3D0.SuccessBorder}" />
                                                                     <Setter Property="ToolTip" Value="السماح للحساب بتسجيل الدخول من جديد" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
@@ -495,9 +495,9 @@
                                                 </Button>
                                                 <Button Content="حذف"
                                                         Style="{StaticResource UserActionBtnBaseStyle}"
-                                                        Background="#FEF2F2"
-                                                        Foreground="#B42318"
-                                                        BorderBrush="#FECACA"
+                                                        Background="{DynamicResource Theme.Legacy.FEF2F2.DangerSoft}"
+                                                        Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}"
+                                                        BorderBrush="{DynamicResource Theme.Legacy.FECACA.DangerBorder}"
                                                         IsEnabled="{Binding CanDelete}"
                                                         ToolTip="{Binding DeleteToolTip}"
                                                         Command="{Binding DeleteCommand}" />
@@ -516,7 +516,7 @@
                                MaxWidth="620"
                                TextWrapping="Wrap"
                                FontSize="14"
-                               Foreground="#94A3B8"
+                               Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}"
                                Visibility="{Binding HasNoUsers, Converter={StaticResource BoolToVis}}" />
                 </Grid>
             </Grid>
@@ -531,13 +531,13 @@
                 Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVis}}">
             <Border.Style>
                 <Style TargetType="Border">
-                    <Setter Property="Background" Value="#ECFDF5" />
-                    <Setter Property="BorderBrush" Value="#A7F3D0" />
+                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.ECFDF5.SuccessSoft}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.A7F3D0.SuccessBorder}" />
                     <Setter Property="BorderThickness" Value="1" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
-                            <Setter Property="Background" Value="#FEF2F2" />
-                            <Setter Property="BorderBrush" Value="#FECACA" />
+                            <Setter Property="Background" Value="{DynamicResource Theme.Legacy.FEF2F2.DangerSoft}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.FECACA.DangerBorder}" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -548,10 +548,10 @@
                        TextWrapping="Wrap">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-                        <Setter Property="Foreground" Value="#065F46" />
+                        <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.065F46.SuccessInk}" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
-                                <Setter Property="Foreground" Value="#B42318" />
+                                <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

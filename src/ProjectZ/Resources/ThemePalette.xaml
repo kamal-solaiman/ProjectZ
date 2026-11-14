@@ -1,0 +1,112 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Design-time defaults. ThemeManager applies the saved device palette before ShowLogin. -->
+    <Color x:Key="Theme.Color.Background">#E8F1FA</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Background" Color="{DynamicResource Theme.Color.Background}" />
+    <Color x:Key="Theme.Color.Surface">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Surface" Color="{DynamicResource Theme.Color.Surface}" />
+    <Color x:Key="Theme.Color.SurfaceRaised">#F4F7FA</Color>
+    <SolidColorBrush x:Key="Theme.Brush.SurfaceRaised" Color="{DynamicResource Theme.Color.SurfaceRaised}" />
+    <Color x:Key="Theme.Color.Input">#F8FAFC</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Input" Color="{DynamicResource Theme.Color.Input}" />
+    <Color x:Key="Theme.Color.Subtle">#F1F5F9</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Subtle" Color="{DynamicResource Theme.Color.Subtle}" />
+    <Color x:Key="Theme.Color.Text">#18334C</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Text" Color="{DynamicResource Theme.Color.Text}" />
+    <Color x:Key="Theme.Color.Muted">#52677E</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Muted" Color="{DynamicResource Theme.Color.Muted}" />
+    <Color x:Key="Theme.Color.Heading">#102E48</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Heading" Color="{DynamicResource Theme.Color.Heading}" />
+    <Color x:Key="Theme.Color.Border">#B6CCDF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Border" Color="{DynamicResource Theme.Color.Border}" />
+    <Color x:Key="Theme.Color.BorderStrong">#9CB5CB</Color>
+    <SolidColorBrush x:Key="Theme.Brush.BorderStrong" Color="{DynamicResource Theme.Color.BorderStrong}" />
+    <Color x:Key="Theme.Color.Accent">#147D92</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Accent" Color="{DynamicResource Theme.Color.Accent}" />
+    <Color x:Key="Theme.Color.AccentInk">#116C7D</Color>
+    <SolidColorBrush x:Key="Theme.Brush.AccentInk" Color="{DynamicResource Theme.Color.AccentInk}" />
+    <Color x:Key="Theme.Color.AccentSoft">#E5F2F4</Color>
+    <SolidColorBrush x:Key="Theme.Brush.AccentSoft" Color="{DynamicResource Theme.Color.AccentSoft}" />
+    <Color x:Key="Theme.Color.AccentSoftInk">#116C7D</Color>
+    <SolidColorBrush x:Key="Theme.Brush.AccentSoftInk" Color="{DynamicResource Theme.Color.AccentSoftInk}" />
+    <Color x:Key="Theme.Color.OnAccent">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.OnAccent" Color="{DynamicResource Theme.Color.OnAccent}" />
+    <Color x:Key="Theme.Color.Highlight">#6EE7D8</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Highlight" Color="{DynamicResource Theme.Color.Highlight}" />
+    <Color x:Key="Theme.Color.Navigation">#173C56</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Navigation" Color="{DynamicResource Theme.Color.Navigation}" />
+    <Color x:Key="Theme.Color.NavigationRaised">#2A4D66</Color>
+    <SolidColorBrush x:Key="Theme.Brush.NavigationRaised" Color="{DynamicResource Theme.Color.NavigationRaised}" />
+    <Color x:Key="Theme.Color.NavigationInk">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.NavigationInk" Color="{DynamicResource Theme.Color.NavigationInk}" />
+    <Color x:Key="Theme.Color.NavigationMuted">#C4D3DF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.NavigationMuted" Color="{DynamicResource Theme.Color.NavigationMuted}" />
+    <Color x:Key="Theme.Color.OnNavigation">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.OnNavigation" Color="{DynamicResource Theme.Color.OnNavigation}" />
+    <Color x:Key="Theme.Color.Hover">#E7F1F4</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Hover" Color="{DynamicResource Theme.Color.Hover}" />
+    <Color x:Key="Theme.Color.Selection">#CFE5EB</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Selection" Color="{DynamicResource Theme.Color.Selection}" />
+    <Color x:Key="Theme.Color.Shadow">#243B53</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Shadow" Color="{DynamicResource Theme.Color.Shadow}" />
+    <Color x:Key="Theme.Color.Success">#0F766E</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Success" Color="{DynamicResource Theme.Color.Success}" />
+    <Color x:Key="Theme.Color.SuccessInk">#0F766E</Color>
+    <SolidColorBrush x:Key="Theme.Brush.SuccessInk" Color="{DynamicResource Theme.Color.SuccessInk}" />
+    <Color x:Key="Theme.Color.SuccessSoft">#ECFDF5</Color>
+    <SolidColorBrush x:Key="Theme.Brush.SuccessSoft" Color="{DynamicResource Theme.Color.SuccessSoft}" />
+    <Color x:Key="Theme.Color.SuccessBorder">#A7F3D0</Color>
+    <SolidColorBrush x:Key="Theme.Brush.SuccessBorder" Color="{DynamicResource Theme.Color.SuccessBorder}" />
+    <Color x:Key="Theme.Color.OnSuccess">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.OnSuccess" Color="{DynamicResource Theme.Color.OnSuccess}" />
+    <Color x:Key="Theme.Color.Danger">#B42318</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Danger" Color="{DynamicResource Theme.Color.Danger}" />
+    <Color x:Key="Theme.Color.DangerInk">#B42318</Color>
+    <SolidColorBrush x:Key="Theme.Brush.DangerInk" Color="{DynamicResource Theme.Color.DangerInk}" />
+    <Color x:Key="Theme.Color.DangerSoft">#FEF2F2</Color>
+    <SolidColorBrush x:Key="Theme.Brush.DangerSoft" Color="{DynamicResource Theme.Color.DangerSoft}" />
+    <Color x:Key="Theme.Color.DangerBorder">#FECACA</Color>
+    <SolidColorBrush x:Key="Theme.Brush.DangerBorder" Color="{DynamicResource Theme.Color.DangerBorder}" />
+    <Color x:Key="Theme.Color.OnDanger">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.OnDanger" Color="{DynamicResource Theme.Color.OnDanger}" />
+    <Color x:Key="Theme.Color.Warning">#B45309</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Warning" Color="{DynamicResource Theme.Color.Warning}" />
+    <Color x:Key="Theme.Color.WarningInk">#B45309</Color>
+    <SolidColorBrush x:Key="Theme.Brush.WarningInk" Color="{DynamicResource Theme.Color.WarningInk}" />
+    <Color x:Key="Theme.Color.WarningSoft">#FFFBEB</Color>
+    <SolidColorBrush x:Key="Theme.Brush.WarningSoft" Color="{DynamicResource Theme.Color.WarningSoft}" />
+    <Color x:Key="Theme.Color.WarningBorder">#FDE68A</Color>
+    <SolidColorBrush x:Key="Theme.Brush.WarningBorder" Color="{DynamicResource Theme.Color.WarningBorder}" />
+    <Color x:Key="Theme.Color.OnWarning">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.OnWarning" Color="{DynamicResource Theme.Color.OnWarning}" />
+    <Color x:Key="Theme.Color.Info">#1D4ED8</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Info" Color="{DynamicResource Theme.Color.Info}" />
+    <Color x:Key="Theme.Color.InfoInk">#1D4ED8</Color>
+    <SolidColorBrush x:Key="Theme.Brush.InfoInk" Color="{DynamicResource Theme.Color.InfoInk}" />
+    <Color x:Key="Theme.Color.InfoSoft">#EFF6FF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.InfoSoft" Color="{DynamicResource Theme.Color.InfoSoft}" />
+    <Color x:Key="Theme.Color.InfoBorder">#BFDBFE</Color>
+    <SolidColorBrush x:Key="Theme.Brush.InfoBorder" Color="{DynamicResource Theme.Color.InfoBorder}" />
+    <Color x:Key="Theme.Color.OnInfo">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.OnInfo" Color="{DynamicResource Theme.Color.OnInfo}" />
+    <Color x:Key="Theme.Color.Violet">#6D28D9</Color>
+    <SolidColorBrush x:Key="Theme.Brush.Violet" Color="{DynamicResource Theme.Color.Violet}" />
+    <Color x:Key="Theme.Color.VioletInk">#6D28D9</Color>
+    <SolidColorBrush x:Key="Theme.Brush.VioletInk" Color="{DynamicResource Theme.Color.VioletInk}" />
+    <Color x:Key="Theme.Color.VioletSoft">#F5F3FF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.VioletSoft" Color="{DynamicResource Theme.Color.VioletSoft}" />
+    <Color x:Key="Theme.Color.VioletBorder">#DDD6FE</Color>
+    <SolidColorBrush x:Key="Theme.Brush.VioletBorder" Color="{DynamicResource Theme.Color.VioletBorder}" />
+    <Color x:Key="Theme.Color.OnViolet">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Theme.Brush.OnViolet" Color="{DynamicResource Theme.Color.OnViolet}" />
+    <SolidColorBrush x:Key="Theme.Brush.Window" Color="{DynamicResource Theme.Color.Background}" />
+    <SolidColorBrush x:Key="Theme.Brush.PanelBorder" Color="{DynamicResource Theme.Color.Border}" />
+    <SolidColorBrush x:Key="Theme.Brush.Sheen" Color="#20FFFFFF" />
+    <SolidColorBrush x:Key="Theme.Brush.Reveal" Color="#10147D92" />
+    <SolidColorBrush x:Key="Theme.Brush.BackdropA" Color="#30147D92" />
+    <SolidColorBrush x:Key="Theme.Brush.BackdropB" Color="#30B6A1DD" />
+    <SolidColorBrush x:Key="Theme.Brush.Grid" Color="Transparent" />
+    <CornerRadius x:Key="Theme.CornerRadius">16</CornerRadius>
+    <CornerRadius x:Key="Theme.SmallCornerRadius">9</CornerRadius>
+    <CornerRadius x:Key="Theme.PanelCornerRadius">20</CornerRadius>
+    <sys:Double xmlns:sys="clr-namespace:System;assembly=System.Runtime" x:Key="Theme.SurfaceOpacity">0.76</sys:Double>
+</ResourceDictionary>

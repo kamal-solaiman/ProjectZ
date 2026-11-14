@@ -8,26 +8,29 @@
             <Binding Path="WindowTitle" Mode="OneWay" />
         </MultiBinding>
     </Window.Title>
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
     <Grid Margin="20"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-        <Border Padding="18,14" CornerRadius="16" Background="#102E48"><StackPanel FlowDirection="RightToLeft">
-            <TextBlock Text="تحويل داخلي بين الحسابات" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="White" />
-            <TextBlock Text="{Binding SourceSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#99F6E4" TextWrapping="Wrap" Margin="0,4,0,0" />
+        <Border Padding="18,14" CornerRadius="16" Background="{DynamicResource Theme.Legacy.102E48.Navigation}"><StackPanel FlowDirection="RightToLeft">
+            <TextBlock Text="تحويل داخلي بين الحسابات" Style="{StaticResource PosRtlTextStyle}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
+            <TextBlock Text="{Binding SourceSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="{DynamicResource Theme.Legacy.99F6E4.Highlight}" TextWrapping="Wrap" Margin="0,4,0,0" />
         </StackPanel></Border>
-        <Border Grid.Row="1" Padding="20" CornerRadius="16" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,14"><StackPanel>
-            <Border Padding="10,8" CornerRadius="8" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1" Margin="0,0,0,14"><TextBlock Text="يُسجل طرفا التحويل: منصرف من المصدر ووارد للمستلم، مع مراجعة حدود المحافظ الإلكترونية." Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#0F766E" TextWrapping="Wrap" /></Border>
+        <Border Grid.Row="1" Padding="20" CornerRadius="16" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1" Margin="0,14"><StackPanel>
+            <Border Padding="10,8" CornerRadius="8" Background="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}" BorderBrush="{DynamicResource Theme.Legacy.99F6E4.Border}" BorderThickness="1" Margin="0,0,0,14"><TextBlock Text="يُسجل طرفا التحويل: منصرف من المصدر ووارد للمستلم، مع مراجعة حدود المحافظ الإلكترونية." Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" TextWrapping="Wrap" /></Border>
             <TextBlock Text="إلى الحساب *" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6" />
             <ComboBox Style="{StaticResource PosComboBoxStyle}" ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}" FlowDirection="RightToLeft">
-                <ComboBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding DisplayName}" Style="{StaticResource PosRtlTextStyle}" FontWeight="SemiBold" /><TextBlock Text="{Binding DisplayIdentifier}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="10.5" Foreground="#64748B" /></StackPanel></DataTemplate></ComboBox.ItemTemplate>
+                <ComboBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding DisplayName}" Style="{StaticResource PosRtlTextStyle}" FontWeight="SemiBold" /><TextBlock Text="{Binding DisplayIdentifier}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" /></StackPanel></DataTemplate></ComboBox.ItemTemplate>
             </ComboBox>
             <TextBlock Text="مبلغ التحويل *" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,14,0,6" />
             <TextBox x:Name="AmountInput" Style="{StaticResource PosNumericTextBoxStyle}" FontSize="18" FontWeight="Bold" Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}" />
             <TextBlock Text="ملاحظات" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" Margin="0,12,0,6" />
             <TextBox Style="{StaticResource PosCompactTextBoxStyle}" FlowDirection="RightToLeft" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" Height="70" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" MaxLength="300" />
-            <TextBlock Text="{Binding Error}" Style="{StaticResource PosRtlTextStyle}" Foreground="#B42318" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="{Binding Error, Converter={StaticResource StringNotEmptyToVis}}" />
+            <TextBlock Text="{Binding Error}" Style="{StaticResource PosRtlTextStyle}" Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,10,0,0" Visibility="{Binding Error, Converter={StaticResource StringNotEmptyToVis}}" />
         </StackPanel></Border>
         <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
             <Button Content="إلغاء" Style="{StaticResource PosSecondaryButtonStyle}" MinWidth="110" Padding="18,10" IsCancel="True" Command="{Binding CancelCommand}" />
             <Button Grid.Column="2" Content="تنفيذ التحويل" Style="{StaticResource PosPrimaryCompactButtonStyle}" MinWidth="170" Padding="20,10" IsDefault="True" Command="{Binding SaveCommand}" />
         </Grid>
+    </Grid>
     </Grid>
 </Window>

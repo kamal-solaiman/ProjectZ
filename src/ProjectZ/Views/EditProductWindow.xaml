@@ -11,6 +11,8 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
 
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
     <Grid Margin="20" FlowDirection="LeftToRight">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -23,19 +25,19 @@
                 Margin="0,0,0,14"
                 Padding="16,13"
                 CornerRadius="14"
-                Background="#102E48"
+                Background="{DynamicResource Theme.Legacy.102E48.Navigation}"
                 FlowDirection="LeftToRight">
             <StackPanel HorizontalAlignment="Right">
                 <TextBlock Text="تعديل بيانات المنتج والأسعار"
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="18"
                            FontWeight="Bold"
-                           Foreground="White" />
+                           Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
                 <TextBlock Text="تعديل سريع متزامن مع المخزون ونقطة البيع"
                            Style="{StaticResource PosRtlTextStyle}"
                            Margin="0,3,0,0"
                            FontSize="12"
-                           Foreground="#6EE7D8" />
+                           Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}" />
             </StackPanel>
         </Border>
 
@@ -43,8 +45,8 @@
         <Border Grid.Row="1"
                 Padding="18"
                 CornerRadius="14"
-                Background="#F8FAFC"
-                BorderBrush="#E2E8F0"
+                Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                 BorderThickness="1"
                 FlowDirection="LeftToRight">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -114,7 +116,7 @@
                     </Grid>
 
                     <!-- Pricing Section -->
-                    <Border Margin="0,0,0,12" Padding="12" CornerRadius="12" Background="White" BorderBrush="#E2E8F0" BorderThickness="1">
+                    <Border Margin="0,0,0,12" Padding="12" CornerRadius="12" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                         <StackPanel>
                             <Grid Margin="0,0,0,10" FlowDirection="LeftToRight">
                                 <Grid.ColumnDefinitions>
@@ -135,7 +137,7 @@
                                            VerticalAlignment="Center"
                                            FontSize="14"
                                            FontWeight="Bold"
-                                           Foreground="#102E48" />
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
                             </Grid>
 
                             <Grid Margin="0,0,0,10" FlowDirection="LeftToRight">
@@ -165,17 +167,17 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Retail (Right) -->
-                                <Border Grid.Column="4" Padding="10" CornerRadius="10" Background="#F0FDFA" BorderBrush="#147D92" BorderThickness="1.5">
+                                <Border Grid.Column="4" Padding="10" CornerRadius="10" Background="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}" BorderBrush="{DynamicResource Theme.Legacy.147D92.Accent}" BorderThickness="1.5">
                                     <StackPanel>
-                                        <TextBlock Text="سعر قطاعي *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#147D92" Margin="0,0,0,5" />
+                                        <TextBlock Text="سعر قطاعي *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.147D92.AccentInk}" Margin="0,0,0,5" />
                                         <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Text="{Binding RetailPriceText, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBlock Text="{Binding RetailMarginText}" Margin="0,4,0,0" FontSize="11" FontWeight="SemiBold" Visibility="{Binding HasCostPrice, Converter={StaticResource BoolToVis}}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-                                                    <Setter Property="Foreground" Value="#0F766E" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsRetailMarginNegative}" Value="True">
-                                                            <Setter Property="Foreground" Value="#B42318" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -185,17 +187,17 @@
                                 </Border>
 
                                 <!-- Wholesale (Center) -->
-                                <Border Grid.Column="2" Padding="10" CornerRadius="10" Background="White" BorderBrush="#102E48" BorderThickness="1.5">
+                                <Border Grid.Column="2" Padding="10" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.102E48.Border}" BorderThickness="1.5">
                                     <StackPanel>
-                                        <TextBlock Text="سعر جملة *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#102E48" Margin="0,0,0,5" />
+                                        <TextBlock Text="سعر جملة *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,5" />
                                         <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Text="{Binding WholesalePriceText, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBlock Text="{Binding WholesaleMarginText}" Margin="0,4,0,0" FontSize="11" FontWeight="SemiBold" Visibility="{Binding HasCostPrice, Converter={StaticResource BoolToVis}}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-                                                    <Setter Property="Foreground" Value="#0F766E" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsWholesaleMarginNegative}" Value="True">
-                                                            <Setter Property="Foreground" Value="#B42318" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -205,17 +207,17 @@
                                 </Border>
 
                                 <!-- Special (Left) -->
-                                <Border Grid.Column="0" Padding="10" CornerRadius="10" Background="#FAF5FF" BorderBrush="#6D28D9" BorderThickness="1.5">
+                                <Border Grid.Column="0" Padding="10" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FAF5FF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.6D28D9.VioletBorder}" BorderThickness="1.5">
                                     <StackPanel>
-                                        <TextBlock Text="سعر مميز *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#6D28D9" Margin="0,0,0,5" />
+                                        <TextBlock Text="سعر مميز *" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}" Margin="0,0,0,5" />
                                         <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Text="{Binding SpecialPriceText, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBlock Text="{Binding SpecialMarginText}" Margin="0,4,0,0" FontSize="11" FontWeight="SemiBold" Visibility="{Binding HasCostPrice, Converter={StaticResource BoolToVis}}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-                                                    <Setter Property="Foreground" Value="#0F766E" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSpecialMarginNegative}" Value="True">
-                                                            <Setter Property="Foreground" Value="#B42318" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -225,13 +227,13 @@
                                 </Border>
                             </Grid>
 
-                            <Border Margin="0,8,0,0" Padding="8,5" CornerRadius="8" Background="#FFFBEB" BorderBrush="#F59E0B" BorderThickness="1"
+                            <Border Margin="0,8,0,0" Padding="8,5" CornerRadius="8" Background="{DynamicResource Theme.Legacy.FFFBEB.WarningSoft}" BorderBrush="{DynamicResource Theme.Legacy.F59E0B.WarningBorder}" BorderThickness="1"
                                     Visibility="{Binding HasPriceOrderWarning, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="ملاحظة تسعير: يُفضّل أن يكون سعر القطاعي أكبر من سعر الجملة، والسعر المميز أقل من سعر الجملة."
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="11.5"
                                            FontWeight="SemiBold"
-                                           Foreground="#92400E" />
+                                           Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
                             </Border>
                         </StackPanel>
                     </Border>
@@ -262,7 +264,7 @@
                                Margin="0,8,0,0"
                                FontSize="12.5"
                                FontWeight="SemiBold"
-                               Foreground="#B42318"
+                               Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}"
                                TextWrapping="Wrap"
                                Visibility="{Binding Error, Converter={StaticResource StringNotEmptyToVis}}" />
                 </StackPanel>
@@ -293,5 +295,6 @@
                     IsDefault="True"
                     Command="{Binding SaveCommand}" />
         </Grid>
+    </Grid>
     </Grid>
 </Window>

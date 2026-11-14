@@ -6,9 +6,9 @@
 
     <UserControl.Resources>
         <Style x:Key="PurCategoryPillButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#F1F5F9" />
-            <Setter Property="Foreground" Value="#475569" />
-            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="Background" Value="{DynamicResource Theme.Legacy.F1F5F9.Surface}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.475569.Muted}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="11,5" />
             <Setter Property="Margin" Value="6,0,0,0" />
@@ -28,7 +28,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Pill" Property="BorderBrush" Value="#147D92" />
+                                <Setter TargetName="Pill" Property="BorderBrush" Value="{DynamicResource Theme.Legacy.147D92.Accent}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -36,17 +36,17 @@
             </Setter>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                    <Setter Property="Background" Value="#147D92" />
-                    <Setter Property="Foreground" Value="White" />
-                    <Setter Property="BorderBrush" Value="#147D92" />
+                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.147D92.Accent}" />
+                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.147D92.Accent}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="PurPaymentPresetBtnStyle" TargetType="Button">
-            <Setter Property="Background" Value="#F8FAFC" />
-            <Setter Property="Foreground" Value="#334155" />
-            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="Background" Value="{DynamicResource Theme.Legacy.F8FAFC.Surface}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.334155.Text}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="8,6" />
             <Setter Property="FontSize" Value="12" />
@@ -65,7 +65,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Body" Property="BorderBrush" Value="#147D92" />
+                                <Setter TargetName="Body" Property="BorderBrush" Value="{DynamicResource Theme.Legacy.147D92.Accent}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -118,13 +118,13 @@
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="22"
                            FontWeight="Bold"
-                           Foreground="#102E48"
+                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}"
                            VerticalAlignment="Center" />
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
-                        Background="#ECFDF5"
-                        BorderBrush="#A7F3D0"
+                        Background="{DynamicResource Theme.Legacy.ECFDF5.SuccessSoft}"
+                        BorderBrush="{DynamicResource Theme.Legacy.A7F3D0.SuccessBorder}"
                         BorderThickness="1"
                         VerticalAlignment="Center"
                         ToolTip="{Binding SupplierSourceLabel}">
@@ -132,20 +132,20 @@
                                Style="{StaticResource PosCenterTextStyle}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
-                               Foreground="#0F766E" />
+                               Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                 </Border>
                 <Border Margin="8,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
-                        Background="#F0FDFA"
-                        BorderBrush="#99F6E4"
+                        Background="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}"
+                        BorderBrush="{DynamicResource Theme.Legacy.99F6E4.Border}"
                         BorderThickness="1"
                         VerticalAlignment="Center">
                     <TextBlock Text="ربط المنتج بالمورد · توريد للمخزون · دفع مقسم وآجل"
                                Style="{StaticResource PosCenterTextStyle}"
                                FontSize="11.5"
                                FontWeight="SemiBold"
-                               Foreground="#0F766E" />
+                               Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                 </Border>
             </StackPanel>
         </Grid>
@@ -155,8 +155,8 @@
                 Margin="0,0,0,12"
                 Padding="8"
                 CornerRadius="12"
-                Background="#F8FAFC"
-                BorderBrush="#E2E8F0"
+                Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                 BorderThickness="1"
                 FlowDirection="LeftToRight">
             <Grid>
@@ -171,8 +171,8 @@
                         Padding="12,7"
                         Command="{Binding NewInvoiceCommand}">
                     <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
-                        <TextBlock Text="+" Style="{StaticResource PosCenterTextStyle}" FontSize="15" FontWeight="Bold" Foreground="#147D92" />
-                        <TextBlock Text="فاتورة شراء جديدة" Style="{StaticResource PosRtlTextStyle}" Margin="6,0,0,0" FontSize="13" FontWeight="Bold" Foreground="#147D92" />
+                        <TextBlock Text="+" Style="{StaticResource PosCenterTextStyle}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.147D92.AccentInk}" />
+                        <TextBlock Text="فاتورة شراء جديدة" Style="{StaticResource PosRtlTextStyle}" Margin="6,0,0,0" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.147D92.AccentInk}" />
                     </StackPanel>
                 </Button>
 
@@ -191,12 +191,12 @@
                                 <Border Margin="0,0,8,0" CornerRadius="10" BorderThickness="1">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="White" />
-                                            <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                            <Setter Property="Background" Value="{DynamicResource Theme.Legacy.FFFFFF.Surface}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                    <Setter Property="Background" Value="#102E48" />
-                                                    <Setter Property="BorderBrush" Value="#102E48" />
+                                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.102E48.Navigation}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.102E48.Border}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -224,10 +224,10 @@
                                                 <TextBlock Text="{Binding TabTitle}" FontSize="13" FontWeight="Bold">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-                                                            <Setter Property="Foreground" Value="#172B41" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.172B41.Text}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                    <Setter Property="Foreground" Value="White" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -239,10 +239,10 @@
                                                            VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PosLtrTextStyle}">
-                                                            <Setter Property="Foreground" Value="#64748B" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#6EE7D8" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.6EE7D8.AccentInk}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -266,7 +266,7 @@
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Background" Value="Transparent" />
-                                                    <Setter Property="Foreground" Value="#64748B" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Button">
@@ -275,8 +275,8 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="CloseChrome" Property="Background" Value="#FEE2E2" />
-                                                                        <Setter Property="Foreground" Value="#B42318" />
+                                                                        <Setter TargetName="CloseChrome" Property="Background" Value="{DynamicResource Theme.Legacy.FEE2E2.DangerSoft}" />
+                                                                        <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -284,7 +284,7 @@
                                                     </Setter>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                            <Setter Property="Foreground" Value="#B7CFDD" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B7CFDD.Text}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -317,8 +317,8 @@
                     <Border Margin="0,0,0,10"
                             Padding="13"
                             CornerRadius="14"
-                            Background="#F8FAFC"
-                            BorderBrush="#E2E8F0"
+                            Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                            BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                             BorderThickness="1">
                         <StackPanel>
                             <Grid FlowDirection="LeftToRight">
@@ -340,22 +340,22 @@
                                            VerticalAlignment="Center"
                                            FontSize="14"
                                            FontWeight="Bold"
-                                           Foreground="#102E48" />
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
                             </Grid>
 
                             <!-- Prompt if no supplier selected yet -->
                             <Border Margin="0,8,0,0"
                                     Padding="10,8"
                                     CornerRadius="9"
-                                    Background="#FFFBEB"
-                                    BorderBrush="#FCD34D"
+                                    Background="{DynamicResource Theme.Legacy.FFFBEB.WarningSoft}"
+                                    BorderBrush="{DynamicResource Theme.Legacy.FCD34D.WarningBorder}"
                                     BorderThickness="1"
                                     Visibility="{Binding ActiveInvoice.NeedsSupplierSelection, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="اختر المورد من البحث/القائمة أو أضف موردًا جديدًا لربط منتجات الفاتورة به عند التوريد."
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="11.5"
                                            FontWeight="SemiBold"
-                                           Foreground="#92400E"
+                                           Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}"
                                            TextWrapping="Wrap" />
                             </Border>
 
@@ -363,8 +363,8 @@
                             <Border Margin="0,8,0,0"
                                     Padding="10,8"
                                     CornerRadius="10"
-                                    Background="#F0FDFA"
-                                    BorderBrush="#147D92"
+                                    Background="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}"
+                                    BorderBrush="{DynamicResource Theme.Legacy.147D92.Accent}"
                                     BorderThickness="1.5"
                                     Visibility="{Binding ActiveInvoice.HasSelectedSupplier, Converter={StaticResource BoolToVis}}">
                                 <Grid FlowDirection="LeftToRight">
@@ -386,17 +386,17 @@
                                                    Style="{StaticResource PosRtlTextStyle}"
                                                    FontSize="13.5"
                                                    FontWeight="Bold"
-                                                   Foreground="#102E48" />
+                                                   Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" FlowDirection="RightToLeft" Margin="0,2,0,0">
                                             <TextBlock Text="{Binding ActiveInvoice.SelectedSupplier.DisplayPhone}"
                                                        Style="{StaticResource PosLtrTextStyle}"
                                                        FontSize="11.5"
-                                                       Foreground="#475569" />
-                                            <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" Foreground="#94A3B8" />
+                                                       Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
+                                            <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}" />
                                             <TextBlock Text="{Binding ActiveInvoice.SelectedSupplier.DisplayCompany}"
                                                        Style="{StaticResource PosRtlTextStyle}"
                                                        FontSize="11.5"
-                                                       Foreground="#0F766E"
+                                                       Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}"
                                                        FontWeight="SemiBold" />
                                         </StackPanel>
                                         <TextBlock Text="{Binding ActiveInvoice.SelectedSupplier.OutstandingPayableDisplay, StringFormat='آجل حالي للمورد: {0}'}"
@@ -404,7 +404,7 @@
                                                    Margin="0,2,0,0"
                                                    FontSize="11"
                                                    FontWeight="Bold"
-                                                   Foreground="#B45309"
+                                                   Foreground="{DynamicResource Theme.Legacy.B45309.WarningInk}"
                                                    Visibility="{Binding ActiveInvoice.SelectedSupplier.HasOutstandingPayable, Converter={StaticResource BoolToVis}}" />
                                     </StackPanel>
                                 </Grid>
@@ -436,7 +436,7 @@
                                                Margin="28,0,10,0"
                                                VerticalAlignment="Center"
                                                FontSize="12"
-                                               Foreground="#94A3B8"
+                                               Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}"
                                                IsHitTestVisible="False"
                                                Visibility="{Binding ActiveInvoice.SupplierSearchText, Converter={StaticResource StringEmptyToVis}}" />
                                     <Button Content="×"
@@ -455,8 +455,8 @@
                             <Border Margin="0,8,0,0"
                                     Padding="10"
                                     CornerRadius="10"
-                                    Background="#FFFBEB"
-                                    BorderBrush="#F59E0B"
+                                    Background="{DynamicResource Theme.Legacy.FFFBEB.WarningSoft}"
+                                    BorderBrush="{DynamicResource Theme.Legacy.F59E0B.WarningBorder}"
                                     BorderThickness="1"
                                     Visibility="{Binding ActiveInvoice.IsSupplierNotFound, Converter={StaticResource BoolToVis}}">
                                 <StackPanel>
@@ -464,7 +464,7 @@
                                                Style="{StaticResource PosRtlTextStyle}"
                                                FontSize="12"
                                                FontWeight="SemiBold"
-                                               Foreground="#92400E" />
+                                               Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
                                     <Button Margin="0,6,0,0"
                                             Content="+ إضافة هذا المورد الآن"
                                             Style="{StaticResource PosPrimaryCompactButtonStyle}"
@@ -478,8 +478,8 @@
                             <Border Margin="0,8,0,0"
                                     Padding="4"
                                     CornerRadius="10"
-                                    Background="White"
-                                    BorderBrush="#CBD5E1"
+                                    Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
+                                    BorderBrush="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}"
                                     BorderThickness="1">
                                 <Border.Style>
                                     <Style TargetType="Border">
@@ -512,7 +512,7 @@
                                                             </Border>
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="ItemBg" Property="Background" Value="#E0F2FE" />
+                                                                    <Setter TargetName="ItemBg" Property="Background" Value="{DynamicResource Theme.Legacy.E0F2FE.InfoSoft}" />
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
                                                         </ControlTemplate>
@@ -526,11 +526,11 @@
                                                                    Text="{Binding DisplayPhone}"
                                                                    Style="{StaticResource PosLtrTextStyle}"
                                                                    FontSize="11"
-                                                                   Foreground="#147D92"
+                                                                   Foreground="{DynamicResource Theme.Legacy.147D92.AccentInk}"
                                                                    VerticalAlignment="Center" />
                                                         <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                                                             <TextBlock Text="{Binding Name}" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="SemiBold" />
-                                                            <TextBlock Text="{Binding DisplayCompany}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#64748B" />
+                                                            <TextBlock Text="{Binding DisplayCompany}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                                         </StackPanel>
                                                     </Grid>
                                                 </Button>
@@ -549,7 +549,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="رقم فاتورة المورد (اختياري)" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#64748B" Margin="0,0,0,3" />
+                                    <TextBlock Text="رقم فاتورة المورد (اختياري)" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" Margin="0,0,0,3" />
                                     <TextBox Style="{StaticResource PosNumericTextBoxStyle}"
                                              MinHeight="30"
                                              Padding="8,4"
@@ -559,7 +559,7 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Text="تاريخ التوريد" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#64748B" Margin="0,0,0,3" />
+                                    <TextBlock Text="تاريخ التوريد" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" Margin="0,0,0,3" />
                                     <DatePicker SelectedDate="{Binding ActiveInvoice.PurchaseDate}" Height="30" />
                                 </StackPanel>
                             </Grid>
@@ -577,7 +577,7 @@
                                            Margin="10,0,10,0"
                                            VerticalAlignment="Center"
                                            FontSize="11.5"
-                                           Foreground="#94A3B8"
+                                           Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}"
                                            IsHitTestVisible="False"
                                            Visibility="{Binding ActiveInvoice.Notes, Converter={StaticResource StringEmptyToVis}}" />
                             </Grid>
@@ -588,8 +588,8 @@
                     <Border Margin="0,0,0,10"
                             Padding="13"
                             CornerRadius="14"
-                            Background="#F8FAFC"
-                            BorderBrush="#E2E8F0"
+                            Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                            BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                             BorderThickness="1"
                             FlowDirection="LeftToRight">
                         <StackPanel>
@@ -599,7 +599,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding ActiveInvoice.ItemsCountSummary}" Style="{StaticResource PosRtlTextStyle}" HorizontalAlignment="Left" FontSize="12" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="1" Text="الأصناف الموردة:" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="#64748B" />
+                                <TextBlock Grid.Column="1" Text="الأصناف الموردة:" Style="{StaticResource PosRtlTextStyle}" FontSize="12" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                             </Grid>
 
                             <Grid Margin="0,0,0,5">
@@ -608,7 +608,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding ActiveInvoice.SubtotalDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="13.5" FontWeight="SemiBold" />
-                                <TextBlock Grid.Column="1" Text="إجمالي الفاتورة قبل الخصم:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" Foreground="#64748B" />
+                                <TextBlock Grid.Column="1" Text="إجمالي الفاتورة قبل الخصم:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                             </Grid>
 
                             <Grid Margin="0,0,0,9">
@@ -622,10 +622,10 @@
                                          Padding="8,4"
                                          FontSize="13"
                                          Text="{Binding ActiveInvoice.DiscountAmountText, UpdateSourceTrigger=PropertyChanged}" />
-                                <TextBlock Grid.Column="1" Text="خصم من المورد (ج.م):" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" FontSize="12.5" Foreground="#64748B" />
+                                <TextBlock Grid.Column="1" Text="خصم من المورد (ج.م):" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" FontSize="12.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                             </Grid>
 
-                            <Border Padding="13,9" CornerRadius="11" Background="#102E48">
+                            <Border Padding="13,9" CornerRadius="11" Background="{DynamicResource Theme.Legacy.102E48.Navigation}">
                                 <Grid FlowDirection="LeftToRight">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -636,14 +636,14 @@
                                                Style="{StaticResource PosLtrTextStyle}"
                                                FontSize="20"
                                                FontWeight="Bold"
-                                               Foreground="#6EE7D8"
+                                               Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}"
                                                VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1"
                                                Text="الصافي المستحق للمورد"
                                                Style="{StaticResource PosRtlTextStyle}"
                                                FontSize="13"
                                                FontWeight="Bold"
-                                               Foreground="White"
+                                               Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}"
                                                VerticalAlignment="Center" />
                                 </Grid>
                             </Border>
@@ -653,8 +653,8 @@
                     <!-- CARD 3: Flexible Payment Splitting & Credit -->
                     <Border Padding="13"
                             CornerRadius="14"
-                            Background="#F8FAFC"
-                            BorderBrush="#E2E8F0"
+                            Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                            BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                             BorderThickness="1"
                             FlowDirection="LeftToRight">
                         <StackPanel>
@@ -663,10 +663,10 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" Padding="7,2" CornerRadius="6" Background="#E0F2FE">
-                                    <TextBlock Text="{Binding ActiveInvoice.DraftStatusTitle}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" Foreground="#0369A1" />
+                                <Border Grid.Column="0" Padding="7,2" CornerRadius="6" Background="{DynamicResource Theme.Legacy.E0F2FE.InfoSoft}">
+                                    <TextBlock Text="{Binding ActiveInvoice.DraftStatusTitle}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.0369A1.InfoInk}" />
                                 </Border>
-                                <TextBlock Grid.Column="1" Text="تجزئة ووسائل الدفع للمورد" Style="{StaticResource PosRtlTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="#102E48" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="تجزئة ووسائل الدفع للمورد" Style="{StaticResource PosRtlTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" VerticalAlignment="Center" />
                             </Grid>
 
                             <!-- Quick Presets -->
@@ -689,9 +689,9 @@
                                         <Style TargetType="Button" BasedOn="{StaticResource PurPaymentPresetBtnStyle}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ActiveInvoice.IsCashPresetSelected}" Value="True">
-                                                    <Setter Property="Background" Value="#0F766E" />
-                                                    <Setter Property="BorderBrush" Value="#0F766E" />
-                                                    <Setter Property="Foreground" Value="White" />
+                                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.0F766E.Success}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.0F766E.SuccessBorder}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -703,9 +703,9 @@
                                         <Style TargetType="Button" BasedOn="{StaticResource PurPaymentPresetBtnStyle}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ActiveInvoice.IsVodafonePresetSelected}" Value="True">
-                                                    <Setter Property="Background" Value="#C8102E" />
-                                                    <Setter Property="BorderBrush" Value="#C8102E" />
-                                                    <Setter Property="Foreground" Value="White" />
+                                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.C8102E.Danger}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.C8102E.DangerBorder}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -717,9 +717,9 @@
                                         <Style TargetType="Button" BasedOn="{StaticResource PurPaymentPresetBtnStyle}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ActiveInvoice.IsInstaPayPresetSelected}" Value="True">
-                                                    <Setter Property="Background" Value="#6D28D9" />
-                                                    <Setter Property="BorderBrush" Value="#6D28D9" />
-                                                    <Setter Property="Foreground" Value="White" />
+                                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.6D28D9.Violet}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.6D28D9.VioletBorder}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -731,9 +731,9 @@
                                         <Style TargetType="Button" BasedOn="{StaticResource PurPaymentPresetBtnStyle}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ActiveInvoice.IsSplitPresetSelected}" Value="True">
-                                                    <Setter Property="Background" Value="#102E48" />
-                                                    <Setter Property="BorderBrush" Value="#102E48" />
-                                                    <Setter Property="Foreground" Value="White" />
+                                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.102E48.Navigation}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.102E48.Border}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -745,9 +745,9 @@
                                         <Style TargetType="Button" BasedOn="{StaticResource PurPaymentPresetBtnStyle}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ActiveInvoice.IsFullCreditPresetSelected}" Value="True">
-                                                    <Setter Property="Background" Value="#D97706" />
-                                                    <Setter Property="BorderBrush" Value="#D97706" />
-                                                    <Setter Property="Foreground" Value="White" />
+                                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.D97706.Warning}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.D97706.WarningBorder}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -756,14 +756,14 @@
                             </Grid>
 
                             <!-- Channel 1: Cash -->
-                            <Border Margin="0,0,0,7" Padding="9" CornerRadius="10" Background="White" BorderThickness="1">
+                            <Border Margin="0,0,0,7" Padding="9" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderThickness="1">
                                 <Border.Style>
                                     <Style TargetType="Border">
-                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.E2E8F0.Border}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding ActiveInvoice.IsCashEnabled}" Value="True">
-                                                <Setter Property="BorderBrush" Value="#0F766E" />
-                                                <Setter Property="Background" Value="#F0FDFA" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.0F766E.SuccessBorder}" />
+                                                <Setter Property="Background" Value="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -791,20 +791,20 @@
                                               Style="{StaticResource PosCheckBoxStyle}"
                                               HorizontalAlignment="Right"
                                               IsChecked="{Binding ActiveInvoice.IsCashEnabled, Mode=TwoWay}">
-                                        <TextBlock Text="نقدي (كاش)" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="#0F766E" />
+                                        <TextBlock Text="نقدي (كاش)" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                     </CheckBox>
                                 </Grid>
                             </Border>
 
                             <!-- Channel 2: Vodafone Cash -->
-                            <Border Margin="0,0,0,7" Padding="9" CornerRadius="10" Background="White" BorderThickness="1">
+                            <Border Margin="0,0,0,7" Padding="9" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderThickness="1">
                                 <Border.Style>
                                     <Style TargetType="Border">
-                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.E2E8F0.Border}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding ActiveInvoice.IsVodafoneCashEnabled}" Value="True">
-                                                <Setter Property="BorderBrush" Value="#C8102E" />
-                                                <Setter Property="Background" Value="#FEF2F2" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.C8102E.DangerBorder}" />
+                                                <Setter Property="Background" Value="{DynamicResource Theme.Legacy.FEF2F2.DangerSoft}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -833,21 +833,21 @@
                                                   Style="{StaticResource PosCheckBoxStyle}"
                                                   HorizontalAlignment="Right"
                                                   IsChecked="{Binding ActiveInvoice.IsVodafoneCashEnabled, Mode=TwoWay}">
-                                            <TextBlock Text="فودافون كاش" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="#C8102E" />
+                                            <TextBlock Text="فودافون كاش" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.C8102E.DangerInk}" />
                                         </CheckBox>
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
                             <!-- Channel 3: InstaPay -->
-                            <Border Margin="0,0,0,8" Padding="9" CornerRadius="10" Background="White" BorderThickness="1">
+                            <Border Margin="0,0,0,8" Padding="9" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderThickness="1">
                                 <Border.Style>
                                     <Style TargetType="Border">
-                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.E2E8F0.Border}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding ActiveInvoice.IsInstaPayEnabled}" Value="True">
-                                                <Setter Property="BorderBrush" Value="#6D28D9" />
-                                                <Setter Property="Background" Value="#F5F3FF" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.6D28D9.VioletBorder}" />
+                                                <Setter Property="Background" Value="{DynamicResource Theme.Legacy.F5F3FF.InfoSoft}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -876,14 +876,14 @@
                                                   Style="{StaticResource PosCheckBoxStyle}"
                                                   HorizontalAlignment="Right"
                                                   IsChecked="{Binding ActiveInvoice.IsInstaPayEnabled, Mode=TwoWay}">
-                                            <TextBlock Text="إنستاباي" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="#6D28D9" />
+                                            <TextBlock Text="إنستاباي" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}" />
                                         </CheckBox>
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
                             <!-- Payment Balance Summary -->
-                            <Border Padding="10,8" CornerRadius="9" Background="White" BorderBrush="#CBD5E1" BorderThickness="1">
+                            <Border Padding="10,8" CornerRadius="9" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}" BorderThickness="1">
                                 <StackPanel>
                                     <Grid Margin="0,0,0,4">
                                         <Grid.ColumnDefinitions>
@@ -891,7 +891,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{Binding ActiveInvoice.TotalPaidDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="13" FontWeight="Bold" />
-                                        <TextBlock Grid.Column="1" Text="إجمالي المدفوع الآن:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" Foreground="#64748B" />
+                                        <TextBlock Grid.Column="1" Text="إجمالي المدفوع الآن:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                     </Grid>
 
                                     <Grid Visibility="{Binding ActiveInvoice.HasRemainingPayable, Converter={StaticResource BoolToVis}}">
@@ -899,8 +899,8 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding ActiveInvoice.RemainingPayableDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="13" FontWeight="Bold" Foreground="#D97706" />
-                                        <TextBlock Grid.Column="1" Text="المتبقي آجل للمورد:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#D97706" />
+                                        <TextBlock Grid.Column="0" Text="{Binding ActiveInvoice.RemainingPayableDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.D97706.WarningInk}" />
+                                        <TextBlock Grid.Column="1" Text="المتبقي آجل للمورد:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.D97706.WarningInk}" />
                                     </Grid>
 
                                     <Grid Visibility="{Binding ActiveInvoice.HasOverpayment, Converter={StaticResource BoolToVis}}">
@@ -908,22 +908,22 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding ActiveInvoice.OverpaidAmountDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="13" FontWeight="Bold" Foreground="#B42318" />
-                                        <TextBlock Grid.Column="1" Text="زيادة مدفوعة عن الفاتورة:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#B42318" />
+                                        <TextBlock Grid.Column="0" Text="{Binding ActiveInvoice.OverpaidAmountDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
+                                        <TextBlock Grid.Column="1" Text="زيادة مدفوعة عن الفاتورة:" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
                                     </Grid>
 
                                     <TextBlock Text="تم سداد كامل الفاتورة ✓"
                                                Style="{StaticResource PosRtlTextStyle}"
                                                FontSize="12"
                                                FontWeight="Bold"
-                                               Foreground="#0F766E"
+                                               Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}"
                                                Visibility="{Binding ActiveInvoice.IsFullyPaid, Converter={StaticResource BoolToVis}}" />
 
                                     <TextBlock Text="{Binding ActiveInvoice.PaymentMixSummary}"
                                                Style="{StaticResource PosRtlTextStyle}"
                                                Margin="0,4,0,0"
                                                FontSize="11"
-                                               Foreground="#475569"
+                                               Foreground="{DynamicResource Theme.Legacy.475569.Muted}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
@@ -962,8 +962,8 @@
                         Margin="0,0,0,10"
                         Padding="12"
                         CornerRadius="14"
-                        Background="#F8FAFC"
-                        BorderBrush="#E2E8F0"
+                        Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                        BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                         BorderThickness="1"
                         FlowDirection="LeftToRight">
                     <StackPanel>
@@ -985,7 +985,7 @@
                                 <Button Style="{StaticResource PosPrimaryCompactButtonStyle}"
                                         Padding="12,7"
                                         Command="{Binding ScanOrSearchEnterCommand}">
-                                    <TextBlock Text="إضافة / مسح" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="White" />
+                                    <TextBlock Text="إضافة / مسح" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnAccent}" />
                                 </Button>
                             </StackPanel>
 
@@ -1002,7 +1002,7 @@
                                 </TextBox>
 
                                 <Path Data="M2,4 H4 V18 H2 Z M5,4 H6 V18 H5 Z M8,4 H11 V18 H8 Z M12,4 H13 V18 H12 Z M15,4 H17 V18 H15 Z M19,4 H20 V18 H19 Z M21,4 H23 V18 H21 Z"
-                                      Fill="#147D92"
+                                      Fill="{DynamicResource Theme.Legacy.147D92.AccentInk}"
                                       Stretch="Uniform"
                                       Width="18"
                                       Height="14"
@@ -1016,7 +1016,7 @@
                                            Margin="30,0,36,0"
                                            VerticalAlignment="Center"
                                            FontSize="12.5"
-                                           Foreground="#94A3B8"
+                                           Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}"
                                            IsHitTestVisible="False"
                                            Visibility="{Binding ProductSearchText, Converter={StaticResource StringEmptyToVis}}" />
 
@@ -1044,7 +1044,7 @@
                                        Style="{StaticResource PosLtrTextStyle}"
                                        VerticalAlignment="Center"
                                        FontSize="11.5"
-                                       Foreground="#64748B" />
+                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
 
                             <ItemsControl Grid.Column="1" HorizontalAlignment="Right" ItemsSource="{Binding CategoryFilters}">
                                 <ItemsControl.ItemsPanel>
@@ -1064,13 +1064,13 @@
                         </Grid>
 
                         <!-- Catalog Quick List -->
-                        <Border CornerRadius="10" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Padding="4">
+                        <Border CornerRadius="10" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1" Padding="4">
                             <Grid>
                                 <ScrollViewer MaxHeight="135" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                     <ItemsControl ItemsSource="{Binding FilteredCatalog}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Margin="2" Padding="10,6" CornerRadius="8" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1">
+                                                <Border Margin="2" Padding="10,6" CornerRadius="8" Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}" BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}" BorderThickness="1">
                                                     <Grid FlowDirection="LeftToRight">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="Auto" />
@@ -1088,28 +1088,28 @@
                                                                 CommandParameter="{Binding}" />
 
                                                         <StackPanel Grid.Column="1" Margin="10,0,12,0" VerticalAlignment="Center" Orientation="Horizontal" FlowDirection="RightToLeft">
-                                                            <Border Padding="7,2" CornerRadius="5" Background="#E0F2FE">
+                                                            <Border Padding="7,2" CornerRadius="5" Background="{DynamicResource Theme.Legacy.E0F2FE.InfoSoft}">
                                                                 <TextBlock Text="{Binding CostPriceDisplay, StringFormat='آخر تكلفة: {0}'}"
                                                                            Style="{StaticResource PosRtlTextStyle}"
                                                                            FontSize="11"
                                                                            FontWeight="Bold"
-                                                                           Foreground="#0369A1" />
+                                                                           Foreground="{DynamicResource Theme.Legacy.0369A1.InfoInk}" />
                                                             </Border>
-                                                            <Border Margin="5,0,0,0" Padding="7,2" CornerRadius="5" Background="#ECFDF5">
+                                                            <Border Margin="5,0,0,0" Padding="7,2" CornerRadius="5" Background="{DynamicResource Theme.Legacy.ECFDF5.SuccessSoft}">
                                                                 <TextBlock Text="{Binding StockDisplay}"
                                                                            Style="{StaticResource PosRtlTextStyle}"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="#0F766E" />
+                                                                           Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                                             </Border>
                                                         </StackPanel>
 
                                                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding Name}" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" FlowDirection="RightToLeft" Margin="0,2,0,0">
-                                                                <TextBlock Text="{Binding Barcode}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" Foreground="#64748B" />
-                                                                <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="#94A3B8" />
-                                                                <TextBlock Text="{Binding Category}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#64748B" />
+                                                                <TextBlock Text="{Binding Barcode}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                                                                <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}" />
+                                                                <TextBlock Text="{Binding Category}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </Grid>
@@ -1122,7 +1122,7 @@
                                            Style="{StaticResource PosCenterTextStyle}"
                                            Margin="0,18"
                                            FontSize="12.5"
-                                           Foreground="#94A3B8"
+                                           Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}"
                                            Visibility="{Binding HasNoFilteredProducts, Converter={StaticResource BoolToVis}}" />
                             </Grid>
                         </Border>
@@ -1132,8 +1132,8 @@
                 <!-- Purchase Lines Table -->
                 <Border Grid.Row="1"
                         CornerRadius="14"
-                        Background="White"
-                        BorderBrush="#CBD5E1"
+                        Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
+                        BorderBrush="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}"
                         BorderThickness="1"
                         FlowDirection="LeftToRight">
                     <Grid>
@@ -1146,8 +1146,8 @@
                         <Border Grid.Row="0"
                                 Padding="12,8"
                                 CornerRadius="13,13,0,0"
-                                Background="#F8FAFC"
-                                BorderBrush="#E2E8F0"
+                                Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                                BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                                 BorderThickness="0,0,0,1">
                             <Grid FlowDirection="LeftToRight">
                                 <Grid.ColumnDefinitions>
@@ -1159,7 +1159,7 @@
                                            Text="يمكن تعديل سعر الشراء والكمية لكل صنف مباشرة"
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="11.5"
-                                           Foreground="#64748B"
+                                           Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
                                            VerticalAlignment="Center" />
 
                                 <TextBlock Grid.Column="1"
@@ -1167,15 +1167,15 @@
                                            Style="{StaticResource PosRtlTextStyle}"
                                            FontSize="14"
                                            FontWeight="Bold"
-                                           Foreground="#102E48" />
+                                           Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
                             </Grid>
                         </Border>
 
                         <!-- Column Headers -->
                         <Border Grid.Row="1"
                                 Padding="10,8"
-                                Background="#F1F5F9"
-                                BorderBrush="#E2E8F0"
+                                Background="{DynamicResource Theme.Legacy.F1F5F9.Surface}"
+                                BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                                 BorderThickness="0,0,0,1">
                             <Grid FlowDirection="RightToLeft">
                                 <Grid.ColumnDefinitions>
@@ -1187,12 +1187,12 @@
                                     <ColumnDefinition Width="36" />
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="#" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
-                                <TextBlock Grid.Column="1" Text="المنتج / الباركود / المخزون" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
-                                <TextBlock Grid.Column="2" Text="سعر الشراء (ج.م)" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
-                                <TextBlock Grid.Column="3" Text="الكمية المشتراة" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
-                                <TextBlock Grid.Column="4" Text="إجمالي السطر" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="#475569" />
-                                <TextBlock Grid.Column="5" Text="حذف" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#475569" />
+                                <TextBlock Grid.Column="0" Text="#" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
+                                <TextBlock Grid.Column="1" Text="المنتج / الباركود / المخزون" Style="{StaticResource PosRtlTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
+                                <TextBlock Grid.Column="2" Text="سعر الشراء (ج.م)" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
+                                <TextBlock Grid.Column="3" Text="الكمية المشتراة" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
+                                <TextBlock Grid.Column="4" Text="إجمالي السطر" Style="{StaticResource PosCenterTextStyle}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
+                                <TextBlock Grid.Column="5" Text="حذف" Style="{StaticResource PosCenterTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
                             </Grid>
                         </Border>
 
@@ -1202,7 +1202,7 @@
                                 <ItemsControl ItemsSource="{Binding ActiveInvoice.Items}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Padding="10,8" BorderBrush="#F1F5F9" BorderThickness="0,0,0,1" Background="White">
+                                            <Border Padding="10,8" BorderBrush="{DynamicResource Theme.Legacy.F1F5F9.Border}" BorderThickness="0,0,0,1" Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}">
                                                 <Grid FlowDirection="RightToLeft">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="32" />
@@ -1219,17 +1219,17 @@
                                                                VerticalAlignment="Center"
                                                                FontSize="12.5"
                                                                FontWeight="SemiBold"
-                                                               Foreground="#64748B" />
+                                                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
 
                                                     <!-- Product Info -->
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0,6,0">
                                                         <TextBlock Text="{Binding Product.Name}" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                                         <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                                            <TextBlock Text="{Binding Product.Barcode}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" Foreground="#64748B" />
-                                                            <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="#94A3B8" />
-                                                            <TextBlock Text="{Binding CurrentStockDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#0F766E" />
-                                                            <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="#94A3B8" />
-                                                            <TextBlock Text="{Binding PreviousCostDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#64748B" />
+                                                            <TextBlock Text="{Binding Product.Barcode}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                                                            <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}" />
+                                                            <TextBlock Text="{Binding CurrentStockDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
+                                                            <TextBlock Text=" · " Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}" />
+                                                            <TextBlock Text="{Binding PreviousCostDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                                         </WrapPanel>
                                                     </StackPanel>
 
@@ -1245,7 +1245,7 @@
                                                                    Style="{StaticResource PosCenterTextStyle}"
                                                                    FontSize="10"
                                                                    FontWeight="Bold"
-                                                                   Foreground="#0369A1"
+                                                                   Foreground="{DynamicResource Theme.Legacy.0369A1.InfoInk}"
                                                                    Margin="0,2,0,0"
                                                                    Visibility="{Binding IsCostDifferentFromCatalog, Converter={StaticResource BoolToVis}}" />
                                                     </StackPanel>
@@ -1282,7 +1282,7 @@
                                                                VerticalAlignment="Center"
                                                                FontSize="13"
                                                                FontWeight="Bold"
-                                                               Foreground="#102E48" />
+                                                               Foreground="{DynamicResource Theme.Legacy.102E48.Text}" />
 
                                                     <!-- Remove -->
                                                     <Button Grid.Column="5"
@@ -1308,12 +1308,12 @@
                                            Style="{StaticResource PosCenterTextStyle}"
                                            FontSize="16"
                                            FontWeight="Bold"
-                                           Foreground="#475569" />
+                                           Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
                                 <TextBlock Text="اختر المورد من اليسار، ثم ابحث عن الأصناف أو امسح الباركود لإضافتها للفاتورة."
                                            Style="{StaticResource PosCenterTextStyle}"
                                            Margin="0,6,0,0"
                                            FontSize="13"
-                                           Foreground="#94A3B8" />
+                                           Foreground="{DynamicResource Theme.Legacy.94A3B8.Muted}" />
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -1328,12 +1328,12 @@
                         Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVis}}">
                     <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="#F0FDFA" />
-                            <Setter Property="BorderBrush" Value="#99F6E4" />
+                            <Setter Property="Background" Value="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.99F6E4.Border}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
-                                    <Setter Property="Background" Value="#FEF2F2" />
-                                    <Setter Property="BorderBrush" Value="#FECACA" />
+                                    <Setter Property="Background" Value="{DynamicResource Theme.Legacy.FEF2F2.DangerSoft}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource Theme.Legacy.FECACA.DangerBorder}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -1341,10 +1341,10 @@
                     <TextBlock Text="{Binding StatusMessage}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
-                                <Setter Property="Foreground" Value="#0F766E" />
+                                <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
-                                        <Setter Property="Foreground" Value="#B42318" />
+                                        <Setter Property="Foreground" Value="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

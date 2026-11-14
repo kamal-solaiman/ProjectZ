@@ -10,6 +10,8 @@
         Language="ar-EG"
         WindowStartupLocation="CenterScreen">
     <!-- Keep the two physical columns predictable; each panel's content is RTL. -->
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
     <Grid Margin="32" FlowDirection="LeftToRight">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -20,19 +22,20 @@
         <Border Grid.Column="0"
                 Margin="0,0,20,0"
                 Padding="32"
-                CornerRadius="20"
-                Background="#102E48"
+                CornerRadius="{DynamicResource Theme.PanelCornerRadius}"
+                Background="{DynamicResource Theme.Brush.Navigation}"
+                BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1"
                 FlowDirection="RightToLeft">
             <Grid>
                 <StackPanel VerticalAlignment="Center">
                     <Border Width="72"
                             Height="72"
                             CornerRadius="20"
-                            Background="#1D455F">
+                            Background="{DynamicResource Theme.Legacy.1D455F.Navigation}">
                         <TextBlock Text="&#xE77B;"
                                    FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                    FontSize="32"
-                                   Foreground="#6EE7D8"
+                                   Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
                     </Border>
@@ -40,24 +43,24 @@
                                FlowDirection="LeftToRight"
                                FontSize="34"
                                FontWeight="Bold"
-                               Foreground="White"
+                               Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}"
                                TextAlignment="Center" />
                     <TextBlock Text="بوابتك إلى بيئة العمل"
                                Margin="0,18,0,12"
                                FontSize="23"
-                               Foreground="White"
+                               Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}"
                                TextAlignment="Center"
                                TextWrapping="Wrap" />
                     <TextBlock Text="واجهة بسيطة. اتصال موحّد.&#xA;بيانات المؤسسة في مكان واحد."
                                FontSize="16"
                                LineHeight="28"
-                               Foreground="#B7CFDD"
+                               Foreground="{DynamicResource Theme.Legacy.B7CFDD.Text}"
                                TextAlignment="Center"
                                TextWrapping="Wrap" />
                 </StackPanel>
                 <TextBlock Text="نظام الدخول المؤسسي"
                            VerticalAlignment="Bottom"
-                           Foreground="#85AABC"
+                           Foreground="{DynamicResource Theme.Legacy.85AABC.Muted}"
                            TextAlignment="Center"
                            FontSize="12" />
             </Grid>
@@ -66,8 +69,9 @@
         <!-- Login form on the right, with Arabic labels and layout. -->
         <Border Grid.Column="1"
                 Padding="36"
-                CornerRadius="20"
-                Background="White"
+                CornerRadius="{DynamicResource Theme.PanelCornerRadius}"
+                Background="{DynamicResource Theme.Brush.Surface}"
+                BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1"
                 FlowDirection="RightToLeft">
             <Grid>
                 <Grid.RowDefinitions>
@@ -90,7 +94,7 @@
                                TextAlignment="Center" />
                     <TextBlock Text="مرحبًا بعودتك، أدخل بيانات حسابك للمتابعة."
                                Margin="0,0,0,28"
-                               Foreground="#64748B"
+                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
                                TextAlignment="Center"
                                TextWrapping="Wrap" />
                     <TextBlock Text="اسم المستخدم"
@@ -115,7 +119,7 @@
                     <TextBlock Text="{Binding Error}"
                                MinHeight="42"
                                Margin="0,14,0,14"
-                               Foreground="#B42318"
+                               Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}"
                                TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />
                     <Button Content="{Binding ButtonText}"
@@ -125,10 +129,11 @@
                 <TextBlock Grid.Row="2"
                            Text="اتصال مباشر وآمن بقاعدة بيانات المؤسسة"
                            FontSize="12"
-                           Foreground="#64748B"
+                           Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
                            HorizontalAlignment="Center"
                            TextAlignment="Center" />
             </Grid>
         </Border>
+    </Grid>
     </Grid>
 </Window>
