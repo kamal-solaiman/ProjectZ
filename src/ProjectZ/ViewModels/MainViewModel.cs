@@ -213,7 +213,10 @@ public sealed class MainViewModel : ObservableObject
             sharedCustomers,
             sharedMaintenanceOrders,
             maintenanceRepository,
-            ReloadMaintenanceData);
+            ReloadMaintenanceData,
+            CreateCustomerFromPos,
+            ValidateCustomerPhone,
+            ReloadCustomerDirectory);
         // Spare parts and actions notify each other, so the spare-parts screen gets a late-bound callback
         // instead of dereferencing MaintenanceActions before it has been assigned.
         MaintenanceSpareParts = new MaintenanceSparePartsViewModel(
@@ -468,6 +471,22 @@ public sealed class MainViewModel : ObservableObject
         }
 
         Pos.NotifyExternalInventoryChanged();
+    }
+
+    /// <summary>
+    /// Duplicate-phone check used by the «عميل جديد» dialogs opened from the POS and intake screens.
+    /// It asks SQL Server, so a customer created on another client is caught before the insert.
+    /// </summary>
+    private string? ValidateCustomerPhone(string phone, int? editingCustomerId)
+        => salesRepository is not null && salesRepository.PhoneExists(phone, editingCustomerId)
+            ? "رقم الهاتف مسجل بالفعل لعميل آخر. ابحث عن العميل الحالي أو أدخل رقمًا مختلفًا."
+            : null;
+
+    /// <summary>Re-reads dbo.Customers into the directory shared by POS, customers and maintenance intake.</summary>
+    private void ReloadCustomerDirectory()
+    {
+        if (salesRepository is null) return;
+        salesRepository.LoadCustomersInto(sharedCustomers);
     }
 
     /// <summary>Persists a customer created from the POS dialog; the POS view model appends it to the directory.</summary>

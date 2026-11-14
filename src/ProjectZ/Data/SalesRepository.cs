@@ -87,6 +87,34 @@ ORDER BY Name;";
             target.Add(customer);
     }
 
+    /// <summary>
+    /// Database-backed duplicate check for the customer dialogs; it mirrors the UX_Customers_Phone
+    /// filtered unique index, which is the real guard. Returns false on any failure: a validation
+    /// helper must never crash the dialog, and the INSERT still reports the duplicate clearly.
+    /// </summary>
+    public bool PhoneExists(string phone, int? excludeCustomerId = null)
+    {
+        var trimmed = (phone ?? "").Trim();
+        if (trimmed.Length == 0) return false;
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM dbo.Customers
+    WHERE Phone = @Phone AND (@Exclude IS NULL OR Id <> @Exclude)) THEN 1 ELSE 0 END;";
+            command.Parameters.Add("@Phone", SqlDbType.NVarChar, 30).Value = trimmed;
+            command.Parameters.Add("@Exclude", SqlDbType.Int).Value = (object?)excludeCustomerId ?? DBNull.Value;
+            return Convert.ToInt32(command.ExecuteScalar() ?? 0) == 1;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     public PosCustomerDesignItem CreateCustomer(
         string name, string phone, string secondaryPhone, string address, string notes, PriceTier defaultPriceTier)
     {
