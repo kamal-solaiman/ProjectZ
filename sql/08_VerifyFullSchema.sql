@@ -15,7 +15,8 @@ INSERT @ExpectedTables(name) VALUES
 (N'SalesInvoiceLineUnits'), (N'SalesPayments'), (N'SalesInvoiceActivities'),
 (N'ReturnExchanges'), (N'ReturnExchangeLines'), (N'ReturnExchangeUnits'),
 (N'MaintenanceOrders'), (N'MaintenanceOrderParts'), (N'MaintenancePayments'),
-(N'MaintenanceActivities'), (N'AuditLog');
+(N'MaintenanceActivities'), (N'MaintenanceSpareParts'), (N'MaintenanceSparePartMovements'),
+(N'AuditLog');
 
 SELECT e.name AS MissingTable
 FROM @ExpectedTables AS e
@@ -32,6 +33,13 @@ SELECT expected.ColumnName AS MissingInventoryColumn
 FROM (VALUES (N'PurchaseInvoiceNumber'), (N'SaleInvoiceNumber')) AS expected(ColumnName)
 LEFT JOIN sys.columns AS c
  ON c.object_id = OBJECT_ID(N'dbo.InventoryUnits') AND c.name = expected.ColumnName
+WHERE c.object_id IS NULL;
+
+SELECT expected.ColumnName AS MissingSparePartColumn
+FROM (VALUES (N'SupplierId'), (N'Barcode'), (N'Unit'), (N'ReorderQuantity'),
+             (N'StorageLocation'), (N'Notes'), (N'LastPurchaseAtUtc'), (N'LastIssueAtUtc')) AS expected(ColumnName)
+LEFT JOIN sys.columns AS c
+ ON c.object_id = OBJECT_ID(N'dbo.MaintenanceSpareParts') AND c.name = expected.ColumnName
 WHERE c.object_id IS NULL;
 
 SELECT fk.name, fk.is_disabled, fk.is_not_trusted

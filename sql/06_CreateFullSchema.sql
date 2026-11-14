@@ -8,6 +8,14 @@ USE [ProjectZ];
 GO
 SET XACT_ABORT ON;
 SET NOCOUNT ON;
+/* Filtered indexes (customers/products/units/spare parts) require these session options. */
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET NUMERIC_ROUNDABORT OFF;
 GO
 IF OBJECT_ID(N'dbo.Users', N'U') IS NULL
     THROW 50010, N'dbo.Users is required. Run 01_CreateDatabase.sql first.', 1;
@@ -599,24 +607,116 @@ CREATE TABLE dbo.MaintenanceSpareParts
     Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceSpareParts PRIMARY KEY,
     Name NVARCHAR(250) NOT NULL,
     Category NVARCHAR(100) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Category DEFAULT N'شاشات',
+    Barcode NVARCHAR(100) NULL,
+    Unit NVARCHAR(30) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Unit DEFAULT N'قطعة',
+    SupplierId INT NULL CONSTRAINT FK_MaintenanceSpareParts_Suppliers FOREIGN KEY REFERENCES dbo.Suppliers(Id),
     Quantity INT NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Quantity DEFAULT 0,
     MinimumStockAlert INT NOT NULL CONSTRAINT DF_MaintenanceSpareParts_MinStock DEFAULT 5,
+    ReorderQuantity INT NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Reorder DEFAULT 0,
+    StorageLocation NVARCHAR(120) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Storage DEFAULT N'',
+    Notes NVARCHAR(1000) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Notes DEFAULT N'',
     CostPrice DECIMAL(19,2) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_CostPrice DEFAULT 0,
     SellPrice DECIMAL(19,2) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_SellPrice DEFAULT 0,
+    LastPurchaseAtUtc DATETIME2(7) NULL,
+    LastIssueAtUtc DATETIME2(7) NULL,
     IsActive BIT NOT NULL CONSTRAINT DF_MaintenanceSpareParts_IsActive DEFAULT 1,
     CreatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Created DEFAULT SYSUTCDATETIME(),
     UpdatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_MaintenanceSpareParts_Updated DEFAULT SYSUTCDATETIME(),
     RowVersion ROWVERSION NOT NULL,
-    CONSTRAINT UQ_MaintenanceSpareParts_Name UNIQUE (Name),
     CONSTRAINT CK_MaintenanceSpareParts_Quantity CHECK (Quantity >= 0),
     CONSTRAINT CK_MaintenanceSpareParts_MinStock CHECK (MinimumStockAlert >= 0),
+    CONSTRAINT CK_MaintenanceSpareParts_Reorder CHECK (ReorderQuantity >= 0),
     CONSTRAINT CK_MaintenanceSpareParts_Values CHECK (CostPrice >= 0 AND SellPrice >= 0)
 );
+
+/* Append-only ledger for every spare-part stock change. It links the part to the supplier, the
+   maintenance order, the customer and the user, so the spare-parts screen can show the full chain
+   (مورد ← قطعة ← عميل) without changing the historical order lines. */
+IF OBJECT_ID(N'dbo.MaintenanceSparePartMovements', N'U') IS NULL
+CREATE TABLE dbo.MaintenanceSparePartMovements
+(
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_MaintenanceSparePartMovements PRIMARY KEY,
+    SparePartId INT NOT NULL
+        CONSTRAINT FK_MaintenanceSparePartMovements_Parts FOREIGN KEY REFERENCES dbo.MaintenanceSpareParts(Id),
+    MovementKind TINYINT NOT NULL,
+    Quantity INT NOT NULL,
+    QuantityBefore INT NOT NULL,
+    QuantityAfter INT NOT NULL,
+    UnitCost DECIMAL(19,2) NOT NULL CONSTRAINT DF_MaintenanceSparePartMovements_UnitCost DEFAULT 0,
+    SupplierId INT NULL
+        CONSTRAINT FK_MaintenanceSparePartMovements_Suppliers FOREIGN KEY REFERENCES dbo.Suppliers(Id),
+    MaintenanceOrderId INT NULL
+        CONSTRAINT FK_MaintenanceSparePartMovements_Orders FOREIGN KEY REFERENCES dbo.MaintenanceOrders(Id),
+    CustomerId INT NULL
+        CONSTRAINT FK_MaintenanceSparePartMovements_Customers FOREIGN KEY REFERENCES dbo.Customers(Id),
+    Reference NVARCHAR(100) NOT NULL CONSTRAINT DF_MaintenanceSparePartMovements_Reference DEFAULT N'',
+    Note NVARCHAR(1000) NOT NULL CONSTRAINT DF_MaintenanceSparePartMovements_Note DEFAULT N'',
+    ActorUserId INT NOT NULL
+        CONSTRAINT FK_MaintenanceSparePartMovements_Actor FOREIGN KEY REFERENCES dbo.Users(Id),
+    OccurredAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_MaintenanceSparePartMovements_Occurred DEFAULT SYSUTCDATETIME(),
+    CreatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_MaintenanceSparePartMovements_Created DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT CK_MaintenanceSparePartMovements_Kind CHECK (MovementKind BETWEEN 1 AND 6),
+    CONSTRAINT CK_MaintenanceSparePartMovements_Quantity CHECK (Quantity > 0),
+    CONSTRAINT CK_MaintenanceSparePartMovements_Balance CHECK (QuantityBefore >= 0 AND QuantityAfter >= 0),
+    CONSTRAINT CK_MaintenanceSparePartMovements_Values CHECK (UnitCost >= 0)
+);
+
+/* In-place upgrade for databases created by an earlier schema: add the spare-part master fields
+   when missing. sql/16_EnableMaintenanceSpareParts.sql performs the same guarded upgrades and also
+   creates the ledger above, so either script is safe to run on an existing database. */
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'SupplierId') IS NULL
+    ALTER TABLE dbo.MaintenanceSpareParts ADD SupplierId INT NULL
+        CONSTRAINT FK_MaintenanceSpareParts_Suppliers FOREIGN KEY REFERENCES dbo.Suppliers(Id);
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'Barcode') IS NULL
+    ALTER TABLE dbo.MaintenanceSpareParts ADD Barcode NVARCHAR(100) NULL;
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'Unit') IS NULL
+    ALTER TABLE dbo.MaintenanceSpareParts ADD Unit NVARCHAR(30) NOT NULL
+        CONSTRAINT DF_MaintenanceSpareParts_Unit DEFAULT N'قطعة';
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'ReorderQuantity') IS NULL
+    ALTER TABLE dbo.MaintenanceSpareParts ADD ReorderQuantity INT NOT NULL
+        CONSTRAINT DF_MaintenanceSpareParts_Reorder DEFAULT 0;
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'StorageLocation') IS NULL
+    ALTER TABLE dbo.MaintenanceSpareParts ADD StorageLocation NVARCHAR(120) NOT NULL
+        CONSTRAINT DF_MaintenanceSpareParts_Storage DEFAULT N'';
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'Notes') IS NULL
+    ALTER TABLE dbo.MaintenanceSpareParts ADD Notes NVARCHAR(1000) NOT NULL
+        CONSTRAINT DF_MaintenanceSpareParts_Notes DEFAULT N'';
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'LastPurchaseAtUtc') IS NULL
+    ALTER TABLE dbo.MaintenanceSpareParts ADD LastPurchaseAtUtc DATETIME2(7) NULL;
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'LastIssueAtUtc') IS NULL
+    ALTER TABLE dbo.MaintenanceSpareParts ADD LastIssueAtUtc DATETIME2(7) NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints
+               WHERE parent_object_id = OBJECT_ID(N'dbo.MaintenanceSpareParts')
+                 AND name = N'CK_MaintenanceSpareParts_Reorder')
+    ALTER TABLE dbo.MaintenanceSpareParts WITH CHECK ADD CONSTRAINT CK_MaintenanceSpareParts_Reorder
+        CHECK (ReorderQuantity >= 0);
+GO
+
+/* Backfill one opening balance for parts that predate the ledger. A part with stock but no
+   movement would otherwise look like stock appeared from nowhere; the guard keeps this idempotent.
+   This runs after the ALTER statements above, so Barcode/SupplierId always exist here. */
+DECLARE @OpeningActor INT = (SELECT TOP (1) Id FROM dbo.Users ORDER BY Id);
+IF @OpeningActor IS NOT NULL
+BEGIN
+    INSERT dbo.MaintenanceSparePartMovements
+        (SparePartId, MovementKind, Quantity, QuantityBefore, QuantityAfter, UnitCost, SupplierId,
+         MaintenanceOrderId, CustomerId, Reference, Note, ActorUserId, OccurredAtUtc)
+    SELECT sp.Id, 1, sp.Quantity, 0, sp.Quantity, sp.CostPrice, sp.SupplierId,
+           NULL, NULL, ISNULL(sp.Barcode, N''), N'رصيد افتتاحي عند تفعيل سجل حركات قطع الغيار.',
+           @OpeningActor, SYSUTCDATETIME()
+    FROM dbo.MaintenanceSpareParts AS sp
+    WHERE sp.IsActive = 1
+      AND sp.Quantity > 0
+      AND NOT EXISTS (SELECT 1 FROM dbo.MaintenanceSparePartMovements AS m WHERE m.SparePartId = sp.Id);
+END
 
 /* Backfill order-part lines to the spare-part they reference. Idempotent: the column is
    added only when missing. Spare-part lines created before this column kept ProductId NULL. */
 IF COL_LENGTH(N'dbo.MaintenanceOrderParts', N'SparePartId') IS NULL
     ALTER TABLE dbo.MaintenanceOrderParts ADD SparePartId INT NULL CONSTRAINT FK_MaintenanceParts_SpareParts FOREIGN KEY REFERENCES dbo.MaintenanceSpareParts(Id);
+GO
 
 /* The part-line source constraint has to allow a workshop spare-part line (SparePartId with no
    POS product) now that the column exists, so it is recreated here. The same repair runs on
@@ -743,6 +843,41 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Sales
     CREATE INDEX IX_SalesPayments_Invoice_Date ON dbo.SalesPayments(SalesInvoiceId, PaidAtUtc DESC) INCLUDE (FinancialAccountId, PaymentKind, Amount);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.PurchasePayments') AND name = N'IX_PurchasePayments_Invoice_Date')
     CREATE INDEX IX_PurchasePayments_Invoice_Date ON dbo.PurchasePayments(PurchaseInvoiceId, PaidAtUtc DESC) INCLUDE (FinancialAccountId, PaymentKind, Amount);
+/* Name is unique among ACTIVE parts only. The old table-level UQ constraint is replaced by a
+   filtered unique index so a deactivated part cannot reserve its name forever. */
+IF EXISTS (SELECT 1 FROM sys.key_constraints
+           WHERE parent_object_id = OBJECT_ID(N'dbo.MaintenanceSpareParts')
+             AND name = N'UQ_MaintenanceSpareParts_Name')
+    ALTER TABLE dbo.MaintenanceSpareParts DROP CONSTRAINT UQ_MaintenanceSpareParts_Name;
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'IsActive') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceSpareParts') AND name = N'UX_MaintenanceSpareParts_Name')
+    CREATE UNIQUE INDEX UX_MaintenanceSpareParts_Name ON dbo.MaintenanceSpareParts(Name) WHERE IsActive = 1;
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'Barcode') IS NOT NULL
+   AND COL_LENGTH(N'dbo.MaintenanceSpareParts', N'IsActive') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceSpareParts') AND name = N'UX_MaintenanceSpareParts_Barcode')
+    CREATE UNIQUE INDEX UX_MaintenanceSpareParts_Barcode ON dbo.MaintenanceSpareParts(Barcode) WHERE Barcode IS NOT NULL AND Barcode <> N'' AND IsActive = 1;
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'SupplierId') IS NOT NULL
+   AND COL_LENGTH(N'dbo.MaintenanceSpareParts', N'ReorderQuantity') IS NOT NULL
+   AND COL_LENGTH(N'dbo.MaintenanceSpareParts', N'Barcode') IS NOT NULL
+   AND COL_LENGTH(N'dbo.MaintenanceSpareParts', N'IsActive') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceSpareParts') AND name = N'IX_MaintenanceSpareParts_Supplier')
+    CREATE INDEX IX_MaintenanceSpareParts_Supplier ON dbo.MaintenanceSpareParts(SupplierId, Name) INCLUDE (Quantity, MinimumStockAlert, ReorderQuantity, CostPrice, SellPrice, Barcode, IsActive);
+IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'SupplierId') IS NOT NULL
+   AND COL_LENGTH(N'dbo.MaintenanceSpareParts', N'ReorderQuantity') IS NOT NULL
+   AND COL_LENGTH(N'dbo.MaintenanceSpareParts', N'IsActive') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceSpareParts') AND name = N'IX_MaintenanceSpareParts_LowStock')
+    CREATE INDEX IX_MaintenanceSpareParts_LowStock ON dbo.MaintenanceSpareParts(Quantity, MinimumStockAlert) INCLUDE (Name, Category, SupplierId, ReorderQuantity) WHERE IsActive = 1;
+IF COL_LENGTH(N'dbo.MaintenanceOrderParts', N'SparePartId') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceOrderParts') AND name = N'IX_MaintenanceOrderParts_SparePart')
+    CREATE INDEX IX_MaintenanceOrderParts_SparePart ON dbo.MaintenanceOrderParts(SparePartId) INCLUDE (MaintenanceOrderId, Quantity, UnitSellPrice) WHERE SparePartId IS NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceSparePartMovements') AND name = N'IX_MaintenanceSparePartMovements_Part_Date')
+    CREATE INDEX IX_MaintenanceSparePartMovements_Part_Date ON dbo.MaintenanceSparePartMovements(SparePartId, OccurredAtUtc DESC, Id DESC) INCLUDE (MovementKind, Quantity, QuantityBefore, QuantityAfter, UnitCost, SupplierId);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceSparePartMovements') AND name = N'IX_MaintenanceSparePartMovements_Supplier_Date')
+    CREATE INDEX IX_MaintenanceSparePartMovements_Supplier_Date ON dbo.MaintenanceSparePartMovements(SupplierId, OccurredAtUtc DESC) INCLUDE (SparePartId, Quantity, UnitCost) WHERE SupplierId IS NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceSparePartMovements') AND name = N'IX_MaintenanceSparePartMovements_Order')
+    CREATE INDEX IX_MaintenanceSparePartMovements_Order ON dbo.MaintenanceSparePartMovements(MaintenanceOrderId) INCLUDE (SparePartId, Quantity, QuantityBefore, QuantityAfter) WHERE MaintenanceOrderId IS NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceSparePartMovements') AND name = N'IX_MaintenanceSparePartMovements_Customer_Date')
+    CREATE INDEX IX_MaintenanceSparePartMovements_Customer_Date ON dbo.MaintenanceSparePartMovements(CustomerId, OccurredAtUtc DESC) INCLUDE (SparePartId, MaintenanceOrderId, Quantity) WHERE CustomerId IS NOT NULL;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceOrders') AND name = N'IX_MaintenanceOrders_Status_Received')
     CREATE INDEX IX_MaintenanceOrders_Status_Received ON dbo.MaintenanceOrders(OrderStatus, ReceivedAtUtc DESC) INCLUDE (OrderNumber, CustomerNameSnapshot, DeviceModel);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.MaintenanceOrders') AND name = N'IX_MaintenanceOrders_Customer')
@@ -775,6 +910,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'SchemaVersi
 GO
 
 IF OBJECT_ID(N'dbo.Roles', N'U') IS NULL OR OBJECT_ID(N'dbo.UserRoles', N'U') IS NULL OR OBJECT_ID(N'dbo.SystemSettings', N'U') IS NULL
+   OR OBJECT_ID(N'dbo.MaintenanceSpareParts', N'U') IS NULL OR OBJECT_ID(N'dbo.MaintenanceSparePartMovements', N'U') IS NULL
     THROW 50014, N'Core schema objects are missing; schema setup did not complete successfully.', 1;
 GO
 IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE is_disabled = 1 OR is_not_trusted = 1)

@@ -123,11 +123,19 @@ public sealed class MaintenanceSparePartItem : ObservableObject
 {
     private string name = "";
     private string category = "شاشات";
+    private string barcode = "";
+    private string unit = "قطعة";
+    private int? supplierId;
+    private string supplierName = "";
+    private string storageLocation = "";
+    private string notes = "";
     private int quantity;
     private int minimumStockAlert = 3;
+    private int reorderQuantity;
     private decimal costPrice;
     private decimal sellPrice;
     private bool isSelected;
+    private DateTime? lastMovementAt;
 
     public int Id { get; init; }
 
@@ -142,6 +150,7 @@ public sealed class MaintenanceSparePartItem : ObservableObject
             Changed();
             Changed(nameof(IsLowStock));
             Changed(nameof(StockStatusTitle));
+            Changed(nameof(StockAlertDisplay));
         }
     }
 
@@ -153,6 +162,7 @@ public sealed class MaintenanceSparePartItem : ObservableObject
             if (name == value) return;
             name = value;
             Changed();
+            Changed(nameof(DisplayTitle));
         }
     }
 
@@ -163,6 +173,86 @@ public sealed class MaintenanceSparePartItem : ObservableObject
         {
             if (category == value) return;
             category = value;
+            Changed();
+            Changed(nameof(CategoryUnitDisplay));
+        }
+    }
+
+    /// <summary>Part number / barcode used to identify the spare part (dbo.MaintenanceSpareParts.Barcode).</summary>
+    public string Barcode
+    {
+        get => barcode;
+        set
+        {
+            if (barcode == value) return;
+            barcode = value;
+            Changed();
+            Changed(nameof(BarcodeDisplay));
+        }
+    }
+
+    /// <summary>Unit of measure shown next to the quantity (قطعة، علبة، متر...).</summary>
+    public string Unit
+    {
+        get => unit;
+        set
+        {
+            var normalized = string.IsNullOrWhiteSpace(value) ? "قطعة" : value.Trim();
+            if (unit == normalized) return;
+            unit = normalized;
+            Changed();
+            Changed(nameof(QuantityDisplay));
+            Changed(nameof(UnitDisplay));
+            Changed(nameof(CategoryUnitDisplay));
+        }
+    }
+
+    /// <summary>Preferred supplier (dbo.Suppliers.Id) used for restocking this part.</summary>
+    public int? SupplierId
+    {
+        get => supplierId;
+        set
+        {
+            if (supplierId == value) return;
+            supplierId = value;
+            Changed();
+            Changed(nameof(HasSupplier));
+            Changed(nameof(SupplierDisplay));
+        }
+    }
+
+    public string SupplierName
+    {
+        get => supplierName;
+        set
+        {
+            if (supplierName == value) return;
+            supplierName = value;
+            Changed();
+            Changed(nameof(HasSupplier));
+            Changed(nameof(SupplierDisplay));
+        }
+    }
+
+    public string StorageLocation
+    {
+        get => storageLocation;
+        set
+        {
+            if (storageLocation == value) return;
+            storageLocation = value;
+            Changed();
+            Changed(nameof(StorageDisplay));
+        }
+    }
+
+    public string Notes
+    {
+        get => notes;
+        set
+        {
+            if (notes == value) return;
+            notes = value;
             Changed();
         }
     }
@@ -183,6 +273,22 @@ public sealed class MaintenanceSparePartItem : ObservableObject
             Changed(nameof(IsOutOfStock));
             Changed(nameof(IsLowStock));
             Changed(nameof(StockStatusTitle));
+            Changed(nameof(StockAlertDisplay));
+        }
+    }
+
+    /// <summary>Target quantity used by the low-stock filter and the reorder hint.</summary>
+    public int ReorderQuantity
+    {
+        get => reorderQuantity;
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (reorderQuantity == clamped) return;
+            reorderQuantity = clamped;
+            Changed();
+            Changed(nameof(ReorderDisplay));
+            Changed(nameof(StockAlertDisplay));
         }
     }
 
@@ -198,6 +304,7 @@ public sealed class MaintenanceSparePartItem : ObservableObject
             Changed(nameof(CostPriceDisplay));
             Changed(nameof(UnitProfit));
             Changed(nameof(UnitProfitDisplay));
+            Changed(nameof(IsLoss));
             Changed(nameof(TotalCostValue));
             Changed(nameof(TotalCostValueDisplay));
         }
@@ -215,6 +322,7 @@ public sealed class MaintenanceSparePartItem : ObservableObject
             Changed(nameof(SellPriceDisplay));
             Changed(nameof(UnitProfit));
             Changed(nameof(UnitProfitDisplay));
+            Changed(nameof(IsLoss));
         }
     }
 
@@ -229,18 +337,172 @@ public sealed class MaintenanceSparePartItem : ObservableObject
         }
     }
 
+    /// <summary>Timestamp of the most recent stock movement, loaded from SQL for the row hint.</summary>
+    public DateTime? LastMovementAt
+    {
+        get => lastMovementAt;
+        set
+        {
+            if (lastMovementAt == value) return;
+            lastMovementAt = value;
+            Changed();
+            Changed(nameof(LastMovementDisplay));
+        }
+    }
+
     public string CodeDisplay => $"SPR-{Id:000}";
-    public string QuantityDisplay => $"{Quantity} قطعة";
+    public string DisplayTitle => $"{CodeDisplay} · {Name}";
+    public string BarcodeDisplay => string.IsNullOrWhiteSpace(Barcode) ? "بدون باركود" : Barcode;
+    public string UnitDisplay => Unit;
+    public string CategoryUnitDisplay => $"{Category} · {Unit}";
+    public string SupplierDisplay => string.IsNullOrWhiteSpace(SupplierName) ? "بدون مورد" : SupplierName;
+    public bool HasSupplier => !string.IsNullOrWhiteSpace(SupplierName) || SupplierId is > 0;
+    public string StorageDisplay => string.IsNullOrWhiteSpace(StorageLocation) ? "غير محدد" : StorageLocation;
+    public string QuantityDisplay => $"{Quantity} {Unit}";
     public string AvailableStockDisplay => $"المتاح: {Quantity}";
     public string CostPriceDisplay => PosFormatting.FormatCurrency(CostPrice);
     public string SellPriceDisplay => PosFormatting.FormatCurrency(SellPrice);
-    public decimal UnitProfit => Math.Max(0m, SellPrice - CostPrice);
+    public decimal UnitProfit => SellPrice - CostPrice;
+    public bool IsLoss => UnitProfit < 0m;
     public string UnitProfitDisplay => PosFormatting.FormatCurrency(UnitProfit);
     public decimal TotalCostValue => Quantity * CostPrice;
     public string TotalCostValueDisplay => PosFormatting.FormatCurrency(TotalCostValue);
     public bool IsOutOfStock => Quantity <= 0;
     public bool IsLowStock => Quantity > 0 && Quantity <= MinimumStockAlert;
     public string StockStatusTitle => IsOutOfStock ? "نفد" : (IsLowStock ? "منخفض" : "متاح");
+    public string StockAlertDisplay => IsOutOfStock
+        ? "نفد — يلزم توريد"
+        : IsLowStock
+            ? $"منخفض · حد التنبيه {MinimumStockAlert}"
+            : $"حد التنبيه {MinimumStockAlert}";
+    public string ReorderDisplay => ReorderQuantity <= 0 ? "لم يُحدد حد إعادة الطلب" : $"إعادة الطلب عند {ReorderQuantity}";
+    public string LastMovementDisplay => LastMovementAt.HasValue
+        ? LastMovementAt.Value.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+        : "لا توجد حركة مسجلة";
+}
+
+/// <summary>Kinds of stock movement written to dbo.MaintenanceSparePartMovements.</summary>
+public enum MaintenanceSparePartMovementKind
+{
+    OpeningBalance = 1,
+    Purchase = 2,
+    Issue = 3,
+    Return = 4,
+    AdjustmentIncrease = 5,
+    AdjustmentDecrease = 6
+}
+
+/// <summary>
+/// One append-only row of dbo.MaintenanceSparePartMovements. It is the audit trail that links a
+/// spare part to its supplier, the maintenance order, the customer and the user who moved stock.
+/// </summary>
+public sealed class MaintenanceSparePartMovementItem
+{
+    public int Id { get; init; }
+    public int SparePartId { get; init; }
+    public string SparePartName { get; init; } = "";
+    public string SparePartCode { get; init; } = "";
+    public MaintenanceSparePartMovementKind Kind { get; init; }
+    public int Quantity { get; init; }
+    public int QuantityBefore { get; init; }
+    public int QuantityAfter { get; init; }
+    public decimal UnitCost { get; init; }
+    public int? SupplierId { get; init; }
+    public string SupplierName { get; init; } = "";
+    public int? MaintenanceOrderId { get; init; }
+    public string OrderNumber { get; init; } = "";
+    public int? CustomerId { get; init; }
+    public string CustomerName { get; init; } = "";
+    public string Reference { get; init; } = "";
+    public string Note { get; init; } = "";
+    public string ActorName { get; init; } = "";
+    public DateTime OccurredAt { get; init; }
+
+    public bool IsIncoming => Kind is MaintenanceSparePartMovementKind.OpeningBalance
+        or MaintenanceSparePartMovementKind.Purchase
+        or MaintenanceSparePartMovementKind.Return
+        or MaintenanceSparePartMovementKind.AdjustmentIncrease;
+
+    public string KindTitle => Kind switch
+    {
+        MaintenanceSparePartMovementKind.OpeningBalance => "رصيد افتتاحي",
+        MaintenanceSparePartMovementKind.Purchase => "توريد من مورد",
+        MaintenanceSparePartMovementKind.Issue => "صرف لأمر صيانة",
+        MaintenanceSparePartMovementKind.Return => "إرجاع للمخزون",
+        MaintenanceSparePartMovementKind.AdjustmentIncrease => "تسوية بالزيادة",
+        MaintenanceSparePartMovementKind.AdjustmentDecrease => "تسوية بالنقص",
+        _ => "حركة"
+    };
+
+    public string KindShortTitle => Kind switch
+    {
+        MaintenanceSparePartMovementKind.OpeningBalance => "افتتاحي",
+        MaintenanceSparePartMovementKind.Purchase => "توريد",
+        MaintenanceSparePartMovementKind.Issue => "صرف",
+        MaintenanceSparePartMovementKind.Return => "إرجاع",
+        MaintenanceSparePartMovementKind.AdjustmentIncrease => "تسوية +",
+        MaintenanceSparePartMovementKind.AdjustmentDecrease => "تسوية −",
+        _ => "حركة"
+    };
+
+    public string KindBadgeBackground => Kind switch
+    {
+        MaintenanceSparePartMovementKind.Purchase => "#DCFCE7",
+        MaintenanceSparePartMovementKind.OpeningBalance => "#DBEAFE",
+        MaintenanceSparePartMovementKind.Return => "#CCFBF1",
+        MaintenanceSparePartMovementKind.Issue => "#FEE2E2",
+        MaintenanceSparePartMovementKind.AdjustmentIncrease => "#FEF3C7",
+        MaintenanceSparePartMovementKind.AdjustmentDecrease => "#FFE4E6",
+        _ => "#F1F5F9"
+    };
+
+    public string KindBadgeForeground => Kind switch
+    {
+        MaintenanceSparePartMovementKind.Purchase => "#166534",
+        MaintenanceSparePartMovementKind.OpeningBalance => "#1D4ED8",
+        MaintenanceSparePartMovementKind.Return => "#0F766E",
+        MaintenanceSparePartMovementKind.Issue => "#B42318",
+        MaintenanceSparePartMovementKind.AdjustmentIncrease => "#B45309",
+        MaintenanceSparePartMovementKind.AdjustmentDecrease => "#9F1239",
+        _ => "#334155"
+    };
+
+    public string SignedQuantityDisplay => $"{(IsIncoming ? "+" : "−")}{Quantity}";
+    public string BalanceDisplay => $"{QuantityBefore} ← {QuantityAfter}";
+    public string UnitCostDisplay => PosFormatting.FormatCurrency(UnitCost);
+    public decimal MovementValue => Quantity * UnitCost;
+    public string MovementValueDisplay => PosFormatting.FormatCurrency(MovementValue);
+    public string TimestampDisplay => OccurredAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    public string DateDisplay => OccurredAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    public string TimeDisplay => OccurredAt.ToString("HH:mm", CultureInfo.InvariantCulture);
+    public string ActorDisplay => string.IsNullOrWhiteSpace(ActorName) ? "غير محدد" : ActorName;
+    public string SupplierDisplay => string.IsNullOrWhiteSpace(SupplierName) ? "بدون مورد" : SupplierName;
+    public string CustomerDisplay => string.IsNullOrWhiteSpace(CustomerName) ? "بدون عميل" : CustomerName;
+    public string OrderDisplay => string.IsNullOrWhiteSpace(OrderNumber) ? "بدون أمر" : OrderNumber;
+    public string ReferenceDisplay => string.IsNullOrWhiteSpace(Reference) ? "—" : Reference;
+    public string NoteDisplay => string.IsNullOrWhiteSpace(Note) ? "—" : Note;
+    public string NoteWithReferenceDisplay => string.IsNullOrWhiteSpace(Reference)
+        ? NoteDisplay
+        : string.IsNullOrWhiteSpace(Note)
+            ? $"مرجع: {Reference}"
+            : $"{Note} · مرجع: {Reference}";
+    public bool HasSupplier => SupplierId is > 0;
+    public bool HasCustomer => CustomerId is > 0;
+    public bool HasOrder => MaintenanceOrderId is > 0;
+
+    public bool Matches(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return true;
+        return SparePartName.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || SparePartCode.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || SupplierName.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || CustomerName.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || OrderNumber.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || Reference.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || Note.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || ActorName.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || KindTitle.Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public sealed class MaintenanceOrderDesignItem : ObservableObject
@@ -1081,6 +1343,9 @@ public static class MaintenanceDesignSeedData
         {
             Id = 1,
             Name = "شاشة iPhone 13 Pro OLED أصلية",
+            Barcode = "APL-IP13P-OLED",
+            SupplierId = 1,
+            SupplierName = "أحمد علي",
             Category = "شاشات",
             Quantity = 4,
             CostPrice = 3100m,
@@ -1090,6 +1355,9 @@ public static class MaintenanceDesignSeedData
         {
             Id = 2,
             Name = "بطارية Samsung Galaxy A54 أصلية",
+            Barcode = "SAM-A54-BAT",
+            SupplierId = 2,
+            SupplierName = "محمود كامل",
             Category = "بطاريات",
             Quantity = 6,
             CostPrice = 520m,
@@ -1099,6 +1367,9 @@ public static class MaintenanceDesignSeedData
         {
             Id = 3,
             Name = "فلاتة وسوكيت شحن Galaxy S23 Ultra",
+            Barcode = "SAM-S23U-FLEX",
+            SupplierId = 2,
+            SupplierName = "محمود كامل",
             Category = "فلاتات ومداخل شحن",
             Quantity = 5,
             CostPrice = 240m,
@@ -1108,6 +1379,9 @@ public static class MaintenanceDesignSeedData
         {
             Id = 4,
             Name = "شاشة OPPO Reno 11 AMOLED أصلية",
+            Barcode = "OPP-R11-AMOLED",
+            SupplierId = 3,
+            SupplierName = "شركة النور للتوزيع",
             Category = "شاشات",
             Quantity = 2,
             CostPrice = 1850m,
@@ -1117,6 +1391,9 @@ public static class MaintenanceDesignSeedData
         {
             Id = 5,
             Name = "سماعة خارجية Xiaomi Redmi Note 13 Pro",
+            Barcode = "XIA-RN13P-SPK",
+            SupplierId = 3,
+            SupplierName = "شركة النور للتوزيع",
             Category = "سماعات ومايك",
             Quantity = 8,
             CostPrice = 110m,
@@ -1126,6 +1403,9 @@ public static class MaintenanceDesignSeedData
         {
             Id = 6,
             Name = "فلاتة باور وبصمة iPhone 11 / 12",
+            Barcode = "APL-1112-PWR",
+            SupplierId = 2,
+            SupplierName = "محمود كامل",
             Category = "فلاتات ومداخل شحن",
             Quantity = 3,
             CostPrice = 160m,
@@ -1135,6 +1415,9 @@ public static class MaintenanceDesignSeedData
         {
             Id = 7,
             Name = "معجون حراري احترافي Arctic MX-4 + وسادات تبريد",
+            Barcode = "THR-MX4",
+            SupplierId = 1,
+            SupplierName = "أحمد علي",
             Category = "مستلزمات صيانة",
             Quantity = 10,
             CostPrice = 140m,
@@ -1144,6 +1427,9 @@ public static class MaintenanceDesignSeedData
         {
             Id = 8,
             Name = "آي سي شحن U2 / Tristar أصلي",
+            Barcode = "IC-U2-TRISTAR",
+            SupplierId = 4,
+            SupplierName = "الفتح للإلكترونيات",
             Category = "آي سي وبوردة",
             Quantity = 7,
             CostPrice = 280m,

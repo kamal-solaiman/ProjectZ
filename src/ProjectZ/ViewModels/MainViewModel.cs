@@ -235,7 +235,8 @@ public sealed class MainViewModel : ObservableObject
             () => SelectItem(Categories[2].Items[0]),
             MaintenanceSpareParts.NotifyExternalDataChanged,
             maintenanceRepository,
-            ReloadMaintenanceData);
+            ReloadMaintenanceData,
+            () => SelectItem(Categories[2].Items[3]));
         MaintenanceInvoices = new MaintenanceInvoicesViewModel(
             user.DisplayName,
             sharedMaintenanceOrders,
@@ -291,7 +292,13 @@ public sealed class MainViewModel : ObservableObject
             {
                 SuppliesChanged();
             },
-            purchaseRepository);
+            purchaseRepository,
+            sharedMaintenanceSpareParts,
+            part =>
+            {
+                MaintenanceSpareParts.SelectPartFromExternal(part.Id);
+                SelectItem(Categories[2].Items[3]);
+            });
         Customers = new CustomersViewModel(
             user.DisplayName,
             sharedCustomers,
@@ -321,6 +328,38 @@ public sealed class MainViewModel : ObservableObject
                 MaintenanceActions.NotifyExternalDataChanged();
             },
             salesRepository);
+
+        // Cross-screen links for spare parts: the supplier profile and the customer profile can open
+        // the exact spare part, and a movement row can open its supplier or customer.
+        MaintenanceSpareParts.OpenSupplierRequested = supplierId =>
+        {
+            // Always navigate: when the row is gone, the supplier screen shows the reason instead
+            // of leaving the user on the spare-parts screen with no feedback.
+            Suppliers.SelectSupplierFromExternal(supplierId);
+            SelectItem(Categories[4].Items[1]);
+        };
+        MaintenanceSpareParts.OpenCustomerRequested = customerId =>
+        {
+            Customers.SelectCustomerFromExternal(customerId);
+            SelectItem(Categories[4].Items[0]);
+        };
+        MaintenanceSpareParts.OpenOrderRequested = orderId =>
+        {
+            var order = sharedMaintenanceOrders.FirstOrDefault(o => o.Id == orderId);
+            if (order is null)
+            {
+                MaintenanceSpareParts.ReportExternalLinkFailure(
+                    $"تعذّر فتح أمر الصيانة رقم {orderId}: الأمر غير موجود في القائمة المحمّلة. حدّث شاشة إجراءات الصيانة ثم أعد المحاولة.");
+                return;
+            }
+            MaintenanceActions.SelectOrderFromExternal(order);
+            SelectItem(Categories[2].Items[2]);
+        };
+        Customers.OpenSparePartRequested = partId =>
+        {
+            MaintenanceSpareParts.SelectPartFromExternal(partId);
+            SelectItem(Categories[2].Items[3]);
+        };
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
         Backup = new BackupViewModel(user.DisplayName, backupRepository);
@@ -446,6 +485,10 @@ public sealed class MainViewModel : ObservableObject
         MaintenanceInvoices.NotifyExternalDataChanged();
         MaintenanceActions.NotifyExternalDataChanged();
         MaintenanceSpareParts.NotifyExternalDataChanged();
+        // The customer profile reads the shared order objects, so rebuild its spare-part tab after
+        // an issue/return without a second database round-trip. Suppliers already listen to the
+        // shared spare-parts collection directly.
+        Customers.RefreshSelectedSpareParts();
     }
 
     /// <summary>Reloads the SQL catalog, units, categories and customers after a sale or a return.</summary>
