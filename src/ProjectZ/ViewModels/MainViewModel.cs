@@ -11,6 +11,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly SalesRepository? salesRepository;
     private readonly PurchaseRepository? purchaseRepository;
     private readonly CategoryRepository? categoryRepository;
+    private readonly UserRepository? userRepository;
     private readonly MaintenanceRepository? maintenanceRepository;
     private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
     private NavigationMenuItemViewModel? selectedItem;
@@ -32,6 +33,7 @@ public sealed class MainViewModel : ObservableObject
     public MaintenanceSparePartsViewModel MaintenanceSpareParts { get; }
     public CustomersViewModel Customers { get; }
     public SuppliersViewModel Suppliers { get; }
+    public UsersViewModel Users { get; }
     public MyAccountsViewModel MyAccounts { get; }
     public VodafoneTransferViewModel VodafoneTransfer { get; }
     public InstapayTransferViewModel InstapayTransfer { get; }
@@ -53,6 +55,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsMaintenanceSparePartsSelected => ReferenceEquals(selectedItem, Categories[2].Items[3]);
     public bool IsCustomersSelected => ReferenceEquals(selectedItem, Categories[4].Items[0]);
     public bool IsSuppliersSelected => ReferenceEquals(selectedItem, Categories[4].Items[1]);
+    public bool IsUsersSelected => ReferenceEquals(selectedItem, Categories[5].Items[0]);
     public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, Categories[3].Items[0]);
     public bool IsVodafoneTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[1]);
     public bool IsInstapayTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[2]);
@@ -63,7 +66,8 @@ public sealed class MainViewModel : ObservableObject
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
-        || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected;
+        || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected
+        || IsUsersSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -93,13 +97,15 @@ public sealed class MainViewModel : ObservableObject
         CategoryRepository? categoryRepository = null,
         PurchaseRepository? purchaseRepository = null,
         FinancialRepository? financialRepository = null,
-        MaintenanceRepository? maintenanceRepository = null)
+        MaintenanceRepository? maintenanceRepository = null,
+        UserRepository? userRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
         this.categoryRepository = categoryRepository;
         this.purchaseRepository = purchaseRepository;
         this.maintenanceRepository = maintenanceRepository;
+        this.userRepository = userRepository;
         LogoutCommand = new RelayCommand(logout);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         Categories = new[]
@@ -318,6 +324,8 @@ public sealed class MainViewModel : ObservableObject
             },
             salesRepository);
 
+        Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
+
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
 
@@ -358,6 +366,10 @@ public sealed class MainViewModel : ObservableObject
 
         if (categoryRepository is not null)
             ProductCategories.RefreshFromDatabase();
+
+        // Login accounts live in dbo.Users; the screen loads them on construction too.
+        if (userRepository is not null)
+            Users.RefreshFromDatabase();
 
         if (salesRepository is not null)
         {
@@ -583,6 +595,8 @@ public sealed class MainViewModel : ObservableObject
             Customers.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[4].Items[1]))
             Suppliers.NotifyExternalDataChanged();
+        else if (ReferenceEquals(item, Categories[5].Items[0]))
+            Users.RefreshFromDatabase();
 
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
@@ -598,6 +612,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsMaintenanceSparePartsSelected));
         Changed(nameof(IsCustomersSelected));
         Changed(nameof(IsSuppliersSelected));
+        Changed(nameof(IsUsersSelected));
         Changed(nameof(IsMyAccountsSelected));
         Changed(nameof(IsVodafoneTransferSelected));
         Changed(nameof(IsInstapayTransferSelected));
