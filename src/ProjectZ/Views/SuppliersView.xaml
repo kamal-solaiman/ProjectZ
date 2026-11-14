@@ -143,6 +143,7 @@
                                         <TextBlock Text="{Binding SelectedSupplierEntry.Supplier.DisplayCompany}" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" Foreground="#CBD5E1" Margin="0,3,0,0" />
                                         <WrapPanel Margin="0,3,0,0"><TextBlock Text="{Binding SelectedSupplierEntry.Supplier.DisplayPhone}" Style="{StaticResource PosLtrTextStyle}" FontSize="12" FontWeight="SemiBold" Foreground="#99F6E4" /><Border Margin="8,0,0,0" Padding="7,2" CornerRadius="5" Background="#0F766E"><TextBlock Text="{Binding SelectedSupplierEntry.Supplier.SpecializationDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" Foreground="White" /></Border></WrapPanel>
                                         <TextBlock Text="{Binding SelectedSupplierEntry.Supplier.AddressDisplay, StringFormat='العنوان: {0}'}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#CBD5E1" Margin="0,3,0,0" />
+                                        <TextBlock Text="{Binding SelectedSupplierEntry.SparePartsSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" FontWeight="SemiBold" Foreground="#6EE7D8" Margin="0,3,0,0" />
                                     </StackPanel>
                                 </Grid>
                                 <WrapPanel Margin="0,8,0,0">
@@ -168,9 +169,10 @@
                             <Border Grid.Column="6" Padding="8,7" CornerRadius="9" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1"><StackPanel><TextBlock Text="مستحق للمورد" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#475569" /><TextBlock Text="{Binding SelectedSupplierEntry.OutstandingDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Right" FontSize="12" FontWeight="Bold" Foreground="#B42318" /></StackPanel></Border>
                         </Grid>
 
-                        <Grid Grid.Row="3" FlowDirection="RightToLeft" Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Grid Grid.Row="3" FlowDirection="RightToLeft" Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="6" /><ColumnDefinition Width="*" /><ColumnDefinition Width="6" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                             <Button Content="{Binding SelectedInvoicesTabTitle}" Command="{Binding SelectDetailTabCommand}" CommandParameter="0"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource SupTab}"><Style.Triggers><DataTrigger Binding="{Binding IsInvoicesTabSelected}" Value="True"><Setter Property="Background" Value="#147D92" /><Setter Property="BorderBrush" Value="#147D92" /><Setter Property="Foreground" Value="White" /></DataTrigger></Style.Triggers></Style></Button.Style></Button>
                             <Button Grid.Column="2" Content="{Binding SelectedStatementTabTitle}" Command="{Binding SelectDetailTabCommand}" CommandParameter="1"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource SupTab}"><Style.Triggers><DataTrigger Binding="{Binding IsStatementTabSelected}" Value="True"><Setter Property="Background" Value="#102E48" /><Setter Property="BorderBrush" Value="#102E48" /><Setter Property="Foreground" Value="White" /></DataTrigger></Style.Triggers></Style></Button.Style></Button>
+                            <Button Grid.Column="4" Content="{Binding SelectedSparePartsTabTitle}" Command="{Binding SelectDetailTabCommand}" CommandParameter="2"><Button.Style><Style TargetType="Button" BasedOn="{StaticResource SupTab}"><Style.Triggers><DataTrigger Binding="{Binding IsSparePartsTabSelected}" Value="True"><Setter Property="Background" Value="#0F766E" /><Setter Property="BorderBrush" Value="#0F766E" /><Setter Property="Foreground" Value="White" /></DataTrigger></Style.Triggers></Style></Button.Style></Button>
                         </Grid>
 
                         <Grid Grid.Row="4">
@@ -214,6 +216,37 @@
                                     </Grid></Border>
                                 </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
                                     <TextBlock Text="لا توجد حركات حساب لهذا المورد حتى الآن." Style="{StaticResource PosCenterTextStyle}" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12.5" Foreground="#94A3B8" Visibility="{Binding HasNoSelectedSupplierStatement, Converter={StaticResource BoolToVis}}" />
+                                </Grid>
+                            </Grid>
+
+                            <!-- Maintenance spare parts linked to this supplier -->
+                            <Grid Visibility="{Binding IsSparePartsTabSelected, Converter={StaticResource BoolToVis}}"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <Border Padding="9,7" CornerRadius="8" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1" Margin="0,0,0,7">
+                                    <TextBlock Text="{Binding SelectedSupplierSparePartsSummary}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F766E" TextWrapping="Wrap" />
+                                </Border>
+                                <Grid Grid.Row="1">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ItemsControl ItemsSource="{Binding SelectedSupplierSpareParts}"><ItemsControl.ItemTemplate><DataTemplate>
+                                        <Border Margin="0,0,0,7" Padding="10,9" CornerRadius="10" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"><StackPanel FlowDirection="RightToLeft">
+                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Name}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="#102E48" TextTrimming="CharacterEllipsis" />
+                                                    <Border Margin="7,0,0,0" Padding="6,2" CornerRadius="5" Background="#E0F2FE"><TextBlock Text="{Binding CodeDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="9.5" FontWeight="Bold" Foreground="#0369A1" /></Border>
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Padding="7,3" CornerRadius="6" Background="#DCFCE7"><TextBlock Text="{Binding QuantityDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" FontWeight="Bold" Foreground="#166534" /></Border>
+                                            </Grid>
+                                            <TextBlock Text="{Binding BarcodeDisplay, StringFormat='الباركود: {0}'}" Style="{StaticResource PosRtlTextStyle}" FontSize="10" Foreground="#64748B" Margin="0,3,0,0" />
+                                            <Grid Margin="0,6,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="التكلفة: " Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#64748B" />
+                                                    <TextBlock Text="{Binding CostPriceDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
+                                                    <TextBlock Text=" · التركيب: " Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="#64748B" />
+                                                    <TextBlock Text="{Binding SellPriceDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11" FontWeight="Bold" Foreground="#0F766E" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="فتح في قطع الغيار" Style="{StaticResource PosOutlineTealButtonStyle}" Padding="8,4" FontSize="10" Command="{Binding DataContext.OpenSparePartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            </Grid>
+                                        </StackPanel></Border>
+                                    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+                                    <TextBlock Text="لا توجد قطع غيار صيانة مرتبطة بهذا المورد حتى الآن." Style="{StaticResource PosCenterTextStyle}" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12.5" Foreground="#94A3B8" Visibility="{Binding HasNoSelectedSupplierSpareParts, Converter={StaticResource BoolToVis}}" />
                                 </Grid>
                             </Grid>
                         </Grid>

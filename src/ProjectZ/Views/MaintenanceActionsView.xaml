@@ -599,10 +599,9 @@
                         </Border>
 
                         <!-- D. Control Panel Tabs -->
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    FlowDirection="RightToLeft"
-                                    Margin="0,0,0,8">
+                        <WrapPanel HorizontalAlignment="Right"
+                                   FlowDirection="RightToLeft"
+                                   Margin="0,0,0,8">
                             <Button Content="الفحص وتفاصيل الاستلام" Command="{Binding SelectTabCommand}" CommandParameter="0">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource MntStageChipStyle}">
@@ -655,7 +654,13 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                        </StackPanel>
+                            <Button Content="إدارة مخزون القطع"
+                                    Style="{StaticResource PosOutlineTealButtonStyle}"
+                                    Padding="10,5"
+                                    FontSize="11"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding GoToSparePartsCommand}" />
+                        </WrapPanel>
 
                         <!-- E. Active Tab Content -->
                         <Border Padding="12" CornerRadius="12" Background="White" BorderBrush="#E2E8F0" BorderThickness="1">

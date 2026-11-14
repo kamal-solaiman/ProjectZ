@@ -52,7 +52,26 @@ public sealed class SupplierDirectoryEntryViewModel : ObservableObject
         internal set { if (isSelected == value) return; isSelected = value; Changed(); }
     }
 
+    public int SparePartsCount { get; private set; }
+    public decimal SparePartsValue { get; private set; }
+    public bool HasSpareParts => SparePartsCount > 0;
+    public string SparePartsSummary => SparePartsCount == 0
+        ? "لا توجد قطع غيار صيانة مرتبطة بهذا المورد"
+        : $"{SparePartsCount} قطعة غيار · قيمة المخزون {PosFormatting.FormatCurrency(SparePartsValue)}";
+
     public SupplierDirectoryEntryViewModel(SupplierDesignItem supplier) => Supplier = supplier;
+
+    /// <summary>Refreshes the spare-parts summary shown in the supplier profile.</summary>
+    public void SetSpareParts(IEnumerable<MaintenanceSparePartItem> parts)
+    {
+        var list = parts.ToList();
+        SparePartsCount = list.Count;
+        SparePartsValue = list.Sum(p => p.TotalCostValue);
+        Changed(nameof(SparePartsCount));
+        Changed(nameof(SparePartsValue));
+        Changed(nameof(HasSpareParts));
+        Changed(nameof(SparePartsSummary));
+    }
 
     public void Recalculate(IEnumerable<PurchaseInvoiceDesignItem> invoices)
     {
@@ -85,6 +104,8 @@ public sealed class SuppliersViewModel : ObservableObject
     private readonly Action? notifyExternalDataChanged;
     private readonly List<SupplierDirectoryEntryViewModel> allEntries = [];
     private readonly PurchaseRepository? repository;
+    private readonly ObservableCollection<MaintenanceSparePartItem> maintenanceSpareParts;
+    private readonly Action<MaintenanceSparePartItem>? openSparePartScreen;
 
     private SupplierDirectoryEntryViewModel? selectedSupplierEntry;
     private string searchText = "";
@@ -98,6 +119,7 @@ public sealed class SuppliersViewModel : ObservableObject
     public ObservableCollection<SupplierDirectoryEntryViewModel> FilteredSuppliers { get; } = [];
     public ObservableCollection<PurchaseInvoiceDesignItem> SelectedSupplierInvoices { get; } = [];
     public ObservableCollection<SupplierStatementRow> SelectedSupplierStatement { get; } = [];
+    public ObservableCollection<MaintenanceSparePartItem> SelectedSupplierSpareParts { get; } = [];
     public ObservableCollection<string> SpecializationFilterOptions { get; } = ["كل التخصصات"];
     public IReadOnlyList<string> BalanceFilterOptions { get; } = ["جميع الموردين", "مستحق لهم مبالغ", "خالصون / مسددون", "لديهم فواتير", "بدون معاملات بعد"];
     public IReadOnlyList<string> SortOptions { get; } = ["الأحدث نشاطًا", "الأعلى تعاملًا", "الأعلى مستحقًا", "الأكثر فواتير", "الاسم أبجديًا"];
@@ -128,15 +150,23 @@ public sealed class SuppliersViewModel : ObservableObject
     public int ActiveDetailTabIndex
     {
         get => activeDetailTabIndex;
-        set { if (activeDetailTabIndex == value) return; activeDetailTabIndex = value; Changed(); Changed(nameof(IsInvoicesTabSelected)); Changed(nameof(IsStatementTabSelected)); }
+        set { if (activeDetailTabIndex == value) return; activeDetailTabIndex = value; Changed(); Changed(nameof(IsInvoicesTabSelected)); Changed(nameof(IsStatementTabSelected)); Changed(nameof(IsSparePartsTabSelected)); }
     }
     public bool IsInvoicesTabSelected => ActiveDetailTabIndex == 0;
     public bool IsStatementTabSelected => ActiveDetailTabIndex == 1;
+    public bool IsSparePartsTabSelected => ActiveDetailTabIndex == 2;
     public string SelectedInvoicesTabTitle => $"فواتير المشتريات ({SelectedSupplierEntry?.InvoicesCount ?? 0})";
     public string SelectedStatementTabTitle => $"كشف حساب ({SelectedSupplierStatement.Count})";
+    public string SelectedSparePartsTabTitle => $"قطع الغيار ({SelectedSupplierSpareParts.Count})";
+    public string SelectedSupplierSparePartsSummary => SelectedSupplierEntry is null
+        ? "اختر موردًا لعرض قطع الغيار المرتبطة به."
+        : SelectedSupplierSpareParts.Count == 0
+            ? "لا توجد قطع غيار صيانة مرتبطة بهذا المورد."
+            : $"{SelectedSupplierSpareParts.Count} صنف · {SelectedSupplierSpareParts.Sum(p => p.Quantity)} وحدة · قيمة بالتكلفة {PosFormatting.FormatCurrency(SelectedSupplierSpareParts.Sum(p => p.TotalCostValue))}";
     public bool HasNoFilteredSuppliers => FilteredSuppliers.Count == 0;
     public bool HasNoSelectedSupplierInvoices => SelectedSupplierInvoices.Count == 0;
     public bool HasNoSelectedSupplierStatement => SelectedSupplierStatement.Count == 0;
+    public bool HasNoSelectedSupplierSpareParts => SelectedSupplierSpareParts.Count == 0;
 
 
     public string StatusMessage { get => statusMessage; private set { if (statusMessage == value) return; statusMessage = value; Changed(); Changed(nameof(HasStatusMessage)); } }
@@ -165,10 +195,12 @@ public sealed class SuppliersViewModel : ObservableObject
     public RelayCommand<PurchaseInvoiceDesignItem> ReturnInvoiceCommand { get; }
     public RelayCommand<PurchaseInvoiceDesignItem> OpenInvoiceDetailsCommand { get; }
     public RelayCommand<PurchaseInvoiceDesignItem> PrintInvoiceCommand { get; }
+    public RelayCommand<MaintenanceSparePartItem> OpenSparePartCommand { get; }
 
     public SuppliersViewModel()
     {
         sharedSuppliers = PurchaseDesignSeedData.CreateSharedSampleSuppliers();
+        maintenanceSpareParts = new ObservableCollection<MaintenanceSparePartItem>();
         purchaseActions = new PurchaseInvoicesViewModel(null, sharedSuppliers, null, null, "المشرف");
         sharedPurchaseInvoices = GetInvoicesFromDesignActions(purchaseActions);
         AddSupplierCommand = new ActionCommand(OpenAddSupplier);
@@ -186,6 +218,11 @@ public sealed class SuppliersViewModel : ObservableObject
         ReturnInvoiceCommand = new RelayCommand<PurchaseInvoiceDesignItem>(ReturnInvoice);
         OpenInvoiceDetailsCommand = new RelayCommand<PurchaseInvoiceDesignItem>(OpenInvoiceDetails);
         PrintInvoiceCommand = new RelayCommand<PurchaseInvoiceDesignItem>(PrintInvoice);
+        OpenSparePartCommand = new RelayCommand<MaintenanceSparePartItem>(part =>
+        {
+            if (part is not null)
+                openSparePartScreen?.Invoke(part);
+        });
         RebuildEntriesAndRefresh();
     }
 
@@ -195,7 +232,9 @@ public sealed class SuppliersViewModel : ObservableObject
         PurchaseInvoicesViewModel purchaseActions,
         Action<SupplierDesignItem>? startPurchaseForSupplier = null,
         Action? notifyExternalDataChanged = null,
-        PurchaseRepository? repository = null)
+        PurchaseRepository? repository = null,
+        ObservableCollection<MaintenanceSparePartItem>? maintenanceSpareParts = null,
+        Action<MaintenanceSparePartItem>? openSparePartScreen = null)
     {
         this.sharedSuppliers = sharedSuppliers;
         this.sharedPurchaseInvoices = sharedPurchaseInvoices;
@@ -203,8 +242,11 @@ public sealed class SuppliersViewModel : ObservableObject
         this.startPurchaseForSupplier = startPurchaseForSupplier;
         this.notifyExternalDataChanged = notifyExternalDataChanged;
         this.repository = repository;
+        this.maintenanceSpareParts = maintenanceSpareParts ?? new ObservableCollection<MaintenanceSparePartItem>();
+        this.openSparePartScreen = openSparePartScreen;
         sharedSuppliers.CollectionChanged += OnExternalCollectionChanged;
         sharedPurchaseInvoices.CollectionChanged += OnExternalCollectionChanged;
+        this.maintenanceSpareParts.CollectionChanged += OnMaintenanceSparePartsChanged;
 
         AddSupplierCommand = new ActionCommand(OpenAddSupplier);
         EditSelectedSupplierCommand = new ActionCommand(() => EditSupplier(SelectedSupplierEntry));
@@ -221,6 +263,11 @@ public sealed class SuppliersViewModel : ObservableObject
         ReturnInvoiceCommand = new RelayCommand<PurchaseInvoiceDesignItem>(ReturnInvoice);
         OpenInvoiceDetailsCommand = new RelayCommand<PurchaseInvoiceDesignItem>(OpenInvoiceDetails);
         PrintInvoiceCommand = new RelayCommand<PurchaseInvoiceDesignItem>(PrintInvoice);
+        OpenSparePartCommand = new RelayCommand<MaintenanceSparePartItem>(part =>
+        {
+            if (part is not null)
+                openSparePartScreen?.Invoke(part);
+        });
         RefreshFromDatabase();
     }
 
@@ -272,6 +319,44 @@ public sealed class SuppliersViewModel : ObservableObject
         NotifyExternalDataChanged();
     }
     private void OnExternalCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildEntriesAndRefresh();
+
+    private void OnMaintenanceSparePartsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        foreach (var entry in allEntries)
+            entry.SetSpareParts(maintenanceSpareParts.Where(p => p.SupplierId == entry.Supplier.Id));
+        RefreshSelectedSupplierDetails();
+        Changed(nameof(SelectedSparePartsTabTitle));
+        Changed(nameof(SelectedSupplierSparePartsSummary));
+        Changed(nameof(HasNoSelectedSupplierSpareParts));
+    }
+
+    /// <summary>
+    /// Opens the supplier selected on another screen (for example a spare-part movement) and
+    /// clears the directory filters so the row is visible.
+    /// </summary>
+    public bool SelectSupplierFromExternal(int supplierId)
+    {
+        searchText = "";
+        selectedSpecializationFilter = "كل التخصصات";
+        selectedBalanceFilter = "جميع الموردين";
+        selectedSortOption = "الأحدث نشاطًا";
+        Changed(nameof(SearchText));
+        Changed(nameof(SelectedSpecializationFilter));
+        Changed(nameof(SelectedBalanceFilter));
+        Changed(nameof(SelectedSortOption));
+        RebuildEntriesAndRefresh(supplierId);
+        var found = SelectedSupplierEntry?.Supplier.Id == supplierId;
+        if (found)
+        {
+            ActiveDetailTabIndex = 2;
+            SetStatus("تم فتح ملف المورد من شاشة قطع الغيار.", false);
+        }
+        else
+        {
+            SetStatus("لم يتم العثور على المورد المطلوب في الدليل.", true);
+        }
+        return found;
+    }
 
     private static string NormalizePhone(string? value) => string.IsNullOrWhiteSpace(value) ? "" : new string(value.Where(char.IsDigit).ToArray());
     private string? ValidateDuplicatePhone(string phone, int? editingId)
@@ -483,6 +568,7 @@ public sealed class SuppliersViewModel : ObservableObject
         {
             var entry = previous.FirstOrDefault(e => ReferenceEquals(e.Supplier, supplier)) ?? new SupplierDirectoryEntryViewModel(supplier);
             entry.Recalculate(sharedPurchaseInvoices.Where(i => i.SupplierId == supplier.Id));
+            entry.SetSpareParts(maintenanceSpareParts.Where(p => p.SupplierId == supplier.Id));
             allEntries.Add(entry);
         }
         RefreshFilteredSuppliers(previousId);
@@ -523,14 +609,20 @@ public sealed class SuppliersViewModel : ObservableObject
 
     private void RefreshSelectedSupplierDetails()
     {
-        SelectedSupplierInvoices.Clear(); SelectedSupplierStatement.Clear();
+        SelectedSupplierInvoices.Clear(); SelectedSupplierStatement.Clear(); SelectedSupplierSpareParts.Clear();
         if (SelectedSupplierEntry is not null)
         {
             foreach (var invoice in SelectedSupplierEntry.PurchaseInvoices) SelectedSupplierInvoices.Add(invoice);
             foreach (var row in BuildStatement(SelectedSupplierEntry)) SelectedSupplierStatement.Add(row);
+            foreach (var part in maintenanceSpareParts
+                         .Where(p => p.SupplierId == SelectedSupplierEntry.Supplier.Id)
+                         .OrderBy(p => p.Name, StringComparer.CurrentCulture))
+                SelectedSupplierSpareParts.Add(part);
         }
         Changed(nameof(SelectedInvoicesTabTitle)); Changed(nameof(SelectedStatementTabTitle));
+        Changed(nameof(SelectedSparePartsTabTitle)); Changed(nameof(SelectedSupplierSparePartsSummary));
         Changed(nameof(HasNoSelectedSupplierInvoices)); Changed(nameof(HasNoSelectedSupplierStatement));
+        Changed(nameof(HasNoSelectedSupplierSpareParts));
     }
 
     private static List<SupplierStatementRow> BuildStatement(SupplierDirectoryEntryViewModel entry)

@@ -43,11 +43,14 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 37
+# 37 CREATE TABLE statements create the 36 business tables + Users; sql/15 repeats the
+# movement table idempotently so an existing database can be upgraded without re-running 06.
+assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 39
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
 assert 'CREATE DATABASE [ProjectZ]' in sql
 assert '[ProjectZClient]' in (root / 'sql/04_SetupLanSqlAuth.sql').read_text(encoding='utf-8')
 full_schema = (root / 'sql/06_CreateFullSchema.sql').read_text(encoding='utf-8')
+assert len(re.findall(r'CREATE\s+TABLE\s+', full_schema, re.I)) == 37
 reporting_views = (root / 'sql/07_CreateReportingViews.sql').read_text(encoding='utf-8')
 expected_tables = {
     'Users', 'Roles', 'Permissions', 'UserRoles', 'RolePermissions', 'SystemSettings', 'DocumentSequences',
@@ -57,7 +60,7 @@ expected_tables = {
     'PurchaseInvoiceActivities', 'SalesInvoices', 'SalesInvoiceLines', 'SalesInvoiceLineUnits', 'SalesPayments',
     'SalesInvoiceActivities', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits',
     'MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments', 'MaintenanceActivities',
-    'MaintenanceSpareParts', 'AuditLog'
+    'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'AuditLog'
 }
 created_tables = set(re.findall(r'CREATE\s+TABLE\s+dbo\.([A-Za-z0-9_]+)', sql, re.I))
 assert created_tables == expected_tables, f'schema table mismatch: missing={expected_tables-created_tables}, extra={created_tables-expected_tables}'
@@ -77,7 +80,7 @@ assert '01_CreateDatabase.sql' in (root / 'docs/DATABASE.md').read_text(encoding
 schema_verification = (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8')
 assert 'SELECT expected.v AS MissingView' in schema_verification
 assert 'SELECT v.name AS MissingView' not in schema_verification
-print('PASS: complete ProjectZ database schema, 36 related tables, five reporting views, compatibility 130')
+print('PASS: complete ProjectZ database schema, 37 related tables, five reporting views, compatibility 130')
 
 # --- Application shutdown: closing the UI must terminate the WPF process ---
 app_xaml = (root / 'src/ProjectZ/App.xaml').read_text(encoding='utf-8')
@@ -929,6 +932,80 @@ for removed_binding in ('TotalPartsCountDisplay', 'TotalQuantityUnitsDisplay', '
                         'LowOrOutCountDisplay'):
     assert removed_binding not in maintenance_spare_parts_xaml, f'removed spare-parts KPI binding is back: {removed_binding}'
 
+# --- Spare-parts screen: SQL CRUD, suppliers, ledger and cross-screen links (sql/15) ---------
+enable_spare_sql_path = root / 'sql/15_EnableMaintenanceSpareParts.sql'
+assert enable_spare_sql_path.is_file(), 'missing sql/15_EnableMaintenanceSpareParts.sql'
+enable_spare_sql = enable_spare_sql_path.read_text(encoding='utf-8')
+for token in ('CREATE TABLE dbo.MaintenanceSparePartMovements', 'UX_MaintenanceSpareParts_Barcode',
+              'UX_MaintenanceSpareParts_Name', 'IX_MaintenanceSparePartMovements_Part_Date',
+              'IX_MaintenanceOrderParts_SparePart',
+              'GRANT SELECT, INSERT ON OBJECT::dbo.MaintenanceSparePartMovements TO [ProjectZClient]',
+              'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceSpareParts TO [ProjectZClient]',
+              'THROW 50077', 'THROW 50079', 'CK_MaintenanceOrderParts_Source',
+              "COL_LENGTH(N'dbo.MaintenanceOrderParts', N'SparePartId')"):
+    assert token in enable_spare_sql, f'sql/15 missing expected guard: {token}'
+assert 'CREATE TABLE dbo.MaintenanceSpareParts' not in enable_spare_sql, 'sql/15 must upgrade, not recreate, dbo.MaintenanceSpareParts'
+for column in ('SupplierId', 'Barcode', 'Unit', 'ReorderQuantity', 'StorageLocation', 'Notes',
+               'LastPurchaseAtUtc', 'LastIssueAtUtc'):
+    assert f"COL_LENGTH(N'dbo.MaintenanceSpareParts', N'{column}')" in enable_spare_sql, f'sql/15 does not add {column}'
+assert 'dbo.MaintenanceSparePartMovements' in full_schema and 'dbo.MaintenanceSpareParts' in full_schema
+
+spare_parts_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
+for operation in ('LoadSparePartsInto(', 'LoadSparePartSuppliers(', 'SaveSparePart(', 'DeleteSparePart(',
+                  'DeductSparePartStock(', 'RestoreSparePartStock(', 'RestockSparePart(',
+                  'LoadSparePartMovementsInto(', 'InsertSparePartMovement('):
+    assert operation in spare_parts_repository, f'missing spare-part SQL operation: {operation}'
+for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK',
+              'dbo.MaintenanceSparePartMovements', 'INSERT dbo.MaintenanceOrderParts',
+              'RowVersion', 'COALESCE(@Supplier, sp.SupplierId)',
+              'MaintenanceSparePartMovementKind.Issue',
+              'MaintenanceSparePartMovementKind.Purchase', 'MaintenanceSparePartMovementKind.Return'):
+    assert guard in spare_parts_repository, f'missing spare-part persistence guard: {guard}'
+assert 'WHERE Id = @Id;' in spare_parts_repository, 'restoring a deactivated part must not require IsActive = 1'
+assert 'يوجد سجل صرف أو حركات مخزون' in spare_parts_repository, 'deleting a part with history must deactivate it'
+
+spare_parts_vm = (root / 'src/ProjectZ/ViewModels/MaintenanceSparePartsViewModel.cs').read_text(encoding='utf-8')
+for token in ('LoadSparePartsInto(', 'SaveSparePart(', 'RestockSparePart(', 'DeleteSparePart(',
+              'LoadSparePartMovementsInto(', 'BarcodeText', 'SelectedSupplier', 'SupplierOptions',
+              'RestockPartCommand', 'OpenSupplierCommand', 'OpenCustomerCommand', 'OpenOrderCommand',
+              'FilteredMovements', 'InventorySummaryText', 'SelectPartFromExternal(', 'ConnectionBadgeText'):
+    assert token in spare_parts_vm, f'spare-parts view model missing expected token: {token}'
+
+for token in ('SupplierOptions', 'SelectedSupplier', 'BarcodeText', 'RestockPartCommand',
+              'FilteredMovements', 'ConnectionBadgeText', 'MovementsTabTitle',
+              'OpenSupplierCommand', 'OpenCustomerCommand', 'OpenOrderCommand', 'StockFilterOptions',
+              'InventorySummaryText', 'SelectWorkspaceTabCommand'):
+    assert token in maintenance_spare_parts_xaml, f'MaintenanceSpareParts UI missing expected token: {token}'
+assert 'تصميم الواجهة' not in maintenance_spare_parts_xaml, 'the spare-parts screen still advertises a design-only badge'
+
+suppliers_xaml_text = (root / 'src/ProjectZ/Views/SuppliersView.xaml').read_text(encoding='utf-8')
+suppliers_vm_text = (root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs').read_text(encoding='utf-8')
+for token in ('SelectedSupplierSpareParts', 'SelectedSparePartsTabTitle', 'OpenSparePartCommand',
+              'SelectedSupplierSparePartsSummary'):
+    assert token in suppliers_xaml_text, f'supplier screen is not linked to spare parts: {token}'
+for token in ('maintenanceSpareParts', 'SetSpareParts(', 'SelectSupplierFromExternal('):
+    assert token in suppliers_vm_text, f'supplier view model is not linked to spare parts: {token}'
+
+customers_xaml_text = (root / 'src/ProjectZ/Views/CustomersView.xaml').read_text(encoding='utf-8')
+customers_vm_text = (root / 'src/ProjectZ/ViewModels/CustomersViewModel.cs').read_text(encoding='utf-8')
+for token in ('SelectedCustomerSpareParts', 'SelectedSparePartsTabTitle', 'OpenSparePartCommand',
+              'SelectedSparePartsSummary'):
+    assert token in customers_xaml_text, f'customer screen is not linked to spare parts: {token}'
+for token in ('CustomerSparePartUsageRow', 'SelectedCustomerSpareParts', 'SelectCustomerFromExternal(',
+              'OpenSparePartRequested'):
+    assert token in customers_vm_text, f'customer view model is not linked to spare parts: {token}'
+
+assert 'MaintenanceSpareParts.OpenSupplierRequested' in main_viewmodel
+assert 'MaintenanceSpareParts.OpenCustomerRequested' in main_viewmodel
+assert 'MaintenanceSpareParts.OpenOrderRequested' in main_viewmodel
+assert 'GoToSparePartsCommand' in maintenance_actions_xaml_path.read_text(encoding='utf-8')
+assert 'Customers.OpenSparePartRequested' in main_viewmodel
+assert 'sharedMaintenanceSpareParts' in main_viewmodel
+maintenance_actions_code = (root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs').read_text(encoding='utf-8')
+assert 'RestorePartStockToInventory(part, order)' in maintenance_actions_code
+assert 'repository.RestoreSparePartStock(' in maintenance_actions_code
+print('PASS: spare-parts screen persists CRUD, suppliers, restock and the movement ledger to SQL and links every screen')
+
 maintenance_actions_vm_text = (root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs').read_text(encoding='utf-8')
 assert 'ObservableCollection<MaintenanceSparePartItem>' in maintenance_actions_vm_text
 assert 'InventoryUnitRegistrationItem' not in maintenance_actions_vm_text, 'MaintenanceActions must use dedicated maintenance spare parts, not POS/Inventory registrations'
@@ -1060,6 +1137,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceActionsDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceSparePartsViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/MaintenanceSparePartRestockViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MaintenanceReceiptPreviewViewModel.cs',
     root / 'src/ProjectZ/Views/PosView.xaml.cs',
     root / 'src/ProjectZ/Views/AddCustomerWindow.xaml.cs',
@@ -1087,6 +1165,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceActionsView.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceSparePartsView.xaml.cs',
+    root / 'src/ProjectZ/Views/MaintenanceSparePartRestockWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceDeliveryWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceCancelOrderWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MaintenanceReceiptPreviewWindow.xaml.cs',

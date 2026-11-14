@@ -676,7 +676,9 @@
                         <Grid Grid.Row="2" FlowDirection="RightToLeft" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="6" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
@@ -713,9 +715,26 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
+
+                            <Button Grid.Column="4"
+                                    Content="{Binding SelectedSparePartsTabTitle}"
+                                    Command="{Binding SelectDetailTabCommand}"
+                                    CommandParameter="2">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource CustTabButtonStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSparePartsTabSelected}" Value="True">
+                                                <Setter Property="Background" Value="#0F766E" />
+                                                <Setter Property="BorderBrush" Value="#0F766E" />
+                                                <Setter Property="Foreground" Value="White" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </Grid>
 
-                        <!-- D. Tab Content: Sales Invoices OR Maintenance Orders -->
+                        <!-- D. Tab Content: Sales Invoices OR Maintenance Orders OR Spare Parts -->
                         <Grid Grid.Row="3">
                             <!-- TAB 0: SALES INVOICES -->
                             <Grid Visibility="{Binding IsSalesTabSelected, Converter={StaticResource BoolToVis}}">
@@ -867,6 +886,155 @@
                                            FontSize="12.5"
                                            Foreground="#94A3B8"
                                            Visibility="{Binding HasNoSelectedCustomerMaintenance, Converter={StaticResource BoolToVis}}" />
+                            </Grid>
+
+                            <!-- TAB 2: SPARE PARTS USED IN THIS CUSTOMER'S MAINTENANCE ORDERS -->
+                            <Grid Visibility="{Binding IsSparePartsTabSelected, Converter={StaticResource BoolToVis}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <Border Padding="9,7"
+                                        CornerRadius="8"
+                                        Background="#F0FDFA"
+                                        BorderBrush="#99F6E4"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,7">
+                                    <TextBlock Text="{Binding SelectedSparePartsSummary}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="#0F766E"
+                                               TextWrapping="Wrap" />
+                                </Border>
+
+                                <Grid Grid.Row="1">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding SelectedCustomerSpareParts}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Margin="0,0,0,7"
+                                                            Padding="10,9"
+                                                            CornerRadius="10"
+                                                            Background="White"
+                                                            BorderBrush="#E2E8F0"
+                                                            BorderThickness="1">
+                                                        <StackPanel FlowDirection="RightToLeft">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding PartName}"
+                                                                               Style="{StaticResource PosRtlTextStyle}"
+                                                                               FontSize="12.5"
+                                                                               FontWeight="Bold"
+                                                                               Foreground="#102E48" />
+                                                                    <Border Margin="7,0,0,0"
+                                                                            Padding="6,2"
+                                                                            CornerRadius="5"
+                                                                            Background="#DCFCE7">
+                                                                        <TextBlock Text="{Binding SourceTitle}"
+                                                                                   Style="{StaticResource PosCenterTextStyle}"
+                                                                                   FontSize="9.5"
+                                                                                   FontWeight="Bold"
+                                                                                   Foreground="#166534" />
+                                                                    </Border>
+                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding LineTotalDisplay}"
+                                                                           Style="{StaticResource PosLtrTextStyle}"
+                                                                           FontSize="12.5"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="#0F766E"
+                                                                           VerticalAlignment="Center" />
+                                                            </Grid>
+
+                                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                                <TextBlock Text="{Binding OrderNumber}"
+                                                                           Style="{StaticResource PosLtrTextStyle}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#147D92" />
+                                                                <TextBlock Text=" · "
+                                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                                           FontSize="11"
+                                                                           Foreground="#94A3B8" />
+                                                                <TextBlock Text="{Binding QuantityDisplay}"
+                                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                                           FontSize="11"
+                                                                           Foreground="#475569" />
+                                                                <TextBlock Text=" · سعر الوحدة "
+                                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                                           FontSize="11"
+                                                                           Foreground="#64748B" />
+                                                                <TextBlock Text="{Binding UnitSellPriceDisplay}"
+                                                                           Style="{StaticResource PosLtrTextStyle}"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#334155" />
+                                                            </StackPanel>
+
+                                                            <TextBlock Text="{Binding DeviceTitle}"
+                                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                                       FontSize="11"
+                                                                       Foreground="#64748B"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       Margin="0,2,0,0" />
+
+                                                            <Grid Margin="0,6,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding DateDisplay}"
+                                                                               Style="{StaticResource PosLtrTextStyle}"
+                                                                               FontSize="10"
+                                                                               Foreground="#94A3B8" />
+                                                                    <TextBlock Text=" · "
+                                                                               Style="{StaticResource PosRtlTextStyle}"
+                                                                               FontSize="10"
+                                                                               Foreground="#94A3B8" />
+                                                                    <TextBlock Text="{Binding StatusTitle}"
+                                                                               Style="{StaticResource PosRtlTextStyle}"
+                                                                               FontSize="10"
+                                                                               Foreground="#64748B" />
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                    <Button Content="تفاصيل الأمر"
+                                                                            Style="{StaticResource PosOutlineTealButtonStyle}"
+                                                                            Padding="8,4"
+                                                                            FontSize="10.5"
+                                                                            Margin="0,0,5,0"
+                                                                            Command="{Binding DataContext.OpenMaintenanceDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding Order}" />
+                                                                    <Button Content="فتح القطعة"
+                                                                            Style="{StaticResource PosSecondaryButtonStyle}"
+                                                                            Padding="8,4"
+                                                                            FontSize="10.5"
+                                                                            Visibility="{Binding CanOpenSparePart, Converter={StaticResource BoolToVis}}"
+                                                                            Command="{Binding DataContext.OpenSparePartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}" />
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+
+                                    <TextBlock Text="لم تُصرف قطع غيار على تذاكر صيانة هذا العميل حتى الآن."
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               FontSize="12.5"
+                                               Foreground="#94A3B8"
+                                               Visibility="{Binding HasNoSelectedCustomerSpareParts, Converter={StaticResource BoolToVis}}" />
+                                </Grid>
                             </Grid>
                         </Grid>
                     </Grid>

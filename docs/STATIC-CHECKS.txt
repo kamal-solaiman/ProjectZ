@@ -37,6 +37,7 @@ PASS XML: src/ProjectZ/Views/MaintenanceIntakeView.xaml
 PASS XML: src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml
 PASS XML: src/ProjectZ/Views/MaintenanceInvoicesView.xaml
 PASS XML: src/ProjectZ/Views/MaintenanceReceiptPreviewWindow.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceSparePartRestockWindow.xaml
 PASS XML: src/ProjectZ/Views/MaintenanceSparePartsView.xaml
 PASS XML: src/ProjectZ/Views/MarkDamagedWindow.xaml
 PASS XML: src/ProjectZ/Views/MyAccountsView.xaml
@@ -62,7 +63,7 @@ PASS XML: src/ProjectZ/app.manifest
 PASS JSON: src/ProjectZ/connectionsettings.json
 PASS XML: tests/ProjectZ.Security.Tests/ProjectZ.Security.Tests.csproj
 PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector
-PASS: complete ProjectZ database schema, 36 related tables, five reporting views, compatibility 130
+PASS: complete ProjectZ database schema, 37 related tables, five reporting views, compatibility 130
 PASS: ShutdownMode=OnLastWindowClose; OnExplicitShutdown removed
 PASS: guarded shutdown, late-login protection, token cleanup, and safe window swaps
 PASS: sidebar toggle command, animated width, icon rail
@@ -73,6 +74,7 @@ PASS: executable, assembly, namespaces, database and SQL login use ProjectZ
 PASS: return/exchange screen persists to SQL, reads its ledger back, and reloads stock across screens
 PASS: purchase invoice screens and the supplier directory read and write SQL Server
 PASS: maintenance intake writes orders, deposits and activities to SQL with a real sequence number
+PASS: spare-parts screen persists CRUD, suppliers, restock and the movement ledger to SQL and links every screen
 PASS: Suppliers directory, 360 profile, invoices, payments/returns and chronological debit/credit statement
 PASS: MyAccounts cash, independent wallets, four limits, transfers and ledger UI
 PASS: AddProduct persists products/categories, refreshes SQL data, and confirms delete/archive
