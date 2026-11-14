@@ -60,29 +60,32 @@ internal static class Program
         Check(mainVm.IsAppearanceSelected, "SelectItem activates the appearance screen");
         Check(notified.Contains(nameof(MainViewModel.IsAppearanceSelected)),
             "SelectItem notifies IsAppearanceSelected so the visibility trigger re-evaluates");
-        main.ApplyTemplate(); // force the window template even though the window is never shown
-        main.Measure(new Size(1320, 760));
-        main.Arrange(new Rect(0, 0, 1320, 760));
-        main.UpdateLayout();
-        var hostedStudio = FindDescendant<AppearanceView>(main);
-        Check(hostedStudio is not null, "MainWindow hosts AppearanceView in its visual tree");
-        Check(hostedStudio!.Parent is Grid { Visibility: Visibility.Visible },
-            "Appearance host Grid is Visible after navigating to المظهر");
+        // An unshown Window never applies its template, so walk the logical tree (fully built
+        // from XAML) instead of the visual tree, then lay out the host Grid directly.
+        var hostedStudio = FindLogicalDescendant<AppearanceView>(main);
+        Check(hostedStudio is not null, "MainWindow hosts AppearanceView in its logical tree");
+        Check(hostedStudio!.Parent is Grid, "AppearanceView sits inside its visibility-trigger host Grid");
+        var hostGrid = (Grid)hostedStudio.Parent;
+        Check(hostGrid.Visibility == Visibility.Visible,
+            "Appearance host Grid is Visible after navigating to المظهر (DataTrigger re-evaluated)");
+        hostGrid.Measure(new Size(1100, 700));
+        hostGrid.Arrange(new Rect(0, 0, 1100, 700));
+        hostGrid.UpdateLayout();
         Check(hostedStudio.ActualWidth > 100 && hostedStudio.ActualHeight > 100,
             "AppearanceView is laid out with a real size, not an empty white panel");
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }
 
-    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    private static T? FindLogicalDescendant<T>(DependencyObject root) where T : DependencyObject
     {
-        // VisualTreeHelper only accepts Visual/Visual3D; skip content elements (e.g. text inlines).
-        if (root is not Visual) return null;
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        foreach (var child in LogicalTreeHelper.GetChildren(root))
         {
-            var child = VisualTreeHelper.GetChild(root, i);
             if (child is T match) return match;
-            var result = FindDescendant<T>(child);
-            if (result is not null) return result;
+            if (child is DependencyObject node)
+            {
+                var result = FindLogicalDescendant<T>(node);
+                if (result is not null) return result;
+            }
         }
         return null;
     }
