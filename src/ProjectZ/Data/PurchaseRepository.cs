@@ -564,6 +564,7 @@ VALUES(@Number,@SupplierNumber,@Supplier,@Name,@Phone,@Company,@Address,@Issued,
                     insert.Parameters.Add("@Discount", SqlDbType.Decimal).Value = discount;
                     insert.Parameters["@Discount"].Precision = 19;
                     insert.Parameters["@Discount"].Scale = 2;
+                    insert.Parameters.Add("@Notes", SqlDbType.NVarChar, 1000).Value = Trim(request.Notes, 1000, "");
                     insert.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
                     invoiceId = (int)insert.ExecuteScalar()!;
                 }
@@ -591,6 +592,7 @@ VALUES(@Invoice,@LineNumber,@Product,@Barcode,@Name,@Category,@Unit,@Track,@Quan
                         insert.Parameters.Add("@Cost", SqlDbType.Decimal).Value = line.UnitPurchaseCost;
                         insert.Parameters["@Cost"].Precision = 19;
                         insert.Parameters["@Cost"].Scale = 2;
+                        lineId = (int)insert.ExecuteScalar()!;
                     }
 
                     unitCount += ReceiveUnits(connection, transaction, invoiceId, invoiceNumber, lineId, line);
@@ -601,6 +603,7 @@ VALUES(@Invoice,@LineNumber,@Product,@Barcode,@Name,@Category,@Unit,@Track,@Quan
                         cost.Parameters.Add("@Cost", SqlDbType.Decimal).Value = line.UnitPurchaseCost;
                         cost.Parameters["@Cost"].Precision = 19;
                         cost.Parameters["@Cost"].Scale = 2;
+                        cost.Parameters.Add("@Id", SqlDbType.Int).Value = line.ProductId;
                         cost.ExecuteNonQuery();
                     }
 
@@ -791,6 +794,7 @@ VALUES(@Product,NULL,N'ReturnToSupplier',-@Quantity,@Cost,@Actor,N'PurchaseRetur
                         movement.Parameters.Add("@Cost", SqlDbType.Decimal).Value = unitCost;
                         movement.Parameters["@Cost"].Precision = 19;
                         movement.Parameters["@Cost"].Scale = 2;
+                        movement.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
                         movement.Parameters.Add("@Return", SqlDbType.Int).Value = returnId;
                         movement.ExecuteNonQuery();
                     }
@@ -1052,6 +1056,7 @@ WHERE Id=@Id;"))
                     header.Parameters.Add("@Discount", SqlDbType.Decimal).Value = Math.Max(0m, request.DiscountAmount);
                     header.Parameters["@Discount"].Precision = 19;
                     header.Parameters["@Discount"].Scale = 2;
+                    header.Parameters.Add("@Notes", SqlDbType.NVarChar, 1000).Value = Trim(request.Notes, 1000, "");
                     header.Parameters.Add("@Id", SqlDbType.Int).Value = request.InvoiceId;
                     header.ExecuteNonQuery();
                 }
@@ -1111,6 +1116,7 @@ WHERE Id=@Id;"))
                             cost.Parameters.Add("@Cost", SqlDbType.Decimal).Value = line.UnitPurchaseCost;
                             cost.Parameters["@Cost"].Precision = 19;
                             cost.Parameters["@Cost"].Scale = 2;
+                            cost.Parameters.Add("@Id", SqlDbType.Int).Value = line.ProductId;
                             cost.ExecuteNonQuery();
                         }
                     }
@@ -1135,6 +1141,7 @@ VALUES(@Invoice,@LineNumber,@Product,@Barcode,@Name,@Category,@Unit,@Track,@Quan
                             insert.Parameters.Add("@Cost", SqlDbType.Decimal).Value = line.UnitPurchaseCost;
                             insert.Parameters["@Cost"].Precision = 19;
                             insert.Parameters["@Cost"].Scale = 2;
+                            newLineId = (int)insert.ExecuteScalar()!;
                         }
 
                         ReceiveUnits(connection, transaction, request.InvoiceId, invoiceNumber, newLineId, normalized);
@@ -1413,6 +1420,7 @@ VALUES(@Product,NULL,@Type,-1,@Cost,@Actor,@SourceType,@Source,@Reason);");
         movement.Parameters.Add("@Cost", SqlDbType.Decimal).Value = cost;
         movement.Parameters["@Cost"].Precision = 19;
         movement.Parameters["@Cost"].Scale = 2;
+        movement.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
         movement.Parameters.Add("@SourceType", SqlDbType.NVarChar, 50).Value = sourceType;
         movement.Parameters.Add("@Source", SqlDbType.Int).Value = sourceId;
         movement.Parameters.Add("@Reason", SqlDbType.NVarChar, 1000).Value = Trim(reason, 1000, "");
@@ -1516,6 +1524,7 @@ VALUES(@Invoice,@Account,@Kind,@Amount,SYSUTCDATETIME(),@Note,@Actor);");
         command.Parameters.Add("@Amount", SqlDbType.Decimal).Value = amount;
         command.Parameters["@Amount"].Precision = 19;
         command.Parameters["@Amount"].Scale = 2;
+        command.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = Trim(note, 1000, "");
         command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
         command.ExecuteNonQuery();
     }
@@ -1530,6 +1539,7 @@ WHERE Id=@Id;");
         command.Parameters.Add("@Delta", SqlDbType.Decimal).Value = delta;
         command.Parameters["@Delta"].Precision = 19;
         command.Parameters["@Delta"].Scale = 2;
+        command.Parameters.Add("@Id", SqlDbType.Int).Value = accountId;
         return (decimal)command.ExecuteScalar()!;
     }
 
@@ -1736,6 +1746,12 @@ VALUES(@Actor,@Module,@Action,@EntityType,@EntityId,JSON_MODIFY(N'{}',N'$.detail
                 2601 or 2627 => new PurchaseDataException("البيانات مكررة: رقم الفاتورة أو اسم المورد مسجل بالفعل. أعد المحاولة.", sql),
                 547 => new PurchaseDataException("لا يمكن إتمام العملية لارتباط السجل بفاتورة أو حركة مخزون أخرى.", sql),
                 1205 => new PurchaseDataException("تعارضت العملية مع مستخدم آخر. حدّث الشاشة ثم أعد المحاولة.", sql),
+                2 => new PurchaseDataException("انتهت مهلة الاتصال بالخادم أثناء حفظ الفاتورة. تحقق من الشبكة ثم أعد المحاولة.", sql),
+                2628 => new PurchaseDataException("أحد النصوص أطول من المسموح في قاعدة البيانات. اختصر اسم الصنف أو المورد أو الملاحظات.", sql),
+                // 208 = missing table/column, 8178 = a SQL parameter was never bound.
+                // Both are schema/code faults, so the raw SQL message is shown instead of a generic one.
+                208 or 207 or 8178 or 8144 => new PurchaseDataException(
+                    $"تعذر حفظ فاتورة الشراء: {sql.Message} — تحقق من تنفيذ sql/06_CreateFullSchema.sql ثم أعد المحاولة.", sql),
                 229 or 230 => new PurchaseDataException(
                     "حساب الاتصال لا يملك صلاحية حفظ المشتريات. شغّل sql/12_EnablePurchasing.sql على الخادم ثم أعد المحاولة.", sql),
                 >= 50000 => new PurchaseDataException(sql.Message, sql),
