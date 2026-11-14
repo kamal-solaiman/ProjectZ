@@ -1506,4 +1506,31 @@ for ledger_insert in re.finditer(r'INSERT dbo\.FinancialTransactions\([^)]*Sourc
     if both_set:
         assert source_id.startswith('@'), f'a named source type needs a source id: {source_type}, {source_id}'
 print('PASS: wallet transfers write paired SourceEntityType/SourceEntityId ledger rows and explain 547 honestly')
+# A C# string literal must open and close on one line (a normal or interpolated string cannot span lines).
+# Two separate merges shipped a build break of exactly this shape, so guard it instead of trusting review.
+def unbalanced_string_lines(source: str) -> list[int]:
+    offending: list[int] = []
+    in_verbatim = False
+    for number, line in enumerate(source.splitlines(), 1):
+        text = line if in_verbatim else re.sub(r'//.*', '', line)
+        stripped = re.sub(r'\\.', '', text)  # \" does not close the literal
+        if in_verbatim:
+            if stripped.count('"') % 2 == 1:
+                in_verbatim = False
+            continue
+        if re.search(r'@\$?"|\$@"', stripped):
+            if stripped.count('"') % 2 == 1:
+                in_verbatim = True  # @"..." may legitimately continue on the next line
+            continue
+        if stripped.count('"') % 2 == 1:
+            offending.append(number)
+    return offending
+
+string_breaks = [
+    f'{path.relative_to(root)}:{line}'
+    for path in sorted((root / 'src').rglob('*.cs'))
+    for line in unbalanced_string_lines(path.read_text(encoding='utf-8'))
+]
+assert not string_breaks, 'unterminated C# string literal (build breaker): ' + ', '.join(string_breaks)
+print('PASS: no C# string literal is left open across lines anywhere in src/ProjectZ')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

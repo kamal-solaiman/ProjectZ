@@ -11,6 +11,7 @@ PASS XML: src/ProjectZ/Views/AccountTransferWindow.xaml
 PASS XML: src/ProjectZ/Views/AddCustomerWindow.xaml
 PASS XML: src/ProjectZ/Views/AddProductView.xaml
 PASS XML: src/ProjectZ/Views/AddSupplierWindow.xaml
+PASS XML: src/ProjectZ/Views/BackupView.xaml
 PASS XML: src/ProjectZ/Views/BarcodePrintPreviewWindow.xaml
 PASS XML: src/ProjectZ/Views/CategoriesView.xaml
 PASS XML: src/ProjectZ/Views/CollectInvoicePaymentWindow.xaml
@@ -88,4 +89,5 @@ PASS: wallet references removed globally from sales, purchases, maintenance, ret
 PASS: categories screen and the add-product category combo both read and write dbo.Categories
 PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes
 PASS: wallet transfers write paired SourceEntityType/SourceEntityId ledger rows and explain 547 honestly
+PASS: no C# string literal is left open across lines anywhere in src/ProjectZ
 NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish

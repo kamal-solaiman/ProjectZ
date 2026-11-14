@@ -212,8 +212,7 @@ public sealed class BackupViewModel : ObservableObject
 
         RefreshAvailableBackups();
         RefreshFromDatabase();
-        SetStatus($"تم حفظ النسخة الاحتياطية بنجاح في:
-{fullPath}", false);
+        SetStatus($"تم حفظ النسخة الاحتياطية بنجاح في: {fullPath}", false);
     }
 
     private async Task ExecuteRestoreAsync()
@@ -260,7 +259,7 @@ public sealed class BackupViewModel : ObservableObject
             RefreshFromDatabase();
             RestoreFilePath = "";
             Changed(nameof(RestoreFilePath));
-            SetStatus($"تم استرجاع النسخة الاحتياطية "{fileToRestore}" بنجاح. تمت إعادة تحميل بيانات القاعدة.", false);
+            SetStatus($"تم استرجاع النسخة الاحتياطية «{fileToRestore}» بنجاح. تمت إعادة تحميل بيانات القاعدة.", false);
         });
     }
 
