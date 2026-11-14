@@ -94,7 +94,7 @@ FROM msdb.dbo.backupset
 WHERE database_name = @DatabaseName
 ORDER BY backup_start_date DESC;";
             command.CommandTimeout = CommandTimeoutSeconds;
-            command.Parameters.Add(new SqlParameter("@DatabaseName", SqlDbType.NVarChar, 128) { Value = DatabaseName });
+            command.Parameters.Add(new SqlParameter("@DatabaseName", Microsoft.Data.SqlClient.SqlDbType.NVarChar, 128) { Value = DatabaseName });
             using var reader = command.ExecuteReader();
             if (reader.Read())
             {
@@ -158,7 +158,7 @@ BACKUP DATABASE [{DatabaseName}]
 TO DISK = @Path
 WITH INIT, FORMAT, CHECKSUM;";
             command.CommandTimeout = CommandTimeoutSeconds;
-            command.Parameters.Add(new SqlParameter("@Path", SqlDbType.NVarChar, 260) { Value = path });
+            command.Parameters.Add(new SqlParameter("@Path", Microsoft.Data.SqlClient.SqlDbType.NVarChar, 260) { Value = path });
 
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
@@ -200,7 +200,7 @@ RESTORE DATABASE [{DatabaseName}]
 FROM DISK = @Path
 WITH REPLACE, RECOVERY;";
                     restore.CommandTimeout = CommandTimeoutSeconds;
-                    restore.Parameters.Add(new SqlParameter("@Path", SqlDbType.NVarChar, 260) { Value = path });
+                    restore.Parameters.Add(new SqlParameter("@Path", Microsoft.Data.SqlClient.SqlDbType.NVarChar, 260) { Value = path });
                     await restore.ExecuteNonQueryAsync(cancellationToken);
                 }
             }
