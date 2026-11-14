@@ -56,9 +56,40 @@ internal static class Program
             appearance: new AppearanceViewModel(runtime));
         main.DataContext = mainVm;
         PumpDispatcher(); // let DataContext inheritance and style-trigger bindings attach
+        // New sidebar menus: «التقارير» sits under «العملاء والموردين» and above «المستخدمين», and
+        // «المصروفات» sits under «التقارير» and above «المستخدمين». They are navigation only in
+        // this stage: selecting an item keeps the placeholder workspace instead of an empty panel.
+        Check(mainVm.Categories.Select(category => category.Title).SequenceEqual(new[]
+            {
+                "المبيعات", "المشتريات", "الصيانة", "المالية", "العملاء والموردين",
+                "التقارير", "المصروفات", "المستخدمين", "الاعدادات"
+            }),
+            "Sidebar order puts التقارير and المصروفات between العملاء والموردين and المستخدمين");
+        var reportsMenu = mainVm.Categories.Single(category => category.Title == "التقارير");
+        Check(reportsMenu.Items.Select(item => item.Title).SequenceEqual(new[]
+            {
+                "تقارير المبيعات", "تقارير المشتريات", "تقارير الصيانة",
+                "تقارير المالية", "تقارير المصروفات", "اجمالي التقارير"
+            }),
+            "Reports menu lists the six report windows");
+        var expensesMenu = mainVm.Categories.Single(category => category.Title == "المصروفات");
+        Check(expensesMenu.Items.Select(item => item.Title).SequenceEqual(new[]
+            {
+                "اضافة مصروف", "فواتير المصروفات", "تصنيفات المصروفات"
+            }),
+            "Expenses menu lists the three expense windows");
+        mainVm.SelectItem(expensesMenu.Items[0]);
+        Check(!mainVm.IsImplementedScreenSelected
+            && mainVm.SelectedCategoryTitle == "المصروفات"
+            && mainVm.SelectedPageTitle == "اضافة مصروف",
+            "Menus-only categories keep the placeholder workspace and never claim an implemented screen");
         var notified = new List<string?>();
         mainVm.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
-        mainVm.SelectItem(mainVm.Categories[6].Items[1]);
+        // Items are looked up by their Arabic labels instead of a positional index, so inserting
+        // a category in the sidebar (التقارير/المصروفات) cannot silently retarget this test.
+        var settingsCategory = mainVm.Categories.Single(category => category.Title == "الاعدادات");
+        var appearanceItem = settingsCategory.Items.Single(item => item.Title == "المظهر");
+        mainVm.SelectItem(appearanceItem);
         PumpDispatcher(); // let the DataTrigger binding consume the PropertyChanged event
         Check(mainVm.IsAppearanceSelected, "SelectItem activates the appearance screen");
         Check(notified.Contains(nameof(MainViewModel.IsAppearanceSelected)),

@@ -17,6 +17,15 @@ public sealed class MainViewModel : ObservableObject
     private readonly MaintenanceRepository? maintenanceRepository;
     private readonly BackupRepository? backupRepository;
     private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
+    // Sidebar categories are held in named fields: inserting a category (التقارير، المصروفات)
+    // never shifts another screen's index, so no existing selection flag can point at a new menu.
+    private readonly NavigationMenuCategoryViewModel salesCategory;
+    private readonly NavigationMenuCategoryViewModel purchasesCategory;
+    private readonly NavigationMenuCategoryViewModel maintenanceCategory;
+    private readonly NavigationMenuCategoryViewModel financeCategory;
+    private readonly NavigationMenuCategoryViewModel customersCategory;
+    private readonly NavigationMenuCategoryViewModel usersCategory;
+    private readonly NavigationMenuCategoryViewModel settingsCategory;
     private NavigationMenuItemViewModel? selectedItem;
     private bool isSidebarCollapsed;
 
@@ -47,29 +56,29 @@ public sealed class MainViewModel : ObservableObject
     public InstapayRecordsViewModel InstapayRecords { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
-    public bool IsPosSelected => ReferenceEquals(selectedItem, Categories[0].Items[0]);
-    public bool IsAddProductSelected => ReferenceEquals(selectedItem, Categories[0].Items[1]);
-    public bool IsInventorySelected => ReferenceEquals(selectedItem, Categories[0].Items[2]);
-    public bool IsCategoriesSelected => ReferenceEquals(selectedItem, Categories[0].Items[3]);
-    public bool IsInvoicesSelected => ReferenceEquals(selectedItem, Categories[0].Items[4]);
-    public bool IsReturnExchangeSelected => ReferenceEquals(selectedItem, Categories[0].Items[5]);
-    public bool IsPurchaseEntrySelected => ReferenceEquals(selectedItem, Categories[1].Items[0]);
-    public bool IsPurchaseInvoicesSelected => ReferenceEquals(selectedItem, Categories[1].Items[1]);
-    public bool IsMaintenanceIntakeSelected => ReferenceEquals(selectedItem, Categories[2].Items[0]);
-    public bool IsMaintenanceInvoicesSelected => ReferenceEquals(selectedItem, Categories[2].Items[1]);
-    public bool IsMaintenanceActionsSelected => ReferenceEquals(selectedItem, Categories[2].Items[2]);
-    public bool IsMaintenanceSparePartsSelected => ReferenceEquals(selectedItem, Categories[2].Items[3]);
-    public bool IsCustomersSelected => ReferenceEquals(selectedItem, Categories[4].Items[0]);
-    public bool IsSuppliersSelected => ReferenceEquals(selectedItem, Categories[4].Items[1]);
-    public bool IsUsersSelected => ReferenceEquals(selectedItem, Categories[5].Items[0]);
-    public bool IsGeneralSettingsSelected => ReferenceEquals(selectedItem, Categories[6].Items[0]);
-    public bool IsAppearanceSelected => ReferenceEquals(selectedItem, Categories[6].Items[1]);
-    public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, Categories[3].Items[0]);
-    public bool IsVodafoneTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[1]);
-    public bool IsInstapayTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[2]);
-    public bool IsVodafoneRecordsSelected => ReferenceEquals(selectedItem, Categories[3].Items[3]);
-    public bool IsInstapayRecordsSelected => ReferenceEquals(selectedItem, Categories[3].Items[4]);
-    public bool IsBackupSelected => ReferenceEquals(selectedItem, Categories[6].Items[2]);
+    public bool IsPosSelected => ReferenceEquals(selectedItem, salesCategory.Items[0]);
+    public bool IsAddProductSelected => ReferenceEquals(selectedItem, salesCategory.Items[1]);
+    public bool IsInventorySelected => ReferenceEquals(selectedItem, salesCategory.Items[2]);
+    public bool IsCategoriesSelected => ReferenceEquals(selectedItem, salesCategory.Items[3]);
+    public bool IsInvoicesSelected => ReferenceEquals(selectedItem, salesCategory.Items[4]);
+    public bool IsReturnExchangeSelected => ReferenceEquals(selectedItem, salesCategory.Items[5]);
+    public bool IsPurchaseEntrySelected => ReferenceEquals(selectedItem, purchasesCategory.Items[0]);
+    public bool IsPurchaseInvoicesSelected => ReferenceEquals(selectedItem, purchasesCategory.Items[1]);
+    public bool IsMaintenanceIntakeSelected => ReferenceEquals(selectedItem, maintenanceCategory.Items[0]);
+    public bool IsMaintenanceInvoicesSelected => ReferenceEquals(selectedItem, maintenanceCategory.Items[1]);
+    public bool IsMaintenanceActionsSelected => ReferenceEquals(selectedItem, maintenanceCategory.Items[2]);
+    public bool IsMaintenanceSparePartsSelected => ReferenceEquals(selectedItem, maintenanceCategory.Items[3]);
+    public bool IsCustomersSelected => ReferenceEquals(selectedItem, customersCategory.Items[0]);
+    public bool IsSuppliersSelected => ReferenceEquals(selectedItem, customersCategory.Items[1]);
+    public bool IsUsersSelected => ReferenceEquals(selectedItem, usersCategory.Items[0]);
+    public bool IsGeneralSettingsSelected => ReferenceEquals(selectedItem, settingsCategory.Items[0]);
+    public bool IsAppearanceSelected => ReferenceEquals(selectedItem, settingsCategory.Items[1]);
+    public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, financeCategory.Items[0]);
+    public bool IsVodafoneTransferSelected => ReferenceEquals(selectedItem, financeCategory.Items[1]);
+    public bool IsInstapayTransferSelected => ReferenceEquals(selectedItem, financeCategory.Items[2]);
+    public bool IsVodafoneRecordsSelected => ReferenceEquals(selectedItem, financeCategory.Items[3]);
+    public bool IsInstapayRecordsSelected => ReferenceEquals(selectedItem, financeCategory.Items[4]);
+    public bool IsBackupSelected => ReferenceEquals(selectedItem, settingsCategory.Items[2]);
     public bool IsImplementedScreenSelected =>
         IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
@@ -124,22 +133,31 @@ public sealed class MainViewModel : ObservableObject
         this.backupRepository = backupRepository;
         LogoutCommand = new RelayCommand(logout);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
+        // Sidebar order (top → bottom): المبيعات، المشتريات، الصيانة، المالية، العملاء والموردين،
+        // التقارير، المصروفات، المستخدمين، الاعدادات. «التقارير» و«المصروفات» قوائم فقط في هذه
+        // المرحلة: بلا شاشات ولا جداول، واختيار أي عنصر منهما يعرض مساحة العمل التوضيحية.
+        salesCategory = new NavigationMenuCategoryViewModel("المبيعات", "\U0001F6D2",
+            "نقطة البيع", "اضافة منتج", "المخزون", "التصنيفات", "الفواتير", "المرتجع والاستبدال");
+        purchasesCategory = new NavigationMenuCategoryViewModel("المشتريات", "\U0001F4E6",
+            "شراء فاتورة", "فواتير المشتريات");
+        maintenanceCategory = new NavigationMenuCategoryViewModel("الصيانة", "\U0001F527",
+            "امر صيانة", "فواتير الصيانة", "اجراءات الصيانة", "قطع الغيار");
+        financeCategory = new NavigationMenuCategoryViewModel("المالية", "\U0001F4B0",
+            "حساباتي", "تحويل فودافون كاش", "تحويل انستاباي", "سجلات فودافون كاش", "سجلات انستاباي");
+        customersCategory = new NavigationMenuCategoryViewModel("العملاء والموردين", "\U0001F465",
+            "العملاء", "الموردين");
+        var reportsCategory = new NavigationMenuCategoryViewModel("التقارير", "\U0001F4CA",
+            "تقارير المبيعات", "تقارير المشتريات", "تقارير الصيانة", "تقارير المالية", "تقارير المصروفات", "اجمالي التقارير");
+        var expensesCategory = new NavigationMenuCategoryViewModel("المصروفات", "\U0001F4B8",
+            "اضافة مصروف", "فواتير المصروفات", "تصنيفات المصروفات");
+        usersCategory = new NavigationMenuCategoryViewModel("المستخدمين", "\U0001F464",
+            "المستخدمين", "الصلاحيات");
+        settingsCategory = new NavigationMenuCategoryViewModel("الاعدادات", "\u2699",
+            "اعدادات عامة", "المظهر", "النسخ الاحتياطي");
         Categories = new[]
         {
-            new NavigationMenuCategoryViewModel("المبيعات", "\U0001F6D2",
-                "نقطة البيع", "اضافة منتج", "المخزون", "التصنيفات", "الفواتير", "المرتجع والاستبدال"),
-            new NavigationMenuCategoryViewModel("المشتريات", "\U0001F4E6",
-                "شراء فاتورة", "فواتير المشتريات"),
-            new NavigationMenuCategoryViewModel("الصيانة", "\U0001F527",
-                "امر صيانة", "فواتير الصيانة", "اجراءات الصيانة", "قطع الغيار"),
-            new NavigationMenuCategoryViewModel("المالية", "\U0001F4B0",
-                "حساباتي", "تحويل فودافون كاش", "تحويل انستاباي", "سجلات فودافون كاش", "سجلات انستاباي"),
-            new NavigationMenuCategoryViewModel("العملاء والموردين", "\U0001F465",
-                "العملاء", "الموردين"),
-            new NavigationMenuCategoryViewModel("المستخدمين", "\U0001F464",
-                "المستخدمين", "الصلاحيات"),
-            new NavigationMenuCategoryViewModel("الاعدادات", "\u2699",
-                "اعدادات عامة", "المظهر", "النسخ الاحتياطي")
+            salesCategory, purchasesCategory, maintenanceCategory, financeCategory, customersCategory,
+            reportsCategory, expensesCategory, usersCategory, settingsCategory
         };
 
         var sharedCatalog = inventoryRepository is null
@@ -179,7 +197,7 @@ public sealed class MainViewModel : ObservableObject
         Inventory = new InventoryViewModel(
             sharedCatalog,
             sharedRegistrations,
-            () => SelectItem(Categories[0].Items[1]),
+            () => SelectItem(salesCategory.Items[1]),
             sharedCategories,
             inventoryRepository,
             categoryRepository);
@@ -189,7 +207,7 @@ public sealed class MainViewModel : ObservableObject
             sharedCatalog,
             sharedRegistrations,
             user.DisplayName,
-            () => SelectItem(Categories[0].Items[0]),
+            () => SelectItem(salesCategory.Items[0]),
             ReloadAfterSale,
             sharedReturnOperations,
             null,
@@ -200,7 +218,7 @@ public sealed class MainViewModel : ObservableObject
             sharedRegistrations,
             sharedReturnOperations,
             user.DisplayName,
-            () => SelectItem(Categories[0].Items[4]),
+            () => SelectItem(salesCategory.Items[4]),
             Inventory.NotifyExternalInventoryChanged,
             Invoices.NotifyExternalInvoicesChanged,
             salesRepository);
@@ -214,7 +232,7 @@ public sealed class MainViewModel : ObservableObject
             sharedRegistrations,
             sharedPurchaseInvoices,
             sharedCategories,
-            () => SelectItem(Categories[0].Items[1]),
+            () => SelectItem(salesCategory.Items[1]),
             Inventory.NotifyExternalInventoryChanged,
             ReturnExchange.NotifyExternalDataChanged,
             purchaseRepository,
@@ -225,7 +243,7 @@ public sealed class MainViewModel : ObservableObject
             sharedCatalog,
             sharedRegistrations,
             user.DisplayName,
-            () => SelectItem(Categories[1].Items[0]),
+            () => SelectItem(purchasesCategory.Items[0]),
             Inventory.NotifyExternalInventoryChanged,
             ReturnExchange.NotifyExternalDataChanged,
             PurchaseEntry.NotifyExternalCatalogChanged,
@@ -243,26 +261,26 @@ public sealed class MainViewModel : ObservableObject
         // instead of dereferencing MaintenanceActions before it has been assigned.
         MaintenanceSpareParts = new MaintenanceSparePartsViewModel(
             sharedMaintenanceSpareParts,
-            () => SelectItem(Categories[2].Items[2]),
+            () => SelectItem(maintenanceCategory.Items[2]),
             NotifyMaintenanceActionsChanged,
             maintenanceRepository);
         MaintenanceActions = new MaintenanceActionsViewModel(
             user.DisplayName,
             sharedMaintenanceOrders,
             sharedMaintenanceSpareParts,
-            () => SelectItem(Categories[2].Items[0]),
+            () => SelectItem(maintenanceCategory.Items[0]),
             MaintenanceSpareParts.NotifyExternalDataChanged,
             maintenanceRepository,
             ReloadMaintenanceData,
-            () => SelectItem(Categories[2].Items[3]));
+            () => SelectItem(maintenanceCategory.Items[3]));
         MaintenanceInvoices = new MaintenanceInvoicesViewModel(
             user.DisplayName,
             sharedMaintenanceOrders,
-            () => SelectItem(Categories[2].Items[0]),
+            () => SelectItem(maintenanceCategory.Items[0]),
             order =>
             {
                 MaintenanceActions.SelectOrderFromExternal(order);
-                SelectItem(Categories[2].Items[2]);
+                SelectItem(maintenanceCategory.Items[2]);
             },
             ReloadMaintenanceData,
             maintenanceRepository,
@@ -279,13 +297,13 @@ public sealed class MainViewModel : ObservableObject
         // Created first: the add-product dialog saves new categories through this screen's repository.
         ProductCategories = new CategoriesViewModel(
             sharedCategories,
-            () => SelectItem(Categories[0].Items[1]),
+            () => SelectItem(salesCategory.Items[1]),
             categoryRepository,
             user.DisplayName);
         ProductCategories.CategoriesChanged = OnCategoriesChanged;
         AddProduct = new AddProductViewModel(
             sharedCatalog,
-            () => SelectItem(Categories[0].Items[0]),
+            () => SelectItem(salesCategory.Items[0]),
             Inventory.RegisterInitialStockForNewProduct,
             sharedCategories,
             () => Inventory.StatusMessage,
@@ -304,7 +322,7 @@ public sealed class MainViewModel : ObservableObject
             supplier =>
             {
                 PurchaseEntry.StartNewPurchaseForSupplier(supplier);
-                SelectItem(Categories[1].Items[0]);
+                SelectItem(purchasesCategory.Items[0]);
             },
             () =>
             {
@@ -315,7 +333,7 @@ public sealed class MainViewModel : ObservableObject
             part =>
             {
                 MaintenanceSpareParts.SelectPartFromExternal(part.Id);
-                SelectItem(Categories[2].Items[3]);
+                SelectItem(maintenanceCategory.Items[3]);
             });
         Customers = new CustomersViewModel(
             user.DisplayName,
@@ -325,17 +343,17 @@ public sealed class MainViewModel : ObservableObject
             customer =>
             {
                 Pos.StartNewInvoiceForCustomer(customer);
-                SelectItem(Categories[0].Items[0]);
+                SelectItem(salesCategory.Items[0]);
             },
             customer =>
             {
                 MaintenanceIntake.StartNewIntakeForCustomer(customer);
-                SelectItem(Categories[2].Items[0]);
+                SelectItem(maintenanceCategory.Items[0]);
             },
             order =>
             {
                 MaintenanceActions.SelectOrderFromExternal(order);
-                SelectItem(Categories[2].Items[2]);
+                SelectItem(maintenanceCategory.Items[2]);
             },
             () =>
             {
@@ -354,12 +372,12 @@ public sealed class MainViewModel : ObservableObject
             // Always navigate: when the row is gone, the supplier screen shows the reason instead
             // of leaving the user on the spare-parts screen with no feedback.
             Suppliers.SelectSupplierFromExternal(supplierId);
-            SelectItem(Categories[4].Items[1]);
+            SelectItem(customersCategory.Items[1]);
         };
         MaintenanceSpareParts.OpenCustomerRequested = customerId =>
         {
             Customers.SelectCustomerFromExternal(customerId);
-            SelectItem(Categories[4].Items[0]);
+            SelectItem(customersCategory.Items[0]);
         };
         MaintenanceSpareParts.OpenOrderRequested = orderId =>
         {
@@ -371,12 +389,12 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
             MaintenanceActions.SelectOrderFromExternal(order);
-            SelectItem(Categories[2].Items[2]);
+            SelectItem(maintenanceCategory.Items[2]);
         };
         Customers.OpenSparePartRequested = partId =>
         {
             MaintenanceSpareParts.SelectPartFromExternal(partId);
-            SelectItem(Categories[2].Items[3]);
+            SelectItem(maintenanceCategory.Items[3]);
         };
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
@@ -454,7 +472,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         // Start at the first available destination; all other categories stay closed.
-        SelectItem(Categories[0].Items[0]);
+        SelectItem(salesCategory.Items[0]);
     }
 
     /// <summary>
@@ -654,60 +672,60 @@ public sealed class MainViewModel : ObservableObject
         }
 
         selectedItem = item;
-        if (ReferenceEquals(item, Categories[3].Items[1]))
+        if (ReferenceEquals(item, financeCategory.Items[1]))
             VodafoneTransfer.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[3].Items[2]))
+        else if (ReferenceEquals(item, financeCategory.Items[2]))
             InstapayTransfer.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[3].Items[3]))
+        else if (ReferenceEquals(item, financeCategory.Items[3]))
             VodafoneRecords.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[3].Items[4]))
+        else if (ReferenceEquals(item, financeCategory.Items[4]))
             InstapayRecords.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[0].Items[5]))
+        else if (ReferenceEquals(item, salesCategory.Items[5]))
         {
             if (!ReturnExchange.RefreshFromDatabase())
                 ReturnExchange.NotifyExternalDataChanged();
         }
-        else if (ReferenceEquals(item, Categories[0].Items[4]))
+        else if (ReferenceEquals(item, salesCategory.Items[4]))
         {
             if (!Invoices.RefreshInvoicesFromDatabase())
                 Invoices.NotifyExternalInvoicesChanged();
         }
-        else if (ReferenceEquals(item, Categories[0].Items[1]))
+        else if (ReferenceEquals(item, salesCategory.Items[1]))
             AddProduct.RefreshFromDatabase();
-        else if (ReferenceEquals(item, Categories[0].Items[2]))
+        else if (ReferenceEquals(item, salesCategory.Items[2]))
         {
             if (categoryRepository is not null)
                 ProductCategories.RefreshFromDatabase();
             Inventory.NotifyExternalInventoryChanged();
         }
-        else if (ReferenceEquals(item, Categories[1].Items[0]))
+        else if (ReferenceEquals(item, purchasesCategory.Items[0]))
         {
             PurchaseEntry.RefreshSuppliersFromDatabase();
             PurchaseEntry.NotifyExternalCatalogChanged();
         }
-        else if (ReferenceEquals(item, Categories[1].Items[1]))
+        else if (ReferenceEquals(item, purchasesCategory.Items[1]))
             PurchaseInvoices.RefreshFromDatabase();
-        else if (ReferenceEquals(item, Categories[2].Items[0]))
+        else if (ReferenceEquals(item, maintenanceCategory.Items[0]))
             MaintenanceIntake.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[2].Items[1]))
+        else if (ReferenceEquals(item, maintenanceCategory.Items[1]))
             MaintenanceInvoices.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[2].Items[2]))
+        else if (ReferenceEquals(item, maintenanceCategory.Items[2]))
             MaintenanceActions.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[2].Items[3]))
+        else if (ReferenceEquals(item, maintenanceCategory.Items[3]))
             MaintenanceSpareParts.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[4].Items[0]))
+        else if (ReferenceEquals(item, customersCategory.Items[0]))
             Customers.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[4].Items[1]))
+        else if (ReferenceEquals(item, customersCategory.Items[1]))
             Suppliers.NotifyExternalDataChanged();
-        else if (ReferenceEquals(item, Categories[5].Items[0]))
+        else if (ReferenceEquals(item, usersCategory.Items[0]))
             Users.RefreshFromDatabase();
-        else if (ReferenceEquals(item, Categories[6].Items[0]))
+        else if (ReferenceEquals(item, settingsCategory.Items[0]))
         {
             // Re-entering the settings screen keeps unsaved edits instead of silently reloading over them.
             if (!GeneralSettings.HasUnsavedChanges)
                 GeneralSettings.RefreshFromDatabase();
         }
-        else if (ReferenceEquals(item, Categories[6].Items[2]))
+        else if (ReferenceEquals(item, settingsCategory.Items[2]))
             Backup.RefreshFromDatabase();
 
         Changed(nameof(IsPosSelected));
