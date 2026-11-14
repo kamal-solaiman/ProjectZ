@@ -379,11 +379,11 @@ VALUES(@Account,@OpKind,@Customer,@Amount,@Commission,@CashDelta,@WalletBalance,
 
             RecordWalletMovement(connection, transaction, walletAccount, walletBalanceAfter,
                 walletDelta, isDeposit ? "تحويل للعميل" : "سحب للعميل", customerNumber,
-                isDeposit ? note : $"{note} (سحب للعميل)", transferId);
+                isDeposit ? note : $"{note} (سحب للعميل)", actorUserId, transferId);
 
             RecordWalletMovement(connection, transaction, cashAccount, cashBalanceAfter,
                 cashDelta, isDeposit ? "تحويل من العميل" : "تحويل للعميل", customerNumber,
-                isDeposit ? $"{note} (إيداع من العميل)" : note, transferId);
+                isDeposit ? $"{note} (إيداع من العميل)" : note, actorUserId, transferId);
 
             transaction.Commit();
             return new SavedCustomerTransfer(transferId, walletAccount, cashAccount, walletBalanceAfter, cashBalanceAfter);
@@ -444,9 +444,9 @@ OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
             }
 
             RecordWalletMovement(connection, transaction, walletAccount, walletBalanceAfter,
-                -walletDelta, "عكس تحويل", counterparty, note, transferId);
+                -walletDelta, "عكس تحويل", counterparty, note, actorUserId, transferId);
             RecordWalletMovement(connection, transaction, cashAccount, cashBalanceAfter,
-                -cashDelta, "عكس تحويل", counterparty, note, transferId);
+                -cashDelta, "عكس تحويل", counterparty, note, actorUserId, transferId);
 
             using (var reverse = CreateCommand(connection, transaction, @"
 UPDATE dbo.CustomerTransfers SET OperationStatus = 1, ReversedAtUtc = SYSUTCDATETIME(), ReversedByUserId = @Actor,
@@ -535,9 +535,9 @@ OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
             }
 
             RecordWalletMovement(connection, transaction, oldWalletAccount, walletAfterReverse,
-                -oldWalletDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", transferId);
+                -oldWalletDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId, transferId);
             RecordWalletMovement(connection, transaction, cashAccount, cashAfterReverse,
-                -oldCashDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", transferId);
+                -oldCashDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId, transferId);
 
             // 2) Apply the new effect on the wallet and cash balances.
             decimal walletAfterNew;
@@ -561,9 +561,9 @@ OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
             }
 
             RecordWalletMovement(connection, transaction, newWalletAccount, walletAfterNew,
-                newWalletDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", transferId);
+                newWalletDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId, transferId);
             RecordWalletMovement(connection, transaction, cashAccount, cashAfterNew,
-                newCashDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", transferId);
+                newCashDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId, transferId);
 
             // 3) Update the transfer row in place with the new values (keeps the original Id and active status).
             using (var update = CreateCommand(connection, transaction, @"

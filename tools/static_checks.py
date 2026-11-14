@@ -1492,7 +1492,8 @@ financial_repository = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_
 assert "N'CustomerTransfer',@Source" in financial_repository, 'wallet ledger rows must carry SourceEntityId'
 assert "N'CustomerTransfer',NULL" not in financial_repository, 'wallet ledger rows must not leave SourceEntityId NULL'
 assert financial_repository.count('RecordWalletMovement(connection, transaction,') == 8
-assert financial_repository.count(', transferId);') == 8, 'every wallet ledger row must be tied to its transfer'
+assert financial_repository.count(', actorUserId, transferId);') == 8, \
+    'every wallet ledger row must keep its actor and be tied to its transfer'
 assert 'if (signedAmount == 0m) return;' in financial_repository, 'a zero-value ledger row violates CK_FinancialTransactions_Amount'
 assert "sql.Message.Contains(\"CHECK constraint\"" in financial_repository, 'error 547 must not blame a foreign key for a CHECK violation'
 for ledger_insert in re.finditer(r'INSERT dbo\.FinancialTransactions\([^)]*SourceEntityType,SourceEntityId\)(.*?);"', financial_repository, re.S):
