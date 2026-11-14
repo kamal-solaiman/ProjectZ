@@ -406,6 +406,20 @@
                             <Style TargetType="Grid">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsUsersSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:UsersView DataContext="{Binding Users}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsMyAccountsSelected}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>

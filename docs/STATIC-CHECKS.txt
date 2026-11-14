@@ -3,18 +3,86 @@ PASS XML: src/ProjectZ/App.xaml
 PASS XML: src/ProjectZ/ProjectZ.csproj
 PASS XML: src/ProjectZ/Properties/PublishProfiles/FolderProfile.pubxml
 PASS XML: src/ProjectZ/Properties/PublishProfiles/FolderProfile1.pubxml
+PASS XML: src/ProjectZ/Resources/PosStyles.xaml
 PASS XML: src/ProjectZ/Resources/Theme.xaml
+PASS XML: src/ProjectZ/Views/AccountEditorWindow.xaml
+PASS XML: src/ProjectZ/Views/AccountTransactionWindow.xaml
+PASS XML: src/ProjectZ/Views/AccountTransferWindow.xaml
+PASS XML: src/ProjectZ/Views/AddCustomerWindow.xaml
+PASS XML: src/ProjectZ/Views/AddProductView.xaml
+PASS XML: src/ProjectZ/Views/AddSupplierWindow.xaml
+PASS XML: src/ProjectZ/Views/BarcodePrintPreviewWindow.xaml
+PASS XML: src/ProjectZ/Views/CategoriesView.xaml
+PASS XML: src/ProjectZ/Views/CollectInvoicePaymentWindow.xaml
+PASS XML: src/ProjectZ/Views/ConfirmActionWindow.xaml
+PASS XML: src/ProjectZ/Views/CustomersView.xaml
+PASS XML: src/ProjectZ/Views/DamageEditWindow.xaml
+PASS XML: src/ProjectZ/Views/EditProductWindow.xaml
+PASS XML: src/ProjectZ/Views/EditPurchaseInvoiceWindow.xaml
+PASS XML: src/ProjectZ/Views/InstapayOperationWindow.xaml
+PASS XML: src/ProjectZ/Views/InstapayRecordDetailsWindow.xaml
+PASS XML: src/ProjectZ/Views/InstapayRecordEditWindow.xaml
+PASS XML: src/ProjectZ/Views/InstapayRecordsView.xaml
+PASS XML: src/ProjectZ/Views/InstapayTransferView.xaml
+PASS XML: src/ProjectZ/Views/InventoryView.xaml
+PASS XML: src/ProjectZ/Views/InvoicePrintPreviewWindow.xaml
+PASS XML: src/ProjectZ/Views/InvoiceReturnWindow.xaml
+PASS XML: src/ProjectZ/Views/InvoicesView.xaml
 PASS XML: src/ProjectZ/Views/LoginWindow.xaml
 PASS XML: src/ProjectZ/Views/MainWindow.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceActionsView.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceCancelOrderWindow.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceDeliveryWindow.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceIntakeView.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceInvoicesView.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceReceiptPreviewWindow.xaml
+PASS XML: src/ProjectZ/Views/MaintenanceSparePartsView.xaml
+PASS XML: src/ProjectZ/Views/MarkDamagedWindow.xaml
+PASS XML: src/ProjectZ/Views/MyAccountsView.xaml
+PASS XML: src/ProjectZ/Views/PaySupplierInvoiceWindow.xaml
+PASS XML: src/ProjectZ/Views/PosView.xaml
+PASS XML: src/ProjectZ/Views/ProductRegistrationsWindow.xaml
+PASS XML: src/ProjectZ/Views/PurchaseEntryView.xaml
+PASS XML: src/ProjectZ/Views/PurchaseInvoiceDetailsWindow.xaml
+PASS XML: src/ProjectZ/Views/PurchaseInvoicePrintPreviewWindow.xaml
+PASS XML: src/ProjectZ/Views/PurchaseInvoicesView.xaml
+PASS XML: src/ProjectZ/Views/PurchaseReturnWindow.xaml
+PASS XML: src/ProjectZ/Views/ReturnExchangeView.xaml
+PASS XML: src/ProjectZ/Views/SuppliersView.xaml
+PASS XML: src/ProjectZ/Views/SupplyStockWindow.xaml
+PASS XML: src/ProjectZ/Views/UserEditorWindow.xaml
+PASS XML: src/ProjectZ/Views/UsersView.xaml
+PASS XML: src/ProjectZ/Views/VodafoneOperationWindow.xaml
+PASS XML: src/ProjectZ/Views/VodafoneRecordDetailsWindow.xaml
+PASS XML: src/ProjectZ/Views/VodafoneRecordEditWindow.xaml
+PASS XML: src/ProjectZ/Views/VodafoneRecordsView.xaml
+PASS XML: src/ProjectZ/Views/VodafoneTransferView.xaml
 PASS XML: src/ProjectZ/app.manifest
 PASS JSON: src/ProjectZ/connectionsettings.json
 PASS XML: tests/ProjectZ.Security.Tests/ProjectZ.Security.Tests.csproj
 PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector
-PASS: ProjectZ database scripts; exactly one CREATE TABLE; compatibility 130
+PASS: complete ProjectZ database schema, 36 related tables, five reporting views, compatibility 130
 PASS: ShutdownMode=OnLastWindowClose; OnExplicitShutdown removed
 PASS: guarded shutdown, late-login protection, token cleanup, and safe window swaps
+PASS: sidebar toggle command, animated width, icon rail
 PASS: post-login sidebar labels, selected state, single-open accordion and vertical scrolling
 PASS: Arabic culture/content and RTL client areas; native window chrome stays LTR
 PASS: credential fields retain LTR input for account names and passwords
 PASS: executable, assembly, namespaces, database and SQL login use ProjectZ
+PASS: return/exchange screen persists to SQL, reads its ledger back, and reloads stock across screens
+PASS: purchase invoice screens and the supplier directory read and write SQL Server
+PASS: Suppliers directory, 360 profile, invoices, payments/returns and chronological debit/credit statement
+PASS: MyAccounts cash, independent wallets, four limits, transfers and ledger UI
+PASS: AddProduct persists products/categories, refreshes SQL data, and confirms delete/archive
+PASS: SQL startup uses an empty POS invoice; design samples cannot index a short catalog
+PASS: inventory screen is fully wired to SQL (catalog, units, suppliers, categories, movements, cross-screen notifications)
+PASS: Vodafone customer transfers share wallet state, enforce limits, and apply cash/commission deltas
+PASS: independent InstaPay customer transfers, accounts, history, limits, and cash/commission deltas
+PASS: detailed Vodafone records, comprehensive filters, edit/reverse/delete controls, CSV and print UI
+PASS: independent InstaPay records with compact rows, leftmost actions, filters, edit/reverse/delete, CSV and print
+PASS: Vodafone and InstaPay transfer references removed from models, UI, filters, CSV, and audit movements
+PASS: wallet references removed globally from sales, purchases, maintenance, returns, details and printing
+PASS: categories screen and the add-product category combo both read and write dbo.Categories
+PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes
 NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish

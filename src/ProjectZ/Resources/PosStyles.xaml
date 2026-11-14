@@ -48,6 +48,14 @@
         <Setter Property="MinHeight" Value="36" />
     </Style>
 
+    <!-- Password fields share the text-box metrics; the implicit PasswordBox style supplies the chrome. -->
+    <Style x:Key="PosCompactPasswordBoxStyle" TargetType="PasswordBox">
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="FlowDirection" Value="LeftToRight" />
+    </Style>
+
     <Style x:Key="PosNumericTextBoxStyle"
            TargetType="TextBox"
            BasedOn="{StaticResource {x:Type TextBox}}">

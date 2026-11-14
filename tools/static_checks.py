@@ -1375,4 +1375,59 @@ for token in ('ItemsSource="{Binding Categories}"', 'SelectedCategory', 'Categor
     assert token in add_product_vm, f'add-product category combo is not wired: {token}'
 assert 'EnsureCategory' in main_viewmodel, 'the add-product dialog must save categories through the shared screen'
 print('PASS: categories screen and the add-product category combo both read and write dbo.Categories')
+# --- Users screen (login accounts in dbo.Users + sql/14) -------------------------------------
+users_repository_path = root / 'src/ProjectZ/Data/UserRepository.cs'
+assert users_repository_path.is_file(), 'missing src/ProjectZ/Data/UserRepository.cs'
+users_repository = users_repository_path.read_text(encoding='utf-8')
+enable_users_sql_path = root / 'sql/14_EnableUserAdmin.sql'
+assert enable_users_sql_path.is_file(), 'missing sql/14_EnableUserAdmin.sql'
+enable_users_sql = enable_users_sql_path.read_text(encoding='utf-8')
+for operation in ('FindAsync', 'LoadAll', 'Create', 'Update', 'ResetPassword', 'Delete'):
+    assert f'{operation}(' in users_repository, f'missing user SQL operation: {operation}'
+for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK', 'dbo.Users',
+              'INSERT dbo.Users', 'UPDATE dbo.Users', 'DELETE dbo.Users', 'INSERT dbo.AuditLog',
+              'PasswordHasher.Hash'):
+    assert guard in users_repository, f'missing user persistence guard: {guard}'
+assert 'لا يمكن حذف المستخدم' in users_repository, 'deleting a linked user must be refused with a clear message'
+assert 'لا يمكنك حذف الحساب الذي تستخدمه الآن' in users_repository, 'the signed-in account must not be deletable'
+assert 'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Users TO [ProjectZClient]' in enable_users_sql
+assert 'CREATE TABLE' not in enable_users_sql, 'sql/14 must not create tables'
+assert "CREATE TABLE dbo.Users" in (root / 'sql/01_CreateDatabase.sql').read_text(encoding='utf-8'), \
+    'the users screen must keep using the original dbo.Users table'
+
+users_vm = (root / 'src/ProjectZ/ViewModels/UsersViewModel.cs').read_text(encoding='utf-8')
+for wiring in ('repository.LoadAll(', 'repository.Update(', 'repository.Delete(', 'RefreshFromDatabase()',
+               'OpenUserEditorRequested', 'OpenConfirmDialogRequested'):
+    assert wiring in users_vm, f'users screen is not wired to SQL: {wiring}'
+users_editor_vm = (root / 'src/ProjectZ/ViewModels/UserEditorViewModel.cs').read_text(encoding='utf-8')
+for wiring in ('repository.Create(', 'repository.ResetPassword(', 'repository.Update(', 'readPassword'):
+    assert wiring in users_editor_vm, f'user dialog is not wired to SQL: {wiring}'
+for forbidden in ('private string password', 'public string Password', 'string Password '):
+    assert forbidden not in users_editor_vm, 'the dialog must not store the plain password in a field'
+assert 'clearPasswords' in users_editor_vm and 'readPassword()' in users_editor_vm
+
+users_xaml = (root / 'src/ProjectZ/Views/UsersView.xaml').read_text(encoding='utf-8')
+for token in ('FilteredUsers', 'SearchText', 'StatusFilters', 'AddUserCommand', 'RefreshUsersCommand',
+              'ToggleActiveCommand', 'DeleteCommand', 'ChangePasswordCommand', 'LinkedRecordsDisplay',
+              'HasNoUsers', 'ConnectionBadgeText'):
+    assert token in users_xaml, f'Users UI missing expected token: {token}'
+assert 'متصل بقاعدة البيانات' in users_vm, 'the users screen must state it is connected to SQL'
+assert 'بدون Backend' not in users_xaml, 'the users screen must not advertise a backend-less design' 
+users_view_cs = (root / 'src/ProjectZ/Views/UsersView.xaml.cs').read_text(encoding='utf-8')
+assert 'OpenUserEditorRequested' in users_view_cs and 'ConfirmActionWindow' in users_view_cs
+editor_xaml_root = ET.parse(root / 'src/ProjectZ/Views/UserEditorWindow.xaml').getroot()
+assert editor_xaml_root.attrib.get('FlowDirection') == 'LeftToRight'
+assert editor_xaml_root.attrib.get('Language') == 'ar-EG'
+assert editor_xaml_root.attrib.get('WindowStartupLocation') == 'CenterOwner'
+editor_password_boxes = [el for el in editor_xaml_root.iter() if el.tag.endswith('PasswordBox')]
+assert len(editor_password_boxes) == 2, 'the user dialog needs password + confirmation boxes'
+assert all(box.attrib.get('FlowDirection') == 'LeftToRight' for box in editor_password_boxes), \
+    'passwords are identifiers: keep their input LTR'
+editor_cs = (root / 'src/ProjectZ/Views/UserEditorWindow.xaml.cs').read_text(encoding='utf-8')
+assert 'PasswordInput.Password' in editor_cs and 'ClearPasswords' in editor_cs
+assert 'DataContext = null;' in editor_cs, 'the dialog must drop its data context on close'
+assert 'new UserRepository(connectionSettings, user.Id)' in app_cs
+assert 'userRepository,' in main_viewmodel and 'Users.RefreshFromDatabase();' in main_viewmodel
+assert 'IsUsersSelected' in main_xaml and 'UsersView DataContext="{Binding Users}"' in main_xaml
+print('PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')
