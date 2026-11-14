@@ -13,6 +13,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly CategoryRepository? categoryRepository;
     private readonly UserRepository? userRepository;
     private readonly MaintenanceRepository? maintenanceRepository;
+    private readonly BackupRepository? backupRepository;
     private readonly ObservableCollection<PosCustomerDesignItem> sharedCustomers;
     private NavigationMenuItemViewModel? selectedItem;
     private bool isSidebarCollapsed;
@@ -34,6 +35,7 @@ public sealed class MainViewModel : ObservableObject
     public CustomersViewModel Customers { get; }
     public SuppliersViewModel Suppliers { get; }
     public UsersViewModel Users { get; }
+    public BackupViewModel Backup { get; }
     public MyAccountsViewModel MyAccounts { get; }
     public VodafoneTransferViewModel VodafoneTransfer { get; }
     public InstapayTransferViewModel InstapayTransfer { get; }
@@ -61,13 +63,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsInstapayTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[2]);
     public bool IsVodafoneRecordsSelected => ReferenceEquals(selectedItem, Categories[3].Items[3]);
     public bool IsInstapayRecordsSelected => ReferenceEquals(selectedItem, Categories[3].Items[4]);
-    public bool IsImplementedScreenSelected =>
-        IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
-        || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
-        || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
-        || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
-        || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected
-        || IsUsersSelected;
+    public bool IsBackupSelected => ReferenceEquals(selectedItem, Categories[6].Items[2]);
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     public string SelectedPageTitle => selectedItem?.Title ?? "مرحبًا بك في ProjectZ";
     public string SelectedPageDescription => selectedItem is null
@@ -98,7 +94,8 @@ public sealed class MainViewModel : ObservableObject
         PurchaseRepository? purchaseRepository = null,
         FinancialRepository? financialRepository = null,
         MaintenanceRepository? maintenanceRepository = null,
-        UserRepository? userRepository = null)
+        UserRepository? userRepository = null,
+        BackupRepository? backupRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
@@ -106,6 +103,7 @@ public sealed class MainViewModel : ObservableObject
         this.purchaseRepository = purchaseRepository;
         this.maintenanceRepository = maintenanceRepository;
         this.userRepository = userRepository;
+        this.backupRepository = backupRepository;
         LogoutCommand = new RelayCommand(logout);
         ToggleSidebarCommand = new RelayCommand(() => IsSidebarCollapsed = !IsSidebarCollapsed);
         Categories = new[]
@@ -122,7 +120,7 @@ public sealed class MainViewModel : ObservableObject
                 "العملاء", "الموردين"),
             new NavigationMenuCategoryViewModel("المستخدمين", "\U0001F464",
                 "المستخدمين", "الصلاحيات"),
-            new NavigationMenuCategoryViewModel("الاعدادات", "\u2699",
+            new NavigationMenuCategoryViewModel("الاعدادات", "\\u2699",
                 "اعدادات عامة", "المظهر", "النسخ الاحتياطي")
         };
 
@@ -325,6 +323,7 @@ public sealed class MainViewModel : ObservableObject
             salesRepository);
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
+        Backup = new BackupViewModel(user.DisplayName, backupRepository);
 
         Inventory.RefreshFromDatabase();
         AddProduct.NotifyInventoryLoaded();
@@ -384,6 +383,14 @@ public sealed class MainViewModel : ObservableObject
         // Start at the first available destination; all other categories stay closed.
         SelectItem(Categories[0].Items[0]);
     }
+
+    public bool IsImplementedScreenSelected =>
+        IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
+        || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
+        || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
+        || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
+        || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected
+        || IsUsersSelected || IsBackupSelected;
 
     /// <summary>
     /// A category was added, renamed or deleted in SQL. The combo box list was already updated in place;
@@ -597,6 +604,8 @@ public sealed class MainViewModel : ObservableObject
             Suppliers.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, Categories[5].Items[0]))
             Users.RefreshFromDatabase();
+        else if (ReferenceEquals(item, Categories[6].Items[2]))
+            Backup.RefreshFromDatabase();
 
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
@@ -618,6 +627,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsInstapayTransferSelected));
         Changed(nameof(IsVodafoneRecordsSelected));
         Changed(nameof(IsInstapayRecordsSelected));
+        Changed(nameof(IsBackupSelected));
         Changed(nameof(IsImplementedScreenSelected));
         Changed(nameof(SelectedCategoryTitle));
         Changed(nameof(SelectedPageTitle));
@@ -675,3 +685,4 @@ public sealed class NavigationMenuItemViewModel : ObservableObject
         Changed(nameof(IsSelected));
     }
 }
+"
