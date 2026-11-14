@@ -1,6 +1,8 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using ProjectZ.Models;
 using ProjectZ.Services;
 using ProjectZ.ViewModels;
@@ -48,6 +50,56 @@ internal static class Program
             picker.Arrange(new Rect(0, 0, 520, 590));
             Check(true, "WPF layout and live resources apply: " + theme.Id);
         }
+        // Regression: navigating to المظهر must notify IsAppearanceSelected so the host Grid
+        // leaves Collapsed. A missing notification rendered the content area empty/white.
+        var mainVm = new MainViewModel(new UserSession(0, "smoke", "اختبار الدخان"), () => { },
+            appearance: new AppearanceViewModel(runtime));
+        main.DataContext = mainVm;
+        PumpDispatcher(); // let DataContext inheritance and style-trigger bindings attach
+        var notified = new List<string?>();
+        mainVm.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
+        mainVm.SelectItem(mainVm.Categories[6].Items[1]);
+        PumpDispatcher(); // let the DataTrigger binding consume the PropertyChanged event
+        Check(mainVm.IsAppearanceSelected, "SelectItem activates the appearance screen");
+        Check(notified.Contains(nameof(MainViewModel.IsAppearanceSelected)),
+            "SelectItem notifies IsAppearanceSelected so the visibility trigger re-evaluates");
+        // An unshown Window never applies its template, so walk the logical tree (fully built
+        // from XAML) instead of the visual tree, then lay out the host Grid directly.
+        var hostedStudio = FindLogicalDescendant<AppearanceView>(main);
+        Check(hostedStudio is not null, "MainWindow hosts AppearanceView in its logical tree");
+        Check(hostedStudio!.Parent is Grid, "AppearanceView sits inside its visibility-trigger host Grid");
+        var hostGrid = (Grid)hostedStudio.Parent;
+        Check(ReferenceEquals(hostGrid.DataContext, mainVm), "Window DataContext inherits down to the appearance host Grid");
+        Check(hostGrid.Visibility == Visibility.Visible,
+            "Appearance host Grid is Visible after navigating to المظهر (DataTrigger re-evaluated)");
+        hostGrid.Measure(new Size(1100, 700));
+        hostGrid.Arrange(new Rect(0, 0, 1100, 700));
+        hostGrid.UpdateLayout();
+        Check(hostedStudio.ActualWidth > 100 && hostedStudio.ActualHeight > 100,
+            "AppearanceView is laid out with a real size, not an empty white panel");
         Console.WriteLine("All WPF appearance smoke tests passed.");
+    }
+
+    // The test never calls Application.Run, so queued binding/trigger work would otherwise sit
+    // in the dispatcher forever. Drain it down to Background priority like a mini message loop.
+    private static void PumpDispatcher()
+    {
+        var frame = new DispatcherFrame();
+        Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => frame.Continue = false));
+        Dispatcher.PushFrame(frame);
+    }
+
+    private static T? FindLogicalDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(root))
+        {
+            if (child is T match) return match;
+            if (child is DependencyObject node)
+            {
+                var result = FindLogicalDescendant<T>(node);
+                if (result is not null) return result;
+            }
+        }
+        return null;
     }
 }
