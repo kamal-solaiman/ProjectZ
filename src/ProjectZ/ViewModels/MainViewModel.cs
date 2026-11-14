@@ -685,4 +685,3 @@ public sealed class NavigationMenuItemViewModel : ObservableObject
         Changed(nameof(IsSelected));
     }
 }
-"
