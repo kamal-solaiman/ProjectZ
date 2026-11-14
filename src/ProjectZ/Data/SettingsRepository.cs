@@ -41,7 +41,7 @@ public sealed class SettingsRepository(ConnectionSettingsProvider settings, int 
 
     /// <summary>
     /// Loads the store profile. Missing keys fall back to the ProjectZ defaults, so the screen works on a
-    /// database where sql/15_EnableGeneralSettings.sql was not run yet (saving is what needs the grant).
+    /// database where sql/16_EnableGeneralSettings.sql was not run yet (saving is what needs the grant).
     /// </summary>
     public StoreProfile Load()
     {
@@ -253,7 +253,7 @@ VALUES(@Actor,N'Settings',N'UpdateGeneralSettings',N'SystemSetting',N'General',
             return sql.Number switch
             {
                 229 or 230 => new SettingsDataException(
-                    "حساب الاتصال لا يملك صلاحية قراءة/حفظ الإعدادات. شغّل sql/15_EnableGeneralSettings.sql على الخادم ثم أعد المحاولة.",
+                    "حساب الاتصال لا يملك صلاحية قراءة/حفظ الإعدادات. شغّل sql/16_EnableGeneralSettings.sql على الخادم ثم أعد المحاولة.",
                     sql),
                 1205 => new SettingsDataException("تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 208 => new SettingsDataException(

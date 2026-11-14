@@ -851,6 +851,31 @@ for token in (
     assert token in maintenance_actions_xaml, f'MaintenanceActions UI missing expected token: {token}'
 assert 'ExtraDepositReference' not in maintenance_actions_xaml, 'Reference input should not appear in extra deposit collection'
 
+# The actions screen must stay SQL-backed: real technician directory from SQL, a RowVersion guard so
+# two clients cannot overwrite each other, an id-based reselection after a reload, and a readable
+# failure path. These tokens guard against a silent regression to the design-mode behaviour.
+maintenance_actions_vm_path = root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs'
+maintenance_actions_dialogs_path = root / 'src/ProjectZ/ViewModels/MaintenanceActionsDialogViewModels.cs'
+maintenance_order_model = (root / 'src/ProjectZ/Models/MaintenanceDesignModels.cs').read_text(encoding='utf-8')
+maintenance_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
+maintenance_actions_vm = maintenance_actions_vm_path.read_text(encoding='utf-8')
+maintenance_actions_dialogs = maintenance_actions_dialogs_path.read_text(encoding='utf-8')
+for token in ('IsDatabaseBacked', 'DataConnectionBadgeText', 'LastSyncedDisplay', 'ReloadTechnicianDirectory',
+              'isBulkReload', 'ValidateWorkshopFieldLengths', 'AppendMaintenanceActivity', 'RefreshFilteredOrders(selectedId)'):
+    assert token in maintenance_actions_vm, f'MaintenanceActions view model missing expected token: {token}'
+for token in ('DataConnectionBadgeText', 'LastSyncedDisplay'):
+    assert token in maintenance_actions_xaml, f'MaintenanceActions UI is not SQL-backed: {token}'
+assert 'TechnicianFilterOptions = new[] { "كل الفنيين" }' not in maintenance_actions_vm, \
+    'the technician directory is hard-coded from the design samples again'
+assert 'DatabaseRowVersion' in maintenance_order_model, 'MaintenanceOrderDesignItem.DatabaseRowVersion is missing'
+for token in ('RowVersion = @RowVersion', 'OUTPUT inserted.RowVersion', 'LoadTechnicianDirectory'):
+    assert token in maintenance_repository, f'MaintenanceRepository missing expected token: {token}'
+assert 'ملاحظات التسليم أطول من الحد المسموح' in maintenance_actions_dialogs
+assert 'سبب الإلغاء أطول من الحد المسموح' in maintenance_actions_dialogs
+assert (root / 'sql/15_EnableMaintenanceActions.sql').is_file(), 'sql/15_EnableMaintenanceActions.sql is missing'
+print('PASS: maintenance actions screen writes status, pricing, parts, payments, delivery and cancellation to SQL '
+      'with optimistic concurrency and a SQL technician directory')
+
 maintenance_invoices_xaml_path = root / 'src/ProjectZ/Views/MaintenanceInvoicesView.xaml'
 maintenance_invoice_details_xaml_path = root / 'src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml'
 assert maintenance_invoices_xaml_path.is_file() and maintenance_invoice_details_xaml_path.is_file()
@@ -1460,13 +1485,13 @@ assert 'new UserRepository(connectionSettings, user.Id)' in app_cs
 assert 'userRepository,' in main_viewmodel and 'Users.RefreshFromDatabase();' in main_viewmodel
 assert 'IsUsersSelected' in main_xaml and 'UsersView DataContext="{Binding Users}"' in main_xaml
 print('PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes')
-# --- General settings screen: store identity is the program name (SystemSettings + sql/15) ---------
+# --- General settings screen: store identity is the program name (SystemSettings + sql/16) ---------
 settings_repository_path = root / 'src/ProjectZ/Data/SettingsRepository.cs'
 store_profile_path = root / 'src/ProjectZ/Models/StoreProfile.cs'
 store_identity_path = root / 'src/ProjectZ/Services/StoreIdentity.cs'
 settings_view_path = root / 'src/ProjectZ/Views/GeneralSettingsView.xaml'
 settings_vm_path = root / 'src/ProjectZ/ViewModels/GeneralSettingsViewModel.cs'
-enable_settings_sql_path = root / 'sql/15_EnableGeneralSettings.sql'
+enable_settings_sql_path = root / 'sql/16_EnableGeneralSettings.sql'
 for required in (settings_repository_path, store_profile_path, store_identity_path,
                  settings_view_path, settings_vm_path, enable_settings_sql_path):
     assert required.is_file(), f'missing general-settings file: {required.relative_to(root)}'
@@ -1483,9 +1508,9 @@ for key in ('StoreName', 'StoreAddress', 'StorePhone', 'CurrencyNameAr', 'Defaul
 
 enable_settings_sql = enable_settings_sql_path.read_text(encoding='utf-8')
 assert 'GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SystemSettings TO [ProjectZClient]' in enable_settings_sql
-assert 'CREATE TABLE' not in enable_settings_sql, 'sql/15 must not create tables'
+assert 'CREATE TABLE' not in enable_settings_sql, 'sql/16 must not create tables'
 assert "IF NOT EXISTS (SELECT 1 FROM dbo.SystemSettings WHERE SettingKey = N'StoreName')" in enable_settings_sql, \
-    'sql/15 must seed the store name only when it is missing'
+    'sql/16 must seed the store name only when it is missing'
 
 # One live identity object drives every surface.
 store_identity = store_identity_path.read_text(encoding='utf-8')
@@ -1545,4 +1570,27 @@ assert 'ادارة المظهر' not in settings_xaml
 # The add-product form starts from the configured default low-stock alert.
 assert 'StoreIdentity.Current.DefaultLowStockAlert' in add_product_vm_text
 print('PASS: general settings save the store identity in dbo.SystemSettings and rename the program everywhere')
+# Wallet transfers: the ledger row must name its source transfer id, because dbo.FinancialTransactions
+# carries CK_FinancialTransactions_Source ((type IS NULL AND id IS NULL) OR (type and id both set)) and
+# CK_FinancialTransactions_Amount (Amount > 0). Writing N'CustomerTransfer' with a NULL id made every
+# Vodafone Cash / InstaPay deposit, withdrawal, edit and reversal fail with SQL 547, surfaced to the user as
+# "لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى".
+financial_repository = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+assert "N'CustomerTransfer',@Source" in financial_repository, 'wallet ledger rows must carry SourceEntityId'
+assert "N'CustomerTransfer',NULL" not in financial_repository, 'wallet ledger rows must not leave SourceEntityId NULL'
+assert financial_repository.count('RecordWalletMovement(connection, transaction,') == 8
+assert financial_repository.count(', actorUserId, transferId);') == 8, \
+    'every wallet ledger row must keep its actor and be tied to its transfer'
+assert 'if (signedAmount == 0m) return;' in financial_repository, 'a zero-value ledger row violates CK_FinancialTransactions_Amount'
+assert "sql.Message.Contains(\"CHECK constraint\"" in financial_repository, 'error 547 must not blame a foreign key for a CHECK violation'
+for ledger_insert in re.finditer(r'INSERT dbo\.FinancialTransactions\([^)]*SourceEntityType,SourceEntityId\)(.*?);"', financial_repository, re.S):
+    tail = ledger_insert.group(1).split('VALUES', 1)[-1].rstrip().rstrip(')')
+    source_type, source_id = [part.strip() for part in tail.rsplit(',', 2)[-2:]]
+    both_null = source_type.upper() == 'NULL' and source_id.upper() == 'NULL'
+    both_set = source_type.startswith('@') or source_type.startswith("N'")
+    assert (both_null or both_set) and not (source_type.upper() == 'NULL') ^ (source_id.upper() == 'NULL'), \
+        f'unpaired SourceEntityType/SourceEntityId in ledger insert: {source_type}, {source_id}'
+    if both_set:
+        assert source_id.startswith('@'), f'a named source type needs a source id: {source_type}, {source_id}'
+print('PASS: wallet transfers write paired SourceEntityType/SourceEntityId ledger rows and explain 547 honestly')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

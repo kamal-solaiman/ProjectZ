@@ -393,6 +393,12 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
             return;
         }
 
+        if (DeliveryNotes.Trim().Length > 1500)
+        {
+            ErrorMessage = "ملاحظات التسليم أطول من الحد المسموح (1500 حرف). اختصرها ثم أعد المحاولة.";
+            return;
+        }
+
         Order.LaborCost = labor;
         Order.DiscountAmount = discount;
         Order.RecalculateWorkshopTotal();
@@ -557,6 +563,12 @@ public sealed class MaintenanceCancelOrderViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(fullReason))
         {
             ErrorMessage = "اختر أو اكتب سبب الإلغاء / رفض الإصلاح.";
+            return;
+        }
+
+        if (fullReason.Length > 1500)
+        {
+            ErrorMessage = "سبب الإلغاء أطول من الحد المسموح (1500 حرف). اختصره ثم أعد المحاولة.";
             return;
         }
 
