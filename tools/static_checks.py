@@ -43,7 +43,7 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-# 37 CREATE TABLE statements create the 36 business tables + Users; sql/15 repeats the
+# 37 CREATE TABLE statements create the 36 business tables + Users; sql/16 repeats the
 # movement table idempotently so an existing database can be upgraded without re-running 06.
 assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 39
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
@@ -852,6 +852,31 @@ for token in (
     assert token in maintenance_actions_xaml, f'MaintenanceActions UI missing expected token: {token}'
 assert 'ExtraDepositReference' not in maintenance_actions_xaml, 'Reference input should not appear in extra deposit collection'
 
+# The actions screen must stay SQL-backed: real technician directory from SQL, a RowVersion guard so
+# two clients cannot overwrite each other, an id-based reselection after a reload, and a readable
+# failure path. These tokens guard against a silent regression to the design-mode behaviour.
+maintenance_actions_vm_path = root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs'
+maintenance_actions_dialogs_path = root / 'src/ProjectZ/ViewModels/MaintenanceActionsDialogViewModels.cs'
+maintenance_order_model = (root / 'src/ProjectZ/Models/MaintenanceDesignModels.cs').read_text(encoding='utf-8')
+maintenance_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
+maintenance_actions_vm = maintenance_actions_vm_path.read_text(encoding='utf-8')
+maintenance_actions_dialogs = maintenance_actions_dialogs_path.read_text(encoding='utf-8')
+for token in ('IsDatabaseBacked', 'DataConnectionBadgeText', 'LastSyncedDisplay', 'ReloadTechnicianDirectory',
+              'isBulkReload', 'ValidateWorkshopFieldLengths', 'AppendMaintenanceActivity', 'RefreshFilteredOrders(selectedId)'):
+    assert token in maintenance_actions_vm, f'MaintenanceActions view model missing expected token: {token}'
+for token in ('DataConnectionBadgeText', 'LastSyncedDisplay'):
+    assert token in maintenance_actions_xaml, f'MaintenanceActions UI is not SQL-backed: {token}'
+assert 'TechnicianFilterOptions = new[] { "كل الفنيين" }' not in maintenance_actions_vm, \
+    'the technician directory is hard-coded from the design samples again'
+assert 'DatabaseRowVersion' in maintenance_order_model, 'MaintenanceOrderDesignItem.DatabaseRowVersion is missing'
+for token in ('RowVersion = @RowVersion', 'OUTPUT inserted.RowVersion', 'LoadTechnicianDirectory'):
+    assert token in maintenance_repository, f'MaintenanceRepository missing expected token: {token}'
+assert 'ملاحظات التسليم أطول من الحد المسموح' in maintenance_actions_dialogs
+assert 'سبب الإلغاء أطول من الحد المسموح' in maintenance_actions_dialogs
+assert (root / 'sql/15_EnableMaintenanceActions.sql').is_file(), 'sql/15_EnableMaintenanceActions.sql is missing'
+print('PASS: maintenance actions screen writes status, pricing, parts, payments, delivery and cancellation to SQL '
+      'with optimistic concurrency and a SQL technician directory')
+
 maintenance_invoices_xaml_path = root / 'src/ProjectZ/Views/MaintenanceInvoicesView.xaml'
 maintenance_invoice_details_xaml_path = root / 'src/ProjectZ/Views/MaintenanceInvoiceDetailsWindow.xaml'
 assert maintenance_invoices_xaml_path.is_file() and maintenance_invoice_details_xaml_path.is_file()
@@ -932,9 +957,9 @@ for removed_binding in ('TotalPartsCountDisplay', 'TotalQuantityUnitsDisplay', '
                         'LowOrOutCountDisplay'):
     assert removed_binding not in maintenance_spare_parts_xaml, f'removed spare-parts KPI binding is back: {removed_binding}'
 
-# --- Spare-parts screen: SQL CRUD, suppliers, ledger and cross-screen links (sql/15) ---------
-enable_spare_sql_path = root / 'sql/15_EnableMaintenanceSpareParts.sql'
-assert enable_spare_sql_path.is_file(), 'missing sql/15_EnableMaintenanceSpareParts.sql'
+# --- Spare-parts screen: SQL CRUD, suppliers, ledger and cross-screen links (sql/16) ---------
+enable_spare_sql_path = root / 'sql/16_EnableMaintenanceSpareParts.sql'
+assert enable_spare_sql_path.is_file(), 'missing sql/16_EnableMaintenanceSpareParts.sql'
 enable_spare_sql = enable_spare_sql_path.read_text(encoding='utf-8')
 for token in ('CREATE TABLE dbo.MaintenanceSparePartMovements', 'UX_MaintenanceSpareParts_Barcode',
               'UX_MaintenanceSpareParts_Name', 'IX_MaintenanceSparePartMovements_Part_Date',
@@ -943,11 +968,11 @@ for token in ('CREATE TABLE dbo.MaintenanceSparePartMovements', 'UX_MaintenanceS
               'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceSpareParts TO [ProjectZClient]',
               'THROW 50077', 'THROW 50079', 'CK_MaintenanceOrderParts_Source',
               "COL_LENGTH(N'dbo.MaintenanceOrderParts', N'SparePartId')"):
-    assert token in enable_spare_sql, f'sql/15 missing expected guard: {token}'
-assert 'CREATE TABLE dbo.MaintenanceSpareParts' not in enable_spare_sql, 'sql/15 must upgrade, not recreate, dbo.MaintenanceSpareParts'
+    assert token in enable_spare_sql, f'sql/16 missing expected guard: {token}'
+assert 'CREATE TABLE dbo.MaintenanceSpareParts' not in enable_spare_sql, 'sql/16 must upgrade, not recreate, dbo.MaintenanceSpareParts'
 for column in ('SupplierId', 'Barcode', 'Unit', 'ReorderQuantity', 'StorageLocation', 'Notes',
                'LastPurchaseAtUtc', 'LastIssueAtUtc'):
-    assert f"COL_LENGTH(N'dbo.MaintenanceSpareParts', N'{column}')" in enable_spare_sql, f'sql/15 does not add {column}'
+    assert f"COL_LENGTH(N'dbo.MaintenanceSpareParts', N'{column}')" in enable_spare_sql, f'sql/16 does not add {column}'
 assert 'dbo.MaintenanceSparePartMovements' in full_schema and 'dbo.MaintenanceSpareParts' in full_schema
 
 spare_parts_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
@@ -1537,4 +1562,27 @@ assert 'new UserRepository(connectionSettings, user.Id)' in app_cs
 assert 'userRepository,' in main_viewmodel and 'Users.RefreshFromDatabase();' in main_viewmodel
 assert 'IsUsersSelected' in main_xaml and 'UsersView DataContext="{Binding Users}"' in main_xaml
 print('PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes')
+# Wallet transfers: the ledger row must name its source transfer id, because dbo.FinancialTransactions
+# carries CK_FinancialTransactions_Source ((type IS NULL AND id IS NULL) OR (type and id both set)) and
+# CK_FinancialTransactions_Amount (Amount > 0). Writing N'CustomerTransfer' with a NULL id made every
+# Vodafone Cash / InstaPay deposit, withdrawal, edit and reversal fail with SQL 547, surfaced to the user as
+# "لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى".
+financial_repository = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+assert "N'CustomerTransfer',@Source" in financial_repository, 'wallet ledger rows must carry SourceEntityId'
+assert "N'CustomerTransfer',NULL" not in financial_repository, 'wallet ledger rows must not leave SourceEntityId NULL'
+assert financial_repository.count('RecordWalletMovement(connection, transaction,') == 8
+assert financial_repository.count(', actorUserId, transferId);') == 8, \
+    'every wallet ledger row must keep its actor and be tied to its transfer'
+assert 'if (signedAmount == 0m) return;' in financial_repository, 'a zero-value ledger row violates CK_FinancialTransactions_Amount'
+assert "sql.Message.Contains(\"CHECK constraint\"" in financial_repository, 'error 547 must not blame a foreign key for a CHECK violation'
+for ledger_insert in re.finditer(r'INSERT dbo\.FinancialTransactions\([^)]*SourceEntityType,SourceEntityId\)(.*?);"', financial_repository, re.S):
+    tail = ledger_insert.group(1).split('VALUES', 1)[-1].rstrip().rstrip(')')
+    source_type, source_id = [part.strip() for part in tail.rsplit(',', 2)[-2:]]
+    both_null = source_type.upper() == 'NULL' and source_id.upper() == 'NULL'
+    both_set = source_type.startswith('@') or source_type.startswith("N'")
+    assert (both_null or both_set) and not (source_type.upper() == 'NULL') ^ (source_id.upper() == 'NULL'), \
+        f'unpaired SourceEntityType/SourceEntityId in ledger insert: {source_type}, {source_id}'
+    if both_set:
+        assert source_id.startswith('@'), f'a named source type needs a source id: {source_type}, {source_id}'
+print('PASS: wallet transfers write paired SourceEntityType/SourceEntityId ledger rows and explain 547 honestly')
 print('NOT RUN: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish')

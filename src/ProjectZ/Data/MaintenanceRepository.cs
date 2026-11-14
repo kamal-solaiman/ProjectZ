@@ -36,7 +36,11 @@ public sealed record SparePartSupplierOption(int Id, string Name, string Company
 }
 
 /// <summary>Result of creating a maintenance order.</summary>
-public sealed record SavedMaintenanceOrder(int OrderId, string OrderNumber, decimal TotalDepositPaid);
+public sealed record SavedMaintenanceOrder(
+    int OrderId,
+    string OrderNumber,
+    decimal TotalDepositPaid,
+    byte[]? RowVersion = null);
 
 /// <summary>A payment to persist for a maintenance order (deposit / final / refund).</summary>
 /// <param name="Account">Financial account kind the payment goes through.</param>
@@ -768,7 +772,7 @@ INSERT dbo.MaintenanceOrders(OrderNumber, CustomerId, CustomerNameSnapshot, Cust
  OrderStatus, Priority, AssignedTechnician, ExpectedDeliveryAtUtc, ExpectedDeliveryLabel, DeviceType, DeviceBrand,
  DeviceModel, DeviceColor, SerialOrImei, PasscodeType, PasscodeValueProtected, ReportedFault, PhysicalCondition,
  AccessoriesReceived, IntakeNotes, IsEstimatePendingInspection, EstimatedCost)
-OUTPUT inserted.Id
+OUTPUT inserted.Id, inserted.RowVersion
 VALUES(@Num, @CustomerId, @Name, @Phone, @Phone2, @Address, @WalkIn, @Received, @Actor,
  0, @Priority, @Tech, @Expected, @ExpectedLabel, @DeviceType, @Brand, @Model, @Color, @Serial,
  @PasscodeType, @Passcode, @Fault, @Physical, @Accessories, @Intake, @EstimatePending, @EstimatedCost);"))
@@ -799,7 +803,12 @@ VALUES(@Num, @CustomerId, @Name, @Phone, @Phone2, @Address, @WalkIn, @Received, 
                 insert.Parameters.Add("@Intake", SqlDbType.NVarChar, 1500).Value = order.IntakeNotes;
                 insert.Parameters.Add("@EstimatePending", SqlDbType.Bit).Value = order.IsEstimatePendingInspection;
                 AddMoney(insert, "@EstimatedCost", order.EstimatedCost);
-                orderId = (int)insert.ExecuteScalar()!;
+                using (var reader = insert.ExecuteReader())
+                {
+                    reader.Read();
+                    orderId = reader.GetInt32(0);
+                    order.DatabaseRowVersion = reader.IsDBNull(1) ? null : (byte[])reader[1];
+                }
             }
 
             foreach (var activity in order.ActivityLog)
@@ -828,7 +837,7 @@ VALUES(@Order,@Time,@Title,@Details,@Amount,@Actor);");
             }
 
             transaction.Commit();
-            return new SavedMaintenanceOrder(orderId, orderNumber, totalDeposit);
+            return new SavedMaintenanceOrder(orderId, orderNumber, totalDeposit, order.DatabaseRowVersion);
         }
         catch (Exception ex)
         {
@@ -944,7 +953,8 @@ UPDATE dbo.MaintenanceOrders SET
      DeliveredAtUtc = @Delivered, WarrantyDays = @Warranty,
      DeliveryNotes = @DeliveryNotes, CancellationReason = @CancelReason,
      UpdatedAtUtc = SYSUTCDATETIME()
-WHERE Id = @Id;"))
+OUTPUT inserted.RowVersion
+WHERE Id = @Id AND (@RowVersion IS NULL OR RowVersion = @RowVersion);"))
             {
                 update.Parameters.Add("@Status", SqlDbType.TinyInt).Value = (byte)order.Status;
                 update.Parameters.Add("@Priority", SqlDbType.TinyInt).Value = (byte)order.Priority;
@@ -965,8 +975,21 @@ WHERE Id = @Id;"))
                 update.Parameters.Add("@DeliveryNotes", SqlDbType.NVarChar, 1500).Value = order.DeliveryNotes;
                 update.Parameters.Add("@CancelReason", SqlDbType.NVarChar, 1500).Value = order.CancellationReason;
                 update.Parameters.Add("@Id", SqlDbType.Int).Value = order.Id;
-                if (update.ExecuteNonQuery() == 0)
-                    throw new MaintenanceDataException("تعذّر تحديث أمر الصيانة: غير موجود في قاعدة البيانات.");
+                update.Parameters.Add("@RowVersion", SqlDbType.Timestamp).Value =
+                    (object?)order.DatabaseRowVersion ?? DBNull.Value;
+
+                object? newRowVersion;
+                using (var reader = update.ExecuteReader())
+                    newRowVersion = reader.Read() ? reader[0] : null;
+
+                if (newRowVersion is null)
+                {
+                    throw new MaintenanceDataException(order.DatabaseRowVersion is null
+                        ? "تعذّر تحديث أمر الصيانة: غير موجود في قاعدة البيانات."
+                        : $"تم تعديل أمر الصيانة {order.OrderNumber} من مستخدم آخر بعد فتحه هنا. اضغط «تحديث القائمة» ثم أعد المحاولة، أو أعد فتح الأمر لمتابعة أحدث بياناته.");
+                }
+
+                order.DatabaseRowVersion = (byte[])newRowVersion;
             }
 
             foreach (var activity in newActivities)
@@ -1152,7 +1175,7 @@ SELECT mo.Id, mo.OrderNumber, mo.CustomerId, mo.CustomerNameSnapshot, mo.Custome
  mo.PasscodeValueProtected, mo.ReportedFault, mo.PhysicalCondition, mo.AccessoriesReceived, mo.IntakeNotes,
  mo.IsEstimatePendingInspection, mo.EstimatedCost, mo.DiagnosisNotes, mo.LaborCost, mo.DiscountAmount,
  mo.FinalServiceCost, mo.HasWorkshopPricing, mo.DeliveredAtUtc, mo.WarrantyDays, mo.DeliveryNotes,
- mo.CancellationReason
+ mo.CancellationReason, mo.RowVersion
 FROM dbo.MaintenanceOrders AS mo
 LEFT JOIN dbo.Users AS u ON u.Id = mo.ReceivedByUserId
 ORDER BY mo.ReceivedAtUtc DESC, mo.Id DESC;";
@@ -1199,7 +1222,8 @@ ORDER BY mo.ReceivedAtUtc DESC, mo.Id DESC;";
                 DeliveredAt = reader.IsDBNull(33) ? null : reader.GetDateTime(33).ToLocalTime(),
                 WarrantyDays = reader.GetInt32(34),
                 DeliveryNotes = reader.GetString(35),
-                CancellationReason = reader.GetString(36)
+                CancellationReason = reader.GetString(36),
+                DatabaseRowVersion = reader.IsDBNull(37) ? null : (byte[])reader[37]
             });
         }
 
@@ -1465,14 +1489,14 @@ VALUES(@Kind,@Alias,@Identifier,0,1,1,N'أنشئت تلقائيًا لأوامر
                 2601 or 2627 => new MaintenanceDataException(
                     "البيانات مكررة: اسم قطعة الغيار أو باركودها مسجل بالفعل لقطعة أخرى.", sql),
                 207 or 208 => new MaintenanceDataException(
-                    "مخطط قاعدة البيانات ناقص (جدول أو عمود غير موجود). شغّل sql/06_CreateFullSchema.sql ثم sql/13_EnableMaintenanceInvoices.sql وsql/15_EnableMaintenanceSpareParts.sql على الخادم وأعد المحاولة.", sql),
+                    "مخطط قاعدة البيانات ناقص (جدول أو عمود غير موجود). شغّل sql/06_CreateFullSchema.sql ثم sql/13_EnableMaintenanceInvoices.sql وsql/16_EnableMaintenanceSpareParts.sql على الخادم وأعد المحاولة.", sql),
                 53 or 4060 => new MaintenanceDataException("لا يمكن الاتصال بقاعدة البيانات. تحقق من اتصال الخادم وتحديثه.", sql),
                 18456 => new MaintenanceDataException("فشل تسجيل الدخول إلى قاعدة البيانات. تحقق من المستخدم وكلمة المرور.", sql),
                 547 => new MaintenanceDataException(
-                    "تعذّر حفظ البيانات بسبب ارتباط غير صالح (مورد أو أمر صيانة أو قيد بنود قديم). شغّل sql/13_EnableMaintenanceInvoices.sql وsql/15_EnableMaintenanceSpareParts.sql على الخادم ثم أعد المحاولة.", sql),
+                    "تعذّر حفظ البيانات بسبب ارتباط غير صالح (مورد أو أمر صيانة أو قيد بنود قديم). شغّل sql/13_EnableMaintenanceInvoices.sql وsql/16_EnableMaintenanceSpareParts.sql على الخادم ثم أعد المحاولة.", sql),
                 1205 => new MaintenanceDataException("تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 229 or 230 => new MaintenanceDataException(
-                    "حساب الاتصال لا يملك صلاحية العمل على مخزون قطع الغيار. شغّل sql/09_EnablePosSales.sql وsql/15_EnableMaintenanceSpareParts.sql على الخادم ثم أعد المحاولة.", sql),
+                    "حساب الاتصال لا يملك صلاحية العمل على مخزون قطع الغيار. شغّل sql/09_EnablePosSales.sql وsql/16_EnableMaintenanceSpareParts.sql على الخادم ثم أعد المحاولة.", sql),
                 >= 50000 => new MaintenanceDataException(sql.Message, sql),
                 _ => new MaintenanceDataException(fallback, sql)
             };

@@ -379,11 +379,11 @@ VALUES(@Account,@OpKind,@Customer,@Amount,@Commission,@CashDelta,@WalletBalance,
 
             RecordWalletMovement(connection, transaction, walletAccount, walletBalanceAfter,
                 walletDelta, isDeposit ? "تحويل للعميل" : "سحب للعميل", customerNumber,
-                isDeposit ? note : $"{note} (سحب للعميل)", actorUserId);
+                isDeposit ? note : $"{note} (سحب للعميل)", actorUserId, transferId);
 
             RecordWalletMovement(connection, transaction, cashAccount, cashBalanceAfter,
                 cashDelta, isDeposit ? "تحويل من العميل" : "تحويل للعميل", customerNumber,
-                isDeposit ? $"{note} (إيداع من العميل)" : note, actorUserId);
+                isDeposit ? $"{note} (إيداع من العميل)" : note, actorUserId, transferId);
 
             transaction.Commit();
             return new SavedCustomerTransfer(transferId, walletAccount, cashAccount, walletBalanceAfter, cashBalanceAfter);
@@ -444,9 +444,9 @@ OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
             }
 
             RecordWalletMovement(connection, transaction, walletAccount, walletBalanceAfter,
-                -walletDelta, "عكس تحويل", counterparty, note, actorUserId);
+                -walletDelta, "عكس تحويل", counterparty, note, actorUserId, transferId);
             RecordWalletMovement(connection, transaction, cashAccount, cashBalanceAfter,
-                -cashDelta, "عكس تحويل", counterparty, note, actorUserId);
+                -cashDelta, "عكس تحويل", counterparty, note, actorUserId, transferId);
 
             using (var reverse = CreateCommand(connection, transaction, @"
 UPDATE dbo.CustomerTransfers SET OperationStatus = 1, ReversedAtUtc = SYSUTCDATETIME(), ReversedByUserId = @Actor,
@@ -535,9 +535,9 @@ OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
             }
 
             RecordWalletMovement(connection, transaction, oldWalletAccount, walletAfterReverse,
-                -oldWalletDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId);
+                -oldWalletDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId, transferId);
             RecordWalletMovement(connection, transaction, cashAccount, cashAfterReverse,
-                -oldCashDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId);
+                -oldCashDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId, transferId);
 
             // 2) Apply the new effect on the wallet and cash balances.
             decimal walletAfterNew;
@@ -561,9 +561,9 @@ OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
             }
 
             RecordWalletMovement(connection, transaction, newWalletAccount, walletAfterNew,
-                newWalletDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId);
+                newWalletDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId, transferId);
             RecordWalletMovement(connection, transaction, cashAccount, cashAfterNew,
-                newCashDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId);
+                newCashDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId, transferId);
 
             // 3) Update the transfer row in place with the new values (keeps the original Id and active status).
             using (var update = CreateCommand(connection, transaction, @"
@@ -687,14 +687,22 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
 
     // ---------------------------------------------------------------- helpers
 
+    /// <summary>
+    /// Appends one ledger row for a customer wallet transfer. SourceEntityType/SourceEntityId must be set
+    /// together: dbo.FinancialTransactions carries CK_FinancialTransactions_Source, which rejects a row that
+    /// names a source type but leaves the id NULL (SQL error 547), and CK_FinancialTransactions_Amount, which
+    /// rejects a zero amount — so a movement that nets to zero writes no row at all.
+    /// </summary>
     private static void RecordWalletMovement(
         SqlConnection connection, SqlTransaction transaction, int accountId, decimal balanceAfter,
-        decimal signedAmount, string category, string counterparty, string note, int actor)
+        decimal signedAmount, string category, string counterparty, string note, int actor, int transferId)
     {
+        if (signedAmount == 0m) return;
+
         using var ledger = CreateCommand(connection, transaction, @"
 INSERT dbo.FinancialTransactions(FinancialAccountId,OccurredAtUtc,IsIncoming,Category,Amount,BalanceAfter,Counterparty,Note,
  ActorUserId,CountsTowardLimits,SourceEntityType,SourceEntityId)
-VALUES(@Account,SYSUTCDATETIME(),@Incoming,@Category,@Amount,@Balance,@Counterparty,@Note,@Actor,1,N'CustomerTransfer',NULL);");
+VALUES(@Account,SYSUTCDATETIME(),@Incoming,@Category,@Amount,@Balance,@Counterparty,@Note,@Actor,1,N'CustomerTransfer',@Source);");
         ledger.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
         ledger.Parameters.Add("@Incoming", SqlDbType.Bit).Value = signedAmount > 0m;
         ledger.Parameters.Add("@Category", SqlDbType.NVarChar, 50).Value = category;
@@ -703,6 +711,7 @@ VALUES(@Account,SYSUTCDATETIME(),@Incoming,@Category,@Amount,@Balance,@Counterpa
         ledger.Parameters.Add("@Counterparty", SqlDbType.NVarChar, 250).Value = counterparty;
         ledger.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
         ledger.Parameters.Add("@Actor", SqlDbType.Int).Value = actor;
+        ledger.Parameters.Add("@Source", SqlDbType.Int).Value = transferId;
         ledger.ExecuteNonQuery();
     }
 
@@ -838,7 +847,10 @@ VALUES(@Kind,@Alias,@Identifier,0,1,1,N'أنشئت تلقائيًا للتحوي
             return sql.Number switch
             {
                 2601 or 2627 => new FinancialDataException("البيانات مكررة: الحساب أو الحركة مسجلة بالفعل. أعد المحاولة.", sql),
-                547 => new FinancialDataException("لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى.", sql),
+                547 => new FinancialDataException(
+                    sql.Message.Contains("CHECK constraint", StringComparison.OrdinalIgnoreCase)
+                        ? "قيمة أحد الحقول غير مسموح بها في قاعدة البيانات (قيد تحقق). راجع المبلغ والعمولة ثم أعد المحاولة."
+                        : "لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى.", sql),
                 1205 => new FinancialDataException("تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 229 or 230 => new FinancialDataException(
                     "حساب الاتصال لا يملك صلاحية العمل على الحسابات المالية. شغّل sql/09_EnablePosSales.sql على الخادم ثم أعد المحاولة.", sql),

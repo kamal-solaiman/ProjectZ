@@ -69,7 +69,7 @@
 
 ## 4) مخطط SQL الجديد
 
-`sql/15_EnableMaintenanceSpareParts.sql` (idempotent، لا يحذف بيانات):
+`sql/16_EnableMaintenanceSpareParts.sql` (idempotent، لا يحذف بيانات):
 
 - يضيف إلى `dbo.MaintenanceSpareParts` عند غيابها: `SupplierId` (FK إلى `dbo.Suppliers`)،
   `Barcode`، `Unit`، `ReorderQuantity`، `StorageLocation`، `Notes`، `LastPurchaseAtUtc`،
@@ -137,7 +137,7 @@ idempotent للقواعد القائمة. لذلك التثبيت الجديد �
   `MaintenanceSparePartMovementKind`، `MaintenanceSparePartMovementItem`، باركودات العينات.
 - `src/ProjectZ/Data/MaintenanceRepository.cs` — قراءة/كتابة القطع، الموردون، التوريد،
   سجل الحركات، إرجاع بنود الإلغاء في معاملة واحدة (`RestoreSparePartStockForOrder`)،
-  إصلاح الاسترجاع والحذف، رسائل أخطاء `sql/15`.
+  إصلاح الاسترجاع والحذف، رسائل أخطاء `sql/16`.
 - `src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs` — تمرير رقم الأمر في الصرف
   والإرجاع وتحديث آخر حركة، وإرجاع بنود الإلغاء دفعة واحدة، وتعويض فشل حفظ بند الصرف،
   وأمر الانتقال إلى مخزون قطع الغيار.
@@ -151,7 +151,7 @@ idempotent للقواعد القائمة. لذلك التثبيت الجديد �
   الغيار المستخدمة في ملف العميل وأزرار فتح الأمر/القطعة.
 - `sql/06_CreateFullSchema.sql` و`sql/08_VerifyFullSchema.sql` و
   `sql/13_EnableMaintenanceInvoices.sql` (خيارات SET للفهارس المفلترة) و
-  `sql/15_EnableMaintenanceSpareParts.sql`.
+  `sql/16_EnableMaintenanceSpareParts.sql`.
 - `tools/static_checks.py` — فحوص الربط الجديدة وعدد الجداول (37 جدول أعمال + Users).
 
 ## 8) حدود معروفة
@@ -169,16 +169,18 @@ idempotent للقواعد القائمة. لذلك التثبيت الجديد �
 - حركة المخزون وحفظ بنود الأمر عمليتان منفصلتان (كل منهما معاملة SQL مستقلة). إذا فشل حفظ
   الأمر بعد نجاح إرجاع الكمية (إلغاء تذكرة أو حذف بند) يظهر خطأ واضح ويبقى أثر الإرجاع في سجل
   الحركات؛ يلزم فتح الأمر ومراجعة بنوده/تسوية المخزون يدويًا. أما فشل حفظ بند صرف فيُعيد
-  الكمية تلقائيًا إلى المخزون ويسجّل حركة إرجاع تعويضية، ما لم تفشل حركة الإرجاع نفسها فيبقى
-  البند ظاهرًا لإعادة المحاولة.
+  الكمية تلقائيًا إلى المخزون ويسجّل حركة إرجاع تعويضية. إذا فشل الإرجاع أيضًا، تُعاد التذكرة
+  من SQL بحالتها المحفوظة (بلا البند) ويجب تسوية المخزون يدويًا من سجل الحركات؛ ولا يبقى
+  البند ظاهرًا إلا إذا تعذّر تحميل الأمر نفسه من قاعدة البيانات.
 - الترجمة/التنسيق: كل النصوص عربية RTL داخل الشاشة، والنوافذ الأصلية تبقى LTR كما في بقية
   التطبيق.
 
 ## 9) خطوات القبول على Windows + SQL Server 2016 SP1+
 
 1. نفّذ `sql/06_CreateFullSchema.sql` ثم `sql/09_EnablePosSales.sql` ثم
-   `sql/13_EnableMaintenanceInvoices.sql` ثم `sql/15_EnableMaintenanceSpareParts.sql` بحساب
-   إداري، ثم `sql/08_VerifyFullSchema.sql` (يجب ألا يظهر صف ناقص).
+   `sql/13_EnableMaintenanceInvoices.sql` ثم `sql/15_EnableMaintenanceActions.sql` ثم
+   `sql/16_EnableMaintenanceSpareParts.sql` بحساب إداري، ثم `sql/08_VerifyFullSchema.sql`
+   (يجب ألا يظهر صف ناقص).
 2. شغّل التطبيق وافتح «قطع الغيار»: الشارة «متصل بقاعدة البيانات — SQL Server»، وسطر الملخص
    يعرض عدد الأصناف والوحدات وقيمة المخزون.
 3. سجّل قطعة جديدة باسم وباركود ومورد مفضل وكمية 5 وتكلفة 100 وسعر تركيب 150:

@@ -14,7 +14,7 @@
 2. `sql/02_SeedAdmin.sql` لإنشاء مدير الدخول إن لم يوجد.
 3. `sql/06_CreateFullSchema.sql` لإنشاء مخطط الأعمال والعلاقات والفهارس.
 4. `sql/07_CreateReportingViews.sql` لإنشاء طرق عرض التقارير.
-5. `sql/08_VerifyFullSchema.sql` للتحقق من الأجسام والعلاقات بعد `06` و`07`، وأعد تشغيله بعد `sql/15_EnableMaintenanceSpareParts.sql` على قاعدة قائمة للتأكد من جدول الحركات والأعمدة الجديدة.
+5. `sql/08_VerifyFullSchema.sql` للتحقق من الأجسام والعلاقات بعد `06` و`07`، وأعد تشغيله بعد `sql/16_EnableMaintenanceSpareParts.sql` على قاعدة قائمة للتأكد من جدول الحركات والأعمدة الجديدة.
 6. أعد تشغيل `sql/04_SetupLanSqlAuth.sql` بعد إنشاء الجداول لمنح `ProjectZClient` صلاحيات شاشة المخزون الجديدة؛ راجع كلمة المرور في السكربت قبل تشغيله لأنه يعيد ضبطها كما في إعداد الشبكة الحالي.
 7. شغّل `sql/09_EnablePosSales.sql` لمنح `ProjectZClient` صلاحيات نقطة البيع والفواتير والمرتجع والدفتر المالي؛ بدونه يفشل أول حفظ بيع برسالة نقص صلاحية. السكربت idempotent ولا ينشئ جداول ولا يعدّل بيانات.
 8. شغّل `sql/10_EnableCategoryAdmin.sql` لمنح `ProjectZClient` صلاحيات إدارة التصنيفات (إضافة/تعديل/حذف غير المستخدم)؛ بدونه ترفض القاعدة حفظ التصنيف برسالة نقص صلاحية.
@@ -22,7 +22,8 @@
 10. شغّل `sql/13_EnableMaintenanceInvoices.sql` لشاشة «فواتير الصيانة»: يصحّح قيد `CK_MaintenanceOrderParts_Source` ليسمح ببند قطعة غيار (`SparePartId` بدون `ProductId`)، ويضيف فهارس السجل والقراءة المجمّعة، ويعيد تأكيد صلاحيات `ProjectZClient` على أوامر الصيانة وبنودها ومدفوعاتها وسجلها. بدونه يفشل صرف قطعة غيار على أمر صيانة وقراءة الفواتير برسالة نقص صلاحية أو خطأ قيد. السكربت idempotent ولا يحذف بيانات. التفاصيل في [فواتير الصيانة](MAINTENANCE_INVOICES.md).
 11. شغّل `sql/14_EnableUserAdmin.sql` لشاشة «المستخدمين»: يمنح `ProjectZClient` صلاحيات `SELECT, INSERT, UPDATE, DELETE` على `dbo.Users` (جدول الدخول الأصلي، بلا جداول جديدة) مع قراءة عدّ السجلات المرتبطة من جداول الفواتير والمخزون والتدفقات المالية والتدقيق. بدونه تُرفض إضافة/تعديل/حذف مستخدم برسالة نقص صلاحية. السكربت idempotent ولا ينشئ جدولًا ولا يعدّل صفًا. التفاصيل في [شاشة المستخدمين](USERS.md).
 12. شغّل `sql/14_EnableMaintenanceIntake.sql` لشاشة «أمر صيانة»: يضيف فهرس السيريال المفلتر المستخدم في منع استلام الجهاز نفسه مرتين، ويتحقق من كفاية عرض `PasscodeValueProtected` للرمز المشفّر، ويعيد تأكيد صلاحيات `ProjectZClient` التي تحتاجها الشاشة. التفاصيل في [أمر صيانة](MAINTENANCE_INTAKE.md).
-13. شغّل `sql/15_EnableMaintenanceSpareParts.sql` لشاشة «قطع الغيار»: يضيف حقول المورد والباركود والوحدة وحد إعادة الطلب والموقع والملاحظات وتواريخ آخر توريد/صرف إلى `dbo.MaintenanceSpareParts`، وينشئ سجل الحركات `dbo.MaintenanceSparePartMovements` (رصيد افتتاحي، توريد، صرف، إرجاع، تسويات) ويربطه بالمورد والعميل وأمر الصيانة والمستخدم، ثم يضيف الفهارس وصلاحيات `ProjectZClient` ويملأ رصيدًا افتتاحيًا للقطع القائمة. السكربت idempotent ولا يحذف بيانات. بعد نجاحه أعد تشغيل `sql/08_VerifyFullSchema.sql` للتأكد من الجدول والأعمدة. التفاصيل في [قطع الغيار](MAINTENANCE_SPARE_PARTS.md).
+13. شغّل `sql/15_EnableMaintenanceActions.sql` لشاشة «إجراءات الصيانة»: يتحقق من `MaintenanceOrders.RowVersion` الذي يستخدمه العميل لمنع الكتابة فوق تعديلات عميل آخر، ويضيف فهرس دليل الفنيين وفهرس ارتباط قطع الغيار بالأوامر، ويعيد تأكيد الصلاحيات. التفاصيل في [إجراءات الصيانة](MAINTENANCE_ACTIONS.md).
+14. شغّل `sql/16_EnableMaintenanceSpareParts.sql` لشاشة «قطع الغيار»: يضيف حقول المورد والباركود والوحدة وحد إعادة الطلب والموقع والملاحظات وتواريخ آخر توريد/صرف إلى `dbo.MaintenanceSpareParts`، وينشئ سجل الحركات `dbo.MaintenanceSparePartMovements` (رصيد افتتاحي، توريد، صرف، إرجاع، تسويات) ويربطه بالمورد والعميل وأمر الصيانة والمستخدم، ثم يضيف الفهارس وصلاحيات `ProjectZClient` ويملأ رصيدًا افتتاحيًا للقطع القائمة. السكربت idempotent ولا يحذف بيانات. بعد نجاحه أعد تشغيل `sql/08_VerifyFullSchema.sql` للتأكد من الجدول والأعمدة. التفاصيل في [قطع الغيار](MAINTENANCE_SPARE_PARTS.md).
 
 السكربتان 06 و07 قابلان لإعادة التشغيل: لا يحذفان جداول أو بيانات، ولا يعيدان إنشاء كائن موجود. السكربت 06 يضيف `Products.Sku` عند غيابه للتوافق مع جدول منتجات سابق، ويوحّد إنشاء المفاتيح الجديدة على `INT`. أي ترقية أخرى لاحقة تستلزم migration مستقلًا؛ السكربت لا يبدّل بقية أعمدة الجداول الموجودة تلقائيًا. يتوقف قبل DDL إذا وجد معرف كيان قديمًا بنوع غير `INT`، ويتحقق من اكتمال الجداول والمفاتيح قبل رسالة النجاح. `GO` فاصل SSMS/sqlcmd وليس أمر T-SQL يمكن إرساله عبر `SqlCommand` كدفعة واحدة.
 
@@ -85,6 +86,7 @@
 - `MaintenanceActivities`: تاريخ الحالة والتشخيص والتعديلات.
 - `vwMaintenanceOrderSummary`: قيمة القطع والتكلفة والخدمة والعربون والتحصيل النهائي.
 - استلام أمر صيانة من شاشة «أمر صيانة» يكتب الأمر وسطر النشاط الأول وعربون الاستلام والحركة المالية ومعاملة واحدة، ويأخذ رقمه من `DocumentSequences`؛ رمز الجهاز يُخزَّن مشفّرًا (AES-GCM) بمفتاح خارج القاعدة. التفاصيل في [أمر صيانة](MAINTENANCE_INTAKE.md).
+- شاشة «إجراءات الصيانة» تُحدّث الأمر بحارس `RowVersion`: كل `UPDATE` يرسل النسخة المقروءة ويعيد `OUTPUT inserted.RowVersion`، فإن تغيّر الصف من عميل آخر يُرفض التحديث برسالة عربية ويُعاد تحميل الأمر بدل الكتابة فوق تعديلات الآخر. التفاصيل في [إجراءات الصيانة](MAINTENANCE_ACTIONS.md).
 
 ### الحسابات والمحافظ
 
@@ -154,6 +156,51 @@
 - **المزامنة**: بعد أي كتابة يجري `LoadFromDatabase()` في `MyAccountsViewModel` الذي يعيد تحميل
   `dbo.FinancialAccounts` و`dbo.FinancialTransactions`، ويُنْبِه الـViewModels الأخرى عبر
   `NotifyExternalDataChanged()` فتُرى التغييرات فورًا في التحويلات والسجلات.
+
+### لماذا كانت تظهر رسالة «لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى»؟
+
+كان كل **إيداع أو سحب** في شاشتي «تحويل فودافون كاش» و«تحويل إنستاباي» — وكذلك تعديل أو عكس السجل من
+شاشتي السجلات — يفشل برسالة عامة وغير صحيحة. السبب ليس ارتباطًا بحساب أو حركة، بل **قيد تحقق**
+على دفتر الحركات:
+
+```sql
+-- sql/06_CreateFullSchema.sql
+CONSTRAINT CK_FinancialTransactions_Source CHECK (
+    (SourceEntityType IS NULL AND SourceEntityId IS NULL)
+ OR (SourceEntityType IS NOT NULL AND SourceEntityId IS NOT NULL))
+```
+
+وكانت `RecordWalletMovement` تكتب الحركة على الشكل:
+
+```sql
+-- قبل الإصلاح
+VALUES(..., N'CustomerTransfer', NULL)   -- نوع المصدر موجود والمعرّف فارغ ⇒ القيد يرفض الصف
+```
+
+فيرفع SQL Server الخطأ **547** (وهو نفس الرقم المستخدم لانتهاك المفاتيح الأجنبية، ومن هنا جاءت صياغة
+الرسالة المضللة) وتُلغى المعاملة كلها: لا يبقى `CustomerTransfers` ولا الحركات ولا تغيّر أي رصيد.
+
+**الإصلاح:** تُكتب الحركة بمعرّف التحويل نفسه `N'CustomerTransfer', @Source`، وتُتجاهل الحركة التي
+صافيها صفر (لأن `CK_FinancialTransactions_Amount` يرفض `Amount = 0` — وهي الحالة التي تتساوى فيها
+العمولة مع المبلغ). كما صار وصف الخطأ 547 يفرّق بين قيد التحقق (`CHECK`) والمفتاح الأجنبي
+(`REFERENCE`) بدل لوم الارتباط دائمًا.
+
+للتحقق على الخادم:
+
+```sql
+SELECT name, definition FROM sys.check_constraints
+WHERE parent_object_id = OBJECT_ID(N'dbo.FinancialTransactions');
+
+SELECT TOP (10) t.Id, t.CustomerNumber, t.Amount, t.Commission, t.OperationStatus,
+       f.Id AS LedgerId, f.Category, f.SourceEntityType, f.SourceEntityId
+FROM dbo.CustomerTransfers AS t
+LEFT JOIN dbo.FinancialTransactions AS f
+       ON f.SourceEntityType = N'CustomerTransfer' AND f.SourceEntityId = t.Id
+ORDER BY t.Id DESC;
+```
+
+يجب أن يعيد الاستعلام الثاني صفَّي دفتر على الأقل لكل تحويل (المحفظة + النقدي)، وأن يكون
+`SourceEntityId` مساويًا لـ`t.Id` دائمًا.
 
 ## مشتريات: كيف تُكتب البيانات فعليًا
 

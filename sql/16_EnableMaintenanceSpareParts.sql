@@ -1,5 +1,6 @@
 -- Enable the maintenance spare-parts screen (قطع الغيار) fully on SQL Server 2016 SP1 / level 130.
--- Run once after 06_CreateFullSchema.sql, 09_EnablePosSales.sql and 13_EnableMaintenanceInvoices.sql.
+-- Run once after 06_CreateFullSchema.sql, 09_EnablePosSales.sql, 13_EnableMaintenanceInvoices.sql and
+-- 15_EnableMaintenanceActions.sql.
 -- Idempotent: safe to re-run. No table or row is dropped and no existing data is changed except
 -- adding the opening-balance audit rows described in step 3.
 --
@@ -337,5 +338,5 @@ WHERE i.name IN (N'UX_MaintenanceSpareParts_Barcode', N'UX_MaintenanceSpareParts
 ORDER BY TableName, IndexName;
 GO
 
-PRINT N'SUCCESS: maintenance spare-parts columns, movement ledger, indexes and grants are in place (sql/15_EnableMaintenanceSpareParts.sql).';
+PRINT N'SUCCESS: maintenance spare-parts columns, movement ledger, indexes and grants are in place (sql/16_EnableMaintenanceSpareParts.sql).';
 GO

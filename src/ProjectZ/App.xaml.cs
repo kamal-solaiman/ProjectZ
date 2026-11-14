@@ -72,7 +72,8 @@ public partial class App : Application
                 new PurchaseRepository(connectionSettings, user.Id),
                 new FinancialRepository(connectionSettings, user.Id),
                 new MaintenanceRepository(connectionSettings, user.Id),
-                new UserRepository(connectionSettings, user.Id));
+                new UserRepository(connectionSettings, user.Id),
+                new BackupRepository(connectionSettings));
             MainWindow = main;
             TrackWindow(main);
 

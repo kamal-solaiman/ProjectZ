@@ -662,7 +662,7 @@ CREATE TABLE dbo.MaintenanceSparePartMovements
 );
 
 /* In-place upgrade for databases created by an earlier schema: add the spare-part master fields
-   when missing. sql/15_EnableMaintenanceSpareParts.sql performs the same guarded upgrades and also
+   when missing. sql/16_EnableMaintenanceSpareParts.sql performs the same guarded upgrades and also
    creates the ledger above, so either script is safe to run on an existing database. */
 IF COL_LENGTH(N'dbo.MaintenanceSpareParts', N'SupplierId') IS NULL
     ALTER TABLE dbo.MaintenanceSpareParts ADD SupplierId INT NULL
