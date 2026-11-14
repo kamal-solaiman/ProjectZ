@@ -10,6 +10,7 @@
         Language="ar-EG"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
+    <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/PrintIsolation.xaml" /></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
 
     <Grid Margin="18" FlowDirection="LeftToRight">
         <Grid.RowDefinitions>

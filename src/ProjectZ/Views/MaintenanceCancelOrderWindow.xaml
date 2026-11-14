@@ -11,6 +11,8 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
 
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
     <Grid Margin="18" FlowDirection="LeftToRight">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -20,27 +22,27 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Margin="0,0,0,12" Padding="14,11" CornerRadius="12" Background="#991B1B">
+        <Border Grid.Row="0" Margin="0,0,0,12" Padding="14,11" CornerRadius="12" Background="{DynamicResource Theme.Legacy.991B1B.Danger}">
             <StackPanel FlowDirection="RightToLeft">
                 <TextBlock Text="إلغاء أمر الصيانة / تعذر الإصلاح"
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="16.5"
                            FontWeight="Bold"
-                           Foreground="White" />
+                           Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnDanger}" />
                 <TextBlock Text="{Binding Order.OrderNumber, StringFormat='أمر رقم: {0}'}"
                            Style="{StaticResource PosRtlTextStyle}"
                            Margin="0,2,0,0"
                            FontSize="12"
-                           Foreground="#FECACA" />
+                           Foreground="{DynamicResource Theme.Legacy.FECACA.DangerInk}" />
             </StackPanel>
         </Border>
 
         <!-- Body -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel FlowDirection="RightToLeft">
-                <Border Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1">
+                <Border Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}" BorderBrush="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="سبب الإلغاء / رفض الإصلاح *" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="#102E48" Margin="0,0,0,6" />
+                        <TextBlock Text="سبب الإلغاء / رفض الإصلاح *" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Text}" Margin="0,0,0,6" />
                         <ItemsControl ItemsSource="{Binding Reasons}" Margin="0,0,0,8">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -60,7 +62,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <TextBlock Text="السبب المحدد:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#475569" Margin="0,0,0,2" />
+                        <TextBlock Text="السبب المحدد:" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" Margin="0,0,0,2" />
                         <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
                                  MinHeight="32"
                                  Padding="9,5"
@@ -69,7 +71,7 @@
                                  TextAlignment="Left"
                                  Text="{Binding SelectedReason, UpdateSourceTrigger=PropertyChanged}" />
 
-                        <TextBlock Text="ملاحظات وتفاصيل إضافية (اختياري):" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="#475569" Margin="0,8,0,2" />
+                        <TextBlock Text="ملاحظات وتفاصيل إضافية (اختياري):" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.475569.Muted}" Margin="0,8,0,2" />
                         <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
                                  MinHeight="46"
                                  Padding="9,5"
@@ -85,8 +87,8 @@
                 <Border Margin="0,0,0,10"
                         Padding="12"
                         CornerRadius="10"
-                        Background="#EFF6FF"
-                        BorderBrush="#BFDBFE"
+                        Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}"
+                        BorderBrush="{DynamicResource Theme.Legacy.BFDBFE.InfoBorder}"
                         BorderThickness="1"
                         Visibility="{Binding HasUsedParts, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
@@ -99,15 +101,15 @@
                                    Style="{StaticResource PosRtlTextStyle}"
                                    Margin="0,4,0,0"
                                    FontSize="11.5"
-                                   Foreground="#1D4ED8" />
+                                   Foreground="{DynamicResource Theme.Legacy.1D4ED8.InfoInk}" />
                     </StackPanel>
                 </Border>
 
                 <!-- Deposit Refund -->
                 <Border Padding="12"
                         CornerRadius="10"
-                        Background="#FFFBEB"
-                        BorderBrush="#FCD34D"
+                        Background="{DynamicResource Theme.Legacy.FFFBEB.WarningSoft}"
+                        BorderBrush="{DynamicResource Theme.Legacy.FCD34D.WarningBorder}"
                         BorderThickness="1"
                         Visibility="{Binding HasRetainedDeposit, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
@@ -115,7 +117,7 @@
                                    Style="{StaticResource PosRtlTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="#92400E" />
+                                   Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
                         <CheckBox Content="تسجيل استرداد العربون للعميل"
                                   Style="{StaticResource PosCheckBoxStyle}"
                                   Margin="0,6,0,4"
@@ -123,7 +125,7 @@
                                   FontWeight="SemiBold"
                                   IsChecked="{Binding RefundDeposit}" />
                         <StackPanel Orientation="Horizontal" Visibility="{Binding RefundDeposit, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="مبلغ الاسترداد للعميل (ج.م):" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12" Foreground="#78350F" />
+                            <TextBlock Text="مبلغ الاسترداد للعميل (ج.م):" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12" Foreground="{DynamicResource Theme.Legacy.78350F.WarningInk}" />
                             <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Width="120" MinHeight="30" Padding="8,4" Text="{Binding RefundAmountText, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                     </StackPanel>
@@ -136,11 +138,11 @@
                 Margin="0,10,0,0"
                 Padding="10,7"
                 CornerRadius="8"
-                Background="#FEF2F2"
-                BorderBrush="#FECACA"
+                Background="{DynamicResource Theme.Legacy.FEF2F2.DangerSoft}"
+                BorderBrush="{DynamicResource Theme.Legacy.FECACA.DangerBorder}"
                 BorderThickness="1"
                 Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
-            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" Foreground="#B42318" />
+            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}" />
         </Border>
 
         <!-- Footer -->
@@ -166,5 +168,6 @@
                     Padding="16,9"
                     Command="{Binding ConfirmCancelCommand}" />
         </Grid>
+    </Grid>
     </Grid>
 </Window>

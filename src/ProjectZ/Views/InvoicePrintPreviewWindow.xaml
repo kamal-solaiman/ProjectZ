@@ -11,7 +11,7 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
 
-    <Window.Resources>
+    <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/PrintIsolation.xaml" /></ResourceDictionary.MergedDictionaries>
         <Style x:Key="PrintModePillStyle" TargetType="Button">
             <Setter Property="Background" Value="#E2E8F0" />
             <Setter Property="Foreground" Value="#334155" />
@@ -37,7 +37,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-    </Window.Resources>
+    </ResourceDictionary></Window.Resources>
 
     <Grid Margin="18" FlowDirection="LeftToRight">
         <Grid.RowDefinitions>

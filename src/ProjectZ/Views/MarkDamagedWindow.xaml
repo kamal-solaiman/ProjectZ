@@ -11,6 +11,8 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
 
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
     <Grid Margin="20" FlowDirection="LeftToRight">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -23,19 +25,19 @@
                 Margin="0,0,0,14"
                 Padding="16,13"
                 CornerRadius="14"
-                Background="#7F1D1D"
+                Background="{DynamicResource Theme.Legacy.7F1D1D.Danger}"
                 FlowDirection="LeftToRight">
             <StackPanel HorizontalAlignment="Right">
                 <TextBlock Text="تسجيل مخزون هالك"
                            Style="{StaticResource PosRtlTextStyle}"
                            FontSize="18"
                            FontWeight="Bold"
-                           Foreground="White" />
+                           Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnDanger}" />
                 <TextBlock Text="{Binding Product.Name}"
                            Style="{StaticResource PosRtlTextStyle}"
                            Margin="0,4,0,0"
                            FontSize="12.5"
-                           Foreground="#FECACA"
+                           Foreground="{DynamicResource Theme.Legacy.FECACA.DangerInk}"
                            TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </Border>
@@ -44,8 +46,8 @@
         <Border Grid.Row="1"
                 Padding="18"
                 CornerRadius="14"
-                Background="White"
-                BorderBrush="#E2E8F0"
+                Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
+                BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                 BorderThickness="1"
                 FlowDirection="LeftToRight">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -92,7 +94,7 @@
                                Style="{StaticResource PosRtlTextStyle}"
                                Margin="0,8,0,4"
                                FontSize="11.5"
-                               Foreground="#64748B" />
+                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                     <ItemsControl ItemsSource="{Binding QuickReasons}" FlowDirection="RightToLeft" Margin="0,0,0,10">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -112,12 +114,12 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <Border Padding="10,8" CornerRadius="8" Background="#FFFBEB" BorderBrush="#FCD34D" BorderThickness="1">
+                    <Border Padding="10,8" CornerRadius="8" Background="{DynamicResource Theme.Legacy.FFFBEB.WarningSoft}" BorderBrush="{DynamicResource Theme.Legacy.FCD34D.WarningBorder}" BorderThickness="1">
                         <TextBlock Text="سيتم خصم الكمية المحددة من المخزون المتاح وإدراجها فورًا في قائمة مخزون الهالك."
                                    Style="{StaticResource PosRtlTextStyle}"
                                    FontSize="12"
                                    FontWeight="SemiBold"
-                                   Foreground="#92400E"
+                                   Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}"
                                    TextWrapping="Wrap" />
                     </Border>
 
@@ -126,7 +128,7 @@
                                Margin="0,8,0,0"
                                FontSize="12.5"
                                FontWeight="SemiBold"
-                               Foreground="#B42318"
+                               Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}"
                                TextWrapping="Wrap"
                                Visibility="{Binding Error, Converter={StaticResource StringNotEmptyToVis}}" />
                 </StackPanel>
@@ -157,5 +159,6 @@
                     IsDefault="True"
                     Command="{Binding ConfirmCommand}" />
         </Grid>
+    </Grid>
     </Grid>
 </Window>

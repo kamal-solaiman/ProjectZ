@@ -38,6 +38,7 @@ public sealed class MainViewModel : ObservableObject
     public SuppliersViewModel Suppliers { get; }
     public UsersViewModel Users { get; }
     public GeneralSettingsViewModel GeneralSettings { get; }
+    public AppearanceViewModel Appearance { get; }
     public BackupViewModel Backup { get; }
     public MyAccountsViewModel MyAccounts { get; }
     public VodafoneTransferViewModel VodafoneTransfer { get; }
@@ -62,6 +63,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsSuppliersSelected => ReferenceEquals(selectedItem, Categories[4].Items[1]);
     public bool IsUsersSelected => ReferenceEquals(selectedItem, Categories[5].Items[0]);
     public bool IsGeneralSettingsSelected => ReferenceEquals(selectedItem, Categories[6].Items[0]);
+    public bool IsAppearanceSelected => ReferenceEquals(selectedItem, Categories[6].Items[1]);
     public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, Categories[3].Items[0]);
     public bool IsVodafoneTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[1]);
     public bool IsInstapayTransferSelected => ReferenceEquals(selectedItem, Categories[3].Items[2]);
@@ -74,7 +76,7 @@ public sealed class MainViewModel : ObservableObject
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
         || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected
-        || IsUsersSelected || IsGeneralSettingsSelected || IsBackupSelected;
+        || IsUsersSelected || IsGeneralSettingsSelected || IsAppearanceSelected || IsBackupSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     /// <summary>The application name follows the store name saved in the general settings.</summary>
     public string ApplicationName => StoreIdentity.Current.Name;
@@ -109,7 +111,8 @@ public sealed class MainViewModel : ObservableObject
         MaintenanceRepository? maintenanceRepository = null,
         UserRepository? userRepository = null,
         SettingsRepository? settingsRepository = null,
-        BackupRepository? backupRepository = null)
+        BackupRepository? backupRepository = null,
+        AppearanceViewModel? appearance = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
@@ -378,6 +381,7 @@ public sealed class MainViewModel : ObservableObject
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
         GeneralSettings = new GeneralSettingsViewModel(user.DisplayName, settingsRepository);
+        Appearance = appearance ?? new AppearanceViewModel();
         Backup = new BackupViewModel(backupRepository);
         // A restore replaces dbo.SystemSettings too, so re-read the store identity after it finishes.
         Backup.DatabaseRestored = OnDatabaseRestored;

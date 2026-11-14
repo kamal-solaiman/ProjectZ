@@ -16,6 +16,7 @@ public partial class App : Application
     private readonly List<CancellationTokenSource> loginLifetimes = new();
     private AuthenticationService service = null!;
     private readonly ConnectionSettingsProvider connectionSettings = new();
+    private ThemeManager themeManager = null!;
     private bool isShuttingDown;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -27,6 +28,22 @@ public partial class App : Application
         Thread.CurrentThread.CurrentUICulture = arabicCulture;
 
         base.OnStartup(e);
+
+        // Appearance is local to this Windows user/device and must not depend on SQL connectivity.
+        // Apply it before creating LoginWindow so there is no default-theme flash at startup.
+        themeManager = ThemeManager.Instance;
+        themeManager.Initialize();
+        EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent,
+            new RoutedEventHandler((sender, _) =>
+            {
+                if (sender is Window window) NativeTitleBar.Apply(window, themeManager.Active);
+            }));
+        themeManager.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(ThemeManager.Active)) return;
+            foreach (Window window in Application.Current.Windows)
+                NativeTitleBar.Apply(window, themeManager.Active);
+        };
 
         // Load the store identity before the first window so the login screen already carries the store
         // name. A missing database or missing grant must never block sign-in, so failures fall back to the
@@ -87,7 +104,8 @@ public partial class App : Application
                 new MaintenanceRepository(connectionSettings, user.Id),
                 new UserRepository(connectionSettings, user.Id),
                 new SettingsRepository(connectionSettings, user.Id),
-                new BackupRepository(connectionSettings));
+                new BackupRepository(connectionSettings),
+                new AppearanceViewModel(themeManager));
             MainWindow = main;
             TrackWindow(main);
 

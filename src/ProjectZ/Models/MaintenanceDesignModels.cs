@@ -445,28 +445,6 @@ public sealed class MaintenanceSparePartMovementItem
         _ => "حركة"
     };
 
-    public string KindBadgeBackground => Kind switch
-    {
-        MaintenanceSparePartMovementKind.Purchase => "#DCFCE7",
-        MaintenanceSparePartMovementKind.OpeningBalance => "#DBEAFE",
-        MaintenanceSparePartMovementKind.Return => "#CCFBF1",
-        MaintenanceSparePartMovementKind.Issue => "#FEE2E2",
-        MaintenanceSparePartMovementKind.AdjustmentIncrease => "#FEF3C7",
-        MaintenanceSparePartMovementKind.AdjustmentDecrease => "#FFE4E6",
-        _ => "#F1F5F9"
-    };
-
-    public string KindBadgeForeground => Kind switch
-    {
-        MaintenanceSparePartMovementKind.Purchase => "#166534",
-        MaintenanceSparePartMovementKind.OpeningBalance => "#1D4ED8",
-        MaintenanceSparePartMovementKind.Return => "#0F766E",
-        MaintenanceSparePartMovementKind.Issue => "#B42318",
-        MaintenanceSparePartMovementKind.AdjustmentIncrease => "#B45309",
-        MaintenanceSparePartMovementKind.AdjustmentDecrease => "#9F1239",
-        _ => "#334155"
-    };
-
     public string SignedQuantityDisplay => $"{(IsIncoming ? "+" : "−")}{Quantity}";
     public string BalanceDisplay => $"{QuantityBefore} ← {QuantityAfter}";
     public string UnitCostDisplay => PosFormatting.FormatCurrency(UnitCost);

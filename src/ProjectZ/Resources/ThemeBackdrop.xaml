@@ -1,0 +1,75 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:services="clr-namespace:ProjectZ.Services">
+    <!-- Vector-only decoration: no bitmap assets, no desktop hooks, and no per-frame blur of live content. -->
+    <Style x:Key="ThemeBackdropStyle" TargetType="ContentControl">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContentControl">
+                    <Grid ClipToBounds="True" Background="{DynamicResource Theme.Brush.Window}">
+                        <Ellipse x:Name="BlobA" Width="620" Height="620" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                 Margin="-210,-240,0,0" Fill="{DynamicResource Theme.Brush.BackdropA}" Visibility="Collapsed">
+                            <Ellipse.Effect><BlurEffect Radius="95" KernelType="Gaussian" /></Ellipse.Effect>
+                            <Ellipse.RenderTransform><TranslateTransform x:Name="BlobAMove" /></Ellipse.RenderTransform>
+                        </Ellipse>
+                        <Ellipse x:Name="BlobB" Width="660" Height="660" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                 Margin="0,0,-230,-260" Fill="{DynamicResource Theme.Brush.BackdropB}" Visibility="Collapsed">
+                            <Ellipse.Effect><BlurEffect Radius="105" KernelType="Gaussian" /></Ellipse.Effect>
+                            <Ellipse.RenderTransform><TranslateTransform x:Name="BlobBMove" /></Ellipse.RenderTransform>
+                        </Ellipse>
+                        <Ellipse x:Name="AuroraRibbon" Width="980" Height="230" HorizontalAlignment="Center" VerticalAlignment="Top"
+                                 Margin="0,60,0,0" Fill="{DynamicResource Theme.Brush.BackdropA}" Visibility="Collapsed"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.Effect><BlurEffect Radius="72" KernelType="Gaussian" /></Ellipse.Effect>
+                            <Ellipse.RenderTransform><RotateTransform Angle="-16" /></Ellipse.RenderTransform>
+                        </Ellipse>
+                        <Rectangle x:Name="GridOverlay" Fill="{DynamicResource Theme.Brush.Grid}" />
+                        <Border x:Name="TopSheen" Height="170" VerticalAlignment="Top"
+                                Background="{DynamicResource Theme.Brush.Sheen}" Opacity=".45" Visibility="Collapsed" />
+                        <Canvas x:Name="HudCorners" Visibility="Collapsed">
+                            <Path Canvas.Left="16" Canvas.Top="16" Data="M0,28 L0,0 L28,0" Stroke="{DynamicResource Theme.Brush.Highlight}" StrokeThickness="1.5" />
+                            <Path Canvas.Right="16" Canvas.Top="16" Data="M0,0 L28,0 L28,28" Stroke="{DynamicResource Theme.Brush.Highlight}" StrokeThickness="1.5" />
+                            <Path Canvas.Left="16" Canvas.Bottom="16" Data="M0,0 L0,28 L28,28" Stroke="{DynamicResource Theme.Brush.Highlight}" StrokeThickness="1.5" />
+                            <Path Canvas.Right="16" Canvas.Bottom="16" Data="M28,0 L28,28 L0,28" Stroke="{DynamicResource Theme.Brush.Highlight}" StrokeThickness="1.5" />
+                        </Canvas>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding HasGlow, Source={x:Static services:ThemeManager.Instance}}" Value="True">
+                            <Setter TargetName="BlobA" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="BlobB" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="TopSheen" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsAurora, Source={x:Static services:ThemeManager.Instance}}" Value="True">
+                            <Setter TargetName="AuroraRibbon" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsChrome, Source={x:Static services:ThemeManager.Instance}}" Value="True">
+                            <Setter TargetName="TopSheen" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsFui, Source={x:Static services:ThemeManager.Instance}}" Value="True">
+                            <Setter TargetName="HudCorners" Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding AnimateBackdrop, Source={x:Static services:ThemeManager.Instance}}" Value="True">
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard Name="BackdropMotion">
+                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                        <DoubleAnimation Storyboard.TargetName="BlobAMove" Storyboard.TargetProperty="X"
+                                                         To="65" Duration="0:0:12" />
+                                        <DoubleAnimation Storyboard.TargetName="BlobBMove" Storyboard.TargetProperty="Y"
+                                                         To="-55" Duration="0:0:15" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <StopStoryboard BeginStoryboardName="BackdropMotion" />
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

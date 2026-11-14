@@ -4,17 +4,24 @@ PASS XML: src/ProjectZ/ProjectZ.csproj
 PASS XML: src/ProjectZ/Properties/PublishProfiles/FolderProfile.pubxml
 PASS XML: src/ProjectZ/Properties/PublishProfiles/FolderProfile1.pubxml
 PASS XML: src/ProjectZ/Resources/PosStyles.xaml
+PASS XML: src/ProjectZ/Resources/PrintIsolation.xaml
 PASS XML: src/ProjectZ/Resources/Theme.xaml
+PASS XML: src/ProjectZ/Resources/ThemeAliases.xaml
+PASS XML: src/ProjectZ/Resources/ThemeBackdrop.xaml
+PASS XML: src/ProjectZ/Resources/ThemeControls.xaml
+PASS XML: src/ProjectZ/Resources/ThemePalette.xaml
 PASS XML: src/ProjectZ/Views/AccountEditorWindow.xaml
 PASS XML: src/ProjectZ/Views/AccountTransactionWindow.xaml
 PASS XML: src/ProjectZ/Views/AccountTransferWindow.xaml
 PASS XML: src/ProjectZ/Views/AddCustomerWindow.xaml
 PASS XML: src/ProjectZ/Views/AddProductView.xaml
 PASS XML: src/ProjectZ/Views/AddSupplierWindow.xaml
+PASS XML: src/ProjectZ/Views/AppearanceView.xaml
 PASS XML: src/ProjectZ/Views/BackupView.xaml
 PASS XML: src/ProjectZ/Views/BarcodePrintPreviewWindow.xaml
 PASS XML: src/ProjectZ/Views/CategoriesView.xaml
 PASS XML: src/ProjectZ/Views/CollectInvoicePaymentWindow.xaml
+PASS XML: src/ProjectZ/Views/ColorPickerWindow.xaml
 PASS XML: src/ProjectZ/Views/ConfirmActionWindow.xaml
 PASS XML: src/ProjectZ/Views/CustomersView.xaml
 PASS XML: src/ProjectZ/Views/DamageEditWindow.xaml
@@ -63,6 +70,8 @@ PASS XML: src/ProjectZ/Views/VodafoneRecordsView.xaml
 PASS XML: src/ProjectZ/Views/VodafoneTransferView.xaml
 PASS XML: src/ProjectZ/app.manifest
 PASS JSON: src/ProjectZ/connectionsettings.json
+PASS XML: tests/ProjectZ.Appearance.Tests/ProjectZ.Appearance.Tests.csproj
+PASS XML: tests/ProjectZ.Appearance.Wpf.Tests/ProjectZ.Appearance.Wpf.Tests.csproj
 PASS XML: tests/ProjectZ.Purchase.Sql.Tests/ProjectZ.Purchase.Sql.Tests.csproj
 PASS XML: tests/ProjectZ.Security.Tests/ProjectZ.Security.Tests.csproj
 PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector
@@ -97,4 +106,5 @@ PASS: general settings save the store identity in dbo.SystemSettings and rename 
 PASS: general settings and backup have separate hosts, and backup uses master-side RESTORE with fresh file names
 PASS: wallet transfers write paired SourceEntityType/SourceEntityId ledger rows and explain 547 honestly
 PASS: no C# string literal is left open across lines anywhere in src/ProjectZ
+PASS: appearance studio has eight presets plus custom colors, atomic device-local save, live whole-app resources and isolated print colors
 NOT RUN locally: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish (Windows CI covers .NET build/tests, publish and isolated LocalDB integration)

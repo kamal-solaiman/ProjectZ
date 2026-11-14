@@ -14,10 +14,34 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Static checks
+        run: python tools/static_checks.py
       - name: Security tests
         run: dotnet run --project tests/ProjectZ.Security.Tests -c Release
+      - name: Appearance tests
+        shell: pwsh
+        run: |
+          dotnet run --project tests/ProjectZ.Appearance.Tests -c Release 2>&1 |
+            Tee-Object -FilePath appearance-tests.log
+          if ($LASTEXITCODE -ne 0) {
+            $text = (Get-Content appearance-tests.log -Raw)
+            $escaped = $text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Appearance tests::$escaped"
+            exit $LASTEXITCODE
+          }
       - name: Build WPF
         run: dotnet build ProjectZ.sln -c Release
+      - name: WPF appearance smoke tests
+        shell: pwsh
+        run: |
+          dotnet run --project tests/ProjectZ.Appearance.Wpf.Tests -c Release 2>&1 |
+            Tee-Object -FilePath appearance-wpf-tests.log
+          if ($LASTEXITCODE -ne 0) {
+            $text = (Get-Content appearance-wpf-tests.log -Raw)
+            $escaped = $text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=WPF appearance smoke tests::$escaped"
+            exit $LASTEXITCODE
+          }
       - name: Publish self-contained x64
         run: dotnet publish src/ProjectZ/ProjectZ.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o publish/win-x64
       - name: Verify external configuration

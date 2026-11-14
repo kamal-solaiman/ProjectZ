@@ -1,0 +1,283 @@
+<UserControl x:Class="ProjectZ.Views.AppearanceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FlowDirection="LeftToRight" Language="ar-EG">
+    <Grid Margin="16,12" FlowDirection="LeftToRight">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header: Arabic title on the physical right, saved state on the left. -->
+        <Grid Margin="0,0,0,14">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" FlowDirection="RightToLeft">
+                <Border Width="44" Height="44" CornerRadius="{DynamicResource Theme.SmallCornerRadius}"
+                        Background="{DynamicResource Theme.Brush.AccentSoft}" BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1">
+                    <TextBlock Text="&#xE790;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22"
+                               Foreground="{DynamicResource Theme.Brush.AccentInk}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="استوديو المظهر" Style="{StaticResource PosRtlTextStyle}" FontSize="24" FontWeight="Bold" />
+                    <TextBlock Text="اختر هوية بصرية متكاملة للبرنامج، أو صمّم لوحتك الخاصة." Style="{StaticResource ThemeHintStyle}" Margin="0,3,0,0" />
+                </StackPanel>
+            </StackPanel>
+            <Border Grid.Column="1" VerticalAlignment="Center" Padding="12,7" CornerRadius="20"
+                    Background="{DynamicResource Theme.Brush.AccentSoft}" BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                    <Ellipse Width="7" Height="7" Fill="{DynamicResource Theme.Brush.Accent}" VerticalAlignment="Center" Margin="0,0,7,0" />
+                    <TextBlock Text="{Binding SaveStateLabel}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource Theme.Brush.AccentSoftInk}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" FlowDirection="LeftToRight">
+            <StackPanel Margin="0,0,8,4" FlowDirection="RightToLeft">
+                <!-- A real resource-driven preview, not a static picture of a theme. -->
+                <Border Style="{StaticResource ThemeHeroCardStyle}" Margin="0,0,0,18">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,22,0">
+                            <TextBlock Text="مظهرك، على مقاس عملك" Style="{StaticResource PosRtlTextStyle}" FontSize="22" FontWeight="Bold" />
+                            <TextBlock Text="ثمانية أنظمة بصرية مميزة، معاينة مباشرة على كل النوافذ، وحفظ محلي يعود معك عند إعادة التشغيل. ألوان المطبوعات الورقية لا تتغير."
+                                       Style="{StaticResource ThemeHintStyle}" Margin="0,8,0,14" MaxWidth="520" HorizontalAlignment="Right" />
+                            <WrapPanel FlowDirection="RightToLeft">
+                                <Border Padding="9,4" CornerRadius="12" Background="{DynamicResource Theme.Brush.AccentSoft}" Margin="0,0,6,4">
+                                    <TextBlock Text="{Binding ActiveThemeTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Theme.Brush.AccentSoftInk}" />
+                                </Border>
+                                <Border Padding="9,4" CornerRadius="12" Background="{DynamicResource Theme.Brush.Subtle}" Margin="0,0,6,4">
+                                    <TextBlock Text="محفوظ لكل جهاز" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Brush.Muted}" />
+                                </Border>
+                            </WrapPanel>
+                        </StackPanel>
+                        <Border Grid.Column="1" Width="248" Height="126" CornerRadius="{DynamicResource Theme.CornerRadius}"
+                                Background="{DynamicResource Theme.Brush.Subtle}" BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1" ClipToBounds="True">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="24" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <Border Background="{DynamicResource Theme.Brush.Navigation}">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,0" FlowDirection="RightToLeft">
+                                        <Ellipse Width="5" Height="5" Fill="{DynamicResource Theme.Brush.Highlight}" Margin="3,0" />
+                                        <Ellipse Width="5" Height="5" Fill="{DynamicResource Theme.Brush.NavigationMuted}" Margin="3,0" />
+                                        <Ellipse Width="5" Height="5" Fill="{DynamicResource Theme.Brush.NavigationMuted}" Margin="3,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="54" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Background="{DynamicResource Theme.Brush.Navigation}" Padding="7,10">
+                                        <StackPanel>
+                                            <Border Height="5" CornerRadius="2" Background="{DynamicResource Theme.Brush.Highlight}" Margin="0,0,0,7" />
+                                            <Border Height="4" CornerRadius="2" Background="{DynamicResource Theme.Brush.NavigationMuted}" Margin="0,0,0,7" />
+                                            <Border Height="4" CornerRadius="2" Background="{DynamicResource Theme.Brush.NavigationMuted}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="{DynamicResource Theme.Brush.Surface}" Padding="12,9">
+                                        <StackPanel>
+                                            <TextBlock Text="معاينة مباشرة" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" />
+                                            <TextBlock Text="هكذا تبدو بياناتك" Style="{StaticResource ThemeHintStyle}" FontSize="10" Margin="0,2,0,8" />
+                                            <Border Height="20" CornerRadius="{DynamicResource Theme.SmallCornerRadius}" Background="{DynamicResource Theme.Brush.Accent}">
+                                                <TextBlock Text="إجراء رئيسي" Style="{StaticResource PosCenterTextStyle}" FontSize="10" Foreground="{DynamicResource Theme.Brush.OnAccent}" VerticalAlignment="Center" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Border Background="{DynamicResource Theme.Brush.Sheen}" IsHitTestVisible="False" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="المظاهر الجاهزة" Style="{StaticResource ThemeSectionTitle}" />
+                    <TextBlock Grid.Column="1" Text="8 أنظمة بصرية + تصميم مخصص" Style="{StaticResource ThemeHintStyle}" VerticalAlignment="Center" />
+                </Grid>
+
+                <ListBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"
+                         Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch"
+                         FlowDirection="RightToLeft" KeyboardNavigation.TabNavigation="Continue">
+                    <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Margin" Value="4" /><Setter Property="Padding" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Card" Background="{DynamicResource Theme.Brush.Surface}"
+                                                BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1"
+                                                CornerRadius="{DynamicResource Theme.CornerRadius}" Padding="14" Cursor="Hand">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Card" Property="Background" Value="{DynamicResource Theme.Brush.Hover}" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Theme.Brush.Accent}" />
+                                                <Setter TargetName="Card" Property="BorderThickness" Value="2" />
+                                                <Setter TargetName="Card" Property="Padding" Value="13" />
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource Theme.Brush.AccentInk}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid MinHeight="150">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <Border Width="34" Height="34" CornerRadius="{DynamicResource Theme.SmallCornerRadius}" Background="{DynamicResource Theme.Brush.AccentSoft}">
+                                        <TextBlock Text="{Binding Icon}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="17"
+                                                   Foreground="{DynamicResource Theme.Brush.AccentInk}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="9,0,6,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding EnglishTitle}" Style="{StaticResource PosLtrTextStyle}" FontFamily="Consolas" FontSize="10"
+                                                   Foreground="{DynamicResource Theme.Brush.Muted}" HorizontalAlignment="Right" FlowDirection="LeftToRight" TextAlignment="Right" />
+                                    </StackPanel>
+                                    <Border Grid.Column="2" Width="21" Height="21" CornerRadius="11" VerticalAlignment="Top"
+                                            Background="{DynamicResource Theme.Brush.Accent}" Visibility="{Binding IsSelected, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="✓" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Brush.OnAccent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                                <TextBlock Grid.Row="1" Text="{Binding Description}" Style="{StaticResource ThemeHintStyle}" FontSize="11.5" Margin="0,10,0,10" />
+                                <StackPanel Grid.Row="2">
+                                    <ItemsControl ItemsSource="{Binding Swatches}" Margin="0,0,0,7">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate><DataTemplate>
+                                            <Border Height="7" CornerRadius="3" Margin="1,0" Background="{Binding Converter={StaticResource HexToBrush}}"
+                                                    BorderBrush="{DynamicResource Theme.Brush.Border}" BorderThickness=".5" />
+                                        </DataTemplate></ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{Binding Signature}" Style="{StaticResource PosRtlTextStyle}" FontSize="10" Foreground="{DynamicResource Theme.Brush.Muted}" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Custom studio: every valid edit previews immediately; invalid HEX never reaches disk. -->
+                <Border Style="{StaticResource ThemeCardStyle}" Margin="4,12,4,0"
+                        Visibility="{Binding IsCustomSelected, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="لوحة الألوان المخصصة" Style="{StaticResource ThemeSectionTitle}" />
+                            <Button Grid.Column="1" Content="استعادة لوحة الافتراضية" Command="{Binding ResetCustomCommand}" Style="{StaticResource ThemeGhostButtonStyle}" Padding="10,5" />
+                        </Grid>
+                        <TextBlock Text="اكتب HEX أو استخدم منتقي الألوان. التعديلات تُعاين فورًا، وتُحفظ فقط عند الضغط على «حفظ المظهر»."
+                                   Style="{StaticResource ThemeHintStyle}" Margin="0,0,0,12" />
+                        <ItemsControl ItemsSource="{Binding Colors}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="4" Padding="10" CornerRadius="{DynamicResource Theme.SmallCornerRadius}"
+                                            Background="{DynamicResource Theme.Brush.Subtle}" BorderBrush="{DynamicResource Theme.Brush.Border}" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <Border Width="36" Height="36" CornerRadius="8" VerticalAlignment="Top" Margin="0,2,10,0"
+                                                    Background="{Binding SwatchHex, Converter={StaticResource HexToBrush}}"
+                                                    BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1" />
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding Label}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                                <TextBox Text="{Binding Hex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="7"
+                                                         FlowDirection="LeftToRight" TextAlignment="Left" FontFamily="Consolas" FontSize="13" Padding="9,6" MinHeight="32"
+                                                         AutomationProperties.Name="{Binding Label}">
+                                                    <TextBox.Style><Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                                        <Style.Triggers><DataTrigger Binding="{Binding IsValid}" Value="False">
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Brush.Danger}" />
+                                                        </DataTrigger></Style.Triggers>
+                                                    </Style></TextBox.Style>
+                                                </TextBox>
+                                                <TextBlock Text="{Binding Error}" FontSize="10.5" TextWrapping="Wrap" Margin="0,4,0,0"
+                                                           Foreground="{DynamicResource Theme.Brush.DangerInk}"
+                                                           Visibility="{Binding Error, Converter={StaticResource StringNotEmptyToVis}}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Content="اختيار" Click="PickColor_Click" Style="{StaticResource ThemeSecondaryButtonStyle}"
+                                                    Padding="9,6" Margin="8,22,0,0" VerticalAlignment="Top" FontSize="11"
+                                                    AutomationProperties.Name="{Binding Label, StringFormat='اختيار لون {0}'}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Grid Margin="4,16,4,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <Grid><TextBlock Text="عتامة الأسطح" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding OpacityPercent, StringFormat='{}{0:0}%'}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Left" FontSize="12" Foreground="{DynamicResource Theme.Brush.AccentInk}" /></Grid>
+                                <Slider Minimum="35" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding OpacityPercent, Mode=TwoWay}" Margin="0,7,0,0"
+                                        AutomationProperties.Name="عتامة الأسطح بالنسبة المئوية" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <Grid><TextBlock Text="انحناء الزوايا" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding CornerRadius, StringFormat='{}{0:0} px'}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Left" FontSize="12" Foreground="{DynamicResource Theme.Brush.AccentInk}" /></Grid>
+                                <Slider Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding CornerRadius, Mode=TwoWay}" Margin="0,7,0,0"
+                                        AutomationProperties.Name="انحناء الزوايا بالبكسل" />
+                            </StackPanel>
+                        </Grid>
+                        <CheckBox Content="تقليل حركة الخلفية (يحترم إعداد الحركة في Windows أيضًا)" IsChecked="{Binding ReduceMotion, Mode=TwoWay}" Margin="4,14,4,0" FontSize="12" />
+
+                        <Border Margin="4,16,4,0" Padding="12" CornerRadius="{DynamicResource Theme.SmallCornerRadius}"
+                                Background="{DynamicResource Theme.Brush.AccentSoft}" BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="فحص وضوح النص" Style="{StaticResource PosRtlTextStyle}" FontSize="13" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding ContrastSummary}" Style="{StaticResource ThemeHintStyle}" Margin="0,4,0,9" />
+                                <ItemsControl ItemsSource="{Binding ContrastChecks}">
+                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate><DataTemplate>
+                                        <Border Padding="8,5" Margin="0,0,6,6" CornerRadius="8" Background="{DynamicResource Theme.Brush.Surface}"
+                                                BorderBrush="{DynamicResource Theme.Brush.Border}" BorderThickness="1">
+                                            <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                                                <Border Width="12" Height="12" CornerRadius="3" Background="{Binding EffectiveHex, Converter={StaticResource HexToBrush}}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <TextBlock Text="{Binding Label}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" />
+                                                <TextBlock Text="{Binding RatioDisplay}" Style="{StaticResource PosLtrTextStyle}" FontFamily="Consolas" FontSize="10.5" FontWeight="Bold" Margin="6,0,0,0" Foreground="{DynamicResource Theme.Brush.SuccessInk}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="الشفافية والانعكاسات تُرسم داخل البرنامج للحفاظ على الأداء. لا يتم تعتيم سطح المكتب أو تغيير ألوان الطباعة."
+                           Style="{StaticResource ThemeHintStyle}" Margin="4,12,4,4" FontSize="11" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Persistent action/status strip. LTR coordinates keep actions left and Arabic feedback right. -->
+        <Border Grid.Row="2" Style="{StaticResource ThemeCardStyle}" Padding="14,12" Margin="0,12,0,0">
+            <Grid FlowDirection="LeftToRight">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="حفظ المظهر" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" MinWidth="132" Padding="18,10" FlowDirection="RightToLeft"
+                            ToolTip="حفظ المظهر والألوان على هذا الجهاز ليُحمّلا عند إعادة التشغيل" />
+                    <Button Content="استعادة المحفوظ" Command="{Binding RestoreSavedCommand}" IsEnabled="{Binding CanRestore}" Style="{StaticResource ThemeSecondaryButtonStyle}" Margin="8,0,0,0" FlowDirection="RightToLeft" />
+                    <Button Content="الافتراضي" Command="{Binding ResetDefaultCommand}" Style="{StaticResource ThemeGhostButtonStyle}" Margin="8,0,0,0" FlowDirection="RightToLeft"
+                            ToolTip="معاينة الزجاج الشفاف الافتراضي؛ يلزم الحفظ لاعتماده" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="18,0,0,0" VerticalAlignment="Center" FlowDirection="RightToLeft">
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" TextWrapping="Wrap" FontWeight="SemiBold">
+                        <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
+                            <Setter Property="Foreground" Value="{DynamicResource Theme.Brush.SuccessInk}" />
+                            <Style.Triggers><DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource Theme.Brush.DangerInk}" />
+                            </DataTrigger></Style.Triggers>
+                        </Style></TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="{Binding SavedThemeTitle, StringFormat='آخر مظهر محفوظ: {0}'}" Style="{StaticResource ThemeHintStyle}" FontSize="10.5" Margin="0,4,0,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
