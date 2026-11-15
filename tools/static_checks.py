@@ -256,7 +256,7 @@ assert 'IsReportsSelected' not in main_viewmodel, \
     'the reports category is still navigation-only and must not claim a screen yet'
 assert 'ReportsView' not in main_xaml, 'the reports category must not host a view yet'
 assert 'IsExpenseCategoriesSelected' in main_viewmodel and 'views:ExpenseCategoriesView' in main_xaml, \
-    '«تصنيفات المصروفات» is implemented and must host its real screen'
+    'the expense categories item is implemented and must host its real screen'
 assert 'docs/REPORTS_EXPENSES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
     'README must document the menus-only categories'
 assert 'ToggleSidebarCommand' in main_viewmodel and 'IsSidebarCollapsed' in main_viewmodel
@@ -1621,7 +1621,7 @@ expense_doc = (root / 'docs/EXPENSE_CATEGORIES.md')
 assert expense_doc.is_file(), 'missing docs/EXPENSE_CATEGORIES.md'
 assert 'docs/EXPENSE_CATEGORIES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
     'README must link the expense sections documentation'
-print('PASS: «تصنيفات المصروفات» reads and writes dbo.ExpenseCategories with serialized writes, audit rows and a used-section delete guard')
+print('PASS: expense sections screen reads and writes dbo.ExpenseCategories with serialized writes, audit rows and a used-section delete guard')
 # --- Users screen (login accounts in dbo.Users + sql/14) -------------------------------------
 users_repository_path = root / 'src/ProjectZ/Data/UserRepository.cs'
 assert users_repository_path.is_file(), 'missing src/ProjectZ/Data/UserRepository.cs'

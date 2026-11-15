@@ -102,7 +102,7 @@ PASS: independent InstaPay records with compact rows, leftmost actions, filters,
 PASS: Vodafone and InstaPay transfer references removed from models, UI, filters, CSV, and audit movements
 PASS: wallet references removed globally from sales, purchases, maintenance, returns, details and printing
 PASS: categories screen and the add-product category combo both read and write dbo.Categories
-PASS: «تصنيفات المصروفات» reads and writes dbo.ExpenseCategories with serialized writes, audit rows and a used-section delete guard
+PASS: expense sections screen reads and writes dbo.ExpenseCategories with serialized writes, audit rows and a used-section delete guard
 PASS: users screen reads and writes login accounts in dbo.Users with PBKDF2 hashing and guarded deletes
 PASS: general settings save the store identity in dbo.SystemSettings and rename the program everywhere
 PASS: general settings and backup have separate hosts, and backup uses master-side RESTORE with fresh file names
