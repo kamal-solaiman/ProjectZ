@@ -33,6 +33,15 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     private string editCommissionText = "";
     private string editNote = "";
 
+    // A line can be stopped or deleted from «حساباتي» while its operations stay in the ledger, and
+    // LoadAccountsInto only loads IsActive = 1 rows, so the saved operation can outlive its wallet.
+    // Every edit/reverse path must resolve the wallet with FirstOrDefault: First(predicate) threw
+    // Enumerable.ThrowNoMatchException (an unhandled crash) as soon as the wallet row was gone.
+    public const string MissingWalletMessage =
+        "الخط المرتبط بهذه العملية غير موجود أو موقوف في «حساباتي»، فلا يمكن تعديل العملية أو عكسها. فعّل الخط من «حساباتي» واضغط «تحديث» ثم حاول مرة أخرى.";
+    public const string MissingCashMessage =
+        "لا يوجد حساب «النقدية» نشط في «حساباتي»، فلا يمكن تسوية أثر العملية. راجع الحساب النقدي واضغط «تحديث» ثم حاول مرة أخرى.";
+
     public ObservableCollection<VodafoneTransferOperation> FilteredOperations { get; } = [];
     public ObservableCollection<VodafoneWalletFilterOption> WalletFilters { get; } = [];
     public ObservableCollection<FinancialAccountDesignItem> EditWallets { get; } = [];
@@ -150,7 +159,10 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     {
         if (SelectedOperation is null) { SetStatus("اختر عملية أولًا.", true); return; }
         if (SelectedOperation.IsReversed) { SetStatus("لا يمكن تعديل عملية معكوسة.", true); return; }
-        EditWallet = EditWallets.FirstOrDefault(w => w.Id == SelectedOperation.WalletId);
+        // Do not open the editor for an operation whose line is gone: the dialog would show an
+        // empty wallet picker and saving used to crash with ThrowNoMatchException.
+        if (FindWallet(SelectedOperation.WalletId) is not { } wallet) { SetStatus(MissingWalletMessage, true); return; }
+        EditWallet = wallet;
         EditKind = SelectedOperation.OperationTitle; EditCustomerNumber = SelectedOperation.CustomerNumber;
         EditAmountText = SelectedOperation.Amount.ToString("0.##", CultureInfo.InvariantCulture); EditCommissionText = SelectedOperation.Commission.ToString("0.##", CultureInfo.InvariantCulture);
         EditNote = SelectedOperation.Note;
@@ -164,7 +176,8 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
         if (customer.Length != 11 || !customer.StartsWith("01", StringComparison.Ordinal)) { SetStatus("رقم العميل يجب أن يتكون من 11 رقمًا ويبدأ بـ 01.", true); return false; }
         if (!AccountEditorViewModel.TryMoney(EditAmountText, out var amount) || amount <= 0m || !AccountEditorViewModel.TryMoney(EditCommissionText, out var commission) || commission < 0m) { SetStatus("أدخل مبلغًا أكبر من صفر وعمولة صحيحة.", true); return false; }
         var operation = SelectedOperation;
-        var oldWallet = accounts.Accounts.First(w => w.Id == operation.WalletId);
+        var oldWallet = FindWallet(operation.WalletId);
+        if (oldWallet is null) { SetStatus(MissingWalletMessage, true); return false; }
         var oldDeposit = operation.IsDeposit; var oldAmount = operation.Amount; var oldCommission = operation.Commission;
         var newDeposit = EditKind == "إيداع للعميل";
         if (!CanUndo(operation, out var undoError)) { SetStatus(undoError, true); return false; }
@@ -201,20 +214,25 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
         FinalizeFinancialChanges(); ApplyFilters(); SetStatus($"تم تعديل العملية رقم {operation.Id} وتسوية الأرصدة.", false); return true;
     }
 
+    private FinancialAccountDesignItem? FindWallet(int accountId) => accounts.Accounts.FirstOrDefault(w => w.Id == accountId);
+
     private string? ValidateNewEffect(FinancialAccountDesignItem wallet, bool deposit, decimal amount, decimal commission)
     {
         if (!wallet.IsActive) return "خط فودافون المحدد موقوف.";
         if (deposit && wallet.Balance < amount) return "رصيد الخط لا يكفي لمبلغ الإيداع بعد التعديل.";
         var cashDelta = deposit ? amount + commission : commission - amount;
-        if (cashDelta < 0m && accounts.CashAccount.Balance < -cashDelta) return "النقدي لا يكفي لصافي العملية بعد التعديل.";
+        if (accounts.CashAccount is not { } cash) return MissingCashMessage;
+        if (cashDelta < 0m && cash.Balance < -cashDelta) return "النقدي لا يكفي لصافي العملية بعد التعديل.";
         return AccountTransactionViewModel.ValidateLimits(wallet, !deposit, amount);
     }
 
     private bool CanUndo(VodafoneTransferOperation operation, out string error)
     {
-        var wallet = accounts.Accounts.First(w => w.Id == operation.WalletId);
+        var wallet = FindWallet(operation.WalletId);
+        if (wallet is null) { error = MissingWalletMessage; return false; }
+        if (accounts.CashAccount is not { } cash) { error = MissingCashMessage; return false; }
         if (!operation.IsDeposit && wallet.Balance < operation.Amount) { error = "رصيد الخط الحالي لا يسمح بعكس هذه العملية."; return false; }
-        if (operation.CashDelta > 0m && accounts.CashAccount.Balance < operation.CashDelta) { error = "الرصيد النقدي الحالي لا يسمح بعكس هذه العملية."; return false; }
+        if (operation.CashDelta > 0m && cash.Balance < operation.CashDelta) { error = "الرصيد النقدي الحالي لا يسمح بعكس هذه العملية."; return false; }
         error = ""; return true;
     }
 
@@ -246,7 +264,8 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
             }
 
             if (!CanUndo(operation, out var error)) { SetStatus(error, true); return; }
-            var wallet = accounts.Accounts.First(w => w.Id == operation.WalletId);
+            var wallet = FindWallet(operation.WalletId);
+            if (wallet is null) { SetStatus(MissingWalletMessage, true); return; }
             ApplyEffect(wallet, operation.CustomerNumber, operation.Amount, operation.Commission, operation.IsDeposit, true, "عكس عملية فودافون");
             operation.IsReversed = true; operation.ReversedBy = currentUserName; operation.ReversedAt = DateTime.Now;
             FinalizeFinancialChanges(); ApplyFilters(); SetStatus($"تم عكس العملية رقم {operation.Id} بنجاح.", false);
@@ -286,7 +305,8 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
             if (!operation.IsReversed)
             {
                 if (!CanUndo(operation, out var error)) { SetStatus(error, true); return; }
-                var wallet = accounts.Accounts.First(w => w.Id == operation.WalletId);
+                var wallet = FindWallet(operation.WalletId);
+                if (wallet is null) { SetStatus(MissingWalletMessage, true); return; }
                 ApplyEffect(wallet, operation.CustomerNumber, operation.Amount, operation.Commission, operation.IsDeposit, true, "تسوية حذف سجل فودافون");
             }
             transfers.Operations.Remove(operation); SelectedOperation = null;

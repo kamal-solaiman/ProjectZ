@@ -322,6 +322,56 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
         "The register lists a migrated legacy expense with its copied account share");
     Console.WriteLine("PASS: sql/21 migrates a legacy single-account expense without losing its account or amount");
     Console.WriteLine("PASS: split expenses write dbo.Expenses, dbo.ExpensePayments, ledger rows and audit on LocalDB");
+
+    // A stopped line keeps its transfer history, but LoadAccountsInto only loads IsActive = 1 rows, so
+    // the records screen lost the wallet object. Its edit path resolved that wallet with
+    // accounts.Accounts.First(w => w.Id == operation.WalletId) and crashed with
+    // System.InvalidOperationException "Sequence contains no matching element". The data layer must
+    // answer in Arabic instead, and must let the same edit through once the line is active again.
+    var stoppedLineId = liveAccounts.First(account =>
+        account.Kind == FinancialAccountKind.VodafoneCash && account.IsActive).Id;
+    Execute(admin, $"UPDATE dbo.FinancialAccounts SET CurrentBalance = 5000 WHERE Id = {stoppedLineId};");
+    var stoppedLineTransfer = financialRepository.ExecuteCustomerTransfer(
+        FinancialAccountKind.VodafoneCash, stoppedLineId, "DepositToCustomer", "01012345678", 200m, 2m,
+        "عملية على خط سيُوقَف بعدها");
+    Check(stoppedLineTransfer.TransferId > 0, "A Vodafone Cash transfer is saved before its line is stopped");
+    Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 0 WHERE Id = {stoppedLineId};");
+    financialRepository.LoadAccountsInto(liveAccounts);
+    Check(liveAccounts.All(account => account.Id != stoppedLineId),
+        "A stopped line disappears from the active accounts while its transfer stays in the register");
+
+    Exception? stoppedEditError = null;
+    try
+    {
+        financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
+            FinancialAccountKind.VodafoneCash, 200m, 2m, true, "01012345678",
+            stoppedLineId, "DepositToCustomer", "01012345678", 250m, 2m, "تعديل بعد إيقاف الخط");
+    }
+    catch (Exception ex) { stoppedEditError = ex; }
+    Check(stoppedEditError is FinancialDataException { Message: var stoppedMessage }
+          && stoppedMessage.Contains("كل خطوط فودافون كاش موقوفة", StringComparison.Ordinal)
+          && !stoppedMessage.Contains("مكررة", StringComparison.Ordinal),
+        "Editing a transfer of a stopped line reports the stopped line in Arabic, not a duplicate-data error");
+
+    Exception? stoppedReverseError = null;
+    try
+    {
+        financialRepository.ReverseCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
+            FinancialAccountKind.VodafoneCash, -200m, 202m, "01012345678", "عكس بعد إيقاف الخط");
+    }
+    catch (Exception ex) { stoppedReverseError = ex; }
+    Check(stoppedReverseError is FinancialDataException { Message: var stoppedReverseMessage }
+          && stoppedReverseMessage.Contains("موقوفة", StringComparison.Ordinal),
+        "Reversing a transfer of a stopped line is refused with an Arabic financial error, not an unhandled LINQ crash");
+
+    Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 1, CurrentBalance = 5000 WHERE Id = {stoppedLineId};");
+    financialRepository.LoadAccountsInto(liveAccounts);
+    financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
+        FinancialAccountKind.VodafoneCash, 200m, 2m, true, "01012345678",
+        stoppedLineId, "DepositToCustomer", "01012345678", 250m, 5m, "تعديل بعد إعادة تفعيل الخط");
+    Check(Scalar<decimal>(admin, $"SELECT Amount FROM dbo.CustomerTransfers WHERE Id={stoppedLineTransfer.TransferId};") == 250m,
+        "Re-activating the line lets the very same edit succeed");
+    Console.WriteLine("PASS: a stopped Vodafone Cash line is reported in Arabic instead of crashing the edit flow");
     Console.WriteLine("PASS: all purchase and expense SQL integration checks passed on a disposable SQL Server instance");
 }
 catch (Exception ex)

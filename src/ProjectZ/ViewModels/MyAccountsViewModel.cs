@@ -263,7 +263,13 @@ public sealed class MyAccountsViewModel : ObservableObject
                     result.MonthlyDepositLimit, result.MonthlyWithdrawalLimit, result.Notes,
                     !Accounts.Any(a => a.Kind == result.Kind && a.IsDefault));
                 LoadFromDatabase();
-                var refreshedAccount = Accounts.First(a => a.Id == saved.AccountId);
+                // The reload only lists IsActive = 1 rows, so a wallet that was saved and then stopped
+                // (or hidden by a failed refresh) would make First(...) throw ThrowNoMatchException.
+                if (Accounts.FirstOrDefault(a => a.Id == saved.AccountId) is not { } refreshedAccount)
+                {
+                    SetStatus($"تم حفظ «{result.Alias}» لكنه غير ظاهر في الحسابات النشطة. اضغط «تحديث» أو راجع حالة الحساب.", true);
+                    return;
+                }
                 SelectedAccount = refreshedAccount;
                 SetStatus($"تمت إضافة «{refreshedAccount.Alias}» برصيد مستقل وحدود تشغيل خاصة.", false);
             }

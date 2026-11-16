@@ -191,6 +191,49 @@
 - `LoadFromDatabase` صار يتحمل قاعدة بلا حركات (`Transactions.Max` على مجموعة فارغة كان يرمي استثناءً
   ويحوّل التحديث إلى رسالة «تعذّر الاتصال»).
 
+### لماذا كان «تعديل» عملية فودافون كاش يُسقِط البرنامج: Sequence contains no matching element؟
+
+كان `VodafoneRecordsViewModel.ApplyEdit` و`CanUndo` — وكذلك نسختهما في `InstapayRecordsViewModel` — يحلّان
+خط العملية بهذا السطر:
+
+```csharp
+var oldWallet = accounts.Accounts.First(w => w.Id == operation.WalletId);
+```
+
+و`First(predicate)` يرمي `InvalidOperationException` من `Enumerable.ThrowNoMatchException` (رسالة
+«Sequence contains no matching element») إذا لم يجد صفًا مطابقًا. وهذا الصف يختفي فعليًا:
+
+- `FinancialRepository.LoadAccountsInto` يقرأ `WHERE IsActive = 1` فقط، فالخط **الموقوف** (`IsActive = 0`
+  وهو ما يحدث عند حذف محفظة لها سجل) أو المحذوف من `dbo.FinancialAccounts` لا يظهر في `Accounts`.
+- `dbo.CustomerTransfers` يحتفظ بعمليات الخط بعد إيقافه، فتبقى العملية معروضة في السجلات بلا كائن خط محلي.
+- كانت نافذة التعديل تُفتح بقائمة خطوط فارغة، وبمجرد اختيار خط آخر والضغط على «حفظ» يصل التنفيذ إلى السطر
+  أعلاه فيسقط البرنامج برسالة .NET قبل أن تصل أي رسالة إلى شريط الحالة.
+
+الإصلاح:
+
+- `FindWallet(int)` يستخدم `FirstOrDefault`، وكل مسارات التعديل والعكس والحذف تتحقق من النتيجة وتُظهر
+  `MissingWalletMessage` («الخط المرتبط بهذه العملية غير موجود أو موقوف في حساباتي…») بدل رمي استثناء.
+- `BeginEdit` لا يفتح نافذة التعديل إذا كان الخط مفقودًا/موقوفًا، فلا تُفتح بقائمة فارغة يمكن أن تنتهي
+  بحفظ فاشل.
+- `CanUndo` و`ValidateNewEffect` يتحققان من `CashAccount` (صار nullable بعد إصلاح «النقدية») ويُظهران
+  `MissingCashMessage` بدل `NullReferenceException`، وكذلك شاشتا التحويل `VodafoneTransferViewModel`
+  و`InstapayTransferViewModel` في المعاينة والتنفيذ.
+- في مسار قاعدة البيانات يظل `FinancialRepository.EnsureAccountById` هو المرجع النهائي: يرفض الخط
+  الموقوف أو غير الموجود برسالة عربية (`FinancialDataException`) بدل crash، ويسمح بالتعديل نفسه بعد
+  إعادة تفعيل الخط.
+- `FinancialRepository.EnsureAccounts` لم يعد يُنشئ صفًا تلقائيًا إذا كان كل صفوف النوع **موقوفة**:
+  الإنشاء التلقائي كان يصطدم بالفهرس `UQ_FinancialAccounts_Kind_Identifier` لأن الصف الموقوف ما زال
+  موجودًا، فتظهر رسالة «البيانات مكررة: الحساب أو الحركة مسجلة بالفعل» بدل سبب المشكلة. الرسالة الآن:
+  «كل خطوط فودافون كاش موقوفة في حساباتي. فعّل خطًا واحدًا على الأقل ثم أعد المحاولة.» (وكذلك النقدية
+  وإنستاباي)، ولا يُنشأ الصف التلقائي إلا في قاعدة لم تعرف هذا النوع بعد.
+- `MyAccountsViewModel.AddWallet` صار يستخدم `FirstOrDefault` بعد التحميل بدل `First`، فيظهر تنبيه عربي
+  إن لم يظهر الحساب المحفوظ بين الحسابات النشطة.
+
+المتحقق آليًا: `tests/ProjectZ.Appearance.Wpf.Tests/Program.cs` يجرّب تعديل/عكس/حذف عملية خطها غير موجود
+ويفشل إن ظهر أي استثناء أو اختفت العملية، و`tests/ProjectZ.Purchase.Sql.Tests/Program.cs` يوقف خطًا في
+قاعدة LocalDB ثم يعدّل سجله ويتحقق من الرسالة العربية في `UpdateCustomerTransfer` و`ReverseCustomerTransfer`
+ثم يعيد تفعيله ويتحقق من نجاح نفس التعديل.
+
 ### لماذا كانت تظهر رسالة «لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى»؟
 
 كان كل **إيداع أو سحب** في شاشتي «تحويل فودافون كاش» و«تحويل إنستاباي» — وكذلك تعديل أو عكس السجل من

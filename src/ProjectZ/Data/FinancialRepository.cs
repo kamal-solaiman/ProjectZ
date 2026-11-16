@@ -809,6 +809,23 @@ ORDER BY IsDefault DESC, Id;"))
         {
             if (accounts.ContainsKey(kind)) continue;
 
+            // Bootstrap a kind only when the database never had it. A wallet with history is stopped
+            // (IsActive = 0) instead of deleted, so a stopped line leaves rows behind: inserting a
+            // second row with the same automatic alias violates UQ_FinancialAccounts_Kind_Identifier
+            // and surfaced as the misleading «البيانات مكررة» error. Explain the stopped state instead.
+            using (var existing = CreateCommand(connection, transaction, @"
+SELECT COUNT(*) FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK) WHERE AccountKind = @Kind;"))
+            {
+                existing.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
+                if ((int)existing.ExecuteScalar()! > 0)
+                    throw new FinancialDataException(kind switch
+                    {
+                        FinancialAccountKind.Cash => "لا يوجد حساب نقدية نشط في «حساباتي». فعّل الخزنة ثم أعد المحاولة.",
+                        FinancialAccountKind.VodafoneCash => "كل خطوط فودافون كاش موقوفة في «حساباتي». فعّل خطًا واحدًا على الأقل ثم أعد المحاولة.",
+                        _ => "كل محافظ إنستاباي موقوفة في «حساباتي». فعّل محفظة واحدة على الأقل ثم أعد المحاولة."
+                    });
+            }
+
             using var insert = CreateCommand(connection, transaction, @"
 INSERT dbo.FinancialAccounts(AccountKind,Alias,Identifier,CurrentBalance,IsActive,IsDefault,Notes)
 OUTPUT inserted.Id

@@ -1243,6 +1243,68 @@ assert '| 42 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
     'ACCEPTANCE must gain a row for the frozen cash balance fix'
 print('PASS: accounts reloads merge into the live rows so the cash card and the ledger refresh without a restart')
 
+# --- records screens: a stopped/deleted line must not crash the edit/reverse flow ----------------
+# Regression: pressing «تعديل» on a Vodafone Cash operation whose line was stopped or deleted in
+# «حساباتي» crashed with System.InvalidOperationException "Sequence contains no matching element"
+# (Enumerable.ThrowNoMatchException), because the records view models resolved the wallet with
+# accounts.Accounts.First(w => w.Id == operation.WalletId). LoadAccountsInto only loads IsActive = 1
+# rows, so a saved operation can outlive its wallet. Every lookup is FirstOrDefault plus an Arabic
+# status message, and the nullable cash row is guarded the same way.
+for records_name in ('VodafoneRecordsViewModel.cs', 'InstapayRecordsViewModel.cs'):
+    records_text = (root / 'src/ProjectZ/ViewModels' / records_name).read_text(encoding='utf-8')
+    assert 'Accounts.First(' not in records_text, f'{records_name} still uses First(...) on the account list'
+    assert records_text.count('FirstOrDefault(w => w.Id == accountId)') == 1, \
+        f'{records_name} must expose exactly one guarded wallet lookup'
+    for token in ('const string MissingWalletMessage',
+                  'const string MissingCashMessage',
+                  'var oldWallet = FindWallet(operation.WalletId);',
+                  'if (FindWallet(SelectedOperation.WalletId) is not { } wallet)',
+                  'if (wallet is null) { error = MissingWalletMessage; return false; }',
+                  'if (accounts.CashAccount is not { } cash) { error = MissingCashMessage; return false; }',
+                  'if (cashDelta < 0m && cash.Balance < -cashDelta)',
+                  'if (accounts.CashAccount is not { } cash) return MissingCashMessage;'):
+        assert token in records_text, f'{records_name} is missing a guarded edit path: {token}'
+    assert records_text.count('if (wallet is null) { SetStatus(MissingWalletMessage, true); return; }') == 2, \
+        f'{records_name} must guard both the reverse and the delete fallback'
+for transfer_name in ('VodafoneTransferViewModel.cs', 'InstapayTransferViewModel.cs'):
+    transfer_text = (root / 'src/ProjectZ/ViewModels' / transfer_name).read_text(encoding='utf-8')
+    assert 'accounts.CashAccount.Balance' not in transfer_text, \
+        f'{transfer_name} still dereferences the nullable cash account'
+    assert transfer_text.count('accounts.CashAccount is not { } cash') == 2, \
+        f'{transfer_name} must guard the preview and the transfer save against a missing cash row'
+    assert 'const string MissingCashMessage' in transfer_text, \
+        f'{transfer_name} must explain a missing cash account in Arabic'
+wpf_records_test = (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').read_text(encoding='utf-8')
+for token in ('VodafoneRecordsViewModel.MissingWalletMessage',
+              'InstapayRecordsViewModel.MissingWalletMessage',
+              'VodafoneRecordsViewModel.MissingCashMessage',
+              'VodafoneTransferViewModel.MissingCashMessage',
+              'Editing an operation whose line is gone explains it in Arabic instead of throwing',
+              'Saving an edit for an operation whose line is gone reports it instead of crashing',
+              'Reversing an operation whose line is gone reports it instead of crashing',
+              'The cash preview shows a dash, not a crash, when the cash account is missing'):
+    assert token in wpf_records_test, f'the WPF smoke test does not guard the records edit flow: {token}'
+sql_records_test = (root / 'tests/ProjectZ.Purchase.Sql.Tests/Program.cs').read_text(encoding='utf-8')
+for token in ('A stopped line disappears from the active accounts while its transfer stays in the register',
+              'Editing a transfer of a stopped line reports the stopped line in Arabic, not a duplicate-data error',
+              'Reversing a transfer of a stopped line is refused with an Arabic financial error',
+              'Re-activating the line lets the very same edit succeed'):
+    assert token in sql_records_test, f'the LocalDB harness does not guard the stopped-line edit: {token}'
+records_repository_text = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+assert 'FinancialDataException("المحفظة المحددة غير متاحة' in records_repository_text, \
+    'EnsureAccountById must stay the single owner of the unavailable-wallet message'
+# Auto-created wallets must not collide with a stopped row of the same kind (UQ_FinancialAccounts_Kind_Identifier).
+assert 'SELECT COUNT(*) FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK) WHERE AccountKind = @Kind;' in records_repository_text, \
+    'EnsureAccounts must not insert a duplicate row when every account of that kind is stopped'
+assert 'كل خطوط فودافون كاش موقوفة' in records_repository_text, \
+    'EnsureAccounts must explain the stopped line in Arabic'
+records_doc = (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
+for token in ('ThrowNoMatchException', 'IsActive = 1', 'MissingWalletMessage'):
+    assert token in records_doc, f'docs/DATABASE.md must explain the stopped-line edit guard: {token}'
+assert '| 43 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
+    'ACCEPTANCE must gain a row for the records edit crash fix'
+print('PASS: a stopped or deleted line reports in Arabic instead of crashing the records edit/reverse flow')
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/FinanceDesignModels.cs',
@@ -1473,7 +1535,9 @@ assert 'wallet.Balance += IsDepositSelected ? -amount : amount;' in vodafone_vm
 assert 'IsDepositSelected ? amount + commission : commission - amount' in vodafone_vm
 assert 'incoming: !IsDepositSelected' in vodafone_vm
 assert 'ValidateLimits(SelectedWallet' in vodafone_vm
-assert 'accounts.CashAccount.Balance += cashDelta;' in vodafone_vm
+# The cash row is nullable, so the transfer posts through the guarded local it resolved above.
+assert 'if (accounts.CashAccount is not { } cash) { SetStatus(MissingCashMessage, true); return; }' in vodafone_vm
+assert 'cash.Balance += cashDelta;' in vodafone_vm
 assert 'normalizedCustomer.Length != 11' in vodafone_vm
 for removed_summary in ('أرصدة خطوط فودافون', 'إيداعات العملاء اليوم', 'سحوبات العملاء اليوم', 'عمولات اليوم', 'VfKpi'):
     assert removed_summary not in vodafone_view, f'removed Vodafone summary card is still present: {removed_summary}'
@@ -1491,7 +1555,7 @@ instapay_window = (root / 'src/ProjectZ/Views/InstapayOperationWindow.xaml').rea
 instapay_models = (root / 'src/ProjectZ/Models/InstapayTransferDesignModels.cs').read_text(encoding='utf-8')
 assert 'a.Kind == FinancialAccountKind.InstaPay' in instapay_vm
 assert 'SelectedWallet.Kind != FinancialAccountKind.InstaPay' in instapay_vm
-for required_rule in ('wallet.Balance += IsDepositSelected ? -amount : amount;', 'IsDepositSelected ? amount + commission : commission - amount', 'incoming: !IsDepositSelected', 'ValidateLimits(SelectedWallet', 'accounts.CashAccount.Balance += cashDelta;'):
+for required_rule in ('wallet.Balance += IsDepositSelected ? -amount : amount;', 'IsDepositSelected ? amount + commission : commission - amount', 'incoming: !IsDepositSelected', 'ValidateLimits(SelectedWallet', 'cash.Balance += cashDelta;'):
     assert required_rule in instapay_vm, f'missing InstaPay transfer rule: {required_rule}'
 for forbidden_reference in ('Vodafone', 'فودافون', 'VF-'):
     assert forbidden_reference not in instapay_vm + instapay_view + instapay_window + instapay_models, f'InstaPay screen must not depend on Vodafone: {forbidden_reference}'
