@@ -1691,6 +1691,11 @@ purchase_sql_test = (root / 'tests/ProjectZ.Purchase.Sql.Tests/Program.cs').read
 for token in ('19_EnableExpenseCategories.sql', '20_EnableExpenses.sql', '21_EnableExpenseSplitPayments.sql',
               'ExpenseRepository', 'ExpensePaymentRequest', 'dbo.ExpensePayments'):
     assert token in purchase_sql_test, f'the LocalDB harness does not cover the expense scripts: {token}'
+purchase_sql_project = (root / 'tests/ProjectZ.Purchase.Sql.Tests/ProjectZ.Purchase.Sql.Tests.csproj'
+                        ).read_text(encoding='utf-8')
+for linked in ('Data/ExpenseRepository.cs', 'Data/ExpenseCategoryRepository.cs'):
+    assert linked in purchase_sql_project, \
+        f'the LocalDB harness project does not compile the linked source: {linked}'
 
 expense_entry_repository_path = root / 'src/ProjectZ/Data/ExpenseRepository.cs'
 assert expense_entry_repository_path.is_file(), 'missing src/ProjectZ/Data/ExpenseRepository.cs'
