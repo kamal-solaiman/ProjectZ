@@ -76,7 +76,9 @@ jobs:
           $path = Join-Path $env:RUNNER_TEMP 'purchase-sql.log'
           if (Test-Path $path) {
             $text = Get-Content $path -Raw
-            $text = $text.Substring([Math]::Max(0, $text.Length - 12000))
+            # GitHub truncates an ::error annotation at about 4 KB from its start, so emit the tail
+            # of the log: the failing check (the harness prints FAIL: <message>) lives there.
+            $text = $text.Substring([Math]::Max(0, $text.Length - 3800))
             $escaped = $text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
             Write-Output "::error title=SQL integration tests::$escaped"
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "``````text`n$text`n``````"

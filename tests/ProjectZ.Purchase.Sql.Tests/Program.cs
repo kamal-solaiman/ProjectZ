@@ -349,8 +349,9 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     }
     catch (Exception ex) { stoppedEditError = ex; }
     Check(stoppedEditError is FinancialDataException { Message: var stoppedMessage }
-          && stoppedMessage.Contains("المحفظة المحددة غير متاحة", StringComparison.Ordinal),
-        "Editing a transfer of a stopped line reports the missing wallet in Arabic, not Sequence contains no matching element");
+          && stoppedMessage.Contains("كل خطوط فودافون كاش موقوفة", StringComparison.Ordinal)
+          && !stoppedMessage.Contains("مكررة", StringComparison.Ordinal),
+        "Editing a transfer of a stopped line reports the stopped line in Arabic, not a duplicate-data error");
 
     Exception? stoppedReverseError = null;
     try
@@ -359,8 +360,9 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
             FinancialAccountKind.VodafoneCash, -200m, 202m, "01012345678", "عكس بعد إيقاف الخط");
     }
     catch (Exception ex) { stoppedReverseError = ex; }
-    Check(stoppedReverseError is FinancialDataException,
-        "Reversing a transfer of a stopped line is refused with a financial error, not an unhandled LINQ crash");
+    Check(stoppedReverseError is FinancialDataException { Message: var stoppedReverseMessage }
+          && stoppedReverseMessage.Contains("موقوفة", StringComparison.Ordinal),
+        "Reversing a transfer of a stopped line is refused with an Arabic financial error, not an unhandled LINQ crash");
 
     Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 1, CurrentBalance = 5000 WHERE Id = {stoppedLineId};");
     financialRepository.LoadAccountsInto(liveAccounts);

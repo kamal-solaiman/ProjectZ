@@ -1286,13 +1286,18 @@ for token in ('VodafoneRecordsViewModel.MissingWalletMessage',
     assert token in wpf_records_test, f'the WPF smoke test does not guard the records edit flow: {token}'
 sql_records_test = (root / 'tests/ProjectZ.Purchase.Sql.Tests/Program.cs').read_text(encoding='utf-8')
 for token in ('A stopped line disappears from the active accounts while its transfer stays in the register',
-              'Editing a transfer of a stopped line reports the missing wallet in Arabic',
-              'Reversing a transfer of a stopped line is refused with a financial error',
+              'Editing a transfer of a stopped line reports the stopped line in Arabic, not a duplicate-data error',
+              'Reversing a transfer of a stopped line is refused with an Arabic financial error',
               'Re-activating the line lets the very same edit succeed'):
     assert token in sql_records_test, f'the LocalDB harness does not guard the stopped-line edit: {token}'
-assert 'FinancialDataException("المحفظة المحددة غير متاحة' in (
-    root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8'), \
+records_repository_text = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+assert 'FinancialDataException("المحفظة المحددة غير متاحة' in records_repository_text, \
     'EnsureAccountById must stay the single owner of the unavailable-wallet message'
+# Auto-created wallets must not collide with a stopped row of the same kind (UQ_FinancialAccounts_Kind_Identifier).
+assert 'SELECT COUNT(*) FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK) WHERE AccountKind = @Kind;' in records_repository_text, \
+    'EnsureAccounts must not insert a duplicate row when every account of that kind is stopped'
+assert 'كل خطوط فودافون كاش موقوفة' in records_repository_text, \
+    'EnsureAccounts must explain the stopped line in Arabic'
 records_doc = (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
 for token in ('ThrowNoMatchException', 'IsActive = 1', 'MissingWalletMessage'):
     assert token in records_doc, f'docs/DATABASE.md must explain the stopped-line edit guard: {token}'
