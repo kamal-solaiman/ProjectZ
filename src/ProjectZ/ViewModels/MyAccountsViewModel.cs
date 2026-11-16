@@ -334,9 +334,30 @@ public sealed class MyAccountsViewModel : ObservableObject
         if (SelectedAccount is null) return;
         if (SelectedAccount.IsCash) { SetStatus("لا يمكن إيقاف الخزنة النقدية لأنها حساب أساسي مرتبط بالنظام.", true); return; }
         var account = SelectedAccount;
+        var activate = !account.IsActive;
+        if (repository is not null)
+        {
+            try
+            {
+                // The toggle used to flip a local flag only, so the wallet came back active after a
+                // reload or a restart. It is a soft delete: the row and its ledger stay in SQL Server.
+                repository.SetAccountActive(account.Id, activate);
+                LoadFromDatabase();
+                if (Accounts.FirstOrDefault(a => a.Id == account.Id) is { } refreshed) SelectedAccount = refreshed;
+                SetStatus(activate
+                    ? $"تم تفعيل «{account.Alias}» في قاعدة البيانات وإتاحة الحركات."
+                    : $"تم حفظ إيقاف «{account.Alias}» في قاعدة البيانات مع الاحتفاظ بالرصيد والسجل؛ لا تظهر المحافظ الموقوفة في القائمة.", false);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر تغيير حالة المحفظة: {ex.Message}", true);
+            }
+            return;
+        }
+
         account.IsActive = !account.IsActive;
         if (!account.IsActive) account.IsDefault = false;
-        NotifyKpis();
+        RefreshFilteredWallets(); NotifyKpis();
         SetStatus(account.IsActive ? $"تم تفعيل «{account.Alias}» وإتاحة الحركات." : $"تم إيقاف «{account.Alias}» مؤقتًا مع الاحتفاظ بالرصيد والسجل.", false);
     }
 
@@ -344,8 +365,28 @@ public sealed class MyAccountsViewModel : ObservableObject
     {
         if (SelectedAccount is null || SelectedAccount.IsCash) return;
         if (!SelectedAccount.IsActive) { SetStatus("فعّل المحفظة أولًا قبل تعيينها كافتراضية.", true); return; }
-        foreach (var account in Accounts.Where(a => a.Kind == SelectedAccount.Kind)) account.IsDefault = ReferenceEquals(account, SelectedAccount);
-        SetStatus($"تم تعيين «{SelectedAccount.Alias}» كمحفظة {SelectedAccount.ProviderTitle} الافتراضية.", false);
+        var account = SelectedAccount;
+        if (repository is not null)
+        {
+            try
+            {
+                // «تعيين افتراضية» only reordered the local list before, so the choice was lost on the
+                // next reload or restart; the default flag lives in dbo.FinancialAccounts.IsDefault.
+                repository.SetDefaultAccount(account.Id, account.Kind);
+                LoadFromDatabase();
+                if (Accounts.FirstOrDefault(a => a.Id == account.Id) is { } refreshed) SelectedAccount = refreshed;
+                SetStatus($"تم تعيين «{account.Alias}» كمحفظة {account.ProviderTitle} الافتراضية وحفظها في قاعدة البيانات.", false);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"تعذّر تعيين المحفظة الافتراضية: {ex.Message}", true);
+            }
+            return;
+        }
+
+        foreach (var other in Accounts.Where(a => a.Kind == account.Kind)) other.IsDefault = ReferenceEquals(other, account);
+        RefreshFilteredWallets();
+        SetStatus($"تم تعيين «{account.Alias}» كمحفظة {account.ProviderTitle} الافتراضية.", false);
     }
 
     private void DeleteSelectedAccount()

@@ -338,6 +338,39 @@ internal static class Program
         Check(cashlessTransfer.IsErrorStatus
               && cashlessTransfer.StatusMessage == VodafoneTransferViewModel.MissingCashMessage,
             "Executing a transfer without an active cash account reports it in Arabic");
+        // «تعيين افتراضية» used to reorder the local list only, so the choice vanished on the next
+        // reload or restart. The design-mode path must still flag exactly one default per provider and
+        // must never touch another provider's default.
+        var defaultAccounts = new MyAccountsViewModel();
+        var secondVodafone = defaultAccounts.Accounts.First(account =>
+            account.Kind == FinancialAccountKind.VodafoneCash && !account.IsDefault);
+        defaultAccounts.SelectedAccount = secondVodafone;
+        defaultAccounts.SetSelectedAsDefaultCommand.Execute(null);
+        Check(secondVodafone.IsDefault && !defaultAccounts.IsErrorStatus,
+            "«تعيين افتراضية» flags the chosen wallet");
+        Check(defaultAccounts.Accounts.Count(account =>
+                  account.Kind == FinancialAccountKind.VodafoneCash && account.IsDefault) == 1,
+            "Only one line stays default per provider");
+        Check(defaultAccounts.Accounts.First(account =>
+                  account.Kind == FinancialAccountKind.InstaPay && account.IsDefault).IsDefault,
+            "Making a Vodafone line default keeps the InstaPay default");
+        var stoppedWallet = defaultAccounts.Accounts.First(account => !account.IsCash && !account.IsActive);
+        defaultAccounts.SelectedAccount = stoppedWallet;
+        defaultAccounts.SetSelectedAsDefaultCommand.Execute(null);
+        Check(defaultAccounts.IsErrorStatus && !stoppedWallet.IsDefault
+              && defaultAccounts.StatusMessage.Contains("فعّل المحفظة أولًا", StringComparison.Ordinal),
+            "A stopped wallet is refused as default with an Arabic message");
+        var toggleWallet = defaultAccounts.Accounts.First(account =>
+            account.Kind == FinancialAccountKind.InstaPay && account.IsActive);
+        defaultAccounts.SelectedAccount = toggleWallet;
+        defaultAccounts.ToggleSelectedAccountCommand.Execute(null);
+        Check(!toggleWallet.IsActive, "«تفعيل / إيقاف» stops the wallet");
+        defaultAccounts.ToggleSelectedAccountCommand.Execute(null);
+        Check(toggleWallet.IsActive, "The same button reactivates it");
+        defaultAccounts.SelectedAccount = defaultAccounts.CashAccount!;
+        defaultAccounts.ToggleSelectedAccountCommand.Execute(null);
+        Check(defaultAccounts.IsErrorStatus && defaultAccounts.CashAccount!.IsActive,
+            "The cash account cannot be stopped from the toggle");
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

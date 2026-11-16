@@ -1305,6 +1305,48 @@ assert '| 43 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
     'ACCEPTANCE must gain a row for the records edit crash fix'
 print('PASS: a stopped or deleted line reports in Arabic instead of crashing the records edit/reverse flow')
 
+# --- «تعيين افتراضية» / «تفعيل إيقاف»: the buttons must persist to dbo.FinancialAccounts ----------
+# Regression: both commands only mutated the in-memory list (SetSelectedAsDefault looped over the
+# local rows, ToggleSelectedAccount flipped IsActive locally), so the choice was lost after «تحديث»
+# or a restart and the default badge came back on the previous wallet.
+default_vm_text = (root / 'src/ProjectZ/ViewModels/MyAccountsViewModel.cs').read_text(encoding='utf-8')
+for token in ('repository.SetDefaultAccount(account.Id, account.Kind);',
+              'repository.SetAccountActive(account.Id, activate);',
+              'foreach (var other in Accounts.Where(a => a.Kind == account.Kind)) other.IsDefault = ReferenceEquals(other, account);',
+              'RefreshFilteredWallets(); NotifyKpis();'):
+    assert token in default_vm_text, f'the accounts screen does not persist the wallet buttons: {token}'
+assert 'foreach (var account in Accounts.Where(a => a.Kind == SelectedAccount.Kind)) account.IsDefault' not in default_vm_text, \
+    '«تعيين افتراضية» still only reorders the local list without writing IsDefault to SQL Server'
+default_repo_text = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+for token in ('public void SetDefaultAccount(int accountId, FinancialAccountKind kind)',
+              'public void SetAccountActive(int accountId, bool isActive)',
+              'WHERE AccountKind = @Kind AND IsDefault = 1 AND Id <> @Id;',
+              'IsActive = 0, IsDefault = 0'):
+    assert token in default_repo_text, f'the repository is missing the wallet-button persistence: {token}'
+assert default_repo_text.count('WHERE AccountKind = @Kind AND IsDefault = 1 AND Id <> @Id;') == 2, \
+    'both SetDefaultAccount and the account editor must clear defaults per kind only'
+wpf_default_test = (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').read_text(encoding='utf-8')
+for token in ('«تعيين افتراضية» flags the chosen wallet',
+              'Only one line stays default per provider',
+              'Making a Vodafone line default keeps the InstaPay default',
+              'A stopped wallet is refused as default with an Arabic message',
+              '«تفعيل / إيقاف» stops the wallet',
+              'The cash account cannot be stopped from the toggle'):
+    assert token in wpf_default_test, f'the WPF smoke test does not guard the wallet buttons: {token}'
+sql_default_test = (root / 'tests/ProjectZ.Purchase.Sql.Tests/Program.cs').read_text(encoding='utf-8')
+for token in ('«تعيين افتراضية» writes IsDefault = 1 for the chosen line in dbo.FinancialAccounts',
+              'Making a Vodafone line default keeps the cash and InstaPay defaults intact',
+              '«تفعيل / إيقاف» writes IsActive = 0 for the stopped wallet',
+              'Stopping the default wallet clears its default flag instead of hiding a default row',
+              'The cash account refuses the stop toggle and stays active'):
+    assert token in sql_default_test, f'the LocalDB harness does not guard the wallet buttons: {token}'
+default_doc = (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
+for token in ('SetDefaultAccount', 'SetAccountActive', 'UX_FinancialAccounts_OneDefaultPerKind'):
+    assert token in default_doc, f'docs/DATABASE.md must explain the wallet-button persistence: {token}'
+assert '| 44 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
+    'ACCEPTANCE must gain a row for the default-wallet persistence fix'
+print('PASS: the default-wallet and activate/stop buttons persist per kind in dbo.FinancialAccounts')
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/FinanceDesignModels.cs',

@@ -160,6 +160,8 @@
 | تحويل بين المحافظ (`OpenTransfer`) | حركة سحب على المصدر + حركة إيداع على الهدف، كل في `dbo.FinancialTransactions`. |
 | تحويل للعميل (تحويل فودافون/إنستاباي → `ExecuteCustomerTransfer`) | يُحدّث رصيد خط المحفظة ورصيد النقدي، ويكتب `INSERT dbo.CustomerTransfers`، ويسجل حركتين في `dbo.FinancialTransactions` (واحدة على المحفظة وأخرى على النقدي). الإيداع ينقص المحفظة ويزيد النقدي بـ `المبلغ + العمولة`؛ السحب يزيد المحفظة ويخفض النقدي بـ `المبلغ - العمولة`. |
 | عكس التحويل (سجلات → `ReverseCustomerTransfer`) | يطبّق الأثر المالي المعاكس على المحفظة والنقدي (يحصل على الأرصدة الحالية من DB)، ويسجل حركتي تسوية، ويضع `OperationStatus=1` مع `ReversedAtUtc` و`ReversedByUserId` في `dbo.CustomerTransfers` (يظل السجل محفوظًا). |
+| تعيين محفظة افتراضية (`SetSelectedAsDefault` → `FinancialRepository.SetDefaultAccount`) | داخل معاملة واحدة: `UPDATE dbo.FinancialAccounts SET IsDefault = 0` لكل الصفوف النشطة **من نفس `AccountKind`** ثم `IsDefault = 1` للصف المطلوب، بعد التحقق من أنه نشط ومن نفس النوع (`EnsureAccountById`). |
+| تفعيل/إيقاف محفظة (`ToggleSelectedAccount` → `SetAccountActive`) | `UPDATE ... SET IsActive = 1` للتفعيل، أو `IsActive = 0, IsDefault = 0` للإيقاف (إيقاف ناعم يحتفظ بالرصيد والسجل)؛ الخزنة النقدية تُرفض برسالة عربية. |
 | حذف محفظة (`DeleteSelectedAccount` → `DeleteAccount`) | المحفظة المكتملة (بلا رصيد وبلا حركات) تُحذف نهائيًا `DELETE dbo.FinancialAccounts`؛ أي محفظة لها سجل تُوقَّف مؤقتًا `UPDATE ... SET IsActive=0` (لا حذف فعلي). |
 
 - **المزامنة**: بعد أي كتابة يجري `LoadFromDatabase()` في `MyAccountsViewModel` الذي يعيد تحميل
@@ -190,6 +192,40 @@
   هناك خزنة نشطة.
 - `LoadFromDatabase` صار يتحمل قاعدة بلا حركات (`Transactions.Max` على مجموعة فارغة كان يرمي استثناءً
   ويحوّل التحديث إلى رسالة «تعذّر الاتصال»).
+
+### لماذا لم يُحفظ زر «تعيين افتراضية» (وزر «تفعيل / إيقاف» أيضًا)؟
+
+كان `MyAccountsViewModel.SetSelectedAsDefault` يمرّ على الصفوف المحلية فقط:
+
+```csharp
+foreach (var account in Accounts.Where(a => a.Kind == SelectedAccount.Kind))
+    account.IsDefault = ReferenceEquals(account, SelectedAccount);
+```
+
+فيتغيّر شكل القائمة (وترتيبها) لحظيًا ثم يعود كما كان بعد أي «تحديث» أو إعادة تشغيل، لأن العلامة
+الحقيقية في `dbo.FinancialAccounts.IsDefault`. ونفس الشيء في `ToggleSelectedAccount` الذي كان يقلب
+`IsActive` محليًا فقط فتعود المحفظة نشطة بعد التحديث. ولم يكن هناك أي استثناء يظهر للمستخدم: الزر
+«ينجح» بصريًا بلا أثر في القاعدة، وهذا أخطر من الخطأ الصريح.
+
+الإصلاح:
+
+- `FinancialRepository.SetDefaultAccount` — معاملة واحدة: `EnsureAccountById` يتحقق أن الحساب نشط ومن نفس
+  النوع (وإلا رسالة عربية «المحفظة المحددة غير متاحة…»)، ثم تصفير `IsDefault` لكل صفوف **نفس `AccountKind`**
+  فقط، ثم `IsDefault = 1` للصف المطلوب. الفهرس `UX_FinancialAccounts_OneDefaultPerKind` مقيّد بـ
+  `WHERE IsDefault = 1 AND AccountKind = ...`، لذا التصفير يجب أن يبقى داخل نفس النوع.
+- `UpdateAccount` كان يصفّر `IsDefault` لكل الصفوف النشطة **بلا تحديد النوع**، فكان تعديل محفظة فودافون
+  يُلغي افتراضية «النقدية» و«إنستاباي» بصمت. صار الشرط `AccountKind = @Kind`.
+- `FinancialRepository.SetAccountActive` — `IsActive = 1` للتفعيل، و`IsActive = 0, IsDefault = 0` للإيقاف،
+  وترفض إيقاف الخزنة النقدية برسالة عربية (الشاشة تُخفي الزر أصلًا، والقاعدة ترفض أيضًا).
+- الـViewModel يستدعي القاعدة ثم `LoadFromDatabase()` ويعيد تحديد الصف نفسه، ويُظهر رسالة نجاح تقول
+  «وحفظها في قاعدة البيانات» أو رسالة خطأ عربية عند الرفض. مسار التصميم بلا اتصال (بلا `repository`)
+  يظل يعدّل القائمة المحلية كما كان، مع `RefreshFilteredWallets()` ليتحدّث الترتيب.
+
+المتحقق آليًا: `tests/ProjectZ.Purchase.Sql.Tests/Program.cs` يضيف محفظة ثانية، يعيّنها افتراضية، ويتحقق
+من `IsDefault` في `dbo.FinancialAccounts` ومن بقاء افتراضية الأنواع الأخرى، ثم يوقفها (مع تصفير
+`IsDefault`) ويرفض تعيينها افتراضية، ثم يعيد تفعيلها ويعيّنها من جديد ويؤكد رفض إيقاف «النقدية».
+و`tests/ProjectZ.Appearance.Wpf.Tests/Program.cs` يتحقق من مسار التصميم: افتراضية واحدة لكل مزوّد، ورفض
+المحفظة الموقوفة، وعمل زر التفعيل/الإيقاف.
 
 ### لماذا كان «تعديل» عملية فودافون كاش يُسقِط البرنامج: Sequence contains no matching element؟
 
