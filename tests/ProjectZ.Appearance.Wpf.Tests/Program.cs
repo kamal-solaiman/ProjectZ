@@ -83,6 +83,21 @@ internal static class Program
             && mainVm.SelectedCategoryTitle == "المصروفات"
             && mainVm.SelectedPageTitle == "اضافة مصروف",
             "Menus-only categories keep the placeholder workspace and never claim an implemented screen");
+        // «تصنيفات المصروفات» is the first implemented expense screen. Selecting it must activate
+        // its host Grid and load the six starter sections without SQL (design mode).
+        var expenseCategoriesItem = mainVm.Categories.Single(c => c.Title == "المصروفات")
+            .Items.Single(i => i.Title == "تصنيفات المصروفات");
+        mainVm.SelectItem(expenseCategoriesItem);
+        PumpDispatcher();
+        Check(mainVm.IsExpenseCategoriesSelected, "SelectItem activates the expense categories screen");
+        Check(mainVm.ExpenseCategories.FilteredCategories.Count == 6,
+            "The expense categories screen starts with the six starter sections in design mode");
+        var hostedExpenseCategories = FindLogicalDescendant<ExpenseCategoriesView>(main);
+        Check(hostedExpenseCategories is not null, "MainWindow hosts ExpenseCategoriesView in its logical tree");
+        Check(hostedExpenseCategories!.DataContext is ExpenseCategoriesViewModel,
+            "ExpenseCategoriesView receives the ExpenseCategories view model");
+        Check(((Grid)hostedExpenseCategories.Parent).Visibility == Visibility.Visible,
+            "Expense categories host Grid is Visible after navigating to تصنيفات المصروفات");
         var notified = new List<string?>();
         mainVm.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
         // Items are looked up by their Arabic labels instead of a positional index, so inserting
