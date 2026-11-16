@@ -51,7 +51,6 @@ GO
 
 IF OBJECT_ID(N'dbo.ExpenseCategories', N'U') IS NULL
     THROW 50062, N'dbo.ExpenseCategories was not created. Check the database and rerun this script.', 1;
-GO
-
-PRINT N'SUCCESS: ProjectZClient can now load, add, rename and delete expense sections from «تصنيفات المصروفات».';
+ELSE
+    PRINT N'SUCCESS: ProjectZClient can now load, add, rename and delete expense sections from «تصنيفات المصروفات».';
 GO

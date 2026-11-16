@@ -39,41 +39,51 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes
         INCLUDE (Amount);
 GO
 
-/* Copy the old single account of every expense into a payment row, then drop the column. */
+/* Copy the old single account of every expense into a payment row, then drop the column.
+   The migration runs as dynamic SQL on purpose: on a database that never had the column a
+   static batch mentioning dbo.Expenses.FinancialAccountId fails to compile ("Invalid column
+   name") before the IF can skip it, so a fresh install could not run this script at all. */
 IF COL_LENGTH(N'dbo.Expenses', N'FinancialAccountId') IS NOT NULL
 BEGIN
-    BEGIN TRY
-        BEGIN TRANSACTION;
+    DECLARE @migrate NVARCHAR(MAX) = N'
+BEGIN TRY
+    BEGIN TRANSACTION;
 
-        INSERT dbo.ExpensePayments(ExpenseId, FinancialAccountId, Amount)
-        SELECT e.Id, e.FinancialAccountId, e.Amount
-        FROM dbo.Expenses AS e
-        WHERE e.FinancialAccountId IS NOT NULL
-          AND NOT EXISTS (SELECT 1 FROM dbo.ExpensePayments AS p WHERE p.ExpenseId = e.Id);
+    INSERT dbo.ExpensePayments(ExpenseId, FinancialAccountId, Amount)
+    SELECT e.Id, e.FinancialAccountId, e.Amount
+    FROM dbo.Expenses AS e
+    WHERE e.FinancialAccountId IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM dbo.ExpensePayments AS p WHERE p.ExpenseId = e.Id);
 
-        -- The covering index references the column, so it is rebuilt after the drop.
-        IF EXISTS (SELECT 1 FROM sys.indexes
-                   WHERE object_id = OBJECT_ID(N'dbo.Expenses') AND name = N'IX_Expenses_Date')
-            DROP INDEX IX_Expenses_Date ON dbo.Expenses;
+    -- The covering index references the column, so it is rebuilt after the drop.
+    IF EXISTS (SELECT 1 FROM sys.indexes
+               WHERE object_id = OBJECT_ID(N''dbo.Expenses'') AND name = N''IX_Expenses_Date'')
+        DROP INDEX IX_Expenses_Date ON dbo.Expenses;
 
-        DECLARE @fk SYSNAME;
-        SELECT TOP (1) @fk = fk.name
-        FROM sys.foreign_keys AS fk
-        JOIN sys.foreign_key_columns AS fkc ON fkc.constraint_object_id = fk.object_id
-        WHERE fk.parent_object_id = OBJECT_ID(N'dbo.Expenses')
-          AND COL_NAME(fkc.parent_object_id, fkc.parent_column_id) = N'FinancialAccountId';
-        IF @fk IS NOT NULL
-            EXEC(N'ALTER TABLE dbo.Expenses DROP CONSTRAINT ' + QUOTENAME(@fk));
+    DECLARE @fk SYSNAME;
+    SELECT TOP (1) @fk = fk.name
+    FROM sys.foreign_keys AS fk
+    JOIN sys.foreign_key_columns AS fkc ON fkc.constraint_object_id = fk.object_id
+    WHERE fk.parent_object_id = OBJECT_ID(N''dbo.Expenses'')
+      AND COL_NAME(fkc.parent_object_id, fkc.parent_column_id) = N''FinancialAccountId'';
+    -- EXEC() accepts variables and literals, not function calls, so the dynamic statement is
+    -- built in a variable first; a function call inside EXEC(...) is a syntax error (Msg 102).
+    IF @fk IS NOT NULL
+    BEGIN
+        DECLARE @drop_fk NVARCHAR(400) = N''ALTER TABLE dbo.Expenses DROP CONSTRAINT '' + QUOTENAME(@fk);
+        EXEC sp_executesql @drop_fk;
+    END
 
-        ALTER TABLE dbo.Expenses DROP COLUMN FinancialAccountId;
+    ALTER TABLE dbo.Expenses DROP COLUMN FinancialAccountId;
 
-        COMMIT TRANSACTION;
-        PRINT N'Moved existing expense accounts into dbo.ExpensePayments and dropped dbo.Expenses.FinancialAccountId.';
-    END TRY
-    BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH
+    COMMIT TRANSACTION;
+    PRINT N''Moved existing expense accounts into dbo.ExpensePayments and dropped dbo.Expenses.FinancialAccountId.'';
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH';
+    EXEC sp_executesql @migrate;
 END
 GO
 
@@ -100,7 +110,9 @@ GO
 
 IF COL_LENGTH(N'dbo.Expenses', N'FinancialAccountId') IS NOT NULL
     THROW 50083, N'dbo.Expenses.FinancialAccountId still exists. Check the migration output and rerun this script.', 1;
-GO
-
-PRINT N'SUCCESS: expenses now support split payments through dbo.ExpensePayments; existing accounts were migrated.';
+ELSE IF EXISTS (SELECT 1 FROM dbo.Expenses AS e
+                WHERE NOT EXISTS (SELECT 1 FROM dbo.ExpensePayments AS p WHERE p.ExpenseId = e.Id))
+    THROW 50084, N'Some expenses have no payment row. Do not use the screen until every expense has its payment.', 1;
+ELSE
+    PRINT N'SUCCESS: expenses now support split payments through dbo.ExpensePayments; existing accounts were migrated.';
 GO

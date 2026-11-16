@@ -28,7 +28,11 @@ try
     var password = "Aa1!" + Guid.NewGuid().ToString("N") + "#Z";
     Execute(admin, $"CREATE LOGIN [ProjectZClient] WITH PASSWORD = '{password.Replace("'", "''")}', CHECK_POLICY = OFF;");
     Execute(admin, "CREATE USER [ProjectZClient] FOR LOGIN [ProjectZClient]; GRANT CONNECT TO [ProjectZClient];");
-    foreach (var script in new[] { "09_EnablePosSales.sql", "11_EnableReturnExchange.sql", "12_EnablePurchasing.sql" })
+    foreach (var script in new[]
+             {
+                 "09_EnablePosSales.sql", "11_EnableReturnExchange.sql", "12_EnablePurchasing.sql",
+                 "19_EnableExpenseCategories.sql", "20_EnableExpenses.sql", "21_EnableExpenseSplitPayments.sql"
+             })
         RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
 
     var userId = Scalar<int>(admin, "SELECT Id FROM dbo.Users WHERE Username=N'admin';");
@@ -185,7 +189,97 @@ END;");
     }
     var afterRepair = repository.CreateInvoice(Request(0m, 0m, 0m, 0m, "بعد استعادة الصلاحية"));
     Check(afterRepair.InvoiceId > 0, "Purchase succeeds after the least-privilege grant is restored");
-    Console.WriteLine("PASS: all purchase SQL integration checks passed on a disposable SQL Server instance");
+
+    // Split-paid expenses: sql/20 + sql/21 must parse and run, and ExpenseRepository must write the
+    // expense, one payment row per account, one ledger row per account and the audit row together.
+    var expenseCategoryId = Convert.ToInt32(Scalar<object>(admin, @"
+INSERT dbo.ExpenseCategories(Name,Description) OUTPUT inserted.Id VALUES(N'اختبار المصروفات',N'');"));
+    var expenseAccountA = Scalar<int>(admin, "SELECT TOP (1) Id FROM dbo.FinancialAccounts ORDER BY Id;");
+    var expenseAccountB = Scalar<int>(admin,
+        $"SELECT TOP (1) Id FROM dbo.FinancialAccounts WHERE Id <> {expenseAccountA} ORDER BY Id;");
+    Execute(admin, $"UPDATE dbo.FinancialAccounts SET CurrentBalance = 1000 WHERE Id IN ({expenseAccountA},{expenseAccountB});");
+
+    var expenseRepository = new ExpenseRepository(settings, userId);
+    Check(expenseRepository.LoadCategories().Any(category => category.Id == expenseCategoryId),
+        "Expense sections load from dbo.ExpenseCategories for the picker");
+    var savedExpense = expenseRepository.Save(new SaveExpenseRequest(
+        expenseCategoryId, DateTime.Today, 300m, "اختبار وسيلتي دفع",
+        [new ExpensePaymentRequest(expenseAccountA, 120m), new ExpensePaymentRequest(expenseAccountB, 180m)]));
+    Check(savedExpense.ExpenseNumber == $"EXP-{DateTime.Now.Year}-0001",
+        "A split expense gets a real sequence number");
+    Check(savedExpense.Payments.Count == 2 && savedExpense.Payments.Sum(payment => payment.Amount) == 300m,
+        "Every payment line is returned with its own amount");
+    Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.ExpensePayments WHERE ExpenseId={savedExpense.ExpenseId};") == 2,
+        "One dbo.ExpensePayments row per account");
+    Check(Scalar<decimal>(admin, $"SELECT CurrentBalance FROM dbo.FinancialAccounts WHERE Id={expenseAccountA};") == 880m
+        && Scalar<decimal>(admin, $"SELECT CurrentBalance FROM dbo.FinancialAccounts WHERE Id={expenseAccountB};") == 820m,
+        "Each account is debited by its own share");
+    Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.FinancialTransactions WHERE SourceEntityType=N'Expense' AND SourceEntityId={savedExpense.ExpenseId} AND IsIncoming=0;") == 2,
+        "One outgoing ledger row per payment account");
+    Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.AuditLog WHERE Module=N'Expenses' AND ActionName=N'CreateExpense' AND EntityId=CONVERT(NVARCHAR(100),{savedExpense.ExpenseId});") == 1,
+        "The split expense writes one audit row");
+    Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Expenses') AND name=N'FinancialAccountId';") == 0,
+        "dbo.Expenses no longer keeps a single account column");
+
+    var rejectedSplit = false;
+    try
+    {
+        expenseRepository.Save(new SaveExpenseRequest(expenseCategoryId, DateTime.Today, 300m, "",
+            [new ExpensePaymentRequest(expenseAccountA, 250m)]));
+    }
+    catch (ExpenseDataException ex)
+    {
+        rejectedSplit = ex.Message.Contains("لا يساوي مبلغ المصروف", StringComparison.Ordinal);
+    }
+    Check(rejectedSplit, "A split that does not add up to the total is refused");
+
+    var rejectedDuplicate = false;
+    try
+    {
+        expenseRepository.Save(new SaveExpenseRequest(expenseCategoryId, DateTime.Today, 300m, "",
+            [new ExpensePaymentRequest(expenseAccountA, 150m), new ExpensePaymentRequest(expenseAccountA, 150m)]));
+    }
+    catch (ExpenseDataException ex)
+    {
+        rejectedDuplicate = ex.Message.Contains("أكثر من وسيلة دفع", StringComparison.Ordinal);
+    }
+    Check(rejectedDuplicate, "The same account cannot be used twice in one expense");
+
+    // Re-running the migration script must stay a no-op and keep the migrated/paid rows intact.
+    RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", "21_EnableExpenseSplitPayments.sql"));
+    Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.ExpensePayments WHERE ExpenseId={savedExpense.ExpenseId};") == 2,
+        "sql/21 is idempotent and keeps existing payment rows");
+
+    // Rebuild the pre-split schema on purpose (one account column + old index), then let sql/21
+    // migrate it, so the upgrade path customers run is exercised and not only parsed.
+    Execute(admin, @"
+DELETE dbo.ExpensePayments;
+DELETE dbo.FinancialTransactions WHERE SourceEntityType = N'Expense';
+DELETE dbo.AuditLog WHERE Module = N'Expenses';
+DELETE dbo.Expenses;
+DROP TABLE dbo.ExpensePayments;
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Expenses') AND name = N'IX_Expenses_Date')
+    DROP INDEX IX_Expenses_Date ON dbo.Expenses;
+ALTER TABLE dbo.Expenses ADD FinancialAccountId INT NOT NULL;
+ALTER TABLE dbo.Expenses ADD CONSTRAINT FK_Expenses_Accounts FOREIGN KEY (FinancialAccountId) REFERENCES dbo.FinancialAccounts(Id);
+CREATE INDEX IX_Expenses_Date ON dbo.Expenses(ExpenseDate DESC, Id DESC) INCLUDE (ExpenseNumber, ExpenseCategoryId, FinancialAccountId, Amount);");
+    Execute(admin, @"
+INSERT dbo.Expenses(ExpenseNumber,ExpenseCategoryId,FinancialAccountId,ExpenseDate,Amount,Description,ActorUserId)
+VALUES(N'EXP-OLD-0001', @Category, @Account, CONVERT(date, GETDATE()), 125, N'مصروف قديم بحساب واحد', @Actor);",
+        ("@Category", expenseCategoryId), ("@Account", expenseAccountA), ("@Actor", userId));
+    RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", "21_EnableExpenseSplitPayments.sql"));
+    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.Expenses') AND name=N'FinancialAccountId';") == 0,
+        "sql/21 drops the legacy single-account column");
+    Check(Scalar<int>(admin, $@"
+SELECT COUNT(*) FROM dbo.ExpensePayments p
+JOIN dbo.Expenses e ON e.Id = p.ExpenseId
+WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccountA} AND p.Amount = 125;") == 1,
+        "sql/21 copies each legacy expense account into dbo.ExpensePayments before dropping it");
+    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Expenses') AND name=N'IX_Expenses_Date';") == 1,
+        "sql/21 rebuilds IX_Expenses_Date without the dropped column");
+    Console.WriteLine("PASS: sql/21 migrates a legacy single-account expense without losing its account or amount");
+    Console.WriteLine("PASS: split expenses write dbo.Expenses, dbo.ExpensePayments, ledger rows and audit on LocalDB");
+    Console.WriteLine("PASS: all purchase and expense SQL integration checks passed on a disposable SQL Server instance");
 }
 catch (Exception ex)
 {
