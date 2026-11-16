@@ -258,6 +258,8 @@ assert 'IsReportsSelected' not in main_viewmodel, \
 assert 'ReportsView' not in main_xaml, 'the reports category must not host a view yet'
 assert 'IsExpenseCategoriesSelected' in main_viewmodel and 'views:ExpenseCategoriesView' in main_xaml, \
     'the expense categories item is implemented and must host its real screen'
+assert 'IsExpenseInvoicesSelected' in main_viewmodel and 'views:ExpenseInvoicesView' in main_xaml, \
+    'the expense invoices item is implemented and must host its real register screen'
 assert 'docs/REPORTS_EXPENSES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
     'README must document the menus-only categories'
 assert 'ToggleSidebarCommand' in main_viewmodel and 'IsSidebarCollapsed' in main_viewmodel
@@ -1767,13 +1769,16 @@ assert 'InitializeComponent();' in (root / 'src/ProjectZ/Views/AddExpenseView.xa
 assert 'AddExpense = new AddExpenseViewModel(expenseRepository, financialRepository);' in main_viewmodel
 assert 'public AddExpenseViewModel AddExpense { get; }' in main_viewmodel
 assert 'IsAddExpenseSelected => ReferenceEquals(selectedItem, expensesCategory.Items[0])' in main_viewmodel
-assert '|| IsUsersSelected || IsAddExpenseSelected || IsExpenseCategoriesSelected' in main_viewmodel
+assert '|| IsUsersSelected || IsAddExpenseSelected || IsExpenseInvoicesSelected || IsExpenseCategoriesSelected' in main_viewmodel
 assert 'Changed(nameof(IsAddExpenseSelected));' in main_viewmodel
 assert 'ReferenceEquals(item, expensesCategory.Items[0])' in main_viewmodel, \
     'opening the add-expense screen must reload the sections and the balances'
-assert 'AddExpense.ExpenseSaved = () => MyAccounts.NotifyExternalDataChanged();' in main_viewmodel, \
+assert 'AddExpense.ExpenseSaved = () =>' in main_viewmodel and 'MyAccounts.NotifyExternalDataChanged();' in main_viewmodel, \
     'a saved expense must refresh the accounts screen'
-assert 'ExpenseCategories.CategoriesChanged = () => AddExpense.NotifyExternalDataChanged();' in main_viewmodel, \
+assert 'ExpenseInvoices.NotifyExternalDataChanged();' in main_viewmodel, \
+    'a saved expense must append its row to the register immediately'
+assert 'ExpenseCategories.CategoriesChanged = () =>' in main_viewmodel \
+    and 'AddExpense.NotifyExternalDataChanged();' in main_viewmodel, \
     'the sections screen must refresh the add-expense pickers'
 assert 'IsAddExpenseSelected' in main_xaml and 'views:AddExpenseView' in main_xaml
 assert 'DataContext="{Binding AddExpense}"' in main_xaml
@@ -1790,6 +1795,75 @@ assert 'docs/EXPENSES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
 assert '| 40 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
     'ACCEPTANCE must gain a row for the add-expense screen'
 print('PASS: add-expense screen splits the amount across accounts with per-account ledger rows, document number and audit row')
+
+# --- Expense invoices screen (read-only register over dbo.Expenses + dbo.ExpensePayments) -----
+for query in ('public List<ExpenseInvoiceRecord> LoadInvoices(DateTime? fromDate = null, DateTime? toDate = null)',
+              'FROM dbo.Expenses AS e', 'JOIN dbo.ExpenseCategories AS c ON c.Id = e.ExpenseCategoryId',
+              'JOIN dbo.Users AS u ON u.Id = e.ActorUserId',
+              'LEFT JOIN dbo.ExpensePayments AS p ON p.ExpenseId = e.Id',
+              'LEFT JOIN dbo.FinancialAccounts AS a ON a.Id = p.FinancialAccountId',
+              'ORDER BY e.ExpenseDate DESC, e.Id DESC, p.Id',
+              '(@FromDate IS NULL OR e.ExpenseDate >= @FromDate)'):
+    assert query in expense_entry_repository, f'the expense register query is missing: {query}'
+assert 'Payments = item.Payments' in expense_entry_repository, \
+    'the register must return every payment line with its expense'
+expense_invoices_vm_path = root / 'src/ProjectZ/ViewModels/ExpenseInvoicesViewModel.cs'
+assert expense_invoices_vm_path.is_file(), 'missing src/ProjectZ/ViewModels/ExpenseInvoicesViewModel.cs'
+expense_invoices_vm = expense_invoices_vm_path.read_text(encoding='utf-8')
+for token in ('repository.LoadInvoices()', 'ExpenseDesignSeedData.CreateSampleExpenseInvoices()',
+              'SelectDatePresetCommand', 'ClearFiltersCommand', 'OpenDetailsCommand', 'CreateCsvLines',
+              'OpenDetailsDialogRequested', 'OpenAddExpenseRequested', 'SelectedAccountFilter',
+              'SelectedPaymentFilter', 'SelectedUserFilter', 'SelectedSort', 'MinimumAmountText',
+              'MaximumAmountText', 'ShownTotalDisplay', 'ShownAverageDisplay', 'SplitCountDisplay',
+              'TopCategoryDisplay', 'EmptyStateText', 'NotifyExternalDataChanged'):
+    assert token in expense_invoices_vm, f'expense invoices view model is missing: {token}'
+for forbidden in ('INSERT INTO', 'UPDATE dbo.', 'DELETE FROM', 'new SqlConnection', 'SaveExpenseRequest'):
+    assert forbidden not in expense_invoices_vm, \
+        f'the expense register is a review screen and must not write: {forbidden}'
+expense_invoices_view_path = root / 'src/ProjectZ/Views/ExpenseInvoicesView.xaml'
+assert expense_invoices_view_path.is_file(), 'missing src/ProjectZ/Views/ExpenseInvoicesView.xaml'
+expense_invoices_view = expense_invoices_view_path.read_text(encoding='utf-8')
+for token in ('FilteredInvoices', 'ShownTotalDisplay', 'ShownAverageDisplay', 'SplitCountDisplay',
+              'TopCategoryDisplay', 'PaymentBreakdown', 'OpenDetailsCommand', 'ClearFiltersCommand',
+              'SelectedCategoryFilter', 'SelectedAccountFilter', 'SelectedUserFilter',
+              'SelectedPaymentFilter', 'EmptyStateText'):
+    assert token in expense_invoices_view, f'expense invoices UI is missing expected token: {token}'
+assert expense_invoices_view.count('{DynamicResource Theme.') >= 25, \
+    'every colour must follow the active theme'
+assert 'FlowDirection="LeftToRight"' in expense_invoices_view
+expense_invoices_code_behind = (root / 'src/ProjectZ/Views/ExpenseInvoicesView.xaml.cs').read_text(encoding='utf-8')
+for token in ('SaveFileDialog', 'PrintDialog', 'new UTF8Encoding(true)', 'ExpenseInvoiceDetailsWindow',
+              'OpenDetailsDialogRequested'):
+    assert token in expense_invoices_code_behind, f'expense invoices code-behind is missing: {token}'
+details_window_path = root / 'src/ProjectZ/Views/ExpenseInvoiceDetailsWindow.xaml'
+assert details_window_path.is_file(), 'missing src/ProjectZ/Views/ExpenseInvoiceDetailsWindow.xaml'
+assert 'Payments' in details_window_path.read_text(encoding='utf-8')
+assert (root / 'src/ProjectZ/Views/ExpenseInvoiceDetailsWindow.xaml.cs').is_file()
+assert 'ExpenseInvoices = new ExpenseInvoicesViewModel(expenseRepository);' in main_viewmodel
+assert 'IsExpenseInvoicesSelected => ReferenceEquals(selectedItem, expensesCategory.Items[1])' in main_viewmodel
+assert 'ReferenceEquals(item, expensesCategory.Items[1])' in main_viewmodel, \
+    'opening «فواتير المصروفات» must reload the register from SQL'
+assert 'DataContext="{Binding ExpenseInvoices}"' in main_xaml
+assert 'Changed(nameof(IsExpenseInvoicesSelected));' in main_viewmodel
+wpf_smoke_test = (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').read_text(encoding='utf-8')
+for token in ('ExpenseInvoicesViewModel', 'ExpenseInvoicesView', 'IsExpenseInvoicesSelected',
+              'OpenDetailsDialogRequested', 'The expense-invoices screen starts with the five sample expenses'):
+    assert token in wpf_smoke_test, f'the WPF smoke test does not cover the register: {token}'
+for token in ('ExpenseRepository.LoadInvoices returns the saved expense once',
+              'The register date filter is applied inside SQL Server',
+              'The register lists a migrated legacy expense with its copied account share'):
+    assert token in purchase_sql_test, f'the LocalDB harness does not cover the register: {token}'
+expense_invoices_doc_path = root / 'docs/EXPENSE_INVOICES.md'
+assert expense_invoices_doc_path.is_file(), 'missing docs/EXPENSE_INVOICES.md'
+expense_invoices_doc = expense_invoices_doc_path.read_text(encoding='utf-8')
+for token in ('dbo.Expenses', 'dbo.ExpensePayments', 'LoadInvoices', 'EXP-YYYY-0000', 'CSV',
+              'خطوات القبول'):
+    assert token in expense_invoices_doc, f'docs/EXPENSE_INVOICES.md is missing: {token}'
+assert 'docs/EXPENSE_INVOICES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
+    'README must link the expense invoices documentation'
+assert '| 41 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
+    'ACCEPTANCE must gain a row for the expense invoices screen'
+print('PASS: expense invoices screen reads dbo.Expenses + dbo.ExpensePayments with full filters, totals, CSV, print and details')
 
 # --- Users screen (login accounts in dbo.Users + sql/14) -------------------------------------
 users_repository_path = root / 'src/ProjectZ/Data/UserRepository.cs'

@@ -33,6 +33,25 @@ public sealed record SavedExpense(
     decimal Amount,
     IReadOnlyList<SavedExpensePayment> Payments);
 
+/// <summary>One stored payment line of an expense: the account it was taken from and its share.</summary>
+public sealed record ExpenseInvoicePaymentRecord(int FinancialAccountId, string AccountAlias, decimal Amount);
+
+/// <summary>
+/// One stored expense exactly as «فواتير المصروفات» lists it: number, date, section, amount,
+/// description, the user who recorded it and every account that paid a share of it.
+/// </summary>
+public sealed record ExpenseInvoiceRecord(
+    int Id,
+    string ExpenseNumber,
+    DateTime ExpenseDate,
+    decimal Amount,
+    string Description,
+    int ExpenseCategoryId,
+    string CategoryName,
+    string ActorUserName,
+    DateTime CreatedAtUtc,
+    IReadOnlyList<ExpenseInvoicePaymentRecord> Payments);
+
 /// <summary>
 /// SQL Server persistence for «اضافة مصروف»: writes the expense row, its split payments,
 /// one deduction and one ledger movement per used account, and the audit row — all inside a
@@ -77,6 +96,75 @@ ORDER BY Name;";
         }
 
         return rows;
+    }
+
+    /// <summary>
+    /// Loads every stored expense with its section, the user who recorded it and all of its payment
+    /// lines, newest first. The two optional dates filter on dbo.Expenses.ExpenseDate inside SQL;
+    /// the rest of the screen filters (section, account, amount, text) run over this snapshot.
+    /// </summary>
+    public List<ExpenseInvoiceRecord> LoadInvoices(DateTime? fromDate = null, DateTime? toDate = null)
+    {
+        var found = new List<(ExpenseInvoiceRecord Invoice, List<ExpenseInvoicePaymentRecord> Payments)>();
+        var byId = new Dictionary<int, int>();
+
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandTimeout = 60;
+            command.CommandText = @"
+SELECT e.Id, e.ExpenseNumber, e.ExpenseDate, e.Amount, e.Description,
+       e.ExpenseCategoryId, c.Name, u.Username, e.CreatedAtUtc,
+       p.FinancialAccountId, a.Alias, p.Amount
+FROM dbo.Expenses AS e
+JOIN dbo.ExpenseCategories AS c ON c.Id = e.ExpenseCategoryId
+JOIN dbo.Users AS u ON u.Id = e.ActorUserId
+LEFT JOIN dbo.ExpensePayments AS p ON p.ExpenseId = e.Id
+LEFT JOIN dbo.FinancialAccounts AS a ON a.Id = p.FinancialAccountId
+WHERE (@FromDate IS NULL OR e.ExpenseDate >= @FromDate)
+  AND (@ToDate IS NULL OR e.ExpenseDate <= @ToDate)
+ORDER BY e.ExpenseDate DESC, e.Id DESC, p.Id;";
+            AddDate(command, "@FromDate", fromDate);
+            AddDate(command, "@ToDate", toDate);
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var id = reader.GetInt32(0);
+                if (!byId.TryGetValue(id, out var index))
+                {
+                    index = found.Count;
+                    byId.Add(id, index);
+                    found.Add((new ExpenseInvoiceRecord(
+                        id,
+                        reader.GetString(1),
+                        reader.GetDateTime(2),
+                        reader.GetDecimal(3),
+                        reader.GetString(4),
+                        reader.GetInt32(5),
+                        reader.GetString(6),
+                        reader.GetString(7),
+                        reader.GetDateTime(8),
+                        Array.Empty<ExpenseInvoicePaymentRecord>()), new List<ExpenseInvoicePaymentRecord>()));
+                }
+
+                // A LEFT JOIN keeps an expense visible even if it somehow lost its payment rows.
+                if (!reader.IsDBNull(9))
+                {
+                    found[index].Payments.Add(new ExpenseInvoicePaymentRecord(
+                        reader.GetInt32(9),
+                        reader.IsDBNull(10) ? "حساب محذوف" : reader.GetString(10),
+                        reader.GetDecimal(11)));
+                }
+            }
+        }
+        catch (Exception ex) when (ex is SqlException or (InvalidOperationException and not ExpenseDataException))
+        {
+            throw Describe(ex, "تعذر تحميل فواتير المصروفات من قاعدة البيانات.");
+        }
+
+        return found.Select(item => item.Invoice with { Payments = item.Payments }).ToList();
     }
 
     // ------------------------------------------------------------- write side
@@ -295,6 +383,12 @@ VALUES(@Actor,N'Expenses',N'CreateExpense',N'Expense',@EntityId,JSON_MODIFY(N'{}
             $"تسجيل مصروف {expenseNumber} بقيمة {amount:0.00} — {categoryName} — وسائل الدفع: {split}",
             1000);
         command.ExecuteNonQuery();
+    }
+
+    private static void AddDate(SqlCommand command, string name, DateTime? value)
+    {
+        command.Parameters.Add(name, SqlDbType.Date).Value =
+            value is null ? DBNull.Value : value.Value.Date;
     }
 
     private static void AddMoney(SqlCommand command, string name, decimal value)
