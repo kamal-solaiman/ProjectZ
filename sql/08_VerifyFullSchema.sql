@@ -16,7 +16,7 @@ INSERT @ExpectedTables(name) VALUES
 (N'ReturnExchanges'), (N'ReturnExchangeLines'), (N'ReturnExchangeUnits'),
 (N'MaintenanceOrders'), (N'MaintenanceOrderParts'), (N'MaintenancePayments'),
 (N'MaintenanceActivities'), (N'MaintenanceSpareParts'), (N'MaintenanceSparePartMovements'),
-(N'ExpenseCategories'), (N'Expenses'), (N'AuditLog');
+(N'ExpenseCategories'), (N'Expenses'), (N'ExpensePayments'), (N'AuditLog');
 
 SELECT e.name AS MissingTable
 FROM @ExpectedTables AS e

@@ -43,15 +43,15 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-# 43 CREATE TABLE statements: 06 creates the 38 business tables + Users, 01 creates Users,
-# and 16/19/20 repeat the movement, expense-section and expense tables idempotently so an
-# existing database can be upgraded without re-running 06.
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 43
+# 46 CREATE TABLE statements: 06 creates the 39 business tables + Users, 01 creates Users,
+# and 16/19/20/21 repeat the movement, expense-section, expense and expense-payment tables
+# idempotently so an existing database can be upgraded without re-running 06.
+assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 46
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
 assert 'CREATE DATABASE [ProjectZ]' in sql
 assert '[ProjectZClient]' in (root / 'sql/04_SetupLanSqlAuth.sql').read_text(encoding='utf-8')
 full_schema = (root / 'sql/06_CreateFullSchema.sql').read_text(encoding='utf-8')
-assert len(re.findall(r'CREATE\s+TABLE\s+', full_schema, re.I)) == 39
+assert len(re.findall(r'CREATE\s+TABLE\s+', full_schema, re.I)) == 40
 reporting_views = (root / 'sql/07_CreateReportingViews.sql').read_text(encoding='utf-8')
 expected_tables = {
     'Users', 'Roles', 'Permissions', 'UserRoles', 'RolePermissions', 'SystemSettings', 'DocumentSequences',
@@ -61,7 +61,8 @@ expected_tables = {
     'PurchaseInvoiceActivities', 'SalesInvoices', 'SalesInvoiceLines', 'SalesInvoiceLineUnits', 'SalesPayments',
     'SalesInvoiceActivities', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits',
     'MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments', 'MaintenanceActivities',
-    'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'ExpenseCategories', 'Expenses', 'AuditLog'
+    'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'ExpenseCategories', 'Expenses',
+    'ExpensePayments', 'AuditLog'
 }
 created_tables = set(re.findall(r'CREATE\s+TABLE\s+dbo\.([A-Za-z0-9_]+)', sql, re.I))
 assert created_tables == expected_tables, f'schema table mismatch: missing={expected_tables-created_tables}, extra={created_tables-expected_tables}'
@@ -1629,22 +1630,44 @@ assert 'CREATE TABLE dbo.Expenses' in full_schema, 'sql/06 must create dbo.Expen
 expenses_table = full_schema.split('CREATE TABLE dbo.Expenses', 1)[1].split('/*', 1)[0]
 assert 'CONSTRAINT UQ_Expenses_Number UNIQUE' in expenses_table
 assert 'CONSTRAINT FK_Expenses_Categories FOREIGN KEY REFERENCES dbo.ExpenseCategories(Id)' in expenses_table
-assert 'CONSTRAINT FK_Expenses_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id)' in expenses_table
 assert 'CONSTRAINT CK_Expenses_Amount CHECK (Amount > 0)' in expenses_table
 assert 'ExpenseNumber NVARCHAR(50)' in expenses_table and 'ExpenseDate DATE' in expenses_table
+assert 'FinancialAccountId' not in expenses_table, 'the account moved to dbo.ExpensePayments'
+expense_payments_table = full_schema.split('CREATE TABLE dbo.ExpensePayments', 1)[1].split('/*', 1)[0]
+assert 'CONSTRAINT FK_ExpensePayments_Expenses FOREIGN KEY REFERENCES dbo.Expenses(Id)' in expense_payments_table
+assert 'CONSTRAINT FK_ExpensePayments_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id)' in expense_payments_table
+assert 'CONSTRAINT CK_ExpensePayments_Amount CHECK (Amount > 0)' in expense_payments_table
+assert 'CONSTRAINT UQ_ExpensePayments_Expense_Account UNIQUE (ExpenseId, FinancialAccountId)' in expense_payments_table
 assert 'IX_Expenses_Date' in full_schema and 'IX_Expenses_Category_Date' in full_schema
-assert "N'Expenses'" in (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8'), \
-    'the schema verification script must expect dbo.Expenses'
+assert 'IX_ExpensePayments_Account' in full_schema
+schema_verification_text = (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8')
+assert "N'Expenses'" in schema_verification_text and "N'ExpensePayments'" in schema_verification_text, \
+    'the schema verification script must expect dbo.Expenses and dbo.ExpensePayments'
 enable_expenses_sql_path = root / 'sql/20_EnableExpenses.sql'
 assert enable_expenses_sql_path.is_file(), 'missing sql/20_EnableExpenses.sql'
 enable_expenses_sql = enable_expenses_sql_path.read_text(encoding='utf-8')
 assert 'CREATE TABLE dbo.Expenses' in enable_expenses_sql
 assert "IF OBJECT_ID(N'dbo.Expenses', N'U') IS NULL" in enable_expenses_sql
+assert 'CREATE TABLE dbo.ExpensePayments' in enable_expenses_sql
 assert 'GRANT SELECT, INSERT ON OBJECT::dbo.Expenses TO [ProjectZClient]' in enable_expenses_sql
+assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ExpensePayments TO [ProjectZClient]' in enable_expenses_sql
 assert 'GRANT SELECT, UPDATE ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient]' in enable_expenses_sql
 assert 'GRANT INSERT ON OBJECT::dbo.AuditLog TO [ProjectZClient]' in enable_expenses_sql
 assert 'THROW 50070' in enable_expenses_sql and 'THROW 50074' in enable_expenses_sql
-assert 'IX_Expenses_Date' in enable_expenses_sql and 'IX_Expenses_Category_Date' in enable_expenses_sql
+assert 'IX_Expenses_Date' in enable_expenses_sql and 'IX_ExpensePayments_Account' in enable_expenses_sql
+
+# Split-payment upgrade for databases that already ran the first version of sql/20.
+enable_split_sql_path = root / 'sql/21_EnableExpenseSplitPayments.sql'
+assert enable_split_sql_path.is_file(), 'missing sql/21_EnableExpenseSplitPayments.sql'
+enable_split_sql = enable_split_sql_path.read_text(encoding='utf-8')
+assert 'CREATE TABLE dbo.ExpensePayments' in enable_split_sql
+assert "IF COL_LENGTH(N'dbo.Expenses', N'FinancialAccountId') IS NOT NULL" in enable_split_sql
+assert 'INSERT dbo.ExpensePayments(ExpenseId, FinancialAccountId, Amount)' in enable_split_sql, \
+    'existing single-account expenses must be migrated before the column is dropped'
+assert 'ALTER TABLE dbo.Expenses DROP COLUMN FinancialAccountId;' in enable_split_sql
+assert 'DROP INDEX IX_Expenses_Date ON dbo.Expenses;' in enable_split_sql
+assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ExpensePayments TO [ProjectZClient]' in enable_split_sql
+assert 'THROW 50083' in enable_split_sql
 
 expense_entry_repository_path = root / 'src/ProjectZ/Data/ExpenseRepository.cs'
 assert expense_entry_repository_path.is_file(), 'missing src/ProjectZ/Data/ExpenseRepository.cs'
@@ -1652,12 +1675,17 @@ expense_entry_repository = expense_entry_repository_path.read_text(encoding='utf
 for operation in ('LoadCategories(', 'SavedExpense Save(', 'NextDocumentNumber('):
     assert operation in expense_entry_repository, f'missing expense SQL operation: {operation}'
 for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'transaction.Commit()', 'transaction.Rollback()',
-              'UPDLOCK, HOLDLOCK', 'dbo.Expenses', 'UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance - @Amount',
+              'UPDLOCK, HOLDLOCK', 'dbo.Expenses', 'dbo.ExpensePayments', 'ExpensePaymentRequest',
+              'UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance - @Amount',
               'INSERT dbo.FinancialTransactions', "N'Expense'", 'INSERT dbo.AuditLog', "N'CreateExpense'",
               'private const string ExpenseSequence = "Expense";', '"EXP"'):
     assert guard in expense_entry_repository, f'missing expense persistence guard: {guard}'
-assert 'sql/20_EnableExpenses.sql' in expense_entry_repository, 'a missing table must point at sql/20'
-assert 'amount > accountBalance' in expense_entry_repository, 'the selected account must cover the amount'
+assert 'sql/20_EnableExpenses.sql' in expense_entry_repository and 'sql/21_EnableExpenseSplitPayments.sql' in expense_entry_repository, \
+    'a missing table must point at sql/20 and sql/21'
+assert 'payment.Amount > balance' in expense_entry_repository, 'each payment line must fit its account balance'
+assert 'NormalizePayments(' in expense_entry_repository and 'IReadOnlyList<ExpensePaymentRequest>' in expense_entry_repository
+assert 'orderby' in expense_entry_repository.lower(), 'accounts must be locked in a deterministic order'
+assert 'لا يساوي مبلغ المصروف' in expense_entry_repository, 'the split must add up to the expense amount'
 assert 'date > DateTime.Today' in expense_entry_repository or 'expenseDate > DateTime.Today' in expense_entry_repository, \
     'a future expense date must be refused'
 assert 'SqlDbType.Decimal' in expense_entry_repository and 'Precision = 19' in expense_entry_repository
@@ -1668,20 +1696,31 @@ for wiring in ('repository.LoadCategories(', 'repository.Save(new SaveExpenseReq
                'financialRepository.LoadAccountsInto(', 'ExpenseDesignSeedData.CreateSampleExpenseCategories()',
                'FinanceDesignSeedData.CreateAccounts()', 'RefreshFromDatabase()', 'ExpenseSaved', 'IsDatabaseBacked'):
     assert wiring in expense_entry_vm, f'add-expense screen is not wired to SQL: {wiring}'
-for token in ('HasInsufficientBalance', 'InsufficientBalanceText', 'SelectedCategory', 'SelectedAccount',
+for token in ('HasInsufficientBalance', 'InsufficientBalanceText', 'SelectedCategory',
               'AmountText', 'DescriptionText', 'ExpenseDate', 'SaveCommand', 'ClearFormCommand', 'HasNoCategories',
-              'HasNoAccounts', 'LastSavedNumber', 'IsErrorStatus'):
+              'HasNoAccounts', 'LastSavedNumber', 'IsErrorStatus', 'ExpensePaymentLineViewModel',
+              'ObservableCollection<ExpensePaymentLineViewModel> Payments', 'AddPaymentCommand', 'RemovePayment(',
+              'HasAllocationGap', 'IsAllocationBalanced', 'AllocationMessage', 'PaymentsAllocated',
+              'PaymentMethodsSummary', 'SinglePaymentHint', 'MaxPayments'):
     assert token in expense_entry_vm, f'add-expense view model is missing: {token}'
+assert 'SyncSinglePayment();' in expense_entry_vm, 'a single payment line must carry the whole amount'
 assert 'PosFormatting.FormatCurrency' in expense_entry_vm
 assert 'FinancialAccountDesignItem' in expense_entry_vm
 
 expense_entry_view = (root / 'src/ProjectZ/Views/AddExpenseView.xaml').read_text(encoding='utf-8')
 for token in ('ItemsSource="{Binding Categories}"', 'SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"',
-              'ItemsSource="{Binding Accounts}"', 'SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"',
+              'ItemsSource="{Binding Payments}"', 'ItemsSource="{Binding Accounts}"',
+              'SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"',
               'Text="{Binding AmountText', 'Text="{Binding DescriptionText', 'SelectedDate="{Binding ExpenseDate',
-              'Command="{Binding SaveCommand}"', 'Command="{Binding ClearFormCommand}"', 'Command="{Binding RefreshCommand}"',
-              'StatusMessage', 'IsErrorStatus', 'HasInsufficientBalance', 'HasLastSaved', 'PosComboBoxStyle'):
+              'Command="{Binding SaveCommand}"', 'Command="{Binding AddPaymentCommand}"',
+              'Command="{Binding ClearFormCommand}"', 'Command="{Binding RefreshCommand}"',
+              'StatusMessage', 'IsErrorStatus', 'HasInsufficientBalance', 'HasLastSaved', 'PosComboBoxStyle',
+              'IsAllocationBalanced', 'HasAllocationGap', 'PaymentMethodsSummary', 'RemoveCommand'):
     assert token in expense_entry_view, f'add-expense UI is missing expected token: {token}'
+assert 'وسائل الدفع' in expense_entry_view and 'إضافة وسيلة دفع' in expense_entry_view, \
+    'the payment methods block must sit in the expense data card'
+assert expense_entry_view.index('وسائل الدفع') < expense_entry_view.index('تصنيف المصروف'), \
+    'payment methods render beside the expense category'
 assert expense_entry_view.count('{DynamicResource Theme.') >= 20, 'every colour must follow the active theme'
 assert '{StaticResource PosRtlTextStyle}' in expense_entry_view and 'FlowDirection="LeftToRight"' in expense_entry_view
 assert 'متصل بقاعدة البيانات' in expense_entry_view and 'وضع العرض التجريبي' in expense_entry_view
@@ -1713,7 +1752,7 @@ assert 'docs/EXPENSES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
     'README must link the add-expense documentation'
 assert '| 40 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
     'ACCEPTANCE must gain a row for the add-expense screen'
-print('PASS: add-expense screen writes dbo.Expenses with an account deduction, ledger movement, document number and audit row')
+print('PASS: add-expense screen splits the amount across accounts with per-account ledger rows, document number and audit row')
 
 # --- Users screen (login accounts in dbo.Users + sql/14) -------------------------------------
 users_repository_path = root / 'src/ProjectZ/Data/UserRepository.cs'
