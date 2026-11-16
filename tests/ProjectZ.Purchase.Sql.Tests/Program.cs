@@ -376,10 +376,11 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     // «تعيين افتراضية» and «تفعيل / إيقاف» only reordered/mutated the local list before, so both
     // choices were lost on the next reload or restart. They must be written to dbo.FinancialAccounts,
     // per AccountKind (UX_FinancialAccounts_OneDefaultPerKind), without touching other kinds' defaults.
+    // FinancialAccountKind: Cash = 0, VodafoneCash = 1, InstaPay = 2.
     var firstVodafoneId = Scalar<int>(admin,
-        "SELECT TOP 1 Id FROM dbo.FinancialAccounts WHERE AccountKind = 2 AND IsActive = 1 ORDER BY Id;");
+        "SELECT TOP 1 Id FROM dbo.FinancialAccounts WHERE AccountKind = 1 AND IsActive = 1 ORDER BY Id;");
     var otherKindDefaults = Scalar<int>(admin,
-        "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 2 AND IsDefault = 1;");
+        "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 1 AND IsDefault = 1;");
     var extraWallet = financialRepository.SaveAccount(null, FinancialAccountKind.VodafoneCash,
         "خط إضافي للاختبار", "01099999999", 0m, 0m, 0m, 0m, 0m, "", false);
     Check(extraWallet.AccountId > 0
@@ -389,9 +390,9 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     financialRepository.SetDefaultAccount(extraWallet.AccountId, FinancialAccountKind.VodafoneCash);
     Check(Scalar<int>(admin, $"SELECT IsDefault FROM dbo.FinancialAccounts WHERE Id={extraWallet.AccountId};") == 1,
         "«تعيين افتراضية» writes IsDefault = 1 for the chosen line in dbo.FinancialAccounts");
-    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind = 2 AND IsDefault = 1;") == 1,
+    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind = 1 AND IsDefault = 1;") == 1,
         "Only one Vodafone line stays default after the assignment");
-    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 2 AND IsDefault = 1;") == otherKindDefaults,
+    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 1 AND IsDefault = 1;") == otherKindDefaults,
         "Making a Vodafone line default keeps the cash and InstaPay defaults intact");
     financialRepository.LoadAccountsInto(liveAccounts);
     Check(liveAccounts.Single(account => account.Id == extraWallet.AccountId).IsDefault,
@@ -399,7 +400,7 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
 
     financialRepository.SaveAccount(extraWallet.AccountId, FinancialAccountKind.VodafoneCash,
         "خط إضافي للاختبار", "01099999999", 0m, 0m, 0m, 0m, 0m, "", true);
-    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 2 AND IsDefault = 1;") == otherKindDefaults,
+    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 1 AND IsDefault = 1;") == otherKindDefaults,
         "Editing the default line from the editor still leaves the other kinds' defaults alone");
 
     financialRepository.SetAccountActive(extraWallet.AccountId, false);
