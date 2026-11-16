@@ -62,8 +62,13 @@ BEGIN
         JOIN sys.foreign_key_columns AS fkc ON fkc.constraint_object_id = fk.object_id
         WHERE fk.parent_object_id = OBJECT_ID(N'dbo.Expenses')
           AND COL_NAME(fkc.parent_object_id, fkc.parent_column_id) = N'FinancialAccountId';
+        -- EXEC() accepts variables and literals, not function calls, so the dynamic statement is
+        -- built in a variable first; a function call inside EXEC(...) is a syntax error (Msg 102).
         IF @fk IS NOT NULL
-            EXEC(N'ALTER TABLE dbo.Expenses DROP CONSTRAINT ' + QUOTENAME(@fk));
+        BEGIN
+            DECLARE @drop_fk NVARCHAR(400) = N'ALTER TABLE dbo.Expenses DROP CONSTRAINT ' + QUOTENAME(@fk);
+            EXEC sp_executesql @drop_fk;
+        END
 
         ALTER TABLE dbo.Expenses DROP COLUMN FinancialAccountId;
 
@@ -100,7 +105,9 @@ GO
 
 IF COL_LENGTH(N'dbo.Expenses', N'FinancialAccountId') IS NOT NULL
     THROW 50083, N'dbo.Expenses.FinancialAccountId still exists. Check the migration output and rerun this script.', 1;
-GO
-
-PRINT N'SUCCESS: expenses now support split payments through dbo.ExpensePayments; existing accounts were migrated.';
+ELSE IF EXISTS (SELECT 1 FROM dbo.Expenses AS e
+                WHERE NOT EXISTS (SELECT 1 FROM dbo.ExpensePayments AS p WHERE p.ExpenseId = e.Id))
+    THROW 50084, N'Some expenses have no payment row. Do not use the screen until every expense has its payment.', 1;
+ELSE
+    PRINT N'SUCCESS: expenses now support split payments through dbo.ExpensePayments; existing accounts were migrated.';
 GO

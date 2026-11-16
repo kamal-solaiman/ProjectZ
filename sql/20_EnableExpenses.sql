@@ -82,7 +82,6 @@ GO
 
 IF OBJECT_ID(N'dbo.Expenses', N'U') IS NULL OR OBJECT_ID(N'dbo.ExpensePayments', N'U') IS NULL
     THROW 50074, N'dbo.Expenses or dbo.ExpensePayments was not created. Check the database and rerun this script.', 1;
-GO
-
-PRINT N'SUCCESS: ProjectZClient can now record split-paid expenses and deduct every used account.';
+ELSE
+    PRINT N'SUCCESS: ProjectZClient can now record split-paid expenses and deduct every used account.';
 GO

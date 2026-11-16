@@ -1668,6 +1668,29 @@ assert 'ALTER TABLE dbo.Expenses DROP COLUMN FinancialAccountId;' in enable_spli
 assert 'DROP INDEX IX_Expenses_Date ON dbo.Expenses;' in enable_split_sql
 assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ExpensePayments TO [ProjectZClient]' in enable_split_sql
 assert 'THROW 50083' in enable_split_sql
+# EXEC() accepts variables and literals only; a function call inside EXEC(...) is a parse error (Msg 102).
+assert 'EXEC sp_executesql @drop_fk;' in enable_split_sql
+assert "DECLARE @drop_fk NVARCHAR(400) = N'ALTER TABLE dbo.Expenses DROP CONSTRAINT ' + QUOTENAME(@fk);" in enable_split_sql
+assert "EXEC(N'ALTER TABLE dbo.Expenses DROP CONSTRAINT '" not in enable_split_sql
+assert 'THROW 50084' in enable_split_sql, 'every expense must keep a payment row after the migration'
+
+# A failed verification must never be followed by a success message in a later batch.
+verify_then_success = [
+    (enable_expenses_sql, 'SUCCESS: ProjectZClient can now record split-paid'),
+    (enable_split_sql, 'SUCCESS: expenses now support split payments'),
+    ((root / 'sql/19_EnableExpenseCategories.sql').read_text(encoding='utf-8'),
+     'SUCCESS: ProjectZClient can now load, add, rename'),
+]
+for script_text, success in verify_then_success:
+    assert f"ELSE\n    PRINT N'{success}" in script_text, \
+        'a verification failure must print the error only, never SUCCESS'
+
+# The disposable LocalDB harness runs the expense scripts and the split-payment repository,
+# so a broken batch or grant fails CI before it reaches a customer machine.
+purchase_sql_test = (root / 'tests/ProjectZ.Purchase.Sql.Tests/Program.cs').read_text(encoding='utf-8')
+for token in ('19_EnableExpenseCategories.sql', '20_EnableExpenses.sql', '21_EnableExpenseSplitPayments.sql',
+              'ExpenseRepository', 'ExpensePaymentRequest', 'dbo.ExpensePayments'):
+    assert token in purchase_sql_test, f'the LocalDB harness does not cover the expense scripts: {token}'
 
 expense_entry_repository_path = root / 'src/ProjectZ/Data/ExpenseRepository.cs'
 assert expense_entry_repository_path.is_file(), 'missing src/ProjectZ/Data/ExpenseRepository.cs'
