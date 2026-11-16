@@ -48,6 +48,7 @@ public sealed class MainViewModel : ObservableObject
     public SuppliersViewModel Suppliers { get; }
     public UsersViewModel Users { get; }
     public ExpenseCategoriesViewModel ExpenseCategories { get; }
+    public AddExpenseViewModel AddExpense { get; }
     public GeneralSettingsViewModel GeneralSettings { get; }
     public AppearanceViewModel Appearance { get; }
     public BackupViewModel Backup { get; }
@@ -73,6 +74,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsCustomersSelected => ReferenceEquals(selectedItem, customersCategory.Items[0]);
     public bool IsSuppliersSelected => ReferenceEquals(selectedItem, customersCategory.Items[1]);
     public bool IsUsersSelected => ReferenceEquals(selectedItem, usersCategory.Items[0]);
+    public bool IsAddExpenseSelected => ReferenceEquals(selectedItem, expensesCategory.Items[0]);
     public bool IsExpenseCategoriesSelected => ReferenceEquals(selectedItem, expensesCategory.Items[2]);
     public bool IsGeneralSettingsSelected => ReferenceEquals(selectedItem, settingsCategory.Items[0]);
     public bool IsAppearanceSelected => ReferenceEquals(selectedItem, settingsCategory.Items[1]);
@@ -88,7 +90,8 @@ public sealed class MainViewModel : ObservableObject
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
         || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected
-        || IsUsersSelected || IsExpenseCategoriesSelected || IsGeneralSettingsSelected || IsAppearanceSelected
+        || IsUsersSelected || IsAddExpenseSelected || IsExpenseCategoriesSelected
+        || IsGeneralSettingsSelected || IsAppearanceSelected
         || IsBackupSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     /// <summary>The application name follows the store name saved in the general settings.</summary>
@@ -126,7 +129,8 @@ public sealed class MainViewModel : ObservableObject
         SettingsRepository? settingsRepository = null,
         BackupRepository? backupRepository = null,
         AppearanceViewModel? appearance = null,
-        ExpenseCategoryRepository? expenseCategoryRepository = null)
+        ExpenseCategoryRepository? expenseCategoryRepository = null,
+        ExpenseRepository? expenseRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
@@ -404,6 +408,11 @@ public sealed class MainViewModel : ObservableObject
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
         ExpenseCategories = new ExpenseCategoriesViewModel(expenseCategoryRepository);
+        AddExpense = new AddExpenseViewModel(expenseRepository, financialRepository);
+        // A saved expense changes the section list only through the categories screen, but it
+        // always changes an account balance, so the finance screen reloads its ledger.
+        AddExpense.ExpenseSaved = () => MyAccounts.NotifyExternalDataChanged();
+        ExpenseCategories.CategoriesChanged = () => AddExpense.NotifyExternalDataChanged();
         GeneralSettings = new GeneralSettingsViewModel(user.DisplayName, settingsRepository);
         Appearance = appearance ?? new AppearanceViewModel();
         Backup = new BackupViewModel(backupRepository);
@@ -729,6 +738,8 @@ public sealed class MainViewModel : ObservableObject
             Suppliers.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, usersCategory.Items[0]))
             Users.RefreshFromDatabase();
+        else if (ReferenceEquals(item, expensesCategory.Items[0]))
+            AddExpense.RefreshFromDatabase();
         else if (ReferenceEquals(item, expensesCategory.Items[2]))
             ExpenseCategories.RefreshFromDatabase();
         else if (ReferenceEquals(item, settingsCategory.Items[0]))
@@ -755,6 +766,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsCustomersSelected));
         Changed(nameof(IsSuppliersSelected));
         Changed(nameof(IsUsersSelected));
+        Changed(nameof(IsAddExpenseSelected));
         Changed(nameof(IsExpenseCategoriesSelected));
         Changed(nameof(IsGeneralSettingsSelected));
         // Must be notified like every other screen flag: without this the appearance host Grid
