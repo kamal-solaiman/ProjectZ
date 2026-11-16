@@ -1670,9 +1670,18 @@ assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ExpensePayments TO [ProjectZClient]'
 assert 'THROW 50083' in enable_split_sql
 # EXEC() accepts variables and literals only; a function call inside EXEC(...) is a parse error (Msg 102).
 assert 'EXEC sp_executesql @drop_fk;' in enable_split_sql
-assert "DECLARE @drop_fk NVARCHAR(400) = N'ALTER TABLE dbo.Expenses DROP CONSTRAINT ' + QUOTENAME(@fk);" in enable_split_sql
+assert "DECLARE @drop_fk NVARCHAR(400) = N''ALTER TABLE dbo.Expenses DROP CONSTRAINT '' + QUOTENAME(@fk);" in enable_split_sql, \
+    'the FK drop must be built in a variable and run with sp_executesql'
 assert "EXEC(N'ALTER TABLE dbo.Expenses DROP CONSTRAINT '" not in enable_split_sql
 assert 'THROW 50084' in enable_split_sql, 'every expense must keep a payment row after the migration'
+# The migration mentions dbo.Expenses.FinancialAccountId, which does not exist on a fresh database;
+# a static batch would fail to compile there ("Invalid column name") before its IF could skip it,
+# so the copy + drop live in dynamic SQL and only the guard stays at batch level.
+assert "DECLARE @migrate NVARCHAR(MAX) = N'" in enable_split_sql, \
+    'the legacy migration must run as dynamic SQL to stay safe on a fresh schema'
+assert 'EXEC sp_executesql @migrate;' in enable_split_sql
+assert enable_split_sql.find('e.FinancialAccountId') > enable_split_sql.find('DECLARE @migrate'), \
+    'the legacy column may only be referenced inside the dynamic migration'
 
 # A failed verification must never be followed by a success message in a later batch.
 verify_then_success = [
