@@ -77,8 +77,9 @@ ORDER BY IsDefault DESC, Id;";
             throw Describe(ex, "تعذّر تحميل الحسابات المالية من قاعدة البيانات.");
         }
 
-        target.Clear();
-        foreach (var item in loaded) target.Add(item);
+        // Merge in place: the UI holds references to these rows (the cash card is bound through
+        // MyAccountsViewModel.CashAccount), so replacing them froze every balance on screen.
+        FinancialAccountSnapshot.Apply(target, loaded);
     }
 
     /// <summary>

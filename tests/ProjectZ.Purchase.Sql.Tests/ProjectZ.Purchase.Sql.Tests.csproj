@@ -10,6 +10,7 @@
     <Compile Include="../../src/ProjectZ/Data/PurchaseRepository.cs" Link="Data/PurchaseRepository.cs" />
     <Compile Include="../../src/ProjectZ/Data/ExpenseCategoryRepository.cs" Link="Data/ExpenseCategoryRepository.cs" />
     <Compile Include="../../src/ProjectZ/Data/ExpenseRepository.cs" Link="Data/ExpenseRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Data/FinancialRepository.cs" Link="Data/FinancialRepository.cs" />
     <Compile Include="../../src/ProjectZ/Services/ConnectionSettingsProvider.cs" Link="Services/ConnectionSettingsProvider.cs" />
     <Compile Include="../../src/ProjectZ/Services/StoreIdentity.cs" Link="Services/StoreIdentity.cs" />
     <Compile Include="../../src/ProjectZ/Models/ConnectionSettings.cs" Link="Models/ConnectionSettings.cs" />
@@ -17,6 +18,8 @@
     <Compile Include="../../src/ProjectZ/Models/PosDesignModels.cs" Link="Models/PosDesignModels.cs" />
     <Compile Include="../../src/ProjectZ/Models/InventoryDesignModels.cs" Link="Models/InventoryDesignModels.cs" />
     <Compile Include="../../src/ProjectZ/Models/FinanceDesignModels.cs" Link="Models/FinanceDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/VodafoneTransferDesignModels.cs" Link="Models/VodafoneTransferDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/InstapayTransferDesignModels.cs" Link="Models/InstapayTransferDesignModels.cs" />
     <Compile Include="../../src/ProjectZ/Models/PurchaseDesignModels.cs" Link="Models/PurchaseDesignModels.cs" />
     <Compile Include="../../src/ProjectZ/Helpers/ObservableObject.cs" Link="Helpers/ObservableObject.cs" />
   </ItemGroup>

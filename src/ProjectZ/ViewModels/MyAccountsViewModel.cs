@@ -29,7 +29,12 @@ public sealed class MyAccountsViewModel : ObservableObject
     public IReadOnlyList<string> StatusFilterOptions { get; } = ["كل الحالات", "النشطة فقط", "الموقوفة فقط", "تحتاج مراجعة الحدود"];
     public IReadOnlyList<string> TransactionTypeOptions { get; } = ["كل الحركات", "وارد", "منصرف", "إيداع وسحب", "تحصيل وسداد النظام", "تسويات وتحويلات"];
 
-    public FinancialAccountDesignItem CashAccount => Accounts.First(a => a.IsCash);
+    /// <summary>
+    /// The unified cash account. It is read by the cash card and by the cash commands, so it must be
+    /// null-safe and must be re-notified after every reload (the card binds CashAccount.BalanceDisplay).
+    /// </summary>
+    public FinancialAccountDesignItem? CashAccount => Accounts.FirstOrDefault(a => a.IsCash);
+    public bool HasCashAccount => CashAccount is not null;
     public FinancialAccountDesignItem? SelectedAccount
     {
         get => selectedAccount;
@@ -122,10 +127,10 @@ public sealed class MyAccountsViewModel : ObservableObject
         SetSelectedAsDefaultCommand = new ActionCommand(SetSelectedAsDefault);
         DeleteSelectedAccountCommand = new ActionCommand(DeleteSelectedAccount);
         NewSelectedTransactionCommand = new ActionCommand(() => OpenTransaction(SelectedAccount));
-        NewCashTransactionCommand = new ActionCommand(() => OpenTransaction(CashAccount));
+        NewCashTransactionCommand = new ActionCommand(() => OpenTransaction(RequireCashAccount()));
         TransferFromSelectedCommand = new ActionCommand(() => OpenTransfer(SelectedAccount));
-        TransferFromCashCommand = new ActionCommand(() => OpenTransfer(CashAccount));
-        SelectCashCommand = new ActionCommand(() => SelectedAccount = CashAccount);
+        TransferFromCashCommand = new ActionCommand(() => OpenTransfer(RequireCashAccount()));
+        SelectCashCommand = new ActionCommand(() => { if (RequireCashAccount() is { } cash) SelectedAccount = cash; });
         ClearWalletFiltersCommand = new ActionCommand(ClearWalletFilters);
         ClearTransactionFiltersCommand = new ActionCommand(() => { TransactionSearchText = ""; SelectedTransactionType = "كل الحركات"; });
         RefreshCommand = new ActionCommand(() => { if (repository is not null) LoadFromDatabase(); else RecalculateAll(); SetStatus("تم تحديث الأرصدة واستهلاك الحدود وسجل الحركات.", false); });
@@ -146,17 +151,55 @@ public sealed class MyAccountsViewModel : ObservableObject
         if (repository is null) return;
         try
         {
+            var selectedId = SelectedAccount?.Id ?? 0;
+            var cashSelected = SelectedAccount?.IsCash == true;
+
+            // The repository updates the existing rows in place, so the objects the UI already binds
+            // keep working; the cash card still needs an explicit notification because it binds the
+            // CashAccount property, whose value only changes when the cash row appears or disappears.
             repository.LoadAccountsInto(Accounts);
             repository.LoadTransactionsInto(Transactions, 0);
-            nextAccountId = Accounts.Max(a => a.Id) + 1;
-            nextTransactionId = Transactions.Max(t => t.Id) + 1;
+            nextAccountId = Accounts.Count == 0 ? 1 : Accounts.Max(a => a.Id) + 1;
+            nextTransactionId = Transactions.Count == 0 ? 1 : Transactions.Max(t => t.Id) + 1;
+
+            Changed(nameof(CashAccount));
+            Changed(nameof(HasCashAccount));
+            // RecalculateAll rebuilds FilteredWallets, so the fallback selection must run after it.
             RecalculateAll();
+            EnsureSelectedAccountIsAttached(selectedId, cashSelected);
             SetStatus("تم تحميل البيانات من قاعدة البيانات بنجاح.", false);
         }
         catch (Exception ex)
         {
             SetStatus($"تعذّر الاتصال بقاعدة البيانات: {ex.Message}", true);
         }
+    }
+
+    /// <summary>
+    /// Keeps the highlighted row after a reload. An in-place refresh leaves the selection attached, so
+    /// this only re-resolves it when its account was deleted or is no longer active.
+    /// </summary>
+    private void EnsureSelectedAccountIsAttached(int previousId, bool cashWasSelected)
+    {
+        if (SelectedAccount is not null && Accounts.Contains(SelectedAccount)) return;
+
+        if (SelectedAccount is not null) SelectedAccount.IsSelected = false;
+        SelectedAccount = Accounts.FirstOrDefault(a => a.Id == previousId)
+            ?? FilteredWallets.FirstOrDefault()
+            ?? (cashWasSelected ? CashAccount : null)
+            ?? CashAccount;
+    }
+
+    /// <summary>Returns the cash account or reports why a cash movement cannot be recorded.</summary>
+    private FinancialAccountDesignItem? RequireCashAccount()
+    {
+        if (CashAccount is not null) return CashAccount;
+
+        SetStatus(
+            "لا يوجد حساب نقدي نشط في قاعدة البيانات، لذلك لا يمكن تسجيل حركة نقدية. " +
+            "أعد تفعيل الخزنة من dbo.FinancialAccounts ثم اضغط «تحديث».",
+            true);
+        return null;
     }
 
     /// <summary>Loads customer transfer operations from the database into the given collections.</summary>

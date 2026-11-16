@@ -164,7 +164,32 @@
 
 - **المزامنة**: بعد أي كتابة يجري `LoadFromDatabase()` في `MyAccountsViewModel` الذي يعيد تحميل
   `dbo.FinancialAccounts` و`dbo.FinancialTransactions`، ويُنْبِه الـViewModels الأخرى عبر
-  `NotifyExternalDataChanged()` فتُرى التغييرات فورًا في التحويلات والسجلات.
+  `NotifyExternalDataChanged()` فتُرى التغييرات فورًا في التحويلات والسجلات. كما تُعاد قراءة الأرصدة
+  عند فتح «حساباتي» من القائمة، لأن أي فاتورة بيع أو شراء أو تحصيل صيانة أو مصروف تغيّر
+  `dbo.FinancialAccounts.CurrentBalance` من شاشة أخرى.
+
+### لماذا كانت «النقدية» لا تُحدَّث إلا بإعادة تشغيل البرنامج؟
+
+بطاقة «النقدي — الخزنة الرئيسية» تربط `CashAccount.BalanceDisplay`، و`CashAccount` خاصية محسوبة على
+`Accounts`. وكان `FinancialRepository.LoadAccountsInto` **يفرّغ المجموعة ويضيف كائنات جديدة** في كل
+تحميل، فيبقى ربط البطاقة معلقًا بالكائن القديم الذي لا يتغيّر أبدًا: تظهر الأرصدة القديمة مهما ضغطت
+«تحديث»، ولا تصح إلا بعد إغلاق البرنامج وفتحه من جديد. وكانت الصفوف المختارة ودوائر الحدود تعاني
+نفس الشيء لأنها تشير إلى كائنات لم تعد داخل `Accounts`.
+
+الإصلاح:
+
+- `FinancialAccountSnapshot.Apply` (في `src/ProjectZ/Models/FinanceDesignModels.cs`) يدمج اللقطة
+  الجديدة داخل الكائنات الموجودة بالمطابقة على `Id`، وينقل ترتيبها ليطابق `ORDER BY IsDefault DESC, Id`،
+  ويضيف الجديد ويحذف ما اختفى — بلا استبدال الكائنات، فيصل تحديث `Balance` إلى `BalanceDisplay`
+  تلقائيًا.
+- `MyAccountsViewModel.LoadFromDatabase` يرفع `Changed(nameof(CashAccount))` بعد كل تحميل (لأن الخاصية
+  نفسها قد تتغيّر عند ظهور الخزنة أو اختفائها)، ويحافظ على الصف المحدد إن كان ما زال موجودًا،
+  ويعيد اختياره فقط عند حذفه أو إيقافه.
+- `CashAccount` صار `FirstOrDefault` مع `HasCashAccount`؛ وأوامر النقدي (`NewCashTransactionCommand`،
+  `TransferFromCashCommand`، `SelectCashCommand`) تُظهر رسالة عربية واضحة بدل رمي استثناء إذا لم تكن
+  هناك خزنة نشطة.
+- `LoadFromDatabase` صار يتحمل قاعدة بلا حركات (`Transactions.Max` على مجموعة فارغة كان يرمي استثناءً
+  ويحوّل التحديث إلى رسالة «تعذّر الاتصال»).
 
 ### لماذا كانت تظهر رسالة «لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى»؟
 

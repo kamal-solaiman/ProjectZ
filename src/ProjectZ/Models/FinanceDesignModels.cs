@@ -113,6 +113,73 @@ public sealed class FinancialAccountDesignItem : ObservableObject
     }
 }
 
+/// <summary>
+/// Applies a freshly loaded account snapshot to a live collection **without replacing the item
+/// objects**. Every screen binds account rows — and «حساباتي» binds its cash card through the
+/// CashAccount property — by reference; swapping the instances on each reload left the «النقدية»
+/// balance frozen on the old object until the application restarted, even after «تحديث».
+/// </summary>
+public static class FinancialAccountSnapshot
+{
+    public static void Apply(
+        ObservableCollection<FinancialAccountDesignItem> target,
+        IReadOnlyList<FinancialAccountDesignItem> snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        for (var index = 0; index < snapshot.Count; index++)
+        {
+            var source = snapshot[index];
+            var existing = FindById(target, source.Id);
+            if (existing is null)
+            {
+                target.Insert(index, source);
+                continue;
+            }
+
+            // An account never changes kind; if it somehow did, the row has to be a new object.
+            if (existing.Kind != source.Kind)
+            {
+                target[target.IndexOf(existing)] = source;
+                continue;
+            }
+
+            CopyValues(existing, source);
+            var currentIndex = target.IndexOf(existing);
+            if (currentIndex != index) target.Move(currentIndex, index);
+        }
+
+        while (target.Count > snapshot.Count)
+            target.RemoveAt(target.Count - 1);
+    }
+
+    private static FinancialAccountDesignItem? FindById(
+        ObservableCollection<FinancialAccountDesignItem> target, int id)
+    {
+        foreach (var account in target)
+            if (account.Id == id) return account;
+
+        return null;
+    }
+
+    private static void CopyValues(FinancialAccountDesignItem target, FinancialAccountDesignItem source)
+    {
+        // Balance is the value the cash card shows; its setter raises BalanceDisplay. IsSelected stays
+        // untouched because it reflects the row highlight, not the stored account.
+        target.Alias = source.Alias;
+        target.Identifier = source.Identifier;
+        target.Balance = source.Balance;
+        target.DailyDepositLimit = source.DailyDepositLimit;
+        target.DailyWithdrawalLimit = source.DailyWithdrawalLimit;
+        target.MonthlyDepositLimit = source.MonthlyDepositLimit;
+        target.MonthlyWithdrawalLimit = source.MonthlyWithdrawalLimit;
+        target.IsDefault = source.IsDefault;
+        target.IsActive = source.IsActive;
+        target.Notes = source.Notes;
+    }
+}
+
 public sealed class FinancialTransactionDesignItem
 {
     public int Id { get; init; }
