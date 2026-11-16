@@ -264,6 +264,80 @@ internal static class Program
             "MainWindow hosts MyAccountsView with the accounts view model");
         Check(((Grid)hostedAccounts!.Parent).Visibility == Visibility.Visible,
             "Accounts host Grid is Visible after navigating to حساباتي");
+        // Regression: pressing «تعديل» on a Vodafone Cash operation whose line was stopped or deleted
+        // from «حساباتي» crashed with System.InvalidOperationException "Sequence contains no matching
+        // element" (Enumerable.ThrowNoMatchException), because ApplyEdit/CanUndo resolved the wallet with
+        // accounts.Accounts.First(w => w.Id == operation.WalletId). The ledger keeps the operation after
+        // its line disappears, since LoadAccountsInto only loads IsActive = 1 rows.
+        var guardAccounts = new MyAccountsViewModel();
+        var guardTransfers = new VodafoneTransferViewModel(guardAccounts, "اختبار الحماية");
+        var guardRecords = new VodafoneRecordsViewModel(guardTransfers, guardAccounts, "اختبار الحماية");
+        var orphanedOperation = guardRecords.FilteredOperations.First(operation => operation.Id == 1);
+        orphanedOperation.WalletId = 999; // the saved line is no longer one of the active accounts
+        var editorOpened = false;
+        guardRecords.EditRequested = () => editorOpened = true;
+        guardRecords.BeginOperationEditCommand.Execute(orphanedOperation);
+        Check(!editorOpened && guardRecords.IsErrorStatus
+              && guardRecords.StatusMessage == VodafoneRecordsViewModel.MissingWalletMessage,
+            "Editing an operation whose line is gone explains it in Arabic instead of throwing");
+        // The dialog can already be open when the line disappears, so the save path must be guarded too.
+        guardRecords.EditWallet = guardAccounts.Accounts.First(account => account.Kind == FinancialAccountKind.VodafoneCash);
+        guardRecords.EditKind = "إيداع للعميل";
+        guardRecords.EditCustomerNumber = "01012345678";
+        guardRecords.EditAmountText = "100";
+        guardRecords.EditCommissionText = "1";
+        var cashBeforeOrphanEdit = guardAccounts.CashAccount!.Balance;
+        Check(!guardRecords.ApplyEdit()
+              && guardRecords.StatusMessage == VodafoneRecordsViewModel.MissingWalletMessage,
+            "Saving an edit for an operation whose line is gone reports it instead of crashing");
+        Check(guardAccounts.CashAccount!.Balance == cashBeforeOrphanEdit,
+            "A refused edit leaves the cash balance exactly as it was");
+        guardRecords.ReverseOperationCommand.Execute(orphanedOperation);
+        Check(guardRecords.IsErrorStatus && !orphanedOperation.IsReversed,
+            "Reversing an operation whose line is gone reports it instead of crashing");
+        guardRecords.DeleteOperationCommand.Execute(orphanedOperation);
+        Check(guardRecords.FilteredOperations.Contains(orphanedOperation),
+            "Deleting an operation whose line is gone refuses instead of dropping the record");
+        var instapayGuardAccounts = new MyAccountsViewModel();
+        var instapayGuardRecords = new InstapayRecordsViewModel(
+            new InstapayTransferViewModel(instapayGuardAccounts, "اختبار الحماية"), instapayGuardAccounts, "اختبار الحماية");
+        var orphanedInstapay = instapayGuardRecords.FilteredOperations.First(operation => operation.Id == 1);
+        orphanedInstapay.WalletId = 999;
+        var instapayEditorOpened = false;
+        instapayGuardRecords.EditRequested = () => instapayEditorOpened = true;
+        instapayGuardRecords.BeginOperationEditCommand.Execute(orphanedInstapay);
+        Check(!instapayEditorOpened && instapayGuardRecords.IsErrorStatus
+              && instapayGuardRecords.StatusMessage == InstapayRecordsViewModel.MissingWalletMessage,
+            "The InstaPay screen reports a removed wallet in Arabic instead of throwing");
+        // «النقدية» is optional after the nullable cash-account fix: an edit or a transfer without an
+        // active cash row must explain itself instead of throwing a NullReferenceException.
+        var noCashAccounts = new MyAccountsViewModel();
+        var noCashRecords = new VodafoneRecordsViewModel(
+            new VodafoneTransferViewModel(noCashAccounts, "اختبار الحماية"), noCashAccounts, "اختبار الحماية");
+        noCashAccounts.Accounts.Remove(noCashAccounts.CashAccount!);
+        var cashlessOperation = noCashRecords.FilteredOperations.First(operation => operation.Id == 1);
+        noCashRecords.BeginOperationEditCommand.Execute(cashlessOperation);
+        Check(noCashRecords.EditWallet is not null,
+            "The editor still opens while the operation's own line is active");
+        noCashRecords.EditKind = "إيداع للعميل";
+        noCashRecords.EditCustomerNumber = "01012345678";
+        noCashRecords.EditAmountText = "100";
+        noCashRecords.EditCommissionText = "1";
+        Check(!noCashRecords.ApplyEdit()
+              && noCashRecords.StatusMessage == VodafoneRecordsViewModel.MissingCashMessage,
+            "Saving an edit without an active cash account reports it instead of throwing");
+        var cashlessTransfer = new VodafoneTransferViewModel(noCashAccounts, "اختبار الحماية");
+        cashlessTransfer.SelectWalletCommand.Execute(
+            noCashAccounts.Accounts.First(account => account.Kind == FinancialAccountKind.VodafoneCash && account.IsActive));
+        cashlessTransfer.CustomerNumber = "01012345678";
+        cashlessTransfer.AmountText = "100";
+        cashlessTransfer.CommissionText = "2";
+        Check(cashlessTransfer.CashBalanceAfterPreview == "—",
+            "The cash preview shows a dash, not a crash, when the cash account is missing");
+        cashlessTransfer.ExecuteOperationCommand.Execute(null);
+        Check(cashlessTransfer.IsErrorStatus
+              && cashlessTransfer.StatusMessage == VodafoneTransferViewModel.MissingCashMessage,
+            "Executing a transfer without an active cash account reports it in Arabic");
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

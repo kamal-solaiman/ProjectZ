@@ -63,12 +63,25 @@ public sealed class InstapayTransferViewModel : ObservableObject
     public string CashEffectPreview => Preview(out var amount, out var commission) && SelectedWallet is not null
         ? $"{(CashDelta(amount, commission) >= 0m ? "+" : "−")} {PosFormatting.FormatCurrency(Math.Abs(CashDelta(amount, commission)))}" : "—";
     public string WalletBalanceAfterPreview => SelectedWallet is null || !Preview(out var amount, out _) ? "—" : PosFormatting.FormatCurrency(SelectedWallet.Balance + (IsDepositSelected ? -amount : amount));
-    public string CashBalanceAfterPreview => SelectedWallet is null || !Preview(out var amount, out var commission) ? "—" : PosFormatting.FormatCurrency(accounts.CashAccount.Balance + CashDelta(amount, commission));
+    public string CashBalanceAfterPreview
+    {
+        get
+        {
+            // «النقدية» is nullable now, so the preview must render a dash instead of throwing.
+            if (SelectedWallet is null || accounts.CashAccount is not { } cash || !Preview(out var amount, out var commission)) return "—";
+            return PosFormatting.FormatCurrency(cash.Balance + CashDelta(amount, commission));
+        }
+    }
     public string SelectedDailyRemainingDisplay => SelectedWallet is null ? "—" : IsDepositSelected ? SelectedWallet.DailyWithdrawalRemainingDisplay : SelectedWallet.DailyDepositRemainingDisplay;
     public string SelectedMonthlyRemainingDisplay => SelectedWallet is null ? "—" : IsDepositSelected ? SelectedWallet.MonthlyWithdrawalRemainingDisplay : SelectedWallet.MonthlyDepositRemainingDisplay;
     public string StatusMessage { get => statusMessage; private set { if (statusMessage == value) return; statusMessage = value; Changed(); Changed(nameof(HasStatusMessage)); } }
     public bool IsErrorStatus { get => isErrorStatus; private set { if (isErrorStatus == value) return; isErrorStatus = value; Changed(); } }
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+
+    // «حساباتي» may hold no active cash row (a stopped account or a stale reload). The transfer
+    // used to dereference CashAccount straight away and crash with a NullReferenceException.
+    public const string MissingCashMessage =
+        "لا يوجد حساب «النقدية» نشط في «حساباتي»، فلا يمكن تنفيذ عملية إنستاباي. راجع الحساب النقدي واضغط «تحديث» ثم حاول مرة أخرى.";
 
     public ActionCommand ExecuteOperationCommand { get; }
     public ActionCommand ClearFormCommand { get; }
@@ -153,8 +166,9 @@ public sealed class InstapayTransferViewModel : ObservableObject
         if (!AccountEditorViewModel.TryMoney(AmountText, out var amount) || amount <= 0m) { SetStatus("أدخل مبلغًا أكبر من صفر.", true); return; }
         if (!AccountEditorViewModel.TryMoney(CommissionText, out var commission) || commission < 0m) { SetStatus("أدخل عمولة صحيحة؛ اكتب صفرًا إذا لا توجد عمولة.", true); return; }
         if (IsDepositSelected && amount > SelectedWallet.Balance) { SetStatus($"الرصيد المتاح في الخط ({SelectedWallet.BalanceDisplay}) أقل من مبلغ الإيداع.", true); return; }
+        if (accounts.CashAccount is not { } cash) { SetStatus(MissingCashMessage, true); return; }
         var cashDelta = CashDelta(amount, commission);
-        if (cashDelta < 0m && Math.Abs(cashDelta) > accounts.CashAccount.Balance) { SetStatus($"الرصيد النقدي ({accounts.CashAccount.BalanceDisplay}) لا يكفي لصرف صافي مبلغ العملية.", true); return; }
+        if (cashDelta < 0m && Math.Abs(cashDelta) > cash.Balance) { SetStatus($"الرصيد النقدي ({cash.BalanceDisplay}) لا يكفي لصرف صافي مبلغ العملية.", true); return; }
         var limitError = AccountTransactionViewModel.ValidateLimits(SelectedWallet, incoming: !IsDepositSelected, amount);
         if (limitError is not null) { SetStatus(limitError, true); return; }
 
@@ -181,7 +195,7 @@ public sealed class InstapayTransferViewModel : ObservableObject
 
         var wallet = SelectedWallet;
         wallet.Balance += IsDepositSelected ? -amount : amount;
-        accounts.CashAccount.Balance += cashDelta;
+        cash.Balance += cashDelta;
         var operation = new InstapayTransferOperation
         {
             Id = nextOperationId++, WalletId = wallet.Id, WalletAlias = wallet.Alias, WalletNumber = wallet.Identifier,
@@ -193,13 +207,13 @@ public sealed class InstapayTransferViewModel : ObservableObject
         AddFinancialTransaction(wallet, !IsDepositSelected, IsDepositSelected ? "إنستاباي — إيداع للعميل" : "إنستاباي — سحب للعميل", amount, normalizedCustomer, Note.Trim(), true);
         if (IsDepositSelected)
         {
-            AddFinancialTransaction(accounts.CashAccount, true, "نقدية إيداع إنستاباي", amount, normalizedCustomer, Note.Trim(), false);
-            if (commission > 0m) AddFinancialTransaction(accounts.CashAccount, true, "عمولة إنستاباي", commission, normalizedCustomer, "عمولة عملية إيداع", false);
+            AddFinancialTransaction(cash, true, "نقدية إيداع إنستاباي", amount, normalizedCustomer, Note.Trim(), false);
+            if (commission > 0m) AddFinancialTransaction(cash, true, "عمولة إنستاباي", commission, normalizedCustomer, "عمولة عملية إيداع", false);
         }
         else
         {
-            AddFinancialTransaction(accounts.CashAccount, false, "نقدية سحب إنستاباي", amount, normalizedCustomer, Note.Trim(), false);
-            if (commission > 0m) AddFinancialTransaction(accounts.CashAccount, true, "عمولة إنستاباي", commission, normalizedCustomer, "عمولة عملية سحب", false);
+            AddFinancialTransaction(cash, false, "نقدية سحب إنستاباي", amount, normalizedCustomer, Note.Trim(), false);
+            if (commission > 0m) AddFinancialTransaction(cash, true, "عمولة إنستاباي", commission, normalizedCustomer, "عمولة عملية سحب", false);
         }
 
         accounts.NotifyExternalDataChanged();
