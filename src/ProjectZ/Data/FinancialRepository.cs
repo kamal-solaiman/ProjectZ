@@ -179,6 +179,93 @@ ORDER BY OccurredAtUtc DESC, Id DESC;";
     }
 
     /// <summary>
+    /// Makes one active wallet the default of its own kind and persists it. The filtered unique index
+    /// UX_FinancialAccounts_OneDefaultPerKind allows a single default per AccountKind, so every other
+    /// row of that kind is cleared inside the same transaction — never the other kinds' defaults.
+    /// </summary>
+    public void SetDefaultAccount(int accountId, FinancialAccountKind kind)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction();
+
+            // Rejects a wallet that was stopped or deleted in another session instead of silently
+            // writing a default that the screen cannot show.
+            EnsureAccountById(connection, transaction, accountId, kind);
+
+            using (var clear = CreateCommand(connection, transaction, @"
+UPDATE dbo.FinancialAccounts SET IsDefault = 0, UpdatedAtUtc = SYSUTCDATETIME()
+WHERE AccountKind = @Kind AND IsDefault = 1 AND Id <> @Id;"))
+            {
+                clear.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
+                clear.Parameters.Add("@Id", SqlDbType.Int).Value = accountId;
+                clear.ExecuteNonQuery();
+            }
+
+            using (var mark = CreateCommand(connection, transaction, @"
+UPDATE dbo.FinancialAccounts SET IsDefault = 1, UpdatedAtUtc = SYSUTCDATETIME()
+WHERE Id = @Id AND AccountKind = @Kind;"))
+            {
+                mark.Parameters.Add("@Id", SqlDbType.Int).Value = accountId;
+                mark.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
+                if (mark.ExecuteNonQuery() == 0)
+                    throw new FinancialDataException("تعذّر تعيين المحفظة الافتراضية: لم يُعثر على الحساب. اضغط «تحديث» ثم حاول مرة أخرى.");
+            }
+
+            transaction.Commit();
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر تعيين المحفظة الافتراضية.");
+        }
+    }
+
+    /// <summary>
+    /// Activates or stops one wallet. Stopping is a soft delete: the row and its ledger stay, so the
+    /// default flag must be cleared — otherwise the filtered unique index keeps a hidden default and the
+    /// screen shows no default wallet at all.
+    /// </summary>
+    public void SetAccountActive(int accountId, bool isActive)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction();
+
+            FinancialAccountKind kind;
+            using (var check = CreateCommand(connection, transaction, @"
+SELECT AccountKind FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id;"))
+            {
+                check.Parameters.Add("@Id", SqlDbType.Int).Value = accountId;
+                if (check.ExecuteScalar() is not { } value || value is DBNull)
+                    throw new FinancialDataException("المحفظة غير موجودة في قاعدة البيانات. اضغط «تحديث» ثم حاول مرة أخرى.");
+                kind = (FinancialAccountKind)Convert.ToByte(value);
+            }
+
+            // The cash row is the system's single cash account; the screen hides its toggle, and the
+            // database must refuse it too.
+            if (!isActive && kind == FinancialAccountKind.Cash)
+                throw new FinancialDataException("لا يمكن إيقاف الخزنة النقدية لأنها حساب أساسي مرتبط بالنظام.");
+
+            using (var update = CreateCommand(connection, transaction, isActive ? @"
+UPDATE dbo.FinancialAccounts SET IsActive = 1, UpdatedAtUtc = SYSUTCDATETIME() WHERE Id = @Id;" : @"
+UPDATE dbo.FinancialAccounts SET IsActive = 0, IsDefault = 0, UpdatedAtUtc = SYSUTCDATETIME() WHERE Id = @Id;"))
+            {
+                update.Parameters.Add("@Id", SqlDbType.Int).Value = accountId;
+                if (update.ExecuteNonQuery() == 0)
+                    throw new FinancialDataException("المحفظة غير موجودة في قاعدة البيانات. اضغط «تحديث» ثم حاول مرة أخرى.");
+            }
+
+            transaction.Commit();
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, isActive ? "تعذّر تفعيل المحفظة." : "تعذّر إيقاف المحفظة.");
+        }
+    }
+
+    /// <summary>
     /// Deletes an account permanently, but only when it is a completed wallet with no balance and no movements.
     /// A wallet that has a ledger is deactivated (IsActive = 0) instead of being deleted.
     /// </summary>
@@ -746,10 +833,13 @@ VALUES(@Kind,@Alias,@Identifier,@Opening,@DailyDep,@DailyWdl,@MonthlyDep,@Monthl
     {
         if (makeDefault)
         {
+            // Cleared per kind only: editing a Vodafone line must not demote the cash or InstaPay
+            // default (UX_FinancialAccounts_OneDefaultPerKind is scoped to AccountKind).
             using (var clear = CreateCommand(connection, transaction, @"
 UPDATE dbo.FinancialAccounts SET IsDefault = 0, UpdatedAtUtc = SYSUTCDATETIME()
-WHERE IsActive = 1 AND Id <> @Id;"))
+WHERE AccountKind = @Kind AND IsDefault = 1 AND Id <> @Id;"))
             {
+                clear.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
                 clear.Parameters.Add("@Id", SqlDbType.Int).Value = accountId;
                 clear.ExecuteNonQuery();
             }

@@ -372,6 +372,69 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     Check(Scalar<decimal>(admin, $"SELECT Amount FROM dbo.CustomerTransfers WHERE Id={stoppedLineTransfer.TransferId};") == 250m,
         "Re-activating the line lets the very same edit succeed");
     Console.WriteLine("PASS: a stopped Vodafone Cash line is reported in Arabic instead of crashing the edit flow");
+
+    // «تعيين افتراضية» and «تفعيل / إيقاف» only reordered/mutated the local list before, so both
+    // choices were lost on the next reload or restart. They must be written to dbo.FinancialAccounts,
+    // per AccountKind (UX_FinancialAccounts_OneDefaultPerKind), without touching other kinds' defaults.
+    var firstVodafoneId = Scalar<int>(admin,
+        "SELECT TOP 1 Id FROM dbo.FinancialAccounts WHERE AccountKind = 2 AND IsActive = 1 ORDER BY Id;");
+    var otherKindDefaults = Scalar<int>(admin,
+        "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 2 AND IsDefault = 1;");
+    var extraWallet = financialRepository.SaveAccount(null, FinancialAccountKind.VodafoneCash,
+        "خط إضافي للاختبار", "01099999999", 0m, 0m, 0m, 0m, 0m, "", false);
+    Check(extraWallet.AccountId > 0
+          && Scalar<int>(admin, $"SELECT IsDefault FROM dbo.FinancialAccounts WHERE Id={extraWallet.AccountId};") == 0,
+        "A second Vodafone line is added and starts as a non-default wallet");
+
+    financialRepository.SetDefaultAccount(extraWallet.AccountId, FinancialAccountKind.VodafoneCash);
+    Check(Scalar<int>(admin, $"SELECT IsDefault FROM dbo.FinancialAccounts WHERE Id={extraWallet.AccountId};") == 1,
+        "«تعيين افتراضية» writes IsDefault = 1 for the chosen line in dbo.FinancialAccounts");
+    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind = 2 AND IsDefault = 1;") == 1,
+        "Only one Vodafone line stays default after the assignment");
+    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 2 AND IsDefault = 1;") == otherKindDefaults,
+        "Making a Vodafone line default keeps the cash and InstaPay defaults intact");
+    financialRepository.LoadAccountsInto(liveAccounts);
+    Check(liveAccounts.Single(account => account.Id == extraWallet.AccountId).IsDefault,
+        "The reloaded accounts show the new default straight away, without a restart");
+
+    financialRepository.SaveAccount(extraWallet.AccountId, FinancialAccountKind.VodafoneCash,
+        "خط إضافي للاختبار", "01099999999", 0m, 0m, 0m, 0m, 0m, "", true);
+    Check(Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE AccountKind <> 2 AND IsDefault = 1;") == otherKindDefaults,
+        "Editing the default line from the editor still leaves the other kinds' defaults alone");
+
+    financialRepository.SetAccountActive(extraWallet.AccountId, false);
+    Check(Scalar<int>(admin, $"SELECT IsActive FROM dbo.FinancialAccounts WHERE Id={extraWallet.AccountId};") == 0,
+        "«تفعيل / إيقاف» writes IsActive = 0 for the stopped wallet");
+    Check(Scalar<int>(admin, $"SELECT IsDefault FROM dbo.FinancialAccounts WHERE Id={extraWallet.AccountId};") == 0,
+        "Stopping the default wallet clears its default flag instead of hiding a default row");
+    Exception? stoppedDefaultError = null;
+    try { financialRepository.SetDefaultAccount(extraWallet.AccountId, FinancialAccountKind.VodafoneCash); }
+    catch (Exception ex) { stoppedDefaultError = ex; }
+    Check(stoppedDefaultError is FinancialDataException,
+        "A stopped wallet cannot be made the default, and the refusal is a financial error in Arabic");
+
+    financialRepository.SetAccountActive(extraWallet.AccountId, true);
+    Check(Scalar<int>(admin, $"SELECT IsActive FROM dbo.FinancialAccounts WHERE Id={extraWallet.AccountId};") == 1,
+        "The same toggle reactivates the wallet in dbo.FinancialAccounts");
+    financialRepository.SetDefaultAccount(extraWallet.AccountId, FinancialAccountKind.VodafoneCash);
+    Check(Scalar<int>(admin, $"SELECT IsDefault FROM dbo.FinancialAccounts WHERE Id={extraWallet.AccountId};") == 1,
+        "The default can be assigned again once the wallet is active");
+
+    var cashRowId = Scalar<int>(admin, "SELECT TOP 1 Id FROM dbo.FinancialAccounts WHERE AccountKind = 0;");
+    Exception? cashStopError = null;
+    try { financialRepository.SetAccountActive(cashRowId, false); }
+    catch (Exception ex) { cashStopError = ex; }
+    Check(cashStopError is FinancialDataException
+          && Scalar<int>(admin, $"SELECT IsActive FROM dbo.FinancialAccounts WHERE Id={cashRowId};") == 1,
+        "The cash account refuses the stop toggle and stays active");
+
+    financialRepository.SetDefaultAccount(firstVodafoneId, FinancialAccountKind.VodafoneCash);
+    Check(Scalar<int>(admin, $"SELECT IsDefault FROM dbo.FinancialAccounts WHERE Id={firstVodafoneId};") == 1
+          && Scalar<int>(admin, $"SELECT IsDefault FROM dbo.FinancialAccounts WHERE Id={extraWallet.AccountId};") == 0,
+        "Re-assigning the default moves the flag instead of duplicating it");
+    Check(financialRepository.DeleteAccount(extraWallet.AccountId, "خط إضافي للاختبار").Deleted,
+        "The temporary wallet is cleaned up again");
+    Console.WriteLine("PASS: «تعيين افتراضية» and «تفعيل / إيقاف» persist per kind in dbo.FinancialAccounts");
     Console.WriteLine("PASS: all purchase and expense SQL integration checks passed on a disposable SQL Server instance");
 }
 catch (Exception ex)
