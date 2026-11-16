@@ -245,6 +245,25 @@ INSERT dbo.ExpenseCategories(Name,Description) OUTPUT inserted.Id VALUES(N'اخ�
     }
     Check(rejectedDuplicate, "The same account cannot be used twice in one expense");
 
+    // «فواتير المصروفات» reads the same rows back: one row per expense, one payment line per
+    // account, with the section and the user who recorded it, and the date filter works in SQL.
+    var listedInvoices = expenseRepository.LoadInvoices();
+    Check(listedInvoices.Count == 1 and listedInvoices[0].Id == savedExpense.ExpenseId,
+        "ExpenseRepository.LoadInvoices returns the saved expense once");
+    Check(listedInvoices[0].ExpenseNumber == savedExpense.ExpenseNumber
+        && listedInvoices[0].Amount == 300m
+        && listedInvoices[0].CategoryName == "اختبار المصروفات"
+        && listedInvoices[0].ActorUserName == "admin"
+        && listedInvoices[0].ExpenseDate == DateTime.Today,
+        "The listed expense keeps its number, amount, section, actor and date");
+    Check(listedInvoices[0].Payments.Count == 2
+        && listedInvoices[0].Payments.Sum(payment => payment.Amount) == 300m,
+        "The listed expense carries both account shares");
+    Check(expenseRepository.LoadInvoices(DateTime.Today, DateTime.Today).Count == 1
+        && expenseRepository.LoadInvoices(DateTime.Today.AddDays(1), null).Count == 0
+        && expenseRepository.LoadInvoices(null, DateTime.Today.AddDays(-1)).Count == 0,
+        "The register date filter is applied inside SQL Server");
+
     // Re-running the migration script must stay a no-op and keep the migrated/paid rows intact.
     RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", "21_EnableExpenseSplitPayments.sql"));
     Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.ExpensePayments WHERE ExpenseId={savedExpense.ExpenseId};") == 2,
@@ -277,6 +296,13 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
         "sql/21 copies each legacy expense account into dbo.ExpensePayments before dropping it");
     Check(Scalar<int>(admin, "SELECT COUNT(*) FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Expenses') AND name=N'IX_Expenses_Date';") == 1,
         "sql/21 rebuilds IX_Expenses_Date without the dropped column");
+    var migratedInvoices = expenseRepository.LoadInvoices();
+    Check(migratedInvoices.Count == 1
+        && migratedInvoices[0].ExpenseNumber == "EXP-OLD-0001"
+        && migratedInvoices[0].Payments.Count == 1
+        && migratedInvoices[0].Payments[0].FinancialAccountId == expenseAccountA
+        && migratedInvoices[0].Payments[0].Amount == 125m,
+        "The register lists a migrated legacy expense with its copied account share");
     Console.WriteLine("PASS: sql/21 migrates a legacy single-account expense without losing its account or amount");
     Console.WriteLine("PASS: split expenses write dbo.Expenses, dbo.ExpensePayments, ledger rows and audit on LocalDB");
     Console.WriteLine("PASS: all purchase and expense SQL integration checks passed on a disposable SQL Server instance");

@@ -1,0 +1,196 @@
+<Window x:Class="ProjectZ.Views.ExpenseInvoiceDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | تفاصيل المصروف'}"
+        Width="820"
+        Height="600"
+        MinWidth="700"
+        MinHeight="480"
+        FlowDirection="LeftToRight"
+        Language="ar-EG"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid FlowDirection="LeftToRight">
+        <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
+        <Grid Margin="16" FlowDirection="LeftToRight">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0"
+                    Padding="14,11"
+                    CornerRadius="12"
+                    Background="{DynamicResource Theme.Legacy.102E48.Navigation}">
+                <Grid FlowDirection="RightToLeft">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" FlowDirection="RightToLeft">
+                        <TextBlock Text="{Binding HeaderTitle}"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="19"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
+                        <TextBlock Text="{Binding Subtitle}"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   Margin="0,3,0,0"
+                                   FontSize="11.5"
+                                   Foreground="{DynamicResource Theme.Legacy.85AABC.NavigationMuted}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" FlowDirection="RightToLeft">
+                        <TextBlock Text="{Binding AmountDisplay}"
+                                   Style="{StaticResource PosCenterTextStyle}"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}" />
+                        <TextBlock Text="{Binding PaymentMethodsDisplay}"
+                                   Style="{StaticResource PosCenterTextStyle}"
+                                   Margin="0,2,0,0"
+                                   FontSize="10.5"
+                                   Foreground="{DynamicResource Theme.Legacy.85AABC.NavigationMuted}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Expense facts -->
+            <Border Grid.Row="1"
+                    Margin="0,10,0,0"
+                    Padding="13,10"
+                    CornerRadius="11"
+                    Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
+                    BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
+                    BorderThickness="1">
+                <StackPanel FlowDirection="RightToLeft">
+                    <TextBlock Text="بيان المصروف"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="10.5"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                    <TextBlock Text="{Binding DescriptionDisplay}"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               Margin="0,3,0,0"
+                               FontSize="13"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource Theme.Legacy.172B41.Text}" />
+                    <TextBlock Text="{Binding CreatedAtDisplay}"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               Margin="0,6,0,0"
+                               FontSize="10.5"
+                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Payment total check -->
+            <Border Grid.Row="2"
+                    Margin="0,10,0,0"
+                    Padding="12,8"
+                    CornerRadius="10"
+                    Background="{DynamicResource Theme.Legacy.ECFDF5.SuccessSoft}"
+                    BorderBrush="{DynamicResource Theme.Legacy.A7F3D0.SuccessBorder}"
+                    BorderThickness="1">
+                <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft">
+                    <TextBlock Text="{Binding PaymentsTotalDisplay}"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="13"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource Theme.Legacy.15803D.SuccessInk}" />
+                    <TextBlock Text="{Binding PaymentTotalMessage}"
+                               Style="{StaticResource PosRtlTextStyle}"
+                               Margin="10,0,0,0"
+                               FontSize="11.5"
+                               Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Account shares -->
+            <Border Grid.Row="3"
+                    Margin="0,10,0,0"
+                    Padding="0"
+                    CornerRadius="11"
+                    Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
+                    BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
+                    BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Padding="12,8"
+                            CornerRadius="11,11,0,0"
+                            Background="{DynamicResource Theme.Legacy.1D455F.Navigation}">
+                        <Grid FlowDirection="RightToLeft">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="150" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="الحساب المالي"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="11.5"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
+                            <TextBlock Grid.Column="1"
+                                       Text="المبلغ المخصوم"
+                                       Style="{StaticResource PosCenterTextStyle}"
+                                       FontSize="11.5"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource Theme.Legacy.6EE7D8.Highlight}" />
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Payments}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="12,9"
+                                            BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
+                                            BorderThickness="0,0,0,1"
+                                            Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}">
+                                        <Grid FlowDirection="RightToLeft">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="150" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding AccountAlias}"
+                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                       FontSize="12.5"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource Theme.Legacy.172B41.Text}" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding AmountDisplay}"
+                                                       Style="{StaticResource PosCenterTextStyle}"
+                                                       FontSize="12.5"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <StackPanel Grid.Row="4"
+                        Margin="0,12,0,0"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Left"
+                        FlowDirection="RightToLeft">
+                <Button Content="إغلاق"
+                        Style="{StaticResource PosSecondaryButtonStyle}"
+                        Padding="18,7"
+                        FontSize="12"
+                        Command="{Binding CloseCommand}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

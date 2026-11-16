@@ -439,6 +439,20 @@
                             <Style TargetType="Grid">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsExpenseInvoicesSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:ExpenseInvoicesView DataContext="{Binding ExpenseInvoices}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsExpenseCategoriesSelected}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>

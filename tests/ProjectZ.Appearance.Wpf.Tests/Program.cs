@@ -78,11 +78,61 @@ internal static class Program
                 "اضافة مصروف", "فواتير المصروفات", "تصنيفات المصروفات"
             }),
             "Expenses menu lists the three expense windows");
-        mainVm.SelectItem(expensesMenu.Items[1]);
+        var salesReportsItem = mainVm.Categories.Single(category => category.Title == "التقارير")
+            .Items.Single(item => item.Title == "تقارير المبيعات");
+        mainVm.SelectItem(salesReportsItem);
         Check(!mainVm.IsImplementedScreenSelected
-            && mainVm.SelectedCategoryTitle == "المصروفات"
-            && mainVm.SelectedPageTitle == "فواتير المصروفات",
+            && mainVm.SelectedCategoryTitle == "التقارير"
+            && mainVm.SelectedPageTitle == "تقارير المبيعات",
             "Menus-only items keep the placeholder workspace and never claim an implemented screen");
+        // «فواتير المصروفات» lists the stored expenses with their split payments. In the design
+        // preview it must show the five sample rows, keep them reachable through the filters and
+        // hand a details view model to the window.
+        var expenseInvoicesItem = mainVm.Categories.Single(c => c.Title == "المصروفات")
+            .Items.Single(i => i.Title == "فواتير المصروفات");
+        mainVm.SelectItem(expenseInvoicesItem);
+        PumpDispatcher();
+        Check(mainVm.IsExpenseInvoicesSelected && mainVm.IsImplementedScreenSelected,
+            "SelectItem activates the expense-invoices screen as an implemented screen");
+        Check(mainVm.ExpenseInvoices.FilteredInvoices.Count == 5
+              && mainVm.ExpenseInvoices.ShownCount == 5,
+            "The expense-invoices screen starts with the five sample expenses in design mode");
+        Check(mainVm.ExpenseInvoices.ShownTotalAmount == 16455.5m
+              && mainVm.ExpenseInvoices.SplitCount == 2,
+            "The expense-invoices totals and split count are computed from the listed rows");
+        var hostedExpenseInvoices = FindLogicalDescendant<ExpenseInvoicesView>(main);
+        Check(hostedExpenseInvoices is not null, "MainWindow hosts ExpenseInvoicesView in its logical tree");
+        Check(hostedExpenseInvoices!.DataContext is ExpenseInvoicesViewModel,
+            "ExpenseInvoicesView receives the ExpenseInvoices view model");
+        Check(((Grid)hostedExpenseInvoices.Parent).Visibility == Visibility.Visible,
+            "Expense-invoices host Grid is Visible after navigating to فواتير المصروفات");
+
+        mainVm.ExpenseInvoices.SearchText = "كهرباء";
+        Check(mainVm.ExpenseInvoices.FilteredInvoices.Count == 1
+              && mainVm.ExpenseInvoices.FilteredInvoices[0].CategoryName == "فواتير",
+            "The free-text filter narrows the register to the matching expense");
+        mainVm.ExpenseInvoices.SearchText = "";
+        mainVm.ExpenseInvoices.SelectedCategoryFilter = "إيجار";
+        Check(mainVm.ExpenseInvoices.FilteredInvoices.Count == 1,
+            "The section filter narrows the register");
+        mainVm.ExpenseInvoices.SelectedCategoryFilter = ExpenseInvoicesViewModel.AllCategories;
+        mainVm.ExpenseInvoices.SelectedPaymentFilter = ExpenseInvoicesViewModel.SplitPayment;
+        Check(mainVm.ExpenseInvoices.FilteredInvoices.Count == 2
+              && mainVm.ExpenseInvoices.FilteredInvoices.All(invoice => invoice.IsSplitPayment),
+            "The payment filter keeps only the expenses split across accounts");
+        mainVm.ExpenseInvoices.SelectDatePresetCommand.Execute(ExpenseInvoicesViewModel.TodayPreset);
+        mainVm.ExpenseInvoices.ClearFiltersCommand.Execute(null);
+        Check(mainVm.ExpenseInvoices.FilteredInvoices.Count == 5 && mainVm.ExpenseInvoices.IsAllDatePreset,
+            "Clearing the filters restores every listed expense");
+        ExpenseInvoiceDetailsViewModel? openedDetails = null;
+        mainVm.ExpenseInvoices.OpenDetailsDialogRequested = details => openedDetails = details;
+        mainVm.ExpenseInvoices.OpenDetailsCommand.Execute(mainVm.ExpenseInvoices.FilteredInvoices
+            .First(invoice => invoice.IsSplitPayment));
+        Check(openedDetails is not null
+              && openedDetails.Payments.Count == 2
+              && openedDetails.IsPaymentTotalMatchingAmount,
+            "Opening details hands a view model whose payment lines add up to the expense amount");
+
         // «تصنيفات المصروفات» is the first implemented expense screen. Selecting it must activate
         // its host Grid and load the six starter sections without SQL (design mode).
         var expenseCategoriesItem = mainVm.Categories.Single(c => c.Title == "المصروفات")
