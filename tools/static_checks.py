@@ -43,15 +43,15 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-# 41 CREATE TABLE statements: 06 creates the 37 business tables + Users, 01 creates Users,
-# and 16/19 repeat the movement and expense-section tables idempotently so an existing
-# database can be upgraded without re-running 06.
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 41
+# 43 CREATE TABLE statements: 06 creates the 38 business tables + Users, 01 creates Users,
+# and 16/19/20 repeat the movement, expense-section and expense tables idempotently so an
+# existing database can be upgraded without re-running 06.
+assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 43
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
 assert 'CREATE DATABASE [ProjectZ]' in sql
 assert '[ProjectZClient]' in (root / 'sql/04_SetupLanSqlAuth.sql').read_text(encoding='utf-8')
 full_schema = (root / 'sql/06_CreateFullSchema.sql').read_text(encoding='utf-8')
-assert len(re.findall(r'CREATE\s+TABLE\s+', full_schema, re.I)) == 38
+assert len(re.findall(r'CREATE\s+TABLE\s+', full_schema, re.I)) == 39
 reporting_views = (root / 'sql/07_CreateReportingViews.sql').read_text(encoding='utf-8')
 expected_tables = {
     'Users', 'Roles', 'Permissions', 'UserRoles', 'RolePermissions', 'SystemSettings', 'DocumentSequences',
@@ -61,7 +61,7 @@ expected_tables = {
     'PurchaseInvoiceActivities', 'SalesInvoices', 'SalesInvoiceLines', 'SalesInvoiceLineUnits', 'SalesPayments',
     'SalesInvoiceActivities', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits',
     'MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments', 'MaintenanceActivities',
-    'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'ExpenseCategories', 'AuditLog'
+    'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'ExpenseCategories', 'Expenses', 'AuditLog'
 }
 created_tables = set(re.findall(r'CREATE\s+TABLE\s+dbo\.([A-Za-z0-9_]+)', sql, re.I))
 assert created_tables == expected_tables, f'schema table mismatch: missing={expected_tables-created_tables}, extra={created_tables-expected_tables}'
@@ -1214,6 +1214,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/ViewModels/AddSupplierViewModel.cs',
     root / 'src/ProjectZ/ViewModels/SuppliersViewModel.cs',
     root / 'src/ProjectZ/ViewModels/MyAccountsViewModel.cs',
+    root / 'src/ProjectZ/ViewModels/AddExpenseViewModel.cs',
     root / 'src/ProjectZ/ViewModels/AccountDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/InventoryDialogViewModels.cs',
     root / 'src/ProjectZ/ViewModels/CategoriesViewModel.cs',
@@ -1240,6 +1241,7 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/AddSupplierWindow.xaml.cs',
     root / 'src/ProjectZ/Views/SuppliersView.xaml.cs',
     root / 'src/ProjectZ/Views/MyAccountsView.xaml.cs',
+    root / 'src/ProjectZ/Views/AddExpenseView.xaml.cs',
     root / 'src/ProjectZ/Views/AccountEditorWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AccountTransactionWindow.xaml.cs',
     root / 'src/ProjectZ/Views/AccountTransferWindow.xaml.cs',
@@ -1622,6 +1624,97 @@ assert expense_doc.is_file(), 'missing docs/EXPENSE_CATEGORIES.md'
 assert 'docs/EXPENSE_CATEGORIES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
     'README must link the expense sections documentation'
 print('PASS: expense sections screen reads and writes dbo.ExpenseCategories with serialized writes, audit rows and a used-section delete guard')
+# --- Add-expense screen (dbo.Expenses + ExpenseRepository + sql/20) ---------------------------
+assert 'CREATE TABLE dbo.Expenses' in full_schema, 'sql/06 must create dbo.Expenses'
+expenses_table = full_schema.split('CREATE TABLE dbo.Expenses', 1)[1].split('/*', 1)[0]
+assert 'CONSTRAINT UQ_Expenses_Number UNIQUE' in expenses_table
+assert 'CONSTRAINT FK_Expenses_Categories FOREIGN KEY REFERENCES dbo.ExpenseCategories(Id)' in expenses_table
+assert 'CONSTRAINT FK_Expenses_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id)' in expenses_table
+assert 'CONSTRAINT CK_Expenses_Amount CHECK (Amount > 0)' in expenses_table
+assert 'ExpenseNumber NVARCHAR(50)' in expenses_table and 'ExpenseDate DATE' in expenses_table
+assert 'IX_Expenses_Date' in full_schema and 'IX_Expenses_Category_Date' in full_schema
+assert "N'Expenses'" in (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8'), \
+    'the schema verification script must expect dbo.Expenses'
+enable_expenses_sql_path = root / 'sql/20_EnableExpenses.sql'
+assert enable_expenses_sql_path.is_file(), 'missing sql/20_EnableExpenses.sql'
+enable_expenses_sql = enable_expenses_sql_path.read_text(encoding='utf-8')
+assert 'CREATE TABLE dbo.Expenses' in enable_expenses_sql
+assert "IF OBJECT_ID(N'dbo.Expenses', N'U') IS NULL" in enable_expenses_sql
+assert 'GRANT SELECT, INSERT ON OBJECT::dbo.Expenses TO [ProjectZClient]' in enable_expenses_sql
+assert 'GRANT SELECT, UPDATE ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient]' in enable_expenses_sql
+assert 'GRANT INSERT ON OBJECT::dbo.AuditLog TO [ProjectZClient]' in enable_expenses_sql
+assert 'THROW 50070' in enable_expenses_sql and 'THROW 50074' in enable_expenses_sql
+assert 'IX_Expenses_Date' in enable_expenses_sql and 'IX_Expenses_Category_Date' in enable_expenses_sql
+
+expense_entry_repository_path = root / 'src/ProjectZ/Data/ExpenseRepository.cs'
+assert expense_entry_repository_path.is_file(), 'missing src/ProjectZ/Data/ExpenseRepository.cs'
+expense_entry_repository = expense_entry_repository_path.read_text(encoding='utf-8')
+for operation in ('LoadCategories(', 'SavedExpense Save(', 'NextDocumentNumber('):
+    assert operation in expense_entry_repository, f'missing expense SQL operation: {operation}'
+for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'transaction.Commit()', 'transaction.Rollback()',
+              'UPDLOCK, HOLDLOCK', 'dbo.Expenses', 'UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance - @Amount',
+              'INSERT dbo.FinancialTransactions', "N'Expense'", 'INSERT dbo.AuditLog', "N'CreateExpense'",
+              'private const string ExpenseSequence = "Expense";', '"EXP"'):
+    assert guard in expense_entry_repository, f'missing expense persistence guard: {guard}'
+assert 'sql/20_EnableExpenses.sql' in expense_entry_repository, 'a missing table must point at sql/20'
+assert 'amount > accountBalance' in expense_entry_repository, 'the selected account must cover the amount'
+assert 'date > DateTime.Today' in expense_entry_repository or 'expenseDate > DateTime.Today' in expense_entry_repository, \
+    'a future expense date must be refused'
+assert 'SqlDbType.Decimal' in expense_entry_repository and 'Precision = 19' in expense_entry_repository
+assert 'System.Data' in expense_entry_repository and 'Microsoft.Data.SqlClient' in expense_entry_repository
+
+expense_entry_vm = (root / 'src/ProjectZ/ViewModels/AddExpenseViewModel.cs').read_text(encoding='utf-8')
+for wiring in ('repository.LoadCategories(', 'repository.Save(new SaveExpenseRequest(',
+               'financialRepository.LoadAccountsInto(', 'ExpenseDesignSeedData.CreateSampleExpenseCategories()',
+               'FinanceDesignSeedData.CreateAccounts()', 'RefreshFromDatabase()', 'ExpenseSaved', 'IsDatabaseBacked'):
+    assert wiring in expense_entry_vm, f'add-expense screen is not wired to SQL: {wiring}'
+for token in ('HasInsufficientBalance', 'InsufficientBalanceText', 'SelectedCategory', 'SelectedAccount',
+              'AmountText', 'DescriptionText', 'ExpenseDate', 'SaveCommand', 'ClearFormCommand', 'HasNoCategories',
+              'HasNoAccounts', 'LastSavedNumber', 'IsErrorStatus'):
+    assert token in expense_entry_vm, f'add-expense view model is missing: {token}'
+assert 'PosFormatting.FormatCurrency' in expense_entry_vm
+assert 'FinancialAccountDesignItem' in expense_entry_vm
+
+expense_entry_view = (root / 'src/ProjectZ/Views/AddExpenseView.xaml').read_text(encoding='utf-8')
+for token in ('ItemsSource="{Binding Categories}"', 'SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"',
+              'ItemsSource="{Binding Accounts}"', 'SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"',
+              'Text="{Binding AmountText', 'Text="{Binding DescriptionText', 'SelectedDate="{Binding ExpenseDate',
+              'Command="{Binding SaveCommand}"', 'Command="{Binding ClearFormCommand}"', 'Command="{Binding RefreshCommand}"',
+              'StatusMessage', 'IsErrorStatus', 'HasInsufficientBalance', 'HasLastSaved', 'PosComboBoxStyle'):
+    assert token in expense_entry_view, f'add-expense UI is missing expected token: {token}'
+assert expense_entry_view.count('{DynamicResource Theme.') >= 20, 'every colour must follow the active theme'
+assert '{StaticResource PosRtlTextStyle}' in expense_entry_view and 'FlowDirection="LeftToRight"' in expense_entry_view
+assert 'متصل بقاعدة البيانات' in expense_entry_view and 'وضع العرض التجريبي' in expense_entry_view
+assert (root / 'src/ProjectZ/Views/AddExpenseView.xaml.cs').is_file(), 'missing AddExpenseView code-behind'
+assert 'InitializeComponent();' in (root / 'src/ProjectZ/Views/AddExpenseView.xaml.cs').read_text(encoding='utf-8')
+
+assert 'AddExpense = new AddExpenseViewModel(expenseRepository, financialRepository);' in main_viewmodel
+assert 'public AddExpenseViewModel AddExpense { get; }' in main_viewmodel
+assert 'IsAddExpenseSelected => ReferenceEquals(selectedItem, expensesCategory.Items[0])' in main_viewmodel
+assert '|| IsUsersSelected || IsAddExpenseSelected || IsExpenseCategoriesSelected' in main_viewmodel
+assert 'Changed(nameof(IsAddExpenseSelected));' in main_viewmodel
+assert 'ReferenceEquals(item, expensesCategory.Items[0])' in main_viewmodel, \
+    'opening the add-expense screen must reload the sections and the balances'
+assert 'AddExpense.ExpenseSaved = () => MyAccounts.NotifyExternalDataChanged();' in main_viewmodel, \
+    'a saved expense must refresh the accounts screen'
+assert 'ExpenseCategories.CategoriesChanged = () => AddExpense.NotifyExternalDataChanged();' in main_viewmodel, \
+    'the sections screen must refresh the add-expense pickers'
+assert 'IsAddExpenseSelected' in main_xaml and 'views:AddExpenseView' in main_xaml
+assert 'DataContext="{Binding AddExpense}"' in main_xaml
+app_cs_text = (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
+assert 'new ExpenseRepository(connectionSettings, user.Id)' in app_cs_text
+expenses_doc_path = root / 'docs/EXPENSES.md'
+assert expenses_doc_path.is_file(), 'missing docs/EXPENSES.md'
+expenses_doc = expenses_doc_path.read_text(encoding='utf-8')
+for token in ('dbo.Expenses', 'sql/20_EnableExpenses.sql', 'EXP-YYYY-0000', 'FinancialTransactions',
+              'HasInsufficientBalance', 'خطوات القبول'):
+    assert token in expenses_doc, f'docs/EXPENSES.md is missing: {token}'
+assert 'docs/EXPENSES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
+    'README must link the add-expense documentation'
+assert '| 40 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
+    'ACCEPTANCE must gain a row for the add-expense screen'
+print('PASS: add-expense screen writes dbo.Expenses with an account deduction, ledger movement, document number and audit row')
+
 # --- Users screen (login accounts in dbo.Users + sql/14) -------------------------------------
 users_repository_path = root / 'src/ProjectZ/Data/UserRepository.cs'
 assert users_repository_path.is_file(), 'missing src/ProjectZ/Data/UserRepository.cs'

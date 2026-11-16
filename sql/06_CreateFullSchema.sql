@@ -34,7 +34,8 @@ IF EXISTS
        N'PurchaseInvoiceLines', N'PurchaseReturns', N'PurchaseReturnLines', N'PurchasePayments',
        N'PurchaseInvoiceActivities', N'SalesInvoices', N'SalesInvoiceLines', N'SalesPayments',
        N'SalesInvoiceActivities', N'ReturnExchanges', N'ReturnExchangeLines', N'MaintenanceOrders',
-       N'MaintenanceOrderParts', N'MaintenancePayments', N'MaintenanceActivities', N'ExpenseCategories', N'AuditLog')
+       N'MaintenanceOrderParts', N'MaintenancePayments', N'MaintenanceActivities', N'ExpenseCategories',
+       N'Expenses', N'AuditLog')
 )
     THROW 50011, N'An existing business table has a non-INT Id. Back up the database and migrate its identifiers before rerunning this schema.', 1;
 GO
@@ -261,6 +262,23 @@ CREATE TABLE dbo.ExpenseCategories
     CreatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_ExpenseCategories_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
     UpdatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_ExpenseCategories_UpdatedAtUtc DEFAULT SYSUTCDATETIME(),
     CONSTRAINT UQ_ExpenseCategories_Name UNIQUE (Name)
+);
+
+/* Recorded expenses: one category, one financial account and one ledger row per expense. */
+IF OBJECT_ID(N'dbo.Expenses', N'U') IS NULL
+CREATE TABLE dbo.Expenses
+(
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Expenses PRIMARY KEY,
+    ExpenseNumber NVARCHAR(50) NOT NULL CONSTRAINT UQ_Expenses_Number UNIQUE,
+    ExpenseCategoryId INT NOT NULL CONSTRAINT FK_Expenses_Categories FOREIGN KEY REFERENCES dbo.ExpenseCategories(Id),
+    FinancialAccountId INT NOT NULL CONSTRAINT FK_Expenses_Accounts FOREIGN KEY REFERENCES dbo.FinancialAccounts(Id),
+    ExpenseDate DATE NOT NULL,
+    Amount DECIMAL(19,2) NOT NULL,
+    Description NVARCHAR(1000) NOT NULL CONSTRAINT DF_Expenses_Description DEFAULT N'',
+    ActorUserId INT NOT NULL CONSTRAINT FK_Expenses_Actor FOREIGN KEY REFERENCES dbo.Users(Id),
+    CreatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_Expenses_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
+    RowVersion ROWVERSION NOT NULL,
+    CONSTRAINT CK_Expenses_Amount CHECK (Amount > 0)
 );
 
 /* Serialized and quantity inventory. */
@@ -833,6 +851,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Custo
     CREATE INDEX IX_CustomerTransfers_Account_Date ON dbo.CustomerTransfers(FinancialAccountId, OccurredAtUtc DESC) INCLUDE (OperationKind, Amount, Commission, OperationStatus);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.CustomerTransfers') AND name = N'IX_CustomerTransfers_Customer')
     CREATE INDEX IX_CustomerTransfers_Customer ON dbo.CustomerTransfers(CustomerNumber, OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Expenses') AND name = N'IX_Expenses_Date')
+    CREATE INDEX IX_Expenses_Date ON dbo.Expenses(ExpenseDate DESC, Id DESC) INCLUDE (ExpenseNumber, ExpenseCategoryId, FinancialAccountId, Amount);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Expenses') AND name = N'IX_Expenses_Category_Date')
+    CREATE INDEX IX_Expenses_Category_Date ON dbo.Expenses(ExpenseCategoryId, ExpenseDate DESC) INCLUDE (Amount);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FinancialTransactions') AND name = N'IX_FinancialTransactions_Account_Date')
     CREATE INDEX IX_FinancialTransactions_Account_Date ON dbo.FinancialTransactions(FinancialAccountId, OccurredAtUtc DESC, Id DESC) INCLUDE (IsIncoming, Amount, BalanceAfter, CountsTowardLimits);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FinancialTransactions') AND name = N'IX_FinancialTransactions_TransferGroup')
