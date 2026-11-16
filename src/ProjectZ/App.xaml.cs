@@ -106,7 +106,8 @@ public partial class App : Application
                 new SettingsRepository(connectionSettings, user.Id),
                 new BackupRepository(connectionSettings),
                 new AppearanceViewModel(themeManager),
-                new ExpenseCategoryRepository(connectionSettings, user.Id));
+                new ExpenseCategoryRepository(connectionSettings, user.Id),
+                new ExpenseRepository(connectionSettings, user.Id));
             MainWindow = main;
             TrackWindow(main);
 

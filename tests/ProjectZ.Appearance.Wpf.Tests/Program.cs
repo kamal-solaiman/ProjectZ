@@ -78,11 +78,11 @@ internal static class Program
                 "اضافة مصروف", "فواتير المصروفات", "تصنيفات المصروفات"
             }),
             "Expenses menu lists the three expense windows");
-        mainVm.SelectItem(expensesMenu.Items[0]);
+        mainVm.SelectItem(expensesMenu.Items[1]);
         Check(!mainVm.IsImplementedScreenSelected
             && mainVm.SelectedCategoryTitle == "المصروفات"
-            && mainVm.SelectedPageTitle == "اضافة مصروف",
-            "Menus-only categories keep the placeholder workspace and never claim an implemented screen");
+            && mainVm.SelectedPageTitle == "فواتير المصروفات",
+            "Menus-only items keep the placeholder workspace and never claim an implemented screen");
         // «تصنيفات المصروفات» is the first implemented expense screen. Selecting it must activate
         // its host Grid and load the six starter sections without SQL (design mode).
         var expenseCategoriesItem = mainVm.Categories.Single(c => c.Title == "المصروفات")
@@ -98,6 +98,35 @@ internal static class Program
             "ExpenseCategoriesView receives the ExpenseCategories view model");
         Check(((Grid)hostedExpenseCategories.Parent).Visibility == Visibility.Visible,
             "Expense categories host Grid is Visible after navigating to تصنيفات المصروفات");
+
+        // «اضافة مصروف» reads its sections from dbo.ExpenseCategories; the design preview must
+        // therefore start with the same six starter sections and the sample accounts, and a save
+        // must deduct the chosen account in the preview only.
+        var addExpenseItem = mainVm.Categories.Single(c => c.Title == "المصروفات")
+            .Items.Single(i => i.Title == "اضافة مصروف");
+        mainVm.SelectItem(addExpenseItem);
+        PumpDispatcher();
+        Check(mainVm.IsAddExpenseSelected, "SelectItem activates the add-expense screen");
+        Check(mainVm.AddExpense.Categories.Count == 6,
+            "The add-expense category picker shows the six starter sections in design mode");
+        Check(mainVm.AddExpense.Accounts.Count > 0 && mainVm.AddExpense.SelectedAccount is not null,
+            "The add-expense screen preselects an active financial account in design mode");
+        var hostedAddExpense = FindLogicalDescendant<AddExpenseView>(main);
+        Check(hostedAddExpense is not null, "MainWindow hosts AddExpenseView in its logical tree");
+        Check(hostedAddExpense!.DataContext is AddExpenseViewModel,
+            "AddExpenseView receives the AddExpense view model");
+        Check(((Grid)hostedAddExpense.Parent).Visibility == Visibility.Visible,
+            "Add-expense host Grid is Visible after navigating to اضافة مصروف");
+        var balanceBeforeExpense = mainVm.AddExpense.SelectedAccount!.Balance;
+        mainVm.AddExpense.AmountText = "250.25";
+        mainVm.AddExpense.DescriptionText = "اختبار الدخان";
+        mainVm.AddExpense.SaveCommand.Execute(null);
+        Check(mainVm.AddExpense.HasLastSaved && mainVm.AddExpense.LastSavedNumber.StartsWith("EXP-"),
+            "A design-mode expense save produces an EXP- document number");
+        Check(!mainVm.AddExpense.IsErrorStatus,
+            "A valid design-mode expense save reports success, not an error");
+        Check(mainVm.AddExpense.SelectedAccount!.Balance == balanceBeforeExpense - 250.25m,
+            "A design-mode expense save deducts the selected account balance");
         var notified = new List<string?>();
         mainVm.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
         // Items are looked up by their Arabic labels instead of a positional index, so inserting
