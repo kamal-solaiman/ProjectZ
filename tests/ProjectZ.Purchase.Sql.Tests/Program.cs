@@ -248,7 +248,7 @@ INSERT dbo.ExpenseCategories(Name,Description) OUTPUT inserted.Id VALUES(N'اخ�
     // «فواتير المصروفات» reads the same rows back: one row per expense, one payment line per
     // account, with the section and the user who recorded it, and the date filter works in SQL.
     var listedInvoices = expenseRepository.LoadInvoices();
-    Check(listedInvoices.Count == 1 and listedInvoices[0].Id == savedExpense.ExpenseId,
+    Check(listedInvoices.Count == 1 && listedInvoices[0].Id == savedExpense.ExpenseId,
         "ExpenseRepository.LoadInvoices returns the saved expense once");
     Check(listedInvoices[0].ExpenseNumber == savedExpense.ExpenseNumber
         && listedInvoices[0].Amount == 300m
