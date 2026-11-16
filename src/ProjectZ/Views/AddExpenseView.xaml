@@ -4,7 +4,7 @@
              FlowDirection="LeftToRight"
              Language="ar-EG">
 
-    <Grid FlowDirection="LeftToRight" Margin="0,0,0,0">
+    <Grid FlowDirection="LeftToRight">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -38,7 +38,6 @@
                            Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                            VerticalAlignment="Center" />
 
-                <!-- Live SQL connection badge (hidden in the design preview). -->
                 <Border Margin="10,0,0,0"
                         Padding="10,4"
                         CornerRadius="12"
@@ -69,7 +68,7 @@
                                Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
                 </Border>
 
-                <TextBlock Text="تسجيل مصروف واحد: تصنيف + مبلغ + تاريخ + بيان، ويُخصم المبلغ من الحساب المالي المختار."
+                <TextBlock Text="تسجيل مصروف واحد: تصنيف + مبلغ + تاريخ + بيان، ويُخصم المبلغ من وسيلة دفع واحدة أو أكثر."
                            Style="{StaticResource PosRtlTextStyle}"
                            Margin="12,0,0,0"
                            FontSize="12"
@@ -80,285 +79,22 @@
             </StackPanel>
         </Grid>
 
-        <!-- ROW 1: entry form (right) + account/summary column (left) -->
-        <Grid Grid.Row="1" FlowDirection="LeftToRight">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
+        <!-- ROW 1: summary panel (left) + expense data (right) -->
+        <ScrollViewer Grid.Row="1"
+                      FlowDirection="LeftToRight"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <Grid FlowDirection="LeftToRight">
+                <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="330" />
                 <ColumnDefinition Width="14" />
-                <ColumnDefinition Width="340" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- ============================ Form card ============================ -->
-            <Border Grid.Column="0"
-                    Padding="18"
-                    CornerRadius="14"
-                    Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
-                    BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
-                    BorderThickness="1"
-                    VerticalAlignment="Top">
-                <StackPanel FlowDirection="RightToLeft">
-
-                    <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" Margin="0,0,0,14">
-                        <TextBlock Text="بيانات المصروف"
-                                   Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="16"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
-                        <Border Margin="10,0,0,0"
-                                Padding="9,3"
-                                CornerRadius="9"
-                                Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}"
-                                BorderBrush="{DynamicResource Theme.Legacy.DDD6FE.InfoBorder}"
-                                BorderThickness="1"
-                                VerticalAlignment="Center">
-                            <TextBlock Text="رقم المصروف: يُولَّد تلقائيًا عند الحفظ"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource Theme.Legacy.1E40AF.InfoInk}" />
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Category picker: options come from dbo.ExpenseCategories -->
-                    <TextBlock Text="تصنيف المصروف *"
-                               Style="{StaticResource PosRtlTextStyle}"
-                               FontSize="12.5"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,5" />
-
-                    <ComboBox Style="{StaticResource PosComboBoxStyle}"
-                              ItemsSource="{Binding Categories}"
-                              SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
-                              MinHeight="42"
-                              Visibility="{Binding HasNoCategories, Converter={StaticResource InverseBoolToVis}}">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel FlowDirection="RightToLeft">
-                                    <TextBlock Text="{Binding Name}"
-                                               Style="{StaticResource PosRtlTextStyle}"
-                                               FontSize="13"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding Description}"
-                                               Style="{StaticResource PosRtlTextStyle}"
-                                               FontSize="11"
-                                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
-                                               Visibility="{Binding HasDescription, Converter={StaticResource BoolToVis}}" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <TextBlock Text="{Binding SelectedCategoryDescription}"
-                               Style="{StaticResource PosRtlTextStyle}"
-                               FontSize="11.5"
-                               Margin="0,5,0,0"
-                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
-                               Visibility="{Binding HasSelectedCategoryDescription, Converter={StaticResource BoolToVis}}" />
-
-                    <Border Margin="0,6,0,0"
-                            Padding="12,10"
-                            CornerRadius="9"
-                            Background="{DynamicResource Theme.Legacy.FEF3C7.WarningSoft}"
-                            BorderBrush="{DynamicResource Theme.Legacy.FDE68A.WarningBorder}"
-                            BorderThickness="1"
-                            Visibility="{Binding HasNoCategories, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="{Binding EmptyCategoriesText}"
-                                   Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="12"
-                                   TextWrapping="Wrap"
-                                   Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
-                    </Border>
-
-                    <!-- Amount + date -->
-                    <Grid Margin="0,16,0,0" FlowDirection="LeftToRight">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="210" />
-                            <ColumnDefinition Width="14" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="2" FlowDirection="RightToLeft">
-                            <TextBlock Text="المبلغ *"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="12.5"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,5" />
-                            <TextBox x:Name="AmountBox"
-                                     Style="{StaticResource PosNumericTextBoxStyle}"
-                                     FontSize="17"
-                                     FontWeight="Bold"
-                                     Text="{Binding AmountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Text="أدخل المبلغ بالجنيه، مثال: 250.00"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="11"
-                                       Margin="0,4,0,0"
-                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="0" FlowDirection="RightToLeft">
-                            <TextBlock Text="التاريخ *"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="12.5"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,5" />
-                            <DatePicker SelectedDate="{Binding ExpenseDate, Mode=TwoWay}"
-                                        FlowDirection="RightToLeft"
-                                        MinHeight="36"
-                                        FontSize="13" />
-                            <TextBlock Text="التاريخ الافتراضي هو تاريخ اليوم."
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="11"
-                                       Margin="0,4,0,0"
-                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- Statement -->
-                    <Grid Margin="0,16,0,0" FlowDirection="LeftToRight">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0"
-                                   Text="البيان / الوصف (اختياري)"
-                                   Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="12.5"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Bottom" />
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding DescriptionCountDisplay}"
-                                   Style="{StaticResource PosLtrTextStyle}"
-                                   FontSize="11"
-                                   VerticalAlignment="Bottom"
-                                   Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                    </Grid>
-
-                    <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
-                             Margin="0,5,0,0"
-                             Height="86"
-                             MaxLength="1000"
-                             AcceptsReturn="True"
-                             TextWrapping="Wrap"
-                             VerticalScrollBarVisibility="Auto"
-                             VerticalContentAlignment="Top"
-                             Text="{Binding DescriptionText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-                    <!-- Over-balance warning -->
-                    <Border Margin="0,12,0,0"
-                            Padding="12,10"
-                            CornerRadius="9"
-                            Background="{DynamicResource Theme.Legacy.FEE2E2.DangerSoft}"
-                            BorderBrush="{DynamicResource Theme.Legacy.FECACA.DangerBorder}"
-                            BorderThickness="1"
-                            Visibility="{Binding HasInsufficientBalance, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="{Binding InsufficientBalanceText}"
-                                   Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="12"
-                                   TextWrapping="Wrap"
-                                   Foreground="{DynamicResource Theme.Legacy.991B1B.DangerInk}" />
-                    </Border>
-
-                    <!-- Actions -->
-                    <StackPanel Orientation="Horizontal"
-                                FlowDirection="LeftToRight"
-                                HorizontalAlignment="Right"
-                                Margin="0,20,0,0">
-                        <Button Content="تفريغ الحقول"
-                                Style="{StaticResource PosSecondaryButtonStyle}"
-                                Padding="16,9"
-                                FontSize="13"
-                                Command="{Binding ClearFormCommand}" />
-                        <Button Content="{Binding SaveButtonText}"
-                                Margin="10,0,0,0"
-                                Command="{Binding SaveCommand}">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource PosPrimaryCompactButtonStyle}">
-                                    <Setter Property="Padding" Value="22,9" />
-                                    <Setter Property="FontSize" Value="13.5" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsBusy}" Value="True">
-                                            <Setter Property="IsEnabled" Value="False" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- ================= Account + totals column ================= -->
-            <StackPanel Grid.Column="2" FlowDirection="RightToLeft" VerticalAlignment="Top">
+            <!-- ================= Summary / confirmation panel ================= -->
+            <StackPanel Grid.Column="0" FlowDirection="RightToLeft" VerticalAlignment="Top">
 
                 <Border Padding="16"
-                        CornerRadius="14"
-                        Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
-                        BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
-                        BorderThickness="1">
-                    <StackPanel FlowDirection="RightToLeft">
-                        <TextBlock Text="الحساب المالي المخصوم منه *"
-                                   Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="13"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
-                        <TextBlock Text="سيُخصم المبلغ من هذا الحساب فورًا."
-                                   Style="{StaticResource PosRtlTextStyle}"
-                                   FontSize="11"
-                                   Margin="0,3,0,8"
-                                   Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-
-                        <ComboBox Style="{StaticResource PosComboBoxStyle}"
-                                  ItemsSource="{Binding Accounts}"
-                                  SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"
-                                  MinHeight="44"
-                                  Visibility="{Binding HasNoAccounts, Converter={StaticResource InverseBoolToVis}}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid FlowDirection="RightToLeft" MinWidth="240">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" FlowDirection="RightToLeft">
-                                            <TextBlock Text="{Binding Alias}"
-                                                       Style="{StaticResource PosRtlTextStyle}"
-                                                       FontSize="13"
-                                                       FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding ProviderTitle}"
-                                                       Style="{StaticResource PosRtlTextStyle}"
-                                                       FontSize="11"
-                                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding BalanceDisplay}"
-                                                   Style="{StaticResource PosLtrTextStyle}"
-                                                   FontSize="11.5"
-                                                   FontWeight="SemiBold"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource Theme.Legacy.0F766E.Success}" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-
-                        <Border Margin="0,8,0,0"
-                                Padding="12,10"
-                                CornerRadius="9"
-                                Background="{DynamicResource Theme.Legacy.FEF3C7.WarningSoft}"
-                                BorderBrush="{DynamicResource Theme.Legacy.FDE68A.WarningBorder}"
-                                BorderThickness="1"
-                                Visibility="{Binding HasNoAccounts, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="{Binding EmptyAccountsText}"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="12"
-                                       TextWrapping="Wrap"
-                                       Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
-                        </Border>
-                    </StackPanel>
-                </Border>
-
-                <!-- Totals -->
-                <Border Margin="0,12,0,0"
-                        Padding="16"
                         CornerRadius="14"
                         Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
                         BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
@@ -391,39 +127,6 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="الحساب"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                            <TextBlock Grid.Column="1" Text="{Binding SelectedAccountAlias}"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="12"
-                                       FontWeight="SemiBold" />
-                        </Grid>
-
-                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,7">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="الرصيد المتاح"
-                                       Style="{StaticResource PosRtlTextStyle}"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                            <TextBlock Grid.Column="1" Text="{Binding SelectedAccountBalanceDisplay}"
-                                       Style="{StaticResource PosLtrTextStyle}"
-                                       FontSize="12.5"
-                                       FontWeight="SemiBold" />
-                        </Grid>
-
-                        <Border Height="1" Margin="0,4,0,8"
-                                Background="{DynamicResource Theme.Legacy.E2E8F0.Border}" />
-
-                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,7">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="مبلغ المصروف"
                                        Style="{StaticResource PosRtlTextStyle}"
                                        FontSize="12"
@@ -436,23 +139,38 @@
                                        Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                         </Grid>
 
-                        <Grid FlowDirection="RightToLeft">
+                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,7">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="المتبقي بعد الحفظ"
+                            <TextBlock Grid.Column="0" Text="الموزَّع على وسائل الدفع"
                                        Style="{StaticResource PosRtlTextStyle}"
                                        FontSize="12"
                                        Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
-                            <TextBlock Grid.Column="1" Text="{Binding RemainingAfterSaveDisplay}"
+                            <TextBlock Grid.Column="1" Text="{Binding PaymentsAllocatedDisplay}"
+                                       Style="{StaticResource PosLtrTextStyle}"
+                                       FontSize="12.5"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+
+                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="المتبقي للتوزيع"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                            <TextBlock Grid.Column="1" Text="{Binding RemainingToAllocateDisplay}"
                                        Style="{StaticResource PosLtrTextStyle}"
                                        FontSize="13"
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource Theme.Legacy.0F766E.Success}" />
                         </Grid>
 
-                        <Grid FlowDirection="RightToLeft" Margin="0,7,0,0">
+                        <Grid FlowDirection="RightToLeft" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -466,6 +184,20 @@
                                        FontSize="12"
                                        FontWeight="SemiBold" />
                         </Grid>
+
+                        <Border Height="1" Margin="0,2,0,8"
+                                Background="{DynamicResource Theme.Legacy.E2E8F0.Border}" />
+
+                        <TextBlock Text="وسائل الدفع"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                        <TextBlock Text="{Binding PaymentMethodsSummary}"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
 
@@ -497,10 +229,11 @@
                                    Margin="0,5,0,0"
                                    TextWrapping="Wrap"
                                    Foreground="{DynamicResource Theme.Legacy.15803D.SuccessInk}" />
-                        <TextBlock Text="تم تسجيل حركة خارجة في سجل الحساب المالي."
+                        <TextBlock Text="تم خصم كل وسيلة دفع من حسابها وتسجيل حركة في سجل كل حساب."
                                    Style="{StaticResource PosRtlTextStyle}"
                                    FontSize="11"
                                    Margin="0,4,0,0"
+                                   TextWrapping="Wrap"
                                    Foreground="{DynamicResource Theme.Legacy.047857.Success}" />
                     </StackPanel>
                 </Border>
@@ -512,14 +245,370 @@
                         Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}"
                         BorderBrush="{DynamicResource Theme.Legacy.DDD6FE.InfoBorder}"
                         BorderThickness="1">
-                    <TextBlock Text="الحفظ يخصم المبلغ من الحساب المختار ويكتب حركة في سجل الحساب داخل معاملة واحدة. قائمة المصروفات الكاملة ستكون في «فواتير المصروفات» عند تنفيذها."
+                    <TextBlock Text="الحفظ يخصم مبلغ كل وسيلة دفع من حسابها ويكتب حركة في سجل كل حساب داخل معاملة واحدة. قائمة المصروفات الكاملة ستكون في «فواتير المصروفات» عند تنفيذها."
                                Style="{StaticResource PosRtlTextStyle}"
                                FontSize="11.5"
                                TextWrapping="Wrap"
                                Foreground="{DynamicResource Theme.Legacy.1E40AF.InfoInk}" />
                 </Border>
             </StackPanel>
-        </Grid>
+
+            <!-- ============================ Expense data ============================ -->
+            <Border Grid.Column="2"
+                    Padding="18"
+                    CornerRadius="14"
+                    Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
+                    BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
+                    BorderThickness="1"
+                    VerticalAlignment="Top">
+                <Grid FlowDirection="RightToLeft">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- ROW 0: title chip -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" FlowDirection="RightToLeft" Margin="0,0,0,14">
+                        <TextBlock Text="بيانات المصروف"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
+                        <Border Margin="10,0,0,0"
+                                Padding="9,3"
+                                CornerRadius="9"
+                                Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}"
+                                BorderBrush="{DynamicResource Theme.Legacy.DDD6FE.InfoBorder}"
+                                BorderThickness="1"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="رقم المصروف: يُولَّد تلقائيًا عند الحفظ"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource Theme.Legacy.1E40AF.InfoInk}" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ROW 1: payment methods beside the expense category -->
+                    <Grid Grid.Row="1" FlowDirection="LeftToRight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.35*" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Payment methods -->
+                        <Border Grid.Column="0"
+                                Padding="12,12,12,10"
+                                CornerRadius="12"
+                                Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
+                                BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
+                                BorderThickness="1">
+                            <StackPanel FlowDirection="RightToLeft">
+                                <Grid FlowDirection="LeftToRight">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="وسائل الدفع *"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="12.5"
+                                               FontWeight="SemiBold" />
+                                    <Border Grid.Column="1"
+                                            Padding="8,2"
+                                            CornerRadius="8"
+                                            Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}"
+                                            BorderBrush="{DynamicResource Theme.Legacy.DDD6FE.InfoBorder}"
+                                            BorderThickness="1">
+                                        <TextBlock Text="{Binding PaymentMethodsCountDisplay}"
+                                                   Style="{StaticResource PosCenterTextStyle}"
+                                                   FontSize="10.5"
+                                                   Foreground="{DynamicResource Theme.Legacy.1E40AF.InfoInk}" />
+                                    </Border>
+                                </Grid>
+
+                                <TextBlock Text="{Binding SinglePaymentHint}"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="10.5"
+                                           Margin="0,3,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+
+                                <ItemsControl ItemsSource="{Binding Payments}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,0,0,9" FlowDirection="RightToLeft">
+                                                <Grid FlowDirection="LeftToRight">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="6" />
+                                                        <ColumnDefinition Width="88" />
+                                                        <ColumnDefinition Width="8" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Button Grid.Column="0"
+                                                            Content="✕"
+                                                            Style="{StaticResource PosDangerIconButtonStyle}"
+                                                            VerticalAlignment="Center"
+                                                            Command="{Binding RemoveCommand}" />
+
+                                                    <TextBox Grid.Column="2"
+                                                             Style="{StaticResource PosNumericTextBoxStyle}"
+                                                             VerticalAlignment="Center"
+                                                             IsEnabled="{Binding IsSplitPayment}"
+                                                             Text="{Binding AmountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                                    <ComboBox Grid.Column="4"
+                                                              Style="{StaticResource PosComboBoxStyle}"
+                                                              ItemsSource="{Binding Accounts}"
+                                                              SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"
+                                                              DisplayMemberPath="Alias" />
+                                                </Grid>
+                                                <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" Margin="0,3,0,0">
+                                                    <TextBlock Text="الرصيد المتاح:"
+                                                               Style="{StaticResource PosRtlTextStyle}"
+                                                               FontSize="10.5"
+                                                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                                                    <TextBlock Text="{Binding AccountBalanceDisplay}"
+                                                               Style="{StaticResource PosLtrTextStyle}"
+                                                               FontSize="10.5"
+                                                               Margin="4,0,0,0"
+                                                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding InsufficientBalanceText}"
+                                                           Style="{StaticResource PosRtlTextStyle}"
+                                                           FontSize="10.5"
+                                                           Margin="0,4,0,0"
+                                                           TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource Theme.Legacy.991B1B.DangerInk}"
+                                                           Visibility="{Binding HasInsufficientBalance, Converter={StaticResource BoolToVis}}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Button Content="+ إضافة وسيلة دفع"
+                                        Style="{StaticResource PosOutlineTealButtonStyle}"
+                                        Padding="10,5"
+                                        FontSize="11.5"
+                                        HorizontalAlignment="Right"
+                                        Command="{Binding AddPaymentCommand}"
+                                        IsEnabled="{Binding CanAddPayment}" />
+
+                                <Border Padding="10,7"
+                                        Margin="0,8,0,0"
+                                        CornerRadius="8"
+                                        Background="{DynamicResource Theme.Legacy.DCFCE7.SuccessSoft}"
+                                        BorderBrush="{DynamicResource Theme.Legacy.BBF7D0.SuccessBorder}"
+                                        BorderThickness="1"
+                                        Visibility="{Binding IsAllocationBalanced, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding AllocationMessage}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="10.5"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Theme.Legacy.15803D.SuccessInk}" />
+                                </Border>
+
+                                <Border Padding="10,7"
+                                        Margin="0,8,0,0"
+                                        CornerRadius="8"
+                                        Background="{DynamicResource Theme.Legacy.FEF3C7.WarningSoft}"
+                                        BorderBrush="{DynamicResource Theme.Legacy.FDE68A.WarningBorder}"
+                                        BorderThickness="1"
+                                        Visibility="{Binding HasAllocationGap, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding AllocationMessage}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="10.5"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
+                                </Border>
+
+                                <Border Margin="0,8,0,0"
+                                        Padding="10,8"
+                                        CornerRadius="8"
+                                        Background="{DynamicResource Theme.Legacy.FEF3C7.WarningSoft}"
+                                        BorderBrush="{DynamicResource Theme.Legacy.FDE68A.WarningBorder}"
+                                        BorderThickness="1"
+                                        Visibility="{Binding HasNoAccounts, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding EmptyAccountsText}"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Category -->
+                        <StackPanel Grid.Column="2" FlowDirection="RightToLeft">
+                            <TextBlock Text="تصنيف المصروف *"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="12.5"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,5" />
+
+                            <ComboBox Style="{StaticResource PosComboBoxStyle}"
+                                      ItemsSource="{Binding Categories}"
+                                      SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                                      MinHeight="42"
+                                      Visibility="{Binding HasNoCategories, Converter={StaticResource InverseBoolToVis}}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel FlowDirection="RightToLeft">
+                                            <TextBlock Text="{Binding Name}"
+                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Description}"
+                                                       Style="{StaticResource PosRtlTextStyle}"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
+                                                       Visibility="{Binding HasDescription, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <TextBlock Text="{Binding SelectedCategoryDescription}"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="11.5"
+                                       Margin="0,5,0,0"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
+                                       Visibility="{Binding HasSelectedCategoryDescription, Converter={StaticResource BoolToVis}}" />
+
+                            <Border Margin="0,6,0,0"
+                                    Padding="12,10"
+                                    CornerRadius="9"
+                                    Background="{DynamicResource Theme.Legacy.FEF3C7.WarningSoft}"
+                                    BorderBrush="{DynamicResource Theme.Legacy.FDE68A.WarningBorder}"
+                                    BorderThickness="1"
+                                    Visibility="{Binding HasNoCategories, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding EmptyCategoriesText}"
+                                           Style="{StaticResource PosRtlTextStyle}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- ROW 2: total amount + date -->
+                    <Grid Grid.Row="2" Margin="0,16,0,0" FlowDirection="LeftToRight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="210" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" FlowDirection="RightToLeft">
+                            <TextBlock Text="التاريخ *"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="12.5"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,5" />
+                            <DatePicker SelectedDate="{Binding ExpenseDate, Mode=TwoWay}"
+                                        FlowDirection="RightToLeft"
+                                        MinHeight="36"
+                                        FontSize="13" />
+                            <TextBlock Text="التاريخ الافتراضي هو تاريخ اليوم."
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"
+                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" FlowDirection="RightToLeft">
+                            <TextBlock Text="مبلغ المصروف *"
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="12.5"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,5" />
+                            <TextBox x:Name="AmountBox"
+                                     Style="{StaticResource PosNumericTextBoxStyle}"
+                                     FontSize="17"
+                                     FontWeight="Bold"
+                                     Text="{Binding AmountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="إجمالي المصروف؛ يُوزَّع بعد ذلك على وسائل الدفع."
+                                       Style="{StaticResource PosRtlTextStyle}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"
+                                       Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- ROW 3: statement -->
+                    <Grid Grid.Row="3" Margin="0,16,0,0" FlowDirection="LeftToRight">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="البيان / الوصف (اختياري)"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   FontSize="12.5"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Bottom" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding DescriptionCountDisplay}"
+                                   Style="{StaticResource PosLtrTextStyle}"
+                                   FontSize="11"
+                                   VerticalAlignment="Bottom"
+                                   Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                    </Grid>
+
+                    <!-- ROW 4: statement box -->
+                    <StackPanel Grid.Row="4" FlowDirection="RightToLeft">
+                        <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
+                                 Margin="0,5,0,0"
+                                 Height="82"
+                                 MaxLength="1000"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 VerticalContentAlignment="Top"
+                                 Text="{Binding DescriptionText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+
+                    <!-- ROW 5: actions -->
+                    <StackPanel Grid.Row="5"
+                                Orientation="Horizontal"
+                                FlowDirection="LeftToRight"
+                                HorizontalAlignment="Right"
+                                Margin="0,20,0,0">
+                        <Button Content="تفريغ الحقول"
+                                Style="{StaticResource PosSecondaryButtonStyle}"
+                                Padding="16,9"
+                                FontSize="13"
+                                Command="{Binding ClearFormCommand}" />
+                        <Button Content="{Binding SaveButtonText}"
+                                Margin="10,0,0,0"
+                                Command="{Binding SaveCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PosPrimaryCompactButtonStyle}">
+                                    <Setter Property="Padding" Value="22,9" />
+                                    <Setter Property="FontSize" Value="13.5" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                            <Setter Property="IsEnabled" Value="False" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding HasAllocationGap}" Value="True">
+                                            <Setter Property="IsEnabled" Value="False" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            </Grid>
+        </ScrollViewer>
 
         <!-- ROW 2: status bar -->
         <Border Grid.Row="2"

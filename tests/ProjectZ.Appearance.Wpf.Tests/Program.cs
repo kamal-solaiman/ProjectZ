@@ -109,24 +109,49 @@ internal static class Program
         Check(mainVm.IsAddExpenseSelected, "SelectItem activates the add-expense screen");
         Check(mainVm.AddExpense.Categories.Count == 6,
             "The add-expense category picker shows the six starter sections in design mode");
-        Check(mainVm.AddExpense.Accounts.Count > 0 && mainVm.AddExpense.SelectedAccount is not null,
-            "The add-expense screen preselects an active financial account in design mode");
+        Check(mainVm.AddExpense.Accounts.Count > 0
+              && mainVm.AddExpense.Payments.Count == 1
+              && mainVm.AddExpense.Payments[0].SelectedAccount is not null,
+            "The add-expense screen starts with one payment line on an active account");
         var hostedAddExpense = FindLogicalDescendant<AddExpenseView>(main);
         Check(hostedAddExpense is not null, "MainWindow hosts AddExpenseView in its logical tree");
         Check(hostedAddExpense!.DataContext is AddExpenseViewModel,
             "AddExpenseView receives the AddExpense view model");
         Check(((Grid)hostedAddExpense.Parent).Visibility == Visibility.Visible,
             "Add-expense host Grid is Visible after navigating to اضافة مصروف");
-        var balanceBeforeExpense = mainVm.AddExpense.SelectedAccount!.Balance;
+        var firstAccount = mainVm.AddExpense.Payments[0].SelectedAccount!;
+        var balanceBeforeExpense = firstAccount.Balance;
         mainVm.AddExpense.AmountText = "250.25";
+        Check(mainVm.AddExpense.Payments[0].AmountValue == 250.25m && mainVm.AddExpense.IsAllocationBalanced,
+            "A single payment line takes the whole amount without typing it twice");
         mainVm.AddExpense.DescriptionText = "اختبار الدخان";
         mainVm.AddExpense.SaveCommand.Execute(null);
         Check(mainVm.AddExpense.HasLastSaved && mainVm.AddExpense.LastSavedNumber.StartsWith("EXP-"),
             "A design-mode expense save produces an EXP- document number");
         Check(!mainVm.AddExpense.IsErrorStatus,
             "A valid design-mode expense save reports success, not an error");
-        Check(mainVm.AddExpense.SelectedAccount!.Balance == balanceBeforeExpense - 250.25m,
+        Check(firstAccount.Balance == balanceBeforeExpense - 250.25m,
             "A design-mode expense save deducts the selected account balance");
+
+        // Split payment: adding a second line halves the amount so it stays valid, then the save
+        // must deduct both accounts and keep one ledger row per account.
+        mainVm.AddExpense.AmountText = "300.00";
+        mainVm.AddExpense.AddPaymentCommand.Execute(null);
+        Check(mainVm.AddExpense.Payments.Count == 2 && mainVm.AddExpense.HasMultiplePayments,
+            "AddPaymentCommand adds a second payment line");
+        Check(mainVm.AddExpense.IsAllocationBalanced && !mainVm.AddExpense.HasAllocationGap,
+            "Adding a payment line keeps the split equal to the expense amount");
+        var splitFirst = mainVm.AddExpense.Payments[0].SelectedAccount!;
+        var splitSecond = mainVm.AddExpense.Payments[1].SelectedAccount!;
+        var firstBefore = splitFirst.Balance;
+        var secondBefore = splitSecond.Balance;
+        Check(!ReferenceEquals(splitFirst, splitSecond),
+            "The second payment line starts on a different account");
+        mainVm.AddExpense.SaveCommand.Execute(null);
+        Check(mainVm.AddExpense.Payments.Count == 1,
+            "After a split save the form returns to one payment line for the next expense");
+        Check(splitFirst.Balance == firstBefore - 150m && splitSecond.Balance == secondBefore - 150m,
+            "A split expense deducts every payment account by its own share");
         var notified = new List<string?>();
         mainVm.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
         // Items are looked up by their Arabic labels instead of a positional index, so inserting

@@ -13,24 +13,112 @@ public sealed record ExpenseCategoryOption(int Id, string Name, string Descripti
 }
 
 /// <summary>
-/// «اضافة مصروف»: records one expense (section + amount + date + optional statement) and
-/// deducts the amount from the financial account the user picks. The section list comes from
-/// dbo.ExpenseCategories, so the categories screen stays the single source of truth.
+/// One payment line of the expense: the financial account that pays and the part it pays.
+/// The lines of a single expense must add up to the expense amount.
+/// </summary>
+public sealed class ExpensePaymentLineViewModel : ObservableObject
+{
+    private readonly AddExpenseViewModel owner;
+    private FinancialAccountDesignItem? selectedAccount;
+    private string amountText = "";
+
+    internal ExpensePaymentLineViewModel(AddExpenseViewModel owner, FinancialAccountDesignItem? account = null)
+    {
+        this.owner = owner;
+        selectedAccount = account;
+        RemoveCommand = new ActionCommand(() => owner.RemovePayment(this));
+    }
+
+    /// <summary>The active accounts, shared by every payment line.</summary>
+    public ObservableCollection<FinancialAccountDesignItem> Accounts => owner.Accounts;
+
+    public ActionCommand RemoveCommand { get; }
+
+    public FinancialAccountDesignItem? SelectedAccount
+    {
+        get => selectedAccount;
+        set
+        {
+            if (ReferenceEquals(selectedAccount, value)) return;
+            selectedAccount = value;
+            Changed();
+            NotifyDerived();
+            owner.OnPaymentLineChanged();
+        }
+    }
+
+    public string AmountText
+    {
+        get => amountText;
+        set
+        {
+            if (amountText == value) return;
+            amountText = value;
+            Changed();
+            NotifyDerived();
+            owner.OnPaymentLineChanged();
+        }
+    }
+
+    /// <summary>With a single payment line the whole amount belongs to it, so the box is read-only.</summary>
+    public bool IsSplitPayment => owner.Payments.Count > 1;
+
+    public decimal AmountValue => TryParseMoney(AmountText, out var amount) ? amount : 0m;
+    public string AmountDisplay => AmountValue > 0m ? PosFormatting.FormatCurrency(AmountValue) : "—";
+    public bool HasSelectedAccount => SelectedAccount is not null;
+    public string AccountBalanceDisplay => SelectedAccount?.BalanceDisplay ?? "—";
+    public bool HasInsufficientBalance => SelectedAccount is not null && AmountValue > SelectedAccount.Balance;
+
+    public string InsufficientBalanceText => SelectedAccount is null
+        ? ""
+        : $"مبلغ هذا السطر أكبر من رصيد «{SelectedAccount.Alias}» ({SelectedAccount.BalanceDisplay}).";
+
+    internal void NotifySplitChanged() => Changed(nameof(IsSplitPayment));
+
+    private void NotifyDerived()
+    {
+        Changed(nameof(AmountValue));
+        Changed(nameof(AmountDisplay));
+        Changed(nameof(HasSelectedAccount));
+        Changed(nameof(AccountBalanceDisplay));
+        Changed(nameof(HasInsufficientBalance));
+        Changed(nameof(InsufficientBalanceText));
+    }
+
+    internal static bool TryParseMoney(string text, out decimal amount)
+    {
+        var candidate = (text ?? "").Trim().Replace('٫', '.');
+        if (decimal.TryParse(candidate, NumberStyles.Number, CultureInfo.InvariantCulture, out amount))
+            return amount > 0m;
+
+        if (decimal.TryParse(candidate, NumberStyles.Number, CultureInfo.CurrentCulture, out amount))
+            return amount > 0m;
+
+        amount = 0m;
+        return false;
+    }
+}
+
+/// <summary>
+/// «اضافة مصروف»: records one expense (section + total + date + optional statement) and lets the
+/// user pay it through one or more financial accounts in the same save. The section list comes
+/// from dbo.ExpenseCategories and the accounts from dbo.FinancialAccounts.
 /// </summary>
 public sealed class AddExpenseViewModel : ObservableObject
 {
     private const int MaxDescriptionLength = 1000;
+    private const int MaxPayments = 8;
 
     private readonly ExpenseRepository? repository;
     private readonly FinancialRepository? financialRepository;
 
     private ExpenseCategoryOption? selectedCategory;
-    private FinancialAccountDesignItem? selectedAccount;
     private string amountText = "";
     private string descriptionText = "";
     private DateTime? expenseDate = DateTime.Today;
     private bool isBusy;
     private bool isErrorStatus;
+    private bool isSyncingPayments;
     private string statusMessage;
     private string lastSavedNumber = "";
     private string lastSavedSummary = "";
@@ -43,6 +131,7 @@ public sealed class AddExpenseViewModel : ObservableObject
         this.financialRepository = financialRepository;
 
         SaveCommand = new ActionCommand(Save);
+        AddPaymentCommand = new ActionCommand(AddPayment);
         ClearFormCommand = new ActionCommand(ClearForm);
         RefreshCommand = new ActionCommand(() => RefreshFromDatabase());
 
@@ -56,17 +145,23 @@ public sealed class AddExpenseViewModel : ObservableObject
                 Accounts.Add(account);
 
             selectedCategory = Categories.FirstOrDefault();
-            selectedAccount = Accounts.FirstOrDefault(a => a.IsDefault) ?? Accounts.FirstOrDefault();
-            statusMessage = "وضع العرض التجريبي: لا يوجد اتصال بقاعدة البيانات، ولن يُحفظ أي مصروف فعلي. اختر تصنيفًا وحسابًا وأدخل المبلغ.";
+            statusMessage = "وضع العرض التجريبي: لا يوجد اتصال بقاعدة البيانات، ولن يُحفظ أي مصروف فعلي. اختر تصنيفًا ووسائل الدفع وأدخل المبلغ.";
         }
         else
         {
-            statusMessage = "اختر تصنيف المصروف والحساب المالي، ثم أدخل المبلغ والتاريخ واضغط «حفظ المصروف».";
+            statusMessage = "اختر تصنيف المصروف ووسيلة دفع واحدة على الأقل، ثم أدخل المبلغ والتاريخ واضغط «حفظ المصروف».";
         }
+
+        Payments.Add(new ExpensePaymentLineViewModel(
+            this,
+            Accounts.FirstOrDefault(a => a.IsDefault) ?? Accounts.FirstOrDefault()));
     }
 
     public ObservableCollection<ExpenseCategoryOption> Categories { get; } = [];
     public ObservableCollection<FinancialAccountDesignItem> Accounts { get; } = [];
+
+    /// <summary>The payment lines; at least one is always present.</summary>
+    public ObservableCollection<ExpensePaymentLineViewModel> Payments { get; } = [];
 
     /// <summary>Raised after a successful save so the shell can refresh the accounts screen.</summary>
     public Action? ExpenseSaved { get; set; }
@@ -85,19 +180,7 @@ public sealed class AddExpenseViewModel : ObservableObject
         }
     }
 
-    public FinancialAccountDesignItem? SelectedAccount
-    {
-        get => selectedAccount;
-        set
-        {
-            if (ReferenceEquals(selectedAccount, value)) return;
-            selectedAccount = value;
-            Changed();
-            NotifyAccountSummaryChanged();
-        }
-    }
-
-    /// <summary>Raw text of the amount box; parsed with InvariantCulture then the current culture.</summary>
+    /// <summary>Raw text of the total-amount box; parsed with InvariantCulture then the current culture.</summary>
     public string AmountText
     {
         get => amountText;
@@ -106,6 +189,7 @@ public sealed class AddExpenseViewModel : ObservableObject
             if (amountText == value) return;
             amountText = value;
             Changed();
+            SyncSinglePayment();
             NotifyAmountSummaryChanged();
         }
     }
@@ -177,41 +261,91 @@ public sealed class AddExpenseViewModel : ObservableObject
         }
     }
 
-    // ------------------------------------------------------------ derived state
+    // ------------------------------------------------------------ category state
 
     public bool HasSelectedCategory => SelectedCategory is not null;
     public string SelectedCategoryTitle => SelectedCategory?.Name ?? "لم يتم اختيار تصنيف";
     public string SelectedCategoryDescription => SelectedCategory?.Description ?? "";
     public bool HasSelectedCategoryDescription => SelectedCategory?.HasDescription == true;
 
-    public bool HasSelectedAccount => SelectedAccount is not null;
-    public string SelectedAccountAlias => SelectedAccount?.Alias ?? "لم يتم اختيار حساب";
-    public string SelectedAccountProviderTitle => SelectedAccount?.ProviderTitle ?? "";
-    public string SelectedAccountBalanceDisplay => SelectedAccount?.BalanceDisplay ?? "—";
+    // ------------------------------------------------------------- payment state
 
-    public bool HasNoCategories => Categories.Count == 0;
+    public int MaxPaymentMethods => MaxPayments;
+    public bool CanAddPayment => Payments.Count < MaxPayments;
+    public bool HasMultiplePayments => Payments.Count > 1;
+    public int PaymentMethodsCount => Payments.Count;
+
+    public string PaymentMethodsCountDisplay => PaymentMethodsCount == 1
+        ? "وسيلة واحدة"
+        : $"{PaymentMethodsCount} وسائل";
+
+    public string SinglePaymentHint => Payments.Count > 1
+        ? "وزّع كامل المبلغ على وسائل الدفع."
+        : "وسيلة واحدة: يُخصم كامل المبلغ منها.";
+
     public bool HasNoAccounts => Accounts.Count == 0;
-    public string EmptyCategoriesText =>
-        "لا توجد تصنيفات مصروفات مسجلة. افتح «تصنيفات المصروفات» وأضف قسمًا واحدًا على الأقل (مثل: إيجار) ثم عد إلى هذه الشاشة.";
+
     public string EmptyAccountsText =>
         "لا توجد حسابات مالية نشطة. افتح «حساباتي» وأضف الخزنة أو المحفظة التي سيُخصم منها المصروف ثم عد إلى هذه الشاشة.";
 
-    public string AmountDisplay => TryParseAmount(AmountText, out var amount)
-        ? PosFormatting.FormatCurrency(amount)
-        : "—";
+    public decimal PaymentsAllocated => Math.Round(Payments.Sum(p => p.AmountValue), 2, MidpointRounding.AwayFromZero);
+    public string PaymentsAllocatedDisplay => PosFormatting.FormatCurrency(PaymentsAllocated);
 
-    public string RemainingAfterSaveDisplay => SelectedAccount is not null && TryParseAmount(AmountText, out var amount)
-        ? PosFormatting.FormatCurrency(SelectedAccount.Balance - amount)
-        : "—";
+    public bool HasPaymentWithoutAccount => Payments.Any(p => p.SelectedAccount is null);
+    public bool HasPaymentWithoutAmount => Payments.Any(p => p.AmountValue <= 0m);
 
-    /// <summary>Inline warning before saving: the selected account cannot cover the amount.</summary>
-    public bool HasInsufficientBalance =>
-        SelectedAccount is not null && TryParseAmount(AmountText, out var amount) && amount > SelectedAccount.Balance;
+    private bool HasTotalAmount => ExpensePaymentLineViewModel.TryParseMoney(AmountText, out _);
 
-    public string InsufficientBalanceText => SelectedAccount is null
-        ? ""
-        : $"المبلغ أكبر من رصيد «{SelectedAccount.Alias}» المتاح ({SelectedAccount.BalanceDisplay}). " +
-          "خفّض المبلغ أو اختر حسابًا آخر قبل الحفظ.";
+    public decimal AmountValue => ExpensePaymentLineViewModel.TryParseMoney(AmountText, out var amount)
+        ? Math.Round(amount, 2, MidpointRounding.AwayFromZero)
+        : 0m;
+    public string AmountDisplay => HasTotalAmount ? PosFormatting.FormatCurrency(AmountValue) : "—";
+
+    public decimal RemainingToAllocate => Math.Round(AmountValue - PaymentsAllocated, 2, MidpointRounding.AwayFromZero);
+    public string RemainingToAllocateDisplay =>
+        HasTotalAmount ? PosFormatting.FormatCurrency(RemainingToAllocate) : "—";
+
+    /// <summary>True until every line has an account and a positive amount and the lines match the total.</summary>
+    public bool HasAllocationGap =>
+        Payments.Count == 0 || HasPaymentWithoutAmount || HasPaymentWithoutAccount
+        || !HasTotalAmount || Math.Abs(RemainingToAllocate) > 0.005m;
+
+    public bool IsAllocationBalanced => !HasAllocationGap;
+
+    public string AllocationMessage
+    {
+        get
+        {
+            if (Payments.Count == 0) return "أضف وسيلة دفع واحدة على الأقل.";
+            if (!HasTotalAmount) return "أدخل مبلغ المصروف أولًا ثم وزّعه على وسائل الدفع.";
+            if (HasPaymentWithoutAccount) return "اختر الحساب المالي لكل وسيلة دفع.";
+            if (HasPaymentWithoutAmount) return "أدخل مبلغًا صحيحًا أكبر من الصفر في كل وسيلة دفع.";
+            if (RemainingToAllocate > 0m)
+                return $"لم يُوزَّع بعد: {PosFormatting.FormatCurrency(RemainingToAllocate)} من مبلغ المصروف.";
+            if (RemainingToAllocate < 0m)
+                return $"الموزَّع أكبر من مبلغ المصروف بـ {PosFormatting.FormatCurrency(-RemainingToAllocate)}.";
+            return "تم توزيع كامل المبلغ على وسائل الدفع.";
+        }
+    }
+
+    public string PaymentMethodsSummary
+    {
+        get
+        {
+            var parts = Payments
+                .Where(p => p.SelectedAccount is not null && p.AmountValue > 0m)
+                .Select(p => $"{p.SelectedAccount!.Alias} {PosFormatting.FormatCurrency(p.AmountValue)}")
+                .ToList();
+            return parts.Count == 0 ? "—" : string.Join(" + ", parts);
+        }
+    }
+
+    // ------------------------------------------------------------ other state
+
+    public bool HasNoCategories => Categories.Count == 0;
+
+    public string EmptyCategoriesText =>
+        "لا توجد تصنيفات مصروفات مسجلة. افتح «تصنيفات المصروفات» وأضف قسمًا واحدًا على الأقل (مثل: إيجار) ثم عد إلى هذه الشاشة.";
 
     public string ExpenseDateDisplay => ExpenseDate is { } date
         ? date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)
@@ -229,6 +363,7 @@ public sealed class AddExpenseViewModel : ObservableObject
     public string LastSavedSummary => lastSavedSummary;
 
     public ActionCommand SaveCommand { get; }
+    public ActionCommand AddPaymentCommand { get; }
     public ActionCommand ClearFormCommand { get; }
     public ActionCommand RefreshCommand { get; }
 
@@ -236,14 +371,14 @@ public sealed class AddExpenseViewModel : ObservableObject
 
     /// <summary>
     /// Reloads the sections and the active accounts. Called when the screen is opened, when the
-    /// categories screen reports a change and after a save (the deducted balance must be visible).
+    /// categories screen reports a change and after a save (the deducted balances must be visible).
     /// </summary>
     public bool RefreshFromDatabase()
     {
         if (repository is null && financialRepository is null) return false;
 
         var categoryId = SelectedCategory?.Id ?? 0;
-        var accountId = SelectedAccount?.Id ?? 0;
+        var accountIds = Payments.Select(p => p.SelectedAccount?.Id ?? 0).ToList();
         string? failure = null;
 
         if (repository is not null)
@@ -274,10 +409,18 @@ public sealed class AddExpenseViewModel : ObservableObject
         }
 
         SelectedCategory = Categories.FirstOrDefault(c => c.Id == categoryId) ?? Categories.FirstOrDefault();
-        SelectedAccount = Accounts.FirstOrDefault(a => a.Id == accountId) ?? Accounts.FirstOrDefault();
+
+        // Keep every payment line attached to the same account id when it is still active.
+        for (var index = 0; index < Payments.Count; index++)
+        {
+            var wantedId = index < accountIds.Count ? accountIds[index] : 0;
+            Payments[index].SelectedAccount =
+                Accounts.FirstOrDefault(a => a.Id == wantedId) ?? Accounts.FirstOrDefault();
+        }
 
         Changed(nameof(HasNoCategories));
         Changed(nameof(HasNoAccounts));
+        NotifyPaymentsChanged();
 
         if (failure is not null)
         {
@@ -294,6 +437,92 @@ public sealed class AddExpenseViewModel : ObservableObject
     /// <summary>Alias used by the shell after another screen changes the sections or the balances.</summary>
     public void NotifyExternalDataChanged() => RefreshFromDatabase();
 
+    // ------------------------------------------------------------- payment actions
+
+    internal void OnPaymentLineChanged()
+    {
+        NotifyAllocationChanged();
+        Changed(nameof(PaymentMethodsSummary));
+    }
+
+    private void AddPayment()
+    {
+        if (!CanAddPayment)
+        {
+            SetStatus($"لا يمكن استخدام أكثر من {MaxPayments} وسائل دفع في المصروف الواحد.", true);
+            return;
+        }
+
+        var usedAccounts = Payments
+            .Where(p => p.SelectedAccount is not null)
+            .Select(p => p.SelectedAccount!.Id)
+            .ToHashSet();
+        var freeAccount = Accounts.FirstOrDefault(a => !usedAccounts.Contains(a.Id));
+        var line = new ExpensePaymentLineViewModel(this, freeAccount);
+
+        // Going from one line to two splits the total in half so the user starts from a valid
+        // allocation and only adjusts the amounts. With more lines the new one starts empty.
+        if (Payments.Count == 1 && HasTotalAmount && Payments[0].AmountValue == AmountValue)
+        {
+            var firstHalf = Math.Round(AmountValue / 2m, 2, MidpointRounding.AwayFromZero);
+            Payments[0].AmountText = FormatMoney(firstHalf);
+            line.AmountText = FormatMoney(AmountValue - firstHalf);
+        }
+
+        Payments.Add(line);
+        NotifyPaymentsChanged();
+        SetStatus(
+            Payments.Count == 2 && HasTotalAmount
+                ? "قُسّم المبلغ مناصفةً بين وسيلتي الدفع مبدئيًا؛ عدّل المبالغ كما تريد."
+                : "أضف مبلغ وسيلة الدفع الجديدة بحيث يساوي مجموع الوسائل مبلغ المصروف.",
+            false);
+    }
+
+    internal void RemovePayment(ExpensePaymentLineViewModel line)
+    {
+        if (Payments.Count <= 1)
+        {
+            SetStatus("لا بد من وسيلة دفع واحدة على الأقل؛ لا يُحفظ مصروف بلا حساب مالي.", true);
+            return;
+        }
+
+        var removedAlias = line.SelectedAccount?.Alias;
+        Payments.Remove(line);
+        SyncSinglePayment();
+        NotifyPaymentsChanged();
+        SetStatus(
+            removedAlias is null
+                ? "تم حذف وسيلة الدفع. مجموع الوسائل يجب أن يساوي مبلغ المصروف."
+                : $"تم حذف وسيلة الدفع «{removedAlias}». راجع مجموع الوسائل مقابل مبلغ المصروف.",
+            false);
+    }
+
+    private void SyncSinglePayment()
+    {
+        if (isSyncingPayments || Payments.Count != 1) return;
+
+        isSyncingPayments = true;
+        try
+        {
+            Payments[0].AmountText = HasTotalAmount ? FormatMoney(AmountValue) : "";
+        }
+        finally
+        {
+            isSyncingPayments = false;
+        }
+    }
+
+    private void ResetPayments(int preferredAccountId)
+    {
+        Payments.Clear();
+        var account = Accounts.FirstOrDefault(a => a.Id == preferredAccountId)
+                      ?? Accounts.FirstOrDefault(a => a.IsDefault)
+                      ?? Accounts.FirstOrDefault();
+        Payments.Add(new ExpensePaymentLineViewModel(this, account));
+        SyncSinglePayment();
+        NotifyPaymentsChanged();
+    }
+
     // ------------------------------------------------------------------ actions
 
     private void Save()
@@ -306,11 +535,13 @@ public sealed class AddExpenseViewModel : ObservableObject
             return;
         }
 
-        if (!TryParseAmount(AmountText, out var amount))
+        if (!ExpensePaymentLineViewModel.TryParseMoney(AmountText, out var amount))
         {
             SetStatus("أدخل مبلغًا صحيحًا أكبر من الصفر، مثل 250.00.", true);
             return;
         }
+
+        amount = Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 
         if (ExpenseDate is not { } date)
         {
@@ -324,15 +555,45 @@ public sealed class AddExpenseViewModel : ObservableObject
             return;
         }
 
-        if (SelectedAccount is null)
+        if (Payments.Count == 0)
         {
-            SetStatus("اختر الحساب المالي الذي سيُخصم منه المصروف.", true);
+            SetStatus("أضف وسيلة دفع واحدة على الأقل؛ لا يُحفظ مصروف بلا حساب مالي.", true);
             return;
         }
 
-        if (amount > SelectedAccount.Balance)
+        foreach (var line in Payments)
         {
-            SetStatus(InsufficientBalanceText, true);
+            if (line.SelectedAccount is null)
+            {
+                SetStatus("اختر الحساب المالي لكل وسيلة دفع.", true);
+                return;
+            }
+
+            if (!ExpensePaymentLineViewModel.TryParseMoney(line.AmountText, out var part))
+            {
+                SetStatus("أدخل مبلغًا صحيحًا أكبر من الصفر في كل وسيلة دفع.", true);
+                return;
+            }
+
+            if (part > line.SelectedAccount.Balance)
+            {
+                SetStatus(
+                    $"المبلغ المخصص لحساب «{line.SelectedAccount.Alias}» ({PosFormatting.FormatCurrency(part)}) " +
+                    $"أكبر من رصيده المتاح ({line.SelectedAccount.BalanceDisplay}).",
+                    true);
+                return;
+            }
+        }
+
+        if (Payments.Select(p => p.SelectedAccount!.Id).Distinct().Count() != Payments.Count)
+        {
+            SetStatus("لا يمكن استخدام الحساب المالي نفسه في أكثر من وسيلة دفع. اجمع مبلغه في سطر واحد.", true);
+            return;
+        }
+
+        if (Math.Abs(RemainingToAllocate) > 0.005m)
+        {
+            SetStatus($"{AllocationMessage} لا يمكن الحفظ قبل توزيع كامل المبلغ على وسائل الدفع.", true);
             return;
         }
 
@@ -343,7 +604,10 @@ public sealed class AddExpenseViewModel : ObservableObject
             return;
         }
 
-        var accountAlias = SelectedAccount.Alias;
+        var requests = Payments
+            .Select(p => new ExpensePaymentRequest(p.SelectedAccount!.Id, p.AmountValue))
+            .ToList();
+        var firstAccountId = requests[0].FinancialAccountId;
 
         if (repository is not null)
         {
@@ -352,16 +616,20 @@ public sealed class AddExpenseViewModel : ObservableObject
             {
                 var saved = repository.Save(new SaveExpenseRequest(
                     SelectedCategory.Id,
-                    SelectedAccount.Id,
                     date.Date,
                     amount,
-                    description));
+                    description,
+                    requests));
 
-                RegisterSaved(saved.ExpenseNumber, amount, accountAlias, saved.BalanceAfter);
-                RefreshAccountsAfterSave(saved.FinancialAccountId);
+                var methods = string.Join(
+                    " + ",
+                    saved.Payments.Select(p => $"{p.AccountAlias} {PosFormatting.FormatCurrency(p.Amount)}"));
+                RegisterSaved(saved.ExpenseNumber, amount, methods);
+                RefreshAccountsAfterSave(saved.Payments.ToDictionary(p => p.FinancialAccountId, p => p.BalanceAfter));
+                ResetPayments(saved.Payments[0].FinancialAccountId);
                 SetStatus(
                     $"تم حفظ المصروف {saved.ExpenseNumber} بقيمة {PosFormatting.FormatCurrency(amount)} " +
-                    $"من «{accountAlias}» وتحديث الرصيد. يمكنك تسجيل مصروف آخر.",
+                    $"على {saved.Payments.Count} وسيلة دفع، وتحديث أرصدة الحسابات. يمكنك تسجيل مصروف آخر.",
                     false);
                 ExpenseSaved?.Invoke();
             }
@@ -377,17 +645,23 @@ public sealed class AddExpenseViewModel : ObservableObject
             return;
         }
 
-        // Design preview: no SQL. The amount is deducted from the in-memory account so the
-        // summary panel behaves exactly like the real screen.
+        // Design preview: no SQL. Every payment line is deducted from its in-memory account.
         var number = $"EXP-{DateTime.Now.Year}-{designSequence++:0000}";
-        SelectedAccount.Balance -= amount;
-        var balanceAfter = SelectedAccount.Balance;
-        RegisterSaved(number, amount, accountAlias, balanceAfter);
+        var designMethods = new List<string>(Payments.Count);
+        foreach (var line in Payments)
+        {
+            line.SelectedAccount!.Balance -= line.AmountValue;
+            designMethods.Add($"{line.SelectedAccount.Alias} {PosFormatting.FormatCurrency(line.AmountValue)}");
+        }
+
+        var designSummary = string.Join(" + ", designMethods);
+        RegisterSaved(number, amount, designSummary);
+        ResetPayments(firstAccountId);
         SetStatus(
             $"تم تسجيل المصروف {number} في وضع العرض التجريبي بقيمة {PosFormatting.FormatCurrency(amount)} " +
-            $"من «{accountAlias}». لم يُحفظ شيء في قاعدة البيانات.",
+            $"على {designMethods.Count} وسيلة دفع. لم يُحفظ شيء في قاعدة البيانات.",
             false);
-        NotifyAccountSummaryChanged();
+        NotifyAccountStateChanged();
     }
 
     private void ClearForm()
@@ -395,79 +669,94 @@ public sealed class AddExpenseViewModel : ObservableObject
         AmountText = "";
         DescriptionText = "";
         ExpenseDate = DateTime.Today;
-        SetStatus("تم تفريغ المبلغ والبيان والعودة إلى تاريخ اليوم. التصنيف والحساب المختاران باقيان.", false);
+        SetStatus("تم تفريغ المبلغ والبيان والعودة إلى تاريخ اليوم. التصنيف ووسائل الدفع المختارة باقية.", false);
     }
 
-    private void RegisterSaved(string number, decimal amount, string accountAlias, decimal balanceAfter)
+    private void RegisterSaved(string number, decimal amount, string paymentSummary)
     {
         lastSavedNumber = number;
-        lastSavedSummary =
-            $"{PosFormatting.FormatCurrency(amount)} — تم الخصم من «{accountAlias}» — الرصيد المتبقي " +
-            PosFormatting.FormatCurrency(balanceAfter);
+        lastSavedSummary = $"{PosFormatting.FormatCurrency(amount)} — {paymentSummary}";
         hasLastSaved = true;
         Changed(nameof(HasLastSaved));
         Changed(nameof(LastSavedNumber));
         Changed(nameof(LastSavedSummary));
 
-        // Keep the date, section and account so the next expense is one short entry away.
+        // Keep the date, section and payment methods so the next expense is one short entry away.
         AmountText = "";
         DescriptionText = "";
     }
 
-    private void RefreshAccountsAfterSave(int accountId)
+    private void RefreshAccountsAfterSave(IReadOnlyDictionary<int, decimal> balancesAfter)
     {
-        if (financialRepository is null) return;
-
-        try
+        if (financialRepository is not null)
         {
-            financialRepository.LoadAccountsInto(Accounts);
-        }
-        catch (Exception)
-        {
-            // The expense is already committed; the summary panel keeps the balance returned by
-            // the save call and the next manual refresh retries the account list.
-            NotifyAccountSummaryChanged();
-            return;
+            try
+            {
+                financialRepository.LoadAccountsInto(Accounts);
+            }
+            catch (Exception)
+            {
+                // The expense is already committed; the summary panel keeps the balances returned
+                // by the save call and the next manual refresh retries the account list.
+            }
         }
 
-        SelectedAccount = Accounts.FirstOrDefault(a => a.Id == accountId) ?? SelectedAccount;
+        foreach (var account in Accounts)
+            if (balancesAfter.TryGetValue(account.Id, out var balance))
+                account.Balance = balance;
+
         Changed(nameof(HasNoAccounts));
-        NotifyAccountSummaryChanged();
+        NotifyAccountStateChanged();
     }
 
     // ------------------------------------------------------------------ helpers
 
-    private static bool TryParseAmount(string text, out decimal amount)
+    internal void NotifyPaymentsChanged()
     {
-        var candidate = (text ?? "").Trim().Replace('٫', '.');
-        if (decimal.TryParse(candidate, NumberStyles.Number, CultureInfo.InvariantCulture, out amount))
-            return amount > 0m;
+        foreach (var line in Payments)
+            line.NotifySplitChanged();
 
-        if (decimal.TryParse(candidate, NumberStyles.Number, CultureInfo.CurrentCulture, out amount))
-            return amount > 0m;
+        Changed(nameof(CanAddPayment));
+        Changed(nameof(PaymentMethodsCountDisplay));
+        Changed(nameof(HasMultiplePayments));
+        Changed(nameof(SinglePaymentHint));
+        Changed(nameof(PaymentMethodsSummary));
+        NotifyAllocationChanged();
+    }
 
-        amount = 0m;
-        return false;
+    private void NotifyAllocationChanged()
+    {
+        Changed(nameof(PaymentsAllocated));
+        Changed(nameof(PaymentsAllocatedDisplay));
+        Changed(nameof(RemainingToAllocate));
+        Changed(nameof(RemainingToAllocateDisplay));
+        Changed(nameof(HasAllocationGap));
+        Changed(nameof(IsAllocationBalanced));
+        Changed(nameof(AllocationMessage));
+        Changed(nameof(HasPaymentWithoutAccount));
+        Changed(nameof(HasPaymentWithoutAmount));
     }
 
     private void NotifyAmountSummaryChanged()
     {
+        Changed(nameof(AmountValue));
         Changed(nameof(AmountDisplay));
-        Changed(nameof(RemainingAfterSaveDisplay));
-        Changed(nameof(HasInsufficientBalance));
-        Changed(nameof(InsufficientBalanceText));
+        Changed(nameof(HasAllocationGap));
+        Changed(nameof(IsAllocationBalanced));
+        Changed(nameof(AllocationMessage));
+        Changed(nameof(RemainingToAllocate));
+        Changed(nameof(RemainingToAllocateDisplay));
     }
 
-    private void NotifyAccountSummaryChanged()
+    private void NotifyAccountStateChanged()
     {
-        Changed(nameof(HasSelectedAccount));
-        Changed(nameof(SelectedAccountAlias));
-        Changed(nameof(SelectedAccountProviderTitle));
-        Changed(nameof(SelectedAccountBalanceDisplay));
-        Changed(nameof(RemainingAfterSaveDisplay));
-        Changed(nameof(HasInsufficientBalance));
-        Changed(nameof(InsufficientBalanceText));
+        Changed(nameof(HasNoAccounts));
+        foreach (var line in Payments)
+            line.NotifySplitChanged();
+        NotifyAllocationChanged();
     }
+
+    private static string FormatMoney(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
 
     private static string DescribeError(Exception exception, string fallback)
         => exception switch

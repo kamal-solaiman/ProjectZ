@@ -8,31 +8,43 @@ namespace ProjectZ.Data;
 public sealed class ExpenseDataException(string message, Exception? inner = null)
     : InvalidOperationException(message, inner);
 
-/// <summary>One expense as the screen submits it: one section, one account, one amount and one date.</summary>
+/// <summary>One payment line: part of the expense paid from one financial account.</summary>
+public sealed record ExpensePaymentRequest(int FinancialAccountId, decimal Amount);
+
+/// <summary>One expense as the screen submits it: one section, one total and one or more payment lines.</summary>
 public sealed record SaveExpenseRequest(
     int ExpenseCategoryId,
-    int FinancialAccountId,
     DateTime ExpenseDate,
     decimal Amount,
-    string Description);
+    string Description,
+    IReadOnlyList<ExpensePaymentRequest> Payments);
 
-/// <summary>The stored expense plus the account balance after the deduction.</summary>
-public sealed record SavedExpense(
-    int ExpenseId,
-    string ExpenseNumber,
+/// <summary>One stored payment line plus the account balance after its deduction.</summary>
+public sealed record SavedExpensePayment(
     int FinancialAccountId,
+    string AccountAlias,
     decimal Amount,
     decimal BalanceAfter);
 
+/// <summary>The stored expense plus every payment line that was written.</summary>
+public sealed record SavedExpense(
+    int ExpenseId,
+    string ExpenseNumber,
+    decimal Amount,
+    IReadOnlyList<SavedExpensePayment> Payments);
+
 /// <summary>
-/// SQL Server persistence for «اضافة مصروف»: writes the expense row, deducts the selected
-/// financial account and appends the matching ledger movement in one Serializable transaction.
+/// SQL Server persistence for «اضافة مصروف»: writes the expense row, its split payments,
+/// one deduction and one ledger movement per used account, and the audit row — all inside a
+/// single Serializable transaction.
 /// </summary>
 public sealed class ExpenseRepository(ConnectionSettingsProvider settings, int actorUserId)
 {
     private const string ExpenseSequence = "Expense";
+    private const int MaxPayments = 8;
     private const string MissingTableMessage =
-        "جدول المصروفات غير موجود في قاعدة البيانات. شغّل sql/20_EnableExpenses.sql على الخادم ثم أعد المحاولة.";
+        "جداول المصروفات غير موجودة في قاعدة البيانات. شغّل sql/20_EnableExpenses.sql " +
+        "ثم sql/21_EnableExpenseSplitPayments.sql على الخادم وأعد المحاولة.";
 
     // -------------------------------------------------------------- read side
 
@@ -70,8 +82,8 @@ ORDER BY Name;";
     // ------------------------------------------------------------- write side
 
     /// <summary>
-    /// Records one expense: the row, the account deduction, the ledger movement and the audit row.
-    /// The amount must fit the account balance, and the date may not be in the future.
+    /// Records one expense paid through one or more accounts. Every payment line deducts its
+    /// account and appends its own ledger movement; the whole set commits or rolls back together.
     /// </summary>
     public SavedExpense Save(SaveExpenseRequest request)
     {
@@ -84,6 +96,7 @@ ORDER BY Name;";
             throw new ExpenseDataException("لا يمكن تسجيل مصروف بتاريخ مستقبلي. اختر تاريخ اليوم أو تاريخًا سابقًا.");
 
         var description = Trim(request.Description, 1000);
+        var payments = NormalizePayments(request.Payments, amount);
         var documentYear = DateTime.Now.Year;
 
         try
@@ -93,26 +106,33 @@ ORDER BY Name;";
             try
             {
                 var categoryName = LoadCategoryName(connection, transaction, request.ExpenseCategoryId);
-                var (accountAlias, accountBalance) = LoadAccountForUpdate(connection, transaction, request.FinancialAccountId);
 
-                if (amount > accountBalance)
+                // Lock the accounts in a deterministic order so two cashiers cannot deadlock each
+                // other, and refuse the whole expense when any single account cannot cover its part.
+                var plans = new List<(int AccountId, string Alias, decimal Amount)>(payments.Count);
+                foreach (var payment in payments.OrderBy(p => p.FinancialAccountId))
                 {
-                    throw new ExpenseDataException(
-                        $"المبلغ أكبر من رصيد الحساب «{accountAlias}» المتاح ({accountBalance:0.00}). " +
-                        "اختر حسابًا آخر أو عدّل المبلغ ثم أعد المحاولة.");
+                    var (alias, balance) = LoadAccountForUpdate(connection, transaction, payment.FinancialAccountId);
+                    if (payment.Amount > balance)
+                    {
+                        throw new ExpenseDataException(
+                            $"المبلغ المخصص لحساب «{alias}» ({payment.Amount:0.00}) أكبر من رصيده المتاح ({balance:0.00}). " +
+                            "عدّل التوزيع أو اختر حسابًا آخر ثم أعد المحاولة.");
+                    }
+
+                    plans.Add((payment.FinancialAccountId, alias, payment.Amount));
                 }
 
                 var expenseNumber = NextDocumentNumber(connection, transaction, ExpenseSequence, documentYear, "EXP");
 
                 int expenseId;
                 using (var insert = CreateCommand(connection, transaction, @"
-INSERT dbo.Expenses(ExpenseNumber,ExpenseCategoryId,FinancialAccountId,ExpenseDate,Amount,Description,ActorUserId)
+INSERT dbo.Expenses(ExpenseNumber,ExpenseCategoryId,ExpenseDate,Amount,Description,ActorUserId)
 OUTPUT inserted.Id
-VALUES(@Number,@Category,@Account,@ExpenseDate,@Amount,@Description,@Actor);"))
+VALUES(@Number,@Category,@ExpenseDate,@Amount,@Description,@Actor);"))
                 {
                     insert.Parameters.Add("@Number", SqlDbType.NVarChar, 50).Value = expenseNumber;
                     insert.Parameters.Add("@Category", SqlDbType.Int).Value = request.ExpenseCategoryId;
-                    insert.Parameters.Add("@Account", SqlDbType.Int).Value = request.FinancialAccountId;
                     insert.Parameters.Add("@ExpenseDate", SqlDbType.Date).Value = expenseDate;
                     AddMoney(insert, "@Amount", amount);
                     insert.Parameters.Add("@Description", SqlDbType.NVarChar, 1000).Value = description;
@@ -120,40 +140,56 @@ VALUES(@Number,@Category,@Account,@ExpenseDate,@Amount,@Description,@Actor);"))
                     expenseId = (int)insert.ExecuteScalar()!;
                 }
 
-                decimal balanceAfter;
-                using (var balance = CreateCommand(connection, transaction, @"
+                var savedPayments = new List<SavedExpensePayment>(plans.Count);
+                foreach (var plan in plans)
+                {
+                    using (var payment = CreateCommand(connection, transaction, @"
+INSERT dbo.ExpensePayments(ExpenseId,FinancialAccountId,Amount)
+VALUES(@Expense,@Account,@Amount);"))
+                    {
+                        payment.Parameters.Add("@Expense", SqlDbType.Int).Value = expenseId;
+                        payment.Parameters.Add("@Account", SqlDbType.Int).Value = plan.AccountId;
+                        AddMoney(payment, "@Amount", plan.Amount);
+                        payment.ExecuteNonQuery();
+                    }
+
+                    decimal balanceAfter;
+                    using (var balance = CreateCommand(connection, transaction, @"
 UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance - @Amount, UpdatedAtUtc = SYSUTCDATETIME()
 OUTPUT inserted.CurrentBalance
 WHERE Id = @Id AND IsActive = 1;"))
-                {
-                    AddMoney(balance, "@Amount", amount);
-                    balance.Parameters.Add("@Id", SqlDbType.Int).Value = request.FinancialAccountId;
-                    var result = balance.ExecuteScalar();
-                    if (result is null)
-                        throw new ExpenseDataException(
-                            "الحساب المالي المحدد غير موجود أو غير نشط. حدّث الشاشة واختر حسابًا آخر.");
-                    balanceAfter = (decimal)result;
-                }
+                    {
+                        AddMoney(balance, "@Amount", plan.Amount);
+                        balance.Parameters.Add("@Id", SqlDbType.Int).Value = plan.AccountId;
+                        var result = balance.ExecuteScalar();
+                        if (result is null)
+                            throw new ExpenseDataException(
+                                "أحد الحسابات المالية المحددة غير موجود أو غير نشط. حدّث الشاشة وأعد المحاولة.");
+                        balanceAfter = (decimal)result;
+                    }
 
-                using (var ledger = CreateCommand(connection, transaction, @"
+                    using (var ledger = CreateCommand(connection, transaction, @"
 INSERT dbo.FinancialTransactions(FinancialAccountId,OccurredAtUtc,IsIncoming,Category,Amount,BalanceAfter,Counterparty,Note,
  ActorUserId,CountsTowardLimits,SourceEntityType,SourceEntityId)
 VALUES(@Account,SYSUTCDATETIME(),0,@Category,@Amount,@Balance,N'',@Note,@Actor,0,N'Expense',@Expense);"))
-                {
-                    ledger.Parameters.Add("@Account", SqlDbType.Int).Value = request.FinancialAccountId;
-                    ledger.Parameters.Add("@Category", SqlDbType.NVarChar, 150).Value = Trim(categoryName, 150);
-                    AddMoney(ledger, "@Amount", amount);
-                    AddMoney(ledger, "@Balance", balanceAfter);
-                    ledger.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value =
-                        string.IsNullOrWhiteSpace(description) ? $"مصروف {expenseNumber}" : description;
-                    ledger.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
-                    ledger.Parameters.Add("@Expense", SqlDbType.Int).Value = expenseId;
-                    ledger.ExecuteNonQuery();
+                    {
+                        ledger.Parameters.Add("@Account", SqlDbType.Int).Value = plan.AccountId;
+                        ledger.Parameters.Add("@Category", SqlDbType.NVarChar, 150).Value = Trim(categoryName, 150);
+                        AddMoney(ledger, "@Amount", plan.Amount);
+                        AddMoney(ledger, "@Balance", balanceAfter);
+                        ledger.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value =
+                            string.IsNullOrWhiteSpace(description) ? $"مصروف {expenseNumber}" : description;
+                        ledger.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+                        ledger.Parameters.Add("@Expense", SqlDbType.Int).Value = expenseId;
+                        ledger.ExecuteNonQuery();
+                    }
+
+                    savedPayments.Add(new SavedExpensePayment(plan.AccountId, plan.Alias, plan.Amount, balanceAfter));
                 }
 
-                Audit(connection, transaction, expenseId, expenseNumber, amount, categoryName, accountAlias);
+                Audit(connection, transaction, expenseId, expenseNumber, amount, categoryName, savedPayments);
                 transaction.Commit();
-                return new SavedExpense(expenseId, expenseNumber, request.FinancialAccountId, amount, balanceAfter);
+                return new SavedExpense(expenseId, expenseNumber, amount, savedPayments);
             }
             catch
             {
@@ -168,6 +204,40 @@ VALUES(@Account,SYSUTCDATETIME(),0,@Category,@Amount,@Balance,N'',@Note,@Actor,0
     }
 
     // ---------------------------------------------------------------- helpers
+
+    private static List<ExpensePaymentRequest> NormalizePayments(
+        IReadOnlyList<ExpensePaymentRequest>? payments, decimal amount)
+    {
+        if (payments is null || payments.Count == 0)
+            throw new ExpenseDataException("أضف وسيلة دفع واحدة على الأقل؛ لا يُحفظ مصروف بلا حساب مالي.");
+
+        if (payments.Count > MaxPayments)
+            throw new ExpenseDataException($"لا يمكن استخدام أكثر من {MaxPayments} وسائل دفع في المصروف الواحد.");
+
+        var normalized = new List<ExpensePaymentRequest>(payments.Count);
+        var seenAccounts = new HashSet<int>();
+        foreach (var payment in payments)
+        {
+            var value = Math.Round(payment.Amount, 2, MidpointRounding.AwayFromZero);
+            if (value <= 0m)
+                throw new ExpenseDataException("كل وسيلة دفع يجب أن يكون مبلغها أكبر من الصفر.");
+
+            if (!seenAccounts.Add(payment.FinancialAccountId))
+                throw new ExpenseDataException("لا يمكن استخدام الحساب المالي نفسه في أكثر من وسيلة دفع. اجمع مبلغه في سطر واحد.");
+
+            normalized.Add(payment with { Amount = value });
+        }
+
+        var total = normalized.Sum(p => p.Amount);
+        if (total != amount)
+        {
+            throw new ExpenseDataException(
+                $"مجموع وسائل الدفع ({total:0.00}) لا يساوي مبلغ المصروف ({amount:0.00}). " +
+                "وزّع كامل المبلغ على وسائل الدفع قبل الحفظ.");
+        }
+
+        return normalized;
+    }
 
     private static string LoadCategoryName(SqlConnection connection, SqlTransaction transaction, int categoryId)
     {
@@ -190,7 +260,7 @@ WHERE Id = @Id AND IsActive = 1;");
         using var reader = command.ExecuteReader();
         if (!reader.Read())
             throw new ExpenseDataException(
-                "الحساب المالي المحدد غير موجود أو غير نشط. حدّث الشاشة واختر حسابًا آخر.");
+                "أحد الحسابات المالية المحددة غير موجود أو غير نشط. حدّث الشاشة واختر حسابًا آخر.");
 
         return (reader.GetString(0), reader.GetDecimal(1));
     }
@@ -213,15 +283,17 @@ SELECT LastValue FROM dbo.DocumentSequences WHERE DocumentType = @Type AND Seque
 
     private void Audit(
         SqlConnection connection, SqlTransaction transaction, int expenseId, string expenseNumber,
-        decimal amount, string categoryName, string accountAlias)
+        decimal amount, string categoryName, IReadOnlyList<SavedExpensePayment> payments)
     {
+        var split = string.Join(" + ", payments.Select(p => $"{p.AccountAlias} {p.Amount:0.00}"));
         using var command = CreateCommand(connection, transaction, @"
 INSERT dbo.AuditLog(ActorUserId,Module,ActionName,EntityType,EntityId,NewValuesJson)
 VALUES(@Actor,N'Expenses',N'CreateExpense',N'Expense',@EntityId,JSON_MODIFY(N'{}',N'$.details',@Details));");
         command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
         command.Parameters.Add("@EntityId", SqlDbType.NVarChar, 100).Value = expenseId.ToString();
-        command.Parameters.Add("@Details", SqlDbType.NVarChar, 1000).Value =
-            $"تسجيل مصروف {expenseNumber} بقيمة {amount:0.00} — {categoryName} — {accountAlias}";
+        command.Parameters.Add("@Details", SqlDbType.NVarChar, 1000).Value = Trim(
+            $"تسجيل مصروف {expenseNumber} بقيمة {amount:0.00} — {categoryName} — وسائل الدفع: {split}",
+            1000);
         command.ExecuteNonQuery();
     }
 
@@ -247,13 +319,14 @@ VALUES(@Actor,N'Expenses',N'CreateExpense',N'Expense',@EntityId,JSON_MODIFY(N'{}
             {
                 208 => new ExpenseDataException(MissingTableMessage, sql),
                 547 => new ExpenseDataException(
-                    "التصنيف أو الحساب المالي المرتبط بالمصروف غير موجود. حدّث الشاشة واختر قيمة صحيحة.", sql),
+                    "التصنيف أو أحد الحسابات المالية المرتبطة بالمصروف غير موجود. حدّث الشاشة واختر قيمة صحيحة.", sql),
                 2601 or 2627 => new ExpenseDataException(
                     "تعذّر توليد رقم مصروف فريد. أعد المحاولة بعد لحظات.", sql),
                 1205 => new ExpenseDataException(
                     "تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 229 or 230 => new ExpenseDataException(
-                    "حساب الاتصال لا يملك صلاحية تسجيل المصروفات. شغّل sql/20_EnableExpenses.sql على الخادم ثم أعد المحاولة.",
+                    "حساب الاتصال لا يملك صلاحية تسجيل المصروفات. شغّل sql/20_EnableExpenses.sql " +
+                    "ثم sql/21_EnableExpenseSplitPayments.sql على الخادم ثم أعد المحاولة.",
                     sql),
                 >= 50000 => new ExpenseDataException(sql.Message, sql),
                 _ => new ExpenseDataException(fallback, sql)
