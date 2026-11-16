@@ -24,6 +24,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly NavigationMenuCategoryViewModel maintenanceCategory;
     private readonly NavigationMenuCategoryViewModel financeCategory;
     private readonly NavigationMenuCategoryViewModel customersCategory;
+    private readonly NavigationMenuCategoryViewModel expensesCategory;
     private readonly NavigationMenuCategoryViewModel usersCategory;
     private readonly NavigationMenuCategoryViewModel settingsCategory;
     private NavigationMenuItemViewModel? selectedItem;
@@ -46,6 +47,7 @@ public sealed class MainViewModel : ObservableObject
     public CustomersViewModel Customers { get; }
     public SuppliersViewModel Suppliers { get; }
     public UsersViewModel Users { get; }
+    public ExpenseCategoriesViewModel ExpenseCategories { get; }
     public GeneralSettingsViewModel GeneralSettings { get; }
     public AppearanceViewModel Appearance { get; }
     public BackupViewModel Backup { get; }
@@ -71,6 +73,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsCustomersSelected => ReferenceEquals(selectedItem, customersCategory.Items[0]);
     public bool IsSuppliersSelected => ReferenceEquals(selectedItem, customersCategory.Items[1]);
     public bool IsUsersSelected => ReferenceEquals(selectedItem, usersCategory.Items[0]);
+    public bool IsExpenseCategoriesSelected => ReferenceEquals(selectedItem, expensesCategory.Items[2]);
     public bool IsGeneralSettingsSelected => ReferenceEquals(selectedItem, settingsCategory.Items[0]);
     public bool IsAppearanceSelected => ReferenceEquals(selectedItem, settingsCategory.Items[1]);
     public bool IsMyAccountsSelected => ReferenceEquals(selectedItem, financeCategory.Items[0]);
@@ -85,7 +88,8 @@ public sealed class MainViewModel : ObservableObject
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
         || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected
-        || IsUsersSelected || IsGeneralSettingsSelected || IsAppearanceSelected || IsBackupSelected;
+        || IsUsersSelected || IsExpenseCategoriesSelected || IsGeneralSettingsSelected || IsAppearanceSelected
+        || IsBackupSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
     /// <summary>The application name follows the store name saved in the general settings.</summary>
     public string ApplicationName => StoreIdentity.Current.Name;
@@ -121,7 +125,8 @@ public sealed class MainViewModel : ObservableObject
         UserRepository? userRepository = null,
         SettingsRepository? settingsRepository = null,
         BackupRepository? backupRepository = null,
-        AppearanceViewModel? appearance = null)
+        AppearanceViewModel? appearance = null,
+        ExpenseCategoryRepository? expenseCategoryRepository = null)
     {
         this.user = user;
         this.salesRepository = salesRepository;
@@ -148,7 +153,7 @@ public sealed class MainViewModel : ObservableObject
             "العملاء", "الموردين");
         var reportsCategory = new NavigationMenuCategoryViewModel("التقارير", "\U0001F4CA",
             "تقارير المبيعات", "تقارير المشتريات", "تقارير الصيانة", "تقارير المالية", "تقارير المصروفات", "اجمالي التقارير");
-        var expensesCategory = new NavigationMenuCategoryViewModel("المصروفات", "\U0001F4B8",
+        expensesCategory = new NavigationMenuCategoryViewModel("المصروفات", "\U0001F4B8",
             "اضافة مصروف", "فواتير المصروفات", "تصنيفات المصروفات");
         usersCategory = new NavigationMenuCategoryViewModel("المستخدمين", "\U0001F464",
             "المستخدمين", "الصلاحيات");
@@ -398,6 +403,7 @@ public sealed class MainViewModel : ObservableObject
         };
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
+        ExpenseCategories = new ExpenseCategoriesViewModel(expenseCategoryRepository);
         GeneralSettings = new GeneralSettingsViewModel(user.DisplayName, settingsRepository);
         Appearance = appearance ?? new AppearanceViewModel();
         Backup = new BackupViewModel(backupRepository);
@@ -448,6 +454,10 @@ public sealed class MainViewModel : ObservableObject
         // Login accounts live in dbo.Users; the screen loads them on construction too.
         if (userRepository is not null)
             Users.RefreshFromDatabase();
+
+        // Expense sections live in dbo.ExpenseCategories; load them once so the table is ready.
+        if (expenseCategoryRepository is not null)
+            ExpenseCategories.RefreshFromDatabase();
 
         // Store name and general defaults: loaded here so the title and receipts are branded from the start.
         if (settingsRepository is not null)
@@ -719,6 +729,8 @@ public sealed class MainViewModel : ObservableObject
             Suppliers.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, usersCategory.Items[0]))
             Users.RefreshFromDatabase();
+        else if (ReferenceEquals(item, expensesCategory.Items[2]))
+            ExpenseCategories.RefreshFromDatabase();
         else if (ReferenceEquals(item, settingsCategory.Items[0]))
         {
             // Re-entering the settings screen keeps unsaved edits instead of silently reloading over them.
@@ -743,6 +755,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsCustomersSelected));
         Changed(nameof(IsSuppliersSelected));
         Changed(nameof(IsUsersSelected));
+        Changed(nameof(IsExpenseCategoriesSelected));
         Changed(nameof(IsGeneralSettingsSelected));
         // Must be notified like every other screen flag: without this the appearance host Grid
         // never leaves Collapsed and the content area renders as an empty white panel.

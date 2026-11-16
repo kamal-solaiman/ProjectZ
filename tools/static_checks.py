@@ -43,14 +43,15 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-# 37 CREATE TABLE statements create the 36 business tables + Users; sql/16 repeats the
-# movement table idempotently so an existing database can be upgraded without re-running 06.
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 39
+# 41 CREATE TABLE statements: 06 creates the 37 business tables + Users, 01 creates Users,
+# and 16/19 repeat the movement and expense-section tables idempotently so an existing
+# database can be upgraded without re-running 06.
+assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 41
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
 assert 'CREATE DATABASE [ProjectZ]' in sql
 assert '[ProjectZClient]' in (root / 'sql/04_SetupLanSqlAuth.sql').read_text(encoding='utf-8')
 full_schema = (root / 'sql/06_CreateFullSchema.sql').read_text(encoding='utf-8')
-assert len(re.findall(r'CREATE\s+TABLE\s+', full_schema, re.I)) == 37
+assert len(re.findall(r'CREATE\s+TABLE\s+', full_schema, re.I)) == 38
 reporting_views = (root / 'sql/07_CreateReportingViews.sql').read_text(encoding='utf-8')
 expected_tables = {
     'Users', 'Roles', 'Permissions', 'UserRoles', 'RolePermissions', 'SystemSettings', 'DocumentSequences',
@@ -60,7 +61,7 @@ expected_tables = {
     'PurchaseInvoiceActivities', 'SalesInvoices', 'SalesInvoiceLines', 'SalesInvoiceLineUnits', 'SalesPayments',
     'SalesInvoiceActivities', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits',
     'MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments', 'MaintenanceActivities',
-    'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'AuditLog'
+    'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'ExpenseCategories', 'AuditLog'
 }
 created_tables = set(re.findall(r'CREATE\s+TABLE\s+dbo\.([A-Za-z0-9_]+)', sql, re.I))
 assert created_tables == expected_tables, f'schema table mismatch: missing={expected_tables-created_tables}, extra={created_tables-expected_tables}'
@@ -80,7 +81,7 @@ assert '01_CreateDatabase.sql' in (root / 'docs/DATABASE.md').read_text(encoding
 schema_verification = (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8')
 assert 'SELECT expected.v AS MissingView' in schema_verification
 assert 'SELECT v.name AS MissingView' not in schema_verification
-print('PASS: complete ProjectZ database schema, 37 related tables, five reporting views, compatibility 130')
+print('PASS: complete ProjectZ database schema, 38 related tables, five reporting views, compatibility 130')
 
 # --- Application shutdown: closing the UI must terminate the WPF process ---
 app_xaml = (root / 'src/ProjectZ/App.xaml').read_text(encoding='utf-8')
@@ -251,10 +252,11 @@ customers_pos = menu_titles.index('العملاء والموردين')
 users_pos = menu_titles.index('المستخدمين')
 assert customers_pos < menu_titles.index('التقارير') < menu_titles.index('المصروفات') < users_pos, \
     'التقارير and المصروفات belong between العملاء والموردين and المستخدمين'
-assert 'IsReportsSelected' not in main_viewmodel and 'IsExpensesSelected' not in main_viewmodel, \
-    'menus-only categories must not pretend to have implemented screens yet'
-assert 'ReportsView' not in main_xaml and 'ExpensesView' not in main_xaml, \
-    'menus-only categories must not host a view yet'
+assert 'IsReportsSelected' not in main_viewmodel, \
+    'the reports category is still navigation-only and must not claim a screen yet'
+assert 'ReportsView' not in main_xaml, 'the reports category must not host a view yet'
+assert 'IsExpenseCategoriesSelected' in main_viewmodel and 'views:ExpenseCategoriesView' in main_xaml, \
+    'the expense categories item is implemented and must host its real screen'
 assert 'docs/REPORTS_EXPENSES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
     'README must document the menus-only categories'
 assert 'ToggleSidebarCommand' in main_viewmodel and 'IsSidebarCollapsed' in main_viewmodel
@@ -1574,6 +1576,52 @@ for token in ('ItemsSource="{Binding Categories}"', 'SelectedCategory', 'Categor
     assert token in add_product_vm, f'add-product category combo is not wired: {token}'
 assert 'EnsureCategory' in main_viewmodel, 'the add-product dialog must save categories through the shared screen'
 print('PASS: categories screen and the add-product category combo both read and write dbo.Categories')
+
+# --- Expense sections screen («تصنيفات المصروفات» + ExpenseCategoryRepository + sql/19) ------
+expense_repository_path = root / 'src/ProjectZ/Data/ExpenseCategoryRepository.cs'
+assert expense_repository_path.is_file(), 'missing src/ProjectZ/Data/ExpenseCategoryRepository.cs'
+expense_repository = expense_repository_path.read_text(encoding='utf-8')
+enable_expense_sql_path = root / 'sql/19_EnableExpenseCategories.sql'
+assert enable_expense_sql_path.is_file(), 'missing sql/19_EnableExpenseCategories.sql'
+enable_expense_sql = enable_expense_sql_path.read_text(encoding='utf-8')
+for operation in ('LoadAll', 'Create', 'Rename', 'Delete'):
+    assert f'{operation}(' in expense_repository, f'missing expense-section SQL operation: {operation}'
+for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK', 'dbo.ExpenseCategories',
+              'INSERT dbo.AuditLog', 'UPDATE dbo.ExpenseCategories', 'DELETE dbo.ExpenseCategories',
+              "N'ExpenseCategories'"):
+    assert guard in expense_repository, f'missing expense-section persistence guard: {guard}'
+assert 'مرتبط بمصروفات' in expense_repository, 'deleting a used expense section must be refused with a clear message'
+assert 'sql/19_EnableExpenseCategories.sql' in expense_repository, 'a missing table must point at sql/19'
+assert 'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.ExpenseCategories TO [ProjectZClient]' in enable_expense_sql
+assert 'CREATE TABLE dbo.ExpenseCategories' in enable_expense_sql
+assert 'IF NOT EXISTS (SELECT 1 FROM dbo.ExpenseCategories)' in enable_expense_sql, \
+    'starter sections must be inserted only into an empty table'
+for seeded in ('إيجار', 'فواتير', 'مرتبات', 'مواصلات', 'صيانة', 'أخرى'):
+    assert f"N'{seeded}'" in enable_expense_sql, f'sql/19 is missing the starter section: {seeded}'
+assert 'THROW 50060' in enable_expense_sql and 'THROW 50061' in enable_expense_sql
+expense_categories_vm = (root / 'src/ProjectZ/ViewModels/ExpenseCategoriesViewModel.cs').read_text(encoding='utf-8')
+for wiring in ('repository.LoadAll(', 'repository.Create(', 'repository.Rename(', 'repository.Delete(',
+               'RefreshFromDatabase()', 'OpenConfirmDialogRequested', 'CategoriesChanged'):
+    assert wiring in expense_categories_vm, f'expense sections screen is not wired to SQL: {wiring}'
+for token in ('ExpenseDesignSeedData.CreateSampleExpenseCategories()', 'SearchText', 'NewCategoryDescription',
+              'EditingDescription', 'RefreshCategoriesCommand', 'EmptyStateText', 'WithDescriptionDisplay'):
+    assert token in expense_categories_vm, f'expense sections view model is missing: {token}'
+expense_categories_view = (root / 'src/ProjectZ/Views/ExpenseCategoriesView.xaml').read_text(encoding='utf-8')
+for token in ('FilteredCategories', 'SearchText', 'NewCategoryDescription', 'EditingDescription',
+              'RefreshCategoriesCommand', 'EmptyStateText', 'AddCategoryCommand', 'BeginEditCommand',
+              'DeleteCommand'):
+    assert token in expense_categories_view, f'expense sections UI is missing expected token: {token}'
+assert 'متصل بقاعدة البيانات' in expense_categories_view and 'بدون Backend' not in expense_categories_view
+assert 'views:ExpenseCategoriesView' in main_xaml and 'IsExpenseCategoriesSelected' in main_viewmodel
+assert 'ExpenseCategories = new ExpenseCategoriesViewModel(expenseCategoryRepository);' in main_viewmodel
+assert 'ReferenceEquals(item, expensesCategory.Items[2])' in main_viewmodel, \
+    'opening «تصنيفات المصروفات» must reload the sections from SQL'
+assert 'new ExpenseCategoryRepository(connectionSettings, user.Id)' in (root / 'src/ProjectZ/App.xaml.cs').read_text(encoding='utf-8')
+expense_doc = (root / 'docs/EXPENSE_CATEGORIES.md')
+assert expense_doc.is_file(), 'missing docs/EXPENSE_CATEGORIES.md'
+assert 'docs/EXPENSE_CATEGORIES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
+    'README must link the expense sections documentation'
+print('PASS: expense sections screen reads and writes dbo.ExpenseCategories with serialized writes, audit rows and a used-section delete guard')
 # --- Users screen (login accounts in dbo.Users + sql/14) -------------------------------------
 users_repository_path = root / 'src/ProjectZ/Data/UserRepository.cs'
 assert users_repository_path.is_file(), 'missing src/ProjectZ/Data/UserRepository.cs'

@@ -34,7 +34,7 @@ IF EXISTS
        N'PurchaseInvoiceLines', N'PurchaseReturns', N'PurchaseReturnLines', N'PurchasePayments',
        N'PurchaseInvoiceActivities', N'SalesInvoices', N'SalesInvoiceLines', N'SalesPayments',
        N'SalesInvoiceActivities', N'ReturnExchanges', N'ReturnExchangeLines', N'MaintenanceOrders',
-       N'MaintenanceOrderParts', N'MaintenancePayments', N'MaintenanceActivities', N'AuditLog')
+       N'MaintenanceOrderParts', N'MaintenancePayments', N'MaintenanceActivities', N'ExpenseCategories', N'AuditLog')
 )
     THROW 50011, N'An existing business table has a non-INT Id. Back up the database and migrate its identifiers before rerunning this schema.', 1;
 GO
@@ -249,6 +249,18 @@ CREATE TABLE dbo.FinancialTransactions
     CreatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_FinancialTransactions_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
     CONSTRAINT CK_FinancialTransactions_Amount CHECK (Amount > 0),
     CONSTRAINT CK_FinancialTransactions_Source CHECK ((SourceEntityType IS NULL AND SourceEntityId IS NULL) OR (SourceEntityType IS NOT NULL AND SourceEntityId IS NOT NULL))
+);
+
+/* Expense sections used by the expenses screens; «تصنيفات المصروفات» manages them today. */
+IF OBJECT_ID(N'dbo.ExpenseCategories', N'U') IS NULL
+CREATE TABLE dbo.ExpenseCategories
+(
+    Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_ExpenseCategories PRIMARY KEY,
+    Name NVARCHAR(200) NOT NULL,
+    Description NVARCHAR(500) NOT NULL CONSTRAINT DF_ExpenseCategories_Description DEFAULT N'',
+    CreatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_ExpenseCategories_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
+    UpdatedAtUtc DATETIME2(7) NOT NULL CONSTRAINT DF_ExpenseCategories_UpdatedAtUtc DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_ExpenseCategories_Name UNIQUE (Name)
 );
 
 /* Serialized and quantity inventory. */
