@@ -704,7 +704,11 @@ public sealed class MainViewModel : ObservableObject
         }
 
         selectedItem = item;
-        if (ReferenceEquals(item, financeCategory.Items[1]))
+        // Any sale, purchase, maintenance collection or expense changes dbo.FinancialAccounts, so
+        // «حساباتي» re-reads the balances (and therefore the cash card) every time it is opened.
+        if (ReferenceEquals(item, financeCategory.Items[0]))
+            MyAccounts.NotifyExternalDataChanged();
+        else if (ReferenceEquals(item, financeCategory.Items[1]))
             VodafoneTransfer.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, financeCategory.Items[2]))
             InstapayTransfer.NotifyExternalDataChanged();

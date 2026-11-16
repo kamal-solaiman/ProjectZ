@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -227,6 +228,42 @@ internal static class Program
         hostGrid.UpdateLayout();
         Check(hostedStudio.ActualWidth > 100 && hostedStudio.ActualHeight > 100,
             "AppearanceView is laid out with a real size, not an empty white panel");
+        // Regression: «حساباتي» kept showing a frozen «النقدية» balance because every reload replaced
+        // the account rows while the cash card stayed bound to the old instance. An account snapshot
+        // must now update the same objects, so their BalanceDisplay notification reaches the card.
+        var liveAccounts = FinanceDesignSeedData.CreateAccounts();
+        var liveCash = liveAccounts.First(account => account.IsCash);
+        var cashBefore = liveCash.Balance;
+        var cashCardRefreshes = 0;
+        liveCash.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(FinancialAccountDesignItem.BalanceDisplay)) cashCardRefreshes++;
+        };
+        var snapshotAccounts = FinanceDesignSeedData.CreateAccounts().ToList();
+        snapshotAccounts.First(account => account.IsCash).Balance = cashBefore - 125.5m;
+        snapshotAccounts.RemoveAt(snapshotAccounts.Count - 1); // a wallet deleted in SQL Server
+        FinancialAccountSnapshot.Apply(liveAccounts, snapshotAccounts);
+        Check(ReferenceEquals(liveCash, liveAccounts.First(account => account.IsCash))
+              && liveCash.Balance == cashBefore - 125.5m,
+            "Applying an account snapshot updates the same cash object instead of replacing it");
+        Check(cashCardRefreshes > 0,
+            "The cash row raises BalanceDisplay so the cash card re-reads the new amount");
+        Check(liveAccounts.Count == snapshotAccounts.Count,
+            "Applying a snapshot removes accounts that no longer exist in the database");
+
+        var financeCategory = mainVm.Categories.Single(category => category.Title == "المالية");
+        var myAccountsItem = financeCategory.Items.Single(item => item.Title == "حساباتي");
+        mainVm.SelectItem(myAccountsItem);
+        PumpDispatcher();
+        Check(mainVm.IsMyAccountsSelected, "SelectItem activates the accounts screen");
+        Check(ReferenceEquals(mainVm.MyAccounts.CashAccount, mainVm.MyAccounts.Accounts.First(a => a.IsCash))
+              && mainVm.MyAccounts.HasCashAccount,
+            "The accounts screen exposes the cash row the cash card binds to");
+        var hostedAccounts = FindLogicalDescendant<MyAccountsView>(main);
+        Check(hostedAccounts is not null && hostedAccounts.DataContext is MyAccountsViewModel,
+            "MainWindow hosts MyAccountsView with the accounts view model");
+        Check(((Grid)hostedAccounts!.Parent).Visibility == Visibility.Visible,
+            "Accounts host Grid is Visible after navigating to حساباتي");
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

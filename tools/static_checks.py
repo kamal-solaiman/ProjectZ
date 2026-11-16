@@ -1201,6 +1201,48 @@ for token in ('ValidateLimits', 'DailyDepositLimit', 'DailyWithdrawalLimit', 'Mo
 assert 'OpenTransferRequested' in accounts_vm_text and 'OpenTransactionRequested' in accounts_vm_text
 print('PASS: MyAccounts cash, independent wallets, four limits, transfers and ledger UI')
 
+# --- «حساباتي» refresh: reloads must update the same account objects ---------------------------
+# Regression: LoadAccountsInto cleared the collection and added new items, while the cash card binds
+# CashAccount.BalanceDisplay, so the «النقدية» amount stayed frozen until the app restarted — even
+# after «تحديث». Reloads now merge into the live objects and the screen re-notifies the cash card.
+accounts_repository_text = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+assert 'FinancialAccountSnapshot.Apply(target, loaded);' in accounts_repository_text, \
+    'account reloads must merge into the live rows, not replace them'
+load_accounts_body = accounts_repository_text.split('public void LoadAccountsInto(', 1)[1].split('/// <summary>', 1)[0]
+assert 'target.Clear();' not in load_accounts_body, \
+    'clearing the collection detaches the objects the UI binds (the frozen cash balance)'
+assert 'class FinancialAccountSnapshot' in accounts_model_path.read_text(encoding='utf-8'), \
+    'missing the in-place account snapshot helper'
+for token in ('public static void Apply(', 'CopyValues(existing, source)', 'target.Move(currentIndex, index)',
+              'target.RemoveAt(target.Count - 1)'):
+    assert token in accounts_model_path.read_text(encoding='utf-8'), f'the account snapshot helper is missing: {token}'
+for token in ('CashAccount => Accounts.FirstOrDefault(a => a.IsCash)', 'HasCashAccount',
+              'Changed(nameof(CashAccount))', 'EnsureSelectedAccountIsAttached',
+              'RequireCashAccount', 'Accounts.Contains(SelectedAccount)',
+              'Transactions.Count == 0 ? 1 : Transactions.Max'):
+    assert token in accounts_vm_text, f'the accounts screen is missing the refresh fix: {token}'
+assert 'if (ReferenceEquals(item, financeCategory.Items[0]))\n            MyAccounts.NotifyExternalDataChanged();' in main_viewmodel, \
+    'opening «حساباتي» must reload the balances from SQL Server'
+wpf_accounts_test = (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Program.cs').read_text(encoding='utf-8')
+for token in ('FinancialAccountSnapshot.Apply', '"Applying an account snapshot updates the same cash object instead of replacing it"',
+              'The cash row raises BalanceDisplay so the cash card re-reads the new amount',
+              'The accounts screen exposes the cash row the cash card binds to'):
+    assert token in wpf_accounts_test, f'the WPF smoke test does not guard the cash refresh: {token}'
+accounts_sql_project = (root / 'tests/ProjectZ.Purchase.Sql.Tests/ProjectZ.Purchase.Sql.Tests.csproj'
+                        ).read_text(encoding='utf-8')
+for token in ('FinancialRepository.cs', 'VodafoneTransferDesignModels.cs', 'InstapayTransferDesignModels.cs'):
+    assert token in accounts_sql_project, f'the LocalDB harness must compile the accounts layer: {token}'
+accounts_sql_test = (root / 'tests/ProjectZ.Purchase.Sql.Tests/Program.cs').read_text(encoding='utf-8')
+for token in ('Reloading the accounts keeps the same cash object the screen already binds',
+              'The reloaded cash object carries the new balance instead of staying frozen at the startup value'):
+    assert token in accounts_sql_test, f'the LocalDB harness does not guard the cash refresh: {token}'
+accounts_doc = (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
+for token in ('FinancialAccountSnapshot', 'CashAccount.BalanceDisplay', 'النقدية'):
+    assert token in accounts_doc, f'docs/DATABASE.md must explain the accounts refresh: {token}'
+assert '| 42 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
+    'ACCEPTANCE must gain a row for the frozen cash balance fix'
+print('PASS: accounts reloads merge into the live rows so the cash card and the ledger refresh without a restart')
+
 pos_code_paths = [
     root / 'src/ProjectZ/Models/PosDesignModels.cs',
     root / 'src/ProjectZ/Models/FinanceDesignModels.cs',

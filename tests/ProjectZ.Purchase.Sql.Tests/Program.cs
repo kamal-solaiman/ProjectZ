@@ -264,6 +264,23 @@ INSERT dbo.ExpenseCategories(Name,Description) OUTPUT inserted.Id VALUES(N'اخ�
         && expenseRepository.LoadInvoices(null, DateTime.Today.AddDays(-1)).Count == 0,
         "The register date filter is applied inside SQL Server");
 
+    // «حساباتي» showed a frozen «النقدية» balance because a reload replaced the account objects while
+    // the cash card stayed bound to the old one. Reloading must keep the same objects and carry the
+    // new balance into them, so the card (CashAccount.BalanceDisplay) updates without a restart.
+    var financialRepository = new FinancialRepository(settings, userId);
+    var liveAccounts = new ObservableCollection<FinancialAccountDesignItem>();
+    financialRepository.LoadAccountsInto(liveAccounts);
+    var liveCash = liveAccounts.First(account => account.Kind == FinancialAccountKind.Cash);
+    var cashBeforeReload = liveCash.Balance;
+    Execute(admin, $"UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance - 50 WHERE Id = {liveCash.Id};");
+    financialRepository.LoadAccountsInto(liveAccounts);
+    Check(ReferenceEquals(liveCash, liveAccounts.First(account => account.Kind == FinancialAccountKind.Cash)),
+        "Reloading the accounts keeps the same cash object the screen already binds");
+    Check(liveCash.Balance == cashBeforeReload - 50m,
+        "The reloaded cash object carries the new balance instead of staying frozen at the startup value");
+    Check(liveAccounts.Count == Scalar<int>(admin, "SELECT COUNT(*) FROM dbo.FinancialAccounts WHERE IsActive = 1;"),
+        "The reload matches the active accounts in SQL Server without dropping or duplicating rows");
+
     // Re-running the migration script must stay a no-op and keep the migrated/paid rows intact.
     RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", "21_EnableExpenseSplitPayments.sql"));
     Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.ExpensePayments WHERE ExpenseId={savedExpense.ExpenseId};") == 2,
