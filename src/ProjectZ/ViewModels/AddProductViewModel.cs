@@ -297,7 +297,6 @@ public sealed class AddProductViewModel : ObservableObject
     public ActionCommand CancelNewCategoryCommand { get; }
     public ActionCommand EstimatePricesFromRetailCommand { get; }
     public ActionCommand SaveProductCommand { get; }
-    public ActionCommand SaveAndKeepCategoryCommand { get; }
     public ActionCommand ResetFormCommand { get; }
     public ActionCommand GoToPosCommand { get; }
     public ActionCommand ClearCatalogSearchCommand { get; }
@@ -362,8 +361,9 @@ public sealed class AddProductViewModel : ObservableObject
             IsAddingCustomCategory = false;
         });
         EstimatePricesFromRetailCommand = new ActionCommand(EstimateWholesaleAndSpecialFromRetail);
-        SaveProductCommand = new ActionCommand(() => SaveProduct(keepCategoryAndUnit: false));
-        SaveAndKeepCategoryCommand = new ActionCommand(() => SaveProduct(keepCategoryAndUnit: true));
+        // One save button only: it records the product, then clears the form while keeping the
+        // category and unit so the next صنف can be typed straight away.
+        SaveProductCommand = new ActionCommand(() => SaveProduct(keepCategoryAndUnit: true));
         ResetFormCommand = new ActionCommand(() => ResetForm(keepCategoryAndUnit: false));
         GoToPosCommand = new ActionCommand(() => this.navigateToPos?.Invoke());
         ClearCatalogSearchCommand = new ActionCommand(() => CatalogSearchText = "");

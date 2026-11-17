@@ -1185,7 +1185,8 @@ assert 'views:MyAccountsView' in main_xaml
 accounts_xaml = accounts_xaml_path.read_text(encoding='utf-8')
 for token in (
     'CashAccount.BalanceDisplay', 'NewCashTransactionCommand', 'TransferFromCashCommand',
-    'AddVodafoneWalletCommand', 'AddInstaPayWalletCommand', 'FilteredWallets',
+    'AddVodafoneWalletCommand', 'AddInstaPayWalletCommand', 'WalletCardTemplate',
+    'ItemsSource="{Binding VodafoneWallets}"', 'ItemsSource="{Binding InstapayWallets}"',
     'SelectedAccount.DailyDepositUsagePercent', 'SelectedAccount.DailyWithdrawalUsagePercent',
     'SelectedAccount.MonthlyDepositUsagePercent', 'SelectedAccount.MonthlyWithdrawalUsagePercent',
     'SelectedAccountTransactions', 'EditSelectedAccountCommand', 'ToggleSelectedAccountCommand',
@@ -2330,4 +2331,82 @@ workflow_text = (root / '.github/workflows/windows-build.yml').read_text(encodin
 assert 'ProjectZ.Appearance.Tests' in workflow_text and 'ProjectZ.Appearance.Wpf.Tests' in workflow_text
 assert 'docs/THEMES.md' in (root / 'README.md').read_text(encoding='utf-8')
 print('PASS: appearance studio has eight presets plus twelve-role custom colors, independent text groups, atomic device-local save, live whole-app resources and isolated print colors')
+# --- wallet records screens list the whole wallet ledger, accounts split, one save button, header clock ---
+# Regression set: (1)/(2) «سجلات فودافون كاش» and «سجلات إنستاباي» read dbo.CustomerTransfers only, so every
+# sale, purchase, deferred settlement, return, maintenance payment, expense and wallet transfer was missing;
+# (3) «حساباتي» mixed both providers in one list; (4) «حفظ وإضافة صنف آخر» did exactly what «حفظ وتسجيل الصنف»
+# did; (5) the title bar had no Egypt date/time next to «مرحبًا» and «تسجيل خروج».
+ledger_repo = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+for token in ('public void LoadWalletMovementsInto(',
+              'public void LoadVodafoneWalletMovementsInto(',
+              'public void LoadInstapayWalletMovementsInto(',
+              'FROM dbo.FinancialTransactions t',
+              "LEFT JOIN dbo.CustomerTransfers ct",
+              "AND t.Category IN (N'\u062a\u062d\u0648\u064a\u0644 \u0644\u0644\u0639\u0645\u064a\u0644', N'\u0633\u062d\u0628 \u0644\u0644\u0639\u0645\u064a\u0644')",
+              'WHERE a.AccountKind = @Kind',
+              "SELECT t.Id, t.FinancialAccountId",
+              'ORDER BY t.OccurredAtUtc DESC, t.Id DESC;'):
+    assert token in ledger_repo, f'FinancialRepository must load the whole wallet ledger: {token}'
+assert 'reader.IsDBNull(14)' in ledger_repo and 'hasTransfer ?' in ledger_repo, \
+    'every CustomerTransfers column of the LEFT JOIN must be read through IsDBNull'
+
+for model_name, model_path in (('Vodafone', 'src/ProjectZ/Models/VodafoneTransferDesignModels.cs'),
+                               ('InstaPay', 'src/ProjectZ/Models/InstapayTransferDesignModels.cs')):
+    model_text = (root / model_path).read_text(encoding='utf-8')
+    for token in ('public int MovementId', 'public string SourceTitle', 'public string CategoryTitle',
+                  'public bool IsCustomerTransfer', 'public bool IsIncoming',
+                  'public bool CanEditOrDelete => IsCustomerTransfer && !IsReversed;'):
+        assert token in model_text, f'{model_name} records model must describe ledger movements: {token}'
+    assert 'public string OperationTitle => IsCustomerTransfer ?' in model_text, \
+        f'{model_name} rows of another screen take the source label, not the deposit/withdraw title'
+
+for vm_path in ('src/ProjectZ/ViewModels/VodafoneRecordsViewModel.cs',
+                'src/ProjectZ/ViewModels/InstapayRecordsViewModel.cs'):
+    vm_text = (root / vm_path).read_text(encoding='utf-8')
+    for token in ('private readonly ObservableCollection<', 'allOperations.Clear();',
+                  'allOperations.Where(Matches)',
+                  'public const string ReadOnlyMovementMessage =',
+                  'if (!SelectedOperation.IsCustomerTransfer) { SetStatus(ReadOnlyMovementMessage, true); return; }',
+                  'RebuildKindFilters();'):
+        assert token in vm_text, f'{vm_path} must show and protect the whole wallet ledger: {token}'
+    assert 'transfers.Operations.Where(Matches)' not in vm_text, \
+        f'{vm_path} still filters the customer transfers only instead of the whole wallet history'
+
+instapay_records_vm_ascii = (root / 'src/ProjectZ/ViewModels/InstapayRecordsViewModel.cs').read_text(encoding='utf-8')
+assert 'LoadInstapayWalletMovementsInto' in instapay_records_vm_ascii, \
+    'the InstaPay records screen must load its own wallet history through the InstaPay loader'
+
+accounts_view_text = (root / 'src/ProjectZ/Views/MyAccountsView.xaml').read_text(encoding='utf-8')
+for token in ('x:Key="WalletCardTemplate"', 'ItemsSource="{Binding VodafoneWallets}"',
+              'ItemsSource="{Binding InstapayWallets}"', 'Text="{Binding VodafoneWalletsSubtext}"',
+              'Text="{Binding InstapayWalletsSubtext}"', 'HasNoVodafoneWallets', 'HasNoInstapayWallets'):
+    assert token in accounts_view_text, f'«حساباتي» must show the two wallet sections side by side: {token}'
+for token in ('VodafoneWallets', 'InstapayWallets'):
+    assert token in (root / 'src/ProjectZ/ViewModels/MyAccountsViewModel.cs').read_text(encoding='utf-8'), \
+        f'MyAccountsViewModel must fill the {token} section'
+
+add_product_view_text = (root / 'src/ProjectZ/Views/AddProductView.xaml').read_text(encoding='utf-8')
+add_product_vm_text = (root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs').read_text(encoding='utf-8')
+assert 'SaveAndKeepCategoryCommand' not in add_product_view_text and 'SaveAndKeepCategoryCommand' not in add_product_vm_text, \
+    'the duplicate «حفظ وإضافة صنف آخر» button and command must be gone'
+for token in ('SaveProductCommand', 'SaveProduct(keepCategoryAndUnit: true)'):
+    assert token in add_product_vm_text, f'one save button must remain on «إضافة منتج»: {token}'
+
+main_window_text = (root / 'src/ProjectZ/Views/MainWindow.xaml').read_text(encoding='utf-8')
+main_vm_text = (root / 'src/ProjectZ/ViewModels/MainViewModel.cs').read_text(encoding='utf-8')
+for token in ('Text="{Binding HeaderTime}"', 'Text="{Binding HeaderDate}"'):
+    assert token in main_window_text, f'the title bar must show Egypt date and time: {token}'
+for token in ('public string HeaderDate', 'public string HeaderTime',
+              'EgyptTimeZone = ResolveEgyptTimeZone()', 'TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EgyptTimeZone)',
+              'DispatcherTimer', 'egyptClockTimer.Start();'):
+    assert token in main_vm_text, f'MainViewModel must run the Egypt clock: {token}'
+assert 'DateTime.Now.ToString' not in main_vm_text, \
+    'the header clock must convert to Egypt time, not print the machine clock blindly'
+
+records_doc_text = (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
+for token in ('LoadWalletMovementsInto', 'ReadOnlyMovementMessage', 'LoadInstapayWalletMovementsInto'):
+    assert token in records_doc_text, f'docs/DATABASE.md must explain the whole-ledger records screens: {token}'
+assert '| 45 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
+    'ACCEPTANCE must gain the row for the five edits'
+print('PASS: records screens list every wallet movement, accounts split by provider, one save button and an Egypt header clock')
 print('NOT RUN locally: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish (Windows CI covers .NET build/tests, publish and isolated LocalDB integration)')

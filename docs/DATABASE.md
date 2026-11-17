@@ -242,6 +242,27 @@ var oldWallet = accounts.Accounts.First(w => w.Id == operation.WalletId);
 - `FinancialRepository.LoadAccountsInto` يقرأ `WHERE IsActive = 1` فقط، فالخط **الموقوف** (`IsActive = 0`
   وهو ما يحدث عند حذف محفظة لها سجل) أو المحذوف من `dbo.FinancialAccounts` لا يظهر في `Accounts`.
 - `dbo.CustomerTransfers` يحتفظ بعمليات الخط بعد إيقافه، فتبقى العملية معروضة في السجلات بلا كائن خط محلي.
+
+### 6.1 سجلات المحافظ تقرأ **كل** الحركات من `dbo.FinancialTransactions`
+
+كانت شاشتا «فودافون — سجل العمليات» و«إنستاباي — سجل العمليات» تقرآن `dbo.CustomerTransfers` وحدها
+(`LoadCustomerTransfersInto`)، فكانت المبيعات والمشتريات والسداد الآجل والمرتجعات ودفعات الصيانة والمصروفات
+وتحويلات المحافظ والإيداع/السحب اليدوي **غائبة** عن السجلات رغم أنها كلها حركات على نفس المحفظة.
+
+الإصلاح:
+
+- `FinancialRepository.LoadWalletMovementsInto` يقرأ `dbo.FinancialTransactions` لكل حساب `AccountKind = @Kind`
+  (بما فيها الخطوط الموقوفة) مع `LEFT JOIN dbo.FinancialAccounts` و`LEFT JOIN dbo.Users`، ويُثري الصف من
+  `dbo.CustomerTransfers` فقط عندما يكون `SourceEntityType = N'CustomerTransfer'` و`Category` هي حركة المحفظة
+  الأصلية (`N'تحويل للعميل'` أو `N'سحب للعميل'`)، فيظل تحويل العميل صفًا واحدًا قابلًا للتعديل/العكس/الحذف.
+- الصفوف التي تكتبها شاشة أخرى (`SalesInvoice`، `PurchaseInvoice`، `ReturnExchange`، `MaintenanceOrder`،
+  `Expense`) وحركات «عكس تحويل» والحركات اليدوية (`SourceEntityType IS NULL`) تظهر **للقراءة فقط**، ويشرح
+  `VodafoneRecordsViewModel.ReadOnlyMovementMessage` سبب رفض التعديل/العكس/الحذف، فلا يمكن العبث بمبيعات أو
+  مشتريات من شاشة السجلات.
+- `DescribeMovementSource` يترجم `SourceEntityType` إلى عنوان عربي (بيع/تحصيل، شراء/سداد، مرتجع/استبدال، صيانة،
+  مصروف، عكس/تسوية تحويل)، والحركة اليدوية تُعرض بفئتها نفسها («إيداع»، «سحب»، «تحويل صادر»…).
+- `LoadVodafoneWalletMovementsInto` و`LoadInstapayWalletMovementsInto` هما الغلافان المستخدمان في الشاشتين، حتى
+  لا تشير شاشة إنستاباي إلى أي نوع من أنواع فودافون.
 - كانت نافذة التعديل تُفتح بقائمة خطوط فارغة، وبمجرد اختيار خط آخر والضغط على «حفظ» يصل التنفيذ إلى السطر
   أعلاه فيسقط البرنامج برسالة .NET قبل أن تصل أي رسالة إلى شريط الحالة.
 

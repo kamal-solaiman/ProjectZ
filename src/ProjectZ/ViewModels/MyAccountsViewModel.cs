@@ -24,6 +24,9 @@ public sealed class MyAccountsViewModel : ObservableObject
     public ObservableCollection<FinancialAccountDesignItem> Accounts { get; } = [];
     public ObservableCollection<FinancialTransactionDesignItem> Transactions { get; } = [];
     public ObservableCollection<FinancialAccountDesignItem> FilteredWallets { get; } = [];
+    /// <summary>Electronic wallets split by provider, shown side by side on «حساباتي».</summary>
+    public ObservableCollection<FinancialAccountDesignItem> VodafoneWallets { get; } = [];
+    public ObservableCollection<FinancialAccountDesignItem> InstapayWallets { get; } = [];
     public ObservableCollection<FinancialTransactionDesignItem> SelectedAccountTransactions { get; } = [];
     public IReadOnlyList<string> ProviderFilterOptions { get; } = ["كل المحافظ", "فودافون كاش", "إنستاباي"];
     public IReadOnlyList<string> StatusFilterOptions { get; } = ["كل الحالات", "النشطة فقط", "الموقوفة فقط", "تحتاج مراجعة الحدود"];
@@ -58,6 +61,12 @@ public sealed class MyAccountsViewModel : ObservableObject
     public string TransactionSearchText { get => transactionSearchText; set { if (transactionSearchText == value) return; transactionSearchText = value; Changed(); RefreshSelectedTransactions(); } }
     public string SelectedTransactionType { get => selectedTransactionType; set { if (selectedTransactionType == value) return; selectedTransactionType = value; Changed(); RefreshSelectedTransactions(); } }
     public bool HasNoFilteredWallets => FilteredWallets.Count == 0;
+    public bool HasNoVodafoneWallets => VodafoneWallets.Count == 0;
+    public bool HasNoInstapayWallets => InstapayWallets.Count == 0;
+    public string VodafoneWalletsSubtext => $"{VodafoneWallets.Count} خط فودافون كاش";
+    public string InstapayWalletsSubtext => $"{InstapayWallets.Count} محفظة إنستاباي";
+    public string VodafoneWalletsBalanceDisplay => PosFormatting.FormatCurrency(VodafoneWallets.Sum(a => a.Balance));
+    public string InstapayWalletsBalanceDisplay => PosFormatting.FormatCurrency(InstapayWallets.Sum(a => a.Balance));
     public bool HasNoSelectedTransactions => SelectedAccountTransactions.Count == 0;
 
     public string TotalLiquidityDisplay => PosFormatting.FormatCurrency(Accounts.Sum(a => a.Balance));
@@ -531,7 +540,16 @@ public sealed class MyAccountsViewModel : ObservableObject
         };
         if (query.Length > 0) filtered = filtered.Where(a => a.Alias.Contains(query, StringComparison.OrdinalIgnoreCase) || a.Identifier.Contains(query, StringComparison.OrdinalIgnoreCase) || a.ProviderTitle.Contains(query, StringComparison.OrdinalIgnoreCase));
         FilteredWallets.Clear(); foreach (var account in filtered.OrderByDescending(a => a.IsDefault).ThenByDescending(a => a.IsActive).ThenBy(a => a.Id)) FilteredWallets.Add(account);
+        VodafoneWallets.Clear(); InstapayWallets.Clear();
+        foreach (var account in FilteredWallets)
+        {
+            if (account.Kind == FinancialAccountKind.VodafoneCash) VodafoneWallets.Add(account);
+            else if (account.Kind == FinancialAccountKind.InstaPay) InstapayWallets.Add(account);
+        }
         Changed(nameof(HasNoFilteredWallets));
+        Changed(nameof(HasNoVodafoneWallets)); Changed(nameof(HasNoInstapayWallets));
+        Changed(nameof(VodafoneWalletsSubtext)); Changed(nameof(InstapayWalletsSubtext));
+        Changed(nameof(VodafoneWalletsBalanceDisplay)); Changed(nameof(InstapayWalletsBalanceDisplay));
         if (SelectedAccount is not null && !SelectedAccount.IsCash && !FilteredWallets.Contains(SelectedAccount)) SelectedAccount = FilteredWallets.FirstOrDefault();
     }
 

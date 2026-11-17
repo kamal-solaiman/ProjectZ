@@ -371,6 +371,58 @@ internal static class Program
         defaultAccounts.ToggleSelectedAccountCommand.Execute(null);
         Check(defaultAccounts.IsErrorStatus && defaultAccounts.CashAccount!.IsActive,
             "The cash account cannot be stopped from the toggle");
+        // «سجلات فودافون كاش» و«سجلات إنستاباي» showed only dbo.CustomerTransfers, so every sale,
+        // purchase, expense, maintenance payment or wallet transfer was missing from them. Each screen
+        // now merges the whole wallet history and keeps another screen's movement read-only.
+        var historyAccounts = new MyAccountsViewModel();
+        var historyRecords = new VodafoneRecordsViewModel(
+            new VodafoneTransferViewModel(historyAccounts, "اختبار السجلات"), historyAccounts, "اختبار السجلات");
+        Check(historyRecords.FilteredOperations.Any(operation => operation.IsCustomerTransfer)
+              && historyRecords.FilteredOperations.Any(operation => !operation.IsCustomerTransfer),
+            "The Vodafone records screen lists wallet movements beside customer transfers");
+        Check(historyRecords.KindFilters.Contains("إيداع للعميل")
+              && historyRecords.KindFilters.Any(title => title != "كل العمليات" && title != "إيداع للعميل" && title != "سحب للعميل"),
+            "The kind filter offers the new wallet sources, not only deposits and withdrawals");
+        var otherScreenMovement = historyRecords.FilteredOperations.First(operation => !operation.IsCustomerTransfer);
+        Check(!otherScreenMovement.CanEditOrDelete && otherScreenMovement.StatusTitle == "ناجحة",
+            "A movement that belongs to another screen cannot be edited, reversed or deleted here");
+        historyRecords.BeginOperationEditCommand.Execute(otherScreenMovement);
+        Check(historyRecords.StatusMessage == VodafoneRecordsViewModel.ReadOnlyMovementMessage,
+            "Editing another screen's movement explains it in Arabic");
+        historyRecords.ReverseOperationCommand.Execute(otherScreenMovement);
+        Check(historyRecords.StatusMessage == VodafoneRecordsViewModel.ReadOnlyMovementMessage,
+            "Reversing another screen's movement explains it in Arabic");
+        historyRecords.DeleteOperationCommand.Execute(otherScreenMovement);
+        Check(historyRecords.StatusMessage == VodafoneRecordsViewModel.ReadOnlyMovementMessage
+              && historyRecords.FilteredOperations.Contains(otherScreenMovement),
+            "Deleting another screen's movement refuses instead of dropping the record");
+        var instapayHistoryAccounts = new MyAccountsViewModel();
+        var instapayHistoryRecords = new InstapayRecordsViewModel(
+            new InstapayTransferViewModel(instapayHistoryAccounts, "اختبار السجلات"), instapayHistoryAccounts, "اختبار السجلات");
+        Check(instapayHistoryRecords.FilteredOperations.Any(operation => !operation.IsCustomerTransfer)
+              && instapayHistoryRecords.FilteredOperations.All(operation => operation.WalletId != 0),
+            "The InstaPay records screen lists its own wallet movements the same way");
+        // «حساباتي» must show the wallets split into فودافون كاش and إنستاباي sections side by side.
+        Check(historyAccounts.VodafoneWallets.Count > 0 && historyAccounts.InstapayWallets.Count > 0
+              && historyAccounts.VodafoneWallets.All(account => account.Kind == FinancialAccountKind.VodafoneCash)
+              && historyAccounts.InstapayWallets.All(account => account.Kind == FinancialAccountKind.InstaPay),
+            "«حساباتي» splits the electronic wallets into a Vodafone section and an InstaPay section");
+        Check(!historyAccounts.HasNoVodafoneWallets && !historyAccounts.HasNoInstapayWallets
+              && historyAccounts.VodafoneWalletsSubtext.Contains("فودافون", StringComparison.Ordinal)
+              && historyAccounts.InstapayWalletsSubtext.Contains("إنستاباي", StringComparison.Ordinal),
+            "Each wallet section reports its own count and balance in Arabic");
+        // «حفظ وإضافة صنف آخر» did the same work as «حفظ وتسجيل الصنف»: the second button and its
+        // command are gone, and the remaining button keeps the category and unit for the next product.
+        Check(typeof(AddProductViewModel).GetProperty("SaveAndKeepCategoryCommand") is null,
+            "The duplicate save command is gone from «إضافة منتج»");
+        Check(typeof(AddProductViewModel).GetProperty("SaveProductCommand") is not null,
+            "«حفظ وتسجيل الصنف» remains the single save button");
+        // The header bar carries Egypt's date and time next to «مرحبًا» and «تسجيل الخروج».
+        Check(mainVm.HeaderDate.Length > 0 && mainVm.HeaderTime.Length == 8 && mainVm.HeaderTime[2] == ':',
+            "The title bar shows today's date and a running HH:mm:ss clock");
+        Check(mainVm.HeaderDate.Contains(DateTime.UtcNow.Year.ToString(), StringComparison.Ordinal)
+              || mainVm.HeaderDate.Contains((DateTime.UtcNow.Year + 1).ToString(), StringComparison.Ordinal),
+            "The clock date follows Egypt's calendar year, not a placeholder");
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

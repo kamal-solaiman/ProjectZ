@@ -150,6 +150,21 @@
                                    Foreground="{DynamicResource Theme.Legacy.DCE8EE.NavigationMuted}"
                                    FlowDirection="LeftToRight" />
                     </StackPanel>
+                    <!-- التاريخ والوقت الحاليان بتوقيت مصر -->
+                    <StackPanel Margin="18,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <TextBlock Text="{Binding HeaderTime}"
+                                   FontSize="15"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Left"
+                                   FlowDirection="LeftToRight"
+                                   Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnNavigation}" />
+                        <TextBlock Text="{Binding HeaderDate}"
+                                   Margin="0,3,0,0"
+                                   FontSize="11.5"
+                                   HorizontalAlignment="Left"
+                                   FlowDirection="RightToLeft"
+                                   Foreground="{DynamicResource Theme.Legacy.DCE8EE.NavigationMuted}" />
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
