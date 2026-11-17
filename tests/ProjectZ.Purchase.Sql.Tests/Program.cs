@@ -435,6 +435,32 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
         "Re-assigning the default moves the flag instead of duplicating it");
     Check(financialRepository.DeleteAccount(extraWallet.AccountId, "خط إضافي للاختبار").Deleted,
         "The temporary wallet is cleaned up again");
+    // «سجلات فودافون كاش» و«سجلات إنستاباي» listed only dbo.CustomerTransfers, so a sale, purchase,
+    // expense, maintenance payment or wallet-to-wallet transfer never appeared there. They must now read
+    // the whole wallet history from dbo.FinancialTransactions and keep the other screens' rows read-only.
+    var walletHistory = new System.Collections.ObjectModel.ObservableCollection<VodafoneTransferOperation>();
+    financialRepository.LoadVodafoneWalletMovementsInto(walletHistory);
+    var purchaseMovement = walletHistory.FirstOrDefault(movement => !movement.IsCustomerTransfer && movement.SourceTitle == "شراء / سداد");
+    Check(purchaseMovement is not null,
+        "A purchase payment on the wallet reaches the records screen, not only customer transfers");
+    Check(purchaseMovement!.OperationTitle == "شراء / سداد" && !purchaseMovement.CanEditOrDelete,
+        "A purchase movement is read-only on the records screen instead of offering edit/reverse/delete");
+    Check(purchaseMovement.MovementId > 0 && purchaseMovement.Commission == 0m && purchaseMovement.TotalCashDisplay == "—",
+        "A purchase movement carries its ledger id, no commission and no cash-box effect");
+    Check(walletHistory.Any(movement => movement.IsCustomerTransfer && movement.CanEditOrDelete),
+        "Customer transfers keep their edit/reverse/delete controls in the same list");
+    var transferRowsInHistory = walletHistory.Where(movement => movement.IsCustomerTransfer).ToList();
+    Check(transferRowsInHistory.All(movement => movement.Id > 0 && movement.CustomerNumber.Length > 0),
+        "Every customer transfer row keeps its CustomerTransfers id and customer number");
+    Console.WriteLine("PASS: the Vodafone Cash records screen lists sales, purchases and expenses beside customer transfers");
+
+    var instapayHistory = new System.Collections.ObjectModel.ObservableCollection<InstapayTransferOperation>();
+    financialRepository.LoadInstapayWalletMovementsInto(instapayHistory);
+    Check(instapayHistory.All(movement => movement.WalletId > 0),
+        "The InstaPay records screen loads its own wallet history without mixing the Vodafone lines");
+    Check(instapayHistory.Count <= walletHistory.Count,
+        "Both records screens read the same ledger shape from dbo.FinancialTransactions");
+    Console.WriteLine("PASS: the InstaPay records screen reads every InstaPay wallet movement from the same ledger");
     Console.WriteLine("PASS: «تعيين افتراضية» and «تفعيل / إيقاف» persist per kind in dbo.FinancialAccounts");
     Console.WriteLine("PASS: all purchase and expense SQL integration checks passed on a disposable SQL Server instance");
 }

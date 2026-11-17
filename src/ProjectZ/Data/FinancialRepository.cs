@@ -680,6 +680,158 @@ WHERE Id = @Id AND OperationStatus = 0;"))
         }
     }
 
+    /// <summary>Loads every movement of the فودافون كاش wallets, newest first.</summary>
+    public void LoadVodafoneWalletMovementsInto(ObservableCollection<VodafoneTransferOperation> target) =>
+        LoadWalletMovementsInto(FinancialAccountKind.VodafoneCash, target, new ObservableCollection<InstapayTransferOperation>());
+
+    /// <summary>Loads every movement of the إنستاباي wallets, newest first.</summary>
+    public void LoadInstapayWalletMovementsInto(ObservableCollection<InstapayTransferOperation> target) =>
+        LoadWalletMovementsInto(FinancialAccountKind.InstaPay, new ObservableCollection<VodafoneTransferOperation>(), target);
+
+    /// <summary>
+    /// Loads every movement of the wallets of one kind — customer transfers, sales collections, supplier
+    /// payments, returns, maintenance payments, expenses, wallet-to-wallet transfers and manual
+    /// adjustments — newest first. The «سجلات» screens must show the whole wallet history, not only
+    /// customer transfers, so the rows come from dbo.FinancialTransactions and are enriched from
+    /// dbo.CustomerTransfers when the movement is one of the editable customer transfers.
+    /// </summary>
+    public void LoadWalletMovementsInto(
+        FinancialAccountKind kind,
+        ObservableCollection<VodafoneTransferOperation> vodafoneTarget,
+        ObservableCollection<InstapayTransferOperation> instapayTarget)
+    {
+        try
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+SELECT t.Id, t.FinancialAccountId, ISNULL(a.Alias,N''), ISNULL(a.Identifier,N''), a.AccountKind,
+       t.IsIncoming, ISNULL(t.Category,N''), t.Amount, t.BalanceAfter, ISNULL(t.Counterparty,N''),
+       ISNULL(t.Note,N''), t.OccurredAtUtc, ISNULL(au.DisplayName,N''), ISNULL(t.SourceEntityType,N''),
+       ct.Id, ISNULL(ct.OperationKind,0), ISNULL(ct.Commission,0), ISNULL(ct.CashDelta,0),
+       ISNULL(ct.OperationStatus,0), ISNULL(ru.DisplayName,N''), ct.ReversedAtUtc
+FROM dbo.FinancialTransactions t
+JOIN dbo.FinancialAccounts a ON a.Id = t.FinancialAccountId
+LEFT JOIN dbo.Users au ON au.Id = t.ActorUserId
+-- Only the original transfer legs carry these categories; the reversal and edit legs stay read-only rows.
+LEFT JOIN dbo.CustomerTransfers ct
+       ON t.SourceEntityType = N'CustomerTransfer' AND ct.Id = t.SourceEntityId
+      AND t.Category IN (N'تحويل للعميل', N'سحب للعميل')
+LEFT JOIN dbo.Users ru ON ru.Id = ct.ReversedByUserId
+WHERE a.AccountKind = @Kind
+ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
+            command.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var movementId = reader.GetInt32(0);
+                var accountId = reader.GetInt32(1);
+                var alias = reader.GetString(2);
+                var identifier = reader.GetString(3);
+                var accountKind = reader.GetByte(4);
+                var isIncoming = reader.GetBoolean(5);
+                var category = reader.GetString(6);
+                var amount = reader.GetDecimal(7);
+                var balanceAfter = reader.GetDecimal(8);
+                var counterparty = reader.GetString(9);
+                var note = reader.GetString(10);
+                var occurredAt = reader.GetDateTime(11).ToLocalTime();
+                var actorName = reader.GetString(12);
+                var sourceType = reader.GetString(13);
+                // The LEFT JOIN means every ct column is NULL for a sale, purchase, expense, maintenance
+                // or adjustment row, so each one must be read through IsDBNull instead of GetXxx.
+                var hasTransfer = !reader.IsDBNull(14);
+                var transferId = hasTransfer ? reader.GetInt32(14) : 0;
+                var transferKind = hasTransfer ? reader.GetByte(15) : (byte)0;
+                var commission = hasTransfer ? reader.GetDecimal(16) : 0m;
+                var cashDelta = hasTransfer ? reader.GetDecimal(17) : 0m;
+                var transferStatus = hasTransfer ? reader.GetByte(18) : (byte)0;
+                var reversedBy = hasTransfer ? reader.GetString(19) : string.Empty;
+                var reversedAt = hasTransfer && !reader.IsDBNull(20) ? reader.GetDateTime(20).ToLocalTime() : (DateTime?)null;
+
+                var isCustomerTransfer = transferId > 0;
+                var sourceTitle = isCustomerTransfer ? "تحويل عميل" : DescribeMovementSource(sourceType, category);
+
+                if (accountKind == (byte)FinancialAccountKind.VodafoneCash)
+                {
+                    var depositSide = isCustomerTransfer ? transferKind == 1 : isIncoming;
+                    vodafoneTarget.Add(new VodafoneTransferOperation
+                    {
+                        Id = transferId,
+                        MovementId = movementId,
+                        WalletId = accountId,
+                        WalletAlias = alias,
+                        WalletNumber = identifier,
+                        Kind = depositSide ? VodafoneOperationKind.DepositToCustomer : VodafoneOperationKind.WithdrawForCustomer,
+                        CustomerNumber = counterparty,
+                        Amount = amount,
+                        Commission = isCustomerTransfer ? commission : 0m,
+                        CashDelta = isCustomerTransfer ? cashDelta : 0m,
+                        WalletBalanceAfter = balanceAfter,
+                        Note = note,
+                        Timestamp = occurredAt,
+                        ActorName = actorName,
+                        IsReversed = isCustomerTransfer && transferStatus == 1,
+                        ReversedBy = reversedBy,
+                        ReversedAt = reversedAt,
+                        IsCustomerTransfer = isCustomerTransfer,
+                        IsIncoming = isIncoming,
+                        SourceTitle = sourceTitle,
+                        CategoryTitle = category
+                    });
+                }
+                else if (accountKind == (byte)FinancialAccountKind.InstaPay)
+                {
+                    var depositSide = isCustomerTransfer ? transferKind == 1 : isIncoming;
+                    instapayTarget.Add(new InstapayTransferOperation
+                    {
+                        Id = transferId,
+                        MovementId = movementId,
+                        WalletId = accountId,
+                        WalletAlias = alias,
+                        WalletNumber = identifier,
+                        Kind = depositSide ? InstapayOperationKind.DepositToCustomer : InstapayOperationKind.WithdrawForCustomer,
+                        CustomerNumber = counterparty,
+                        Amount = amount,
+                        Commission = isCustomerTransfer ? commission : 0m,
+                        CashDelta = isCustomerTransfer ? cashDelta : 0m,
+                        WalletBalanceAfter = balanceAfter,
+                        Note = note,
+                        Timestamp = occurredAt,
+                        ActorName = actorName,
+                        IsReversed = isCustomerTransfer && transferStatus == 1,
+                        ReversedBy = reversedBy,
+                        ReversedAt = reversedAt,
+                        IsCustomerTransfer = isCustomerTransfer,
+                        IsIncoming = isIncoming,
+                        SourceTitle = sourceTitle,
+                        CategoryTitle = category
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            throw Describe(ex, "تعذّر تحميل حركات المحافظ من قاعدة البيانات.");
+        }
+    }
+
+    /// <summary>
+    /// Turns a ledger row's source/category pair into the Arabic label the records screens show. Rows
+    /// written by another screen carry its SourceEntityType; manual rows carry no source, so their own
+    /// category («إيداع»، «سحب»، «تحويل صادر»…) is the honest label.
+    /// </summary>
+    private static string DescribeMovementSource(string sourceType, string category) => sourceType switch
+    {
+        "SalesInvoice" => category.Contains("فرق استبدال", StringComparison.Ordinal) ? "استبدال / فرق" : "بيع / تحصيل",
+        "ReturnExchange" => "مرتجع / استبدال",
+        "PurchaseInvoice" => "شراء / سداد",
+        "MaintenanceOrder" => category.Contains("رد ", StringComparison.Ordinal) ? "رد صيانة" : "صيانة",
+        "Expense" => "مصروف",
+        "CustomerTransfer" => "عكس / تسوية تحويل",
+        _ => string.IsNullOrWhiteSpace(category) ? "حركة يدوية" : category
+    };
+
     /// <summary>Loads customer transfer operations of one wallet kind, newest first.</summary>
     public void LoadCustomerTransfersInto(
         ObservableCollection<VodafoneTransferOperation> vodafoneTarget,

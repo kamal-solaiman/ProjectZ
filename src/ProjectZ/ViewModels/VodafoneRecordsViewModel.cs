@@ -39,13 +39,20 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     // Enumerable.ThrowNoMatchException (an unhandled crash) as soon as the wallet row was gone.
     public const string MissingWalletMessage =
         "الخط المرتبط بهذه العملية غير موجود أو موقوف في «حساباتي»، فلا يمكن تعديل العملية أو عكسها. فعّل الخط من «حساباتي» واضغط «تحديث» ثم حاول مرة أخرى.";
+    /// <summary>Movements that belong to another screen stay read-only here.</summary>
+    public const string ReadOnlyMovementMessage =
+        "هذه الحركة ناتجة عن شاشة أخرى (بيع/شراء/صيانة/مصروف…) ولا يمكن تعديلها أو عكسها من هنا؛ عدّلها من شاشتها الأصلية.";
+
     public const string MissingCashMessage =
         "لا يوجد حساب «النقدية» نشط في «حساباتي»، فلا يمكن تسوية أثر العملية. راجع الحساب النقدي واضغط «تحديث» ثم حاول مرة أخرى.";
 
+    // Every movement of the wallets of this kind: customer transfers plus sales, purchases,
+    // returns, maintenance, expenses, wallet transfers and manual adjustments.
+    private readonly ObservableCollection<VodafoneTransferOperation> allOperations = [];
     public ObservableCollection<VodafoneTransferOperation> FilteredOperations { get; } = [];
     public ObservableCollection<VodafoneWalletFilterOption> WalletFilters { get; } = [];
     public ObservableCollection<FinancialAccountDesignItem> EditWallets { get; } = [];
-    public IReadOnlyList<string> KindFilters { get; } = ["كل العمليات", "إيداع للعميل", "سحب للعميل"];
+    public ObservableCollection<string> KindFilters { get; } = ["كل العمليات"];
     public IReadOnlyList<string> StatusFilters { get; } = ["كل الحالات", "ناجحة", "معكوسة"];
     public IReadOnlyList<string> EditKindOptions { get; } = ["إيداع للعميل", "سحب للعميل"];
 
@@ -63,7 +70,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     public string MinimumCommissionText { get => minimumCommissionText; set { minimumCommissionText = value; Changed(); ApplyFilters(); } }
     public string MaximumCommissionText { get => maximumCommissionText; set { maximumCommissionText = value; Changed(); ApplyFilters(); } }
     public bool HasNoOperations => FilteredOperations.Count == 0;
-    public string ResultCountDisplay => $"{FilteredOperations.Count} من {transfers.Operations.Count} عملية";
+    public string ResultCountDisplay => $"{FilteredOperations.Count} من {allOperations.Count} حركة";
     public string FilteredAmountDisplay => PosFormatting.FormatCurrency(FilteredOperations.Sum(o => o.Amount));
     public string FilteredCommissionDisplay => PosFormatting.FormatCurrency(FilteredOperations.Sum(o => o.Commission));
     public string StatusMessage { get => statusMessage; private set { statusMessage = value; Changed(); } }
@@ -107,6 +114,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     public void NotifyExternalDataChanged()
     {
         transfers.NotifyExternalDataChanged();
+        LoadAllOperations();
         var walletId = SelectedWalletId;
         WalletFilters.Clear(); EditWallets.Clear();
         WalletFilters.Add(new VodafoneWalletFilterOption(0, "كل خطوط فودافون"));
@@ -119,10 +127,68 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
         ApplyFilters();
     }
 
+    /// <summary>
+    /// Loads the whole wallet history. With a database the rows come from dbo.FinancialTransactions (so
+    /// sales, purchases, returns, maintenance, expenses and transfers all appear); the design mode merges
+    /// the customer-transfer seed with the wallet rows of the shared ledger.
+    /// </summary>
+    private void LoadAllOperations()
+    {
+        allOperations.Clear();
+        if (accounts.Repository is not null)
+        {
+            accounts.Repository.LoadVodafoneWalletMovementsInto(allOperations);
+        }
+        else
+        {
+            foreach (var operation in transfers.Operations) allOperations.Add(operation);
+            foreach (var movement in accounts.Transactions)
+            {
+                var account = accounts.Accounts.FirstOrDefault(candidate => candidate.Id == movement.AccountId);
+                if (account is null || account.Kind != FinancialAccountKind.VodafoneCash) continue;
+                allOperations.Add(new VodafoneTransferOperation
+                {
+                    MovementId = movement.Id,
+                    WalletId = movement.AccountId,
+                    WalletAlias = account.Alias,
+                    WalletNumber = account.Identifier,
+                    Kind = movement.IsIncoming ? VodafoneOperationKind.DepositToCustomer : VodafoneOperationKind.WithdrawForCustomer,
+                    CustomerNumber = movement.Counterparty,
+                    Amount = movement.Amount,
+                    WalletBalanceAfter = movement.BalanceAfter,
+                    Note = movement.Note,
+                    Timestamp = movement.Timestamp,
+                    ActorName = movement.ActorName,
+                    IsCustomerTransfer = false,
+                    IsIncoming = movement.IsIncoming,
+                    SourceTitle = movement.Category,
+                    CategoryTitle = movement.Category
+                });
+            }
+        }
+
+        RebuildKindFilters();
+    }
+
+    private void RebuildKindFilters()
+    {
+        var previous = selectedKind;
+        var titles = allOperations.Select(operation => operation.OperationTitle)
+            .Where(title => !string.IsNullOrWhiteSpace(title))
+            .Distinct()
+            .OrderBy(title => title, StringComparer.Ordinal)
+            .ToList();
+        KindFilters.Clear();
+        KindFilters.Add("كل العمليات");
+        foreach (var title in titles) KindFilters.Add(title);
+        selectedKind = KindFilters.Contains(previous) ? previous : "كل العمليات";
+        Changed(nameof(SelectedKind));
+    }
+
     public void ApplyFilters()
     {
         FilteredOperations.Clear();
-        foreach (var operation in transfers.Operations.Where(Matches).OrderByDescending(o => o.Timestamp).ThenByDescending(o => o.Id)) FilteredOperations.Add(operation);
+        foreach (var operation in allOperations.Where(Matches).OrderByDescending(o => o.Timestamp).ThenByDescending(o => o.Id)) FilteredOperations.Add(operation);
         if (SelectedOperation is not null && !FilteredOperations.Contains(SelectedOperation)) SelectedOperation = FilteredOperations.FirstOrDefault();
         Changed(nameof(HasNoOperations)); Changed(nameof(ResultCountDisplay)); Changed(nameof(FilteredAmountDisplay)); Changed(nameof(FilteredCommissionDisplay));
     }
@@ -159,6 +225,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     {
         if (SelectedOperation is null) { SetStatus("اختر عملية أولًا.", true); return; }
         if (SelectedOperation.IsReversed) { SetStatus("لا يمكن تعديل عملية معكوسة.", true); return; }
+        if (!SelectedOperation.IsCustomerTransfer) { SetStatus(ReadOnlyMovementMessage, true); return; }
         // Do not open the editor for an operation whose line is gone: the dialog would show an
         // empty wallet picker and saving used to crash with ThrowNoMatchException.
         if (FindWallet(SelectedOperation.WalletId) is not { } wallet) { SetStatus(MissingWalletMessage, true); return; }
@@ -192,8 +259,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
                     oldAmount, oldCommission, oldDeposit, operation.CustomerNumber,
                     EditWallet.Id, newDeposit ? "DepositToCustomer" : "WithdrawForCustomer",
                     customer, amount, commission, EditNote.Trim());
-                accounts.NotifyExternalDataChanged();
-                transfers.NotifyExternalDataChanged();
+                ReloadAfterWrite();
                 ApplyFilters();
                 SetStatus($"تم تعديل العملية رقم {operation.Id} وتسوية الأرصدة في قاعدة البيانات.", false);
                 return true;
@@ -240,6 +306,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     {
         if (SelectedOperation is null) { SetStatus("اختر عملية أولًا.", true); return; }
         if (SelectedOperation.IsReversed) { SetStatus("هذه العملية معكوسة بالفعل.", true); return; }
+        if (!SelectedOperation.IsCustomerTransfer) { SetStatus(ReadOnlyMovementMessage, true); return; }
         var operation = SelectedOperation;
         Confirm(new ConfirmActionViewModel("عكس عملية فودافون", operation.DetailsDisplay, "سيُنشأ أثر مالي عكسي مع الاحتفاظ بالسجل الأصلي وتحديده كعملية معكوسة.", "تأكيد العكس"), () =>
         {
@@ -251,8 +318,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
                         operation.Id, operation.WalletId, FinancialAccountKind.VodafoneCash,
                         operation.IsDeposit ? -operation.Amount : operation.Amount, operation.CashDelta,
                         operation.CustomerNumber, $"عكس عملية فودافون رقم {operation.Id}");
-                    accounts.NotifyExternalDataChanged();
-                    transfers.NotifyExternalDataChanged();
+                    ReloadAfterWrite();
                     ApplyFilters();
                     SetStatus($"تم عكس العملية رقم {operation.Id} بنجاح.", false);
                 }
@@ -275,6 +341,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     private void RequestDelete()
     {
         if (SelectedOperation is null) { SetStatus("اختر عملية أولًا.", true); return; }
+        if (!SelectedOperation.IsCustomerTransfer) { SetStatus(ReadOnlyMovementMessage, true); return; }
         var operation = SelectedOperation;
         Confirm(new ConfirmActionViewModel("حذف سجل فودافون", operation.DetailsDisplay, "سيتم عكس العملية وتثبيتها كمعكوسة في قاعدة البيانات. لا يُحذف السجل نهائيًا.", "حذف السجل"), () =>
         {
@@ -289,8 +356,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
                             operation.IsDeposit ? -operation.Amount : operation.Amount, operation.CashDelta,
                             operation.CustomerNumber, $"تسوية حذف سجل فودافون رقم {operation.Id}");
                     }
-                    accounts.NotifyExternalDataChanged();
-                    transfers.NotifyExternalDataChanged();
+                    ReloadAfterWrite();
                     ApplyFilters();
                     SelectedOperation = null;
                     SetStatus($"تم حذف السجل رقم {operation.Id} مع الاحتفاظ بأثر المراجعة المالي.", false);
@@ -309,7 +375,7 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
                 if (wallet is null) { SetStatus(MissingWalletMessage, true); return; }
                 ApplyEffect(wallet, operation.CustomerNumber, operation.Amount, operation.Commission, operation.IsDeposit, true, "تسوية حذف سجل فودافون");
             }
-            transfers.Operations.Remove(operation); SelectedOperation = null;
+            transfers.Operations.Remove(operation); allOperations.Remove(operation); SelectedOperation = null;
             FinalizeFinancialChanges(); ApplyFilters(); SetStatus($"تم حذف السجل رقم {operation.Id} مع الاحتفاظ بأثر المراجعة المالي.", false);
         });
     }
@@ -347,6 +413,15 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
     private void FinalizeFinancialChanges()
     {
         accounts.NotifyExternalDataChanged(); transfers.NotifyExternalDataChanged();
+        LoadAllOperations();
+    }
+
+    /// <summary>Refreshes the balances from SQL Server and rebuilds the merged wallet history.</summary>
+    private void ReloadAfterWrite()
+    {
+        accounts.NotifyExternalDataChanged();
+        transfers.NotifyExternalDataChanged();
+        LoadAllOperations();
     }
 
     private void Confirm(ConfirmActionViewModel vm, Action action)
@@ -357,9 +432,9 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
 
     public IEnumerable<string> CreateCsvLines()
     {
-        yield return "التاريخ,الوقت,الخط,رقم الخط,النوع,رقم العميل,المبلغ,العمولة,رصيد الخط بعدها,المستخدم,الحالة,ملاحظات";
+        yield return "التاريخ,الوقت,الخط,رقم الخط,المصدر,النوع,الطرف,رقم الحركة,المبلغ,العمولة,رصيد الخط بعدها,المستخدم,الحالة,ملاحظات";
         foreach (var o in FilteredOperations)
-            yield return string.Join(',', new[] { o.DateDisplay, o.TimeDisplay, o.WalletAlias, o.WalletNumber, o.OperationTitle, o.CustomerNumber, o.Amount.ToString("0.##", CultureInfo.InvariantCulture), o.Commission.ToString("0.##", CultureInfo.InvariantCulture), o.WalletBalanceAfter.ToString("0.##", CultureInfo.InvariantCulture), o.ActorName, o.StatusTitle, o.Note }.Select(EscapeCsv));
+            yield return string.Join(',', new[] { o.DateDisplay, o.TimeDisplay, o.WalletAlias, o.WalletNumber, o.SourceTitle, o.OperationTitle, o.CustomerNumber, o.MovementId.ToString(CultureInfo.InvariantCulture), o.Amount.ToString("0.##", CultureInfo.InvariantCulture), o.Commission.ToString("0.##", CultureInfo.InvariantCulture), o.WalletBalanceAfter.ToString("0.##", CultureInfo.InvariantCulture), o.ActorName, o.StatusTitle, o.Note }.Select(EscapeCsv));
     }
 
     private static string EscapeCsv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";

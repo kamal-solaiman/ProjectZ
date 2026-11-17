@@ -828,12 +828,12 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0"
-                            Content="حفظ وإضافة صنف آخر"
-                            Style="{StaticResource PosOutlineTealButtonStyle}"
-                            Padding="16,10"
-                            FontSize="13.5"
-                            Command="{Binding SaveAndKeepCategoryCommand}" />
+                    <TextBlock Grid.Column="0"
+                               Text="يُسجَّل الصنف ثم يُفرَّغ النموذج مع الاحتفاظ بالتصنيف والوحدة لإضافة الصنف التالي."
+                               Style="{StaticResource PosRtlTextStyle}"
+                               FontSize="11"
+                               Foreground="{DynamicResource Theme.Legacy.64748B.Muted}"
+                               VerticalAlignment="Center" />
 
                     <Button Grid.Column="2"
                             Content="حفظ وتسجيل الصنف"

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Data;
@@ -29,6 +30,9 @@ public sealed class MainViewModel : ObservableObject
     private readonly NavigationMenuCategoryViewModel settingsCategory;
     private NavigationMenuItemViewModel? selectedItem;
     private bool isSidebarCollapsed;
+    private System.Windows.Threading.DispatcherTimer? egyptClockTimer;
+    private string egyptClockDate = "";
+    private string egyptClockTime = "";
 
     public IReadOnlyList<NavigationMenuCategoryViewModel> Categories { get; }
     public PosViewModel Pos { get; }
@@ -60,6 +64,10 @@ public sealed class MainViewModel : ObservableObject
     public InstapayRecordsViewModel InstapayRecords { get; }
     public string Welcome => $"مرحبًا، {user.DisplayName}";
     public string Username => user.Username;
+    /// <summary>Today's date in Egypt, shown in the header bar next to the signed-in user.</summary>
+    public string HeaderDate => egyptClockDate;
+    /// <summary>Current time in Egypt, refreshed every second in the header bar.</summary>
+    public string HeaderTime => egyptClockTime;
     public bool IsPosSelected => ReferenceEquals(selectedItem, salesCategory.Items[0]);
     public bool IsAddProductSelected => ReferenceEquals(selectedItem, salesCategory.Items[1]);
     public bool IsInventorySelected => ReferenceEquals(selectedItem, salesCategory.Items[2]);
@@ -118,6 +126,58 @@ public sealed class MainViewModel : ObservableObject
     }
     public RelayCommand ToggleSidebarCommand { get; }
 
+    // «التاريخ والوقت الحاليان بتوقيت مصر» في شريط العنوان: الساعة تُقرأ من منطقة مصر الزمنية لا من
+    // ساعة الجهاز، حتى لو كان الجهاز مضبوطًا على منطقة أخرى.
+    private static readonly TimeZoneInfo EgyptTimeZone = ResolveEgyptTimeZone();
+
+    private static TimeZoneInfo ResolveEgyptTimeZone()
+    {
+        foreach (var id in new[] { "Egypt Standard Time", "Africa/Cairo" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+        return TimeZoneInfo.Local;
+    }
+
+    private void StartEgyptClock()
+    {
+        UpdateEgyptClock();
+        // No dispatcher means a non-UI host (design-time or a test runner): keep the values static there.
+        if (System.Windows.Threading.Dispatcher.FromThread(System.Threading.Thread.CurrentThread) is null) return;
+        egyptClockTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        egyptClockTimer.Tick += (_, _) => UpdateEgyptClock();
+        egyptClockTimer.Start();
+    }
+
+    private void UpdateEgyptClock()
+    {
+        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EgyptTimeZone);
+        var date = now.ToString("dddd، d MMMM yyyy", CultureInfo.GetCultureInfo("ar-EG"));
+        var time = now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        if (date != egyptClockDate)
+        {
+            egyptClockDate = date;
+            Changed(nameof(HeaderDate));
+        }
+        if (time != egyptClockTime)
+        {
+            egyptClockTime = time;
+            Changed(nameof(HeaderTime));
+        }
+    }
+
     public MainViewModel(
         UserSession user,
         Action logout,
@@ -135,6 +195,7 @@ public sealed class MainViewModel : ObservableObject
         ExpenseRepository? expenseRepository = null)
     {
         this.user = user;
+        StartEgyptClock();
         this.salesRepository = salesRepository;
         this.categoryRepository = categoryRepository;
         this.purchaseRepository = purchaseRepository;

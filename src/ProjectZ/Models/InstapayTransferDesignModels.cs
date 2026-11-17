@@ -41,18 +41,40 @@ public sealed class InstapayTransferOperation : ObservableObject
     public string ReversedBy { get; set; } = "";
     public DateTime? ReversedAt { get; set; }
 
+    /// <summary>dbo.FinancialTransactions.Id of the wallet movement this row shows (0 for the local design seed).</summary>
+    public int MovementId { get; init; }
+    /// <summary>Arabic label of where the movement came from: بيع، شراء، صيانة، مصروف، تحويل عميل…</summary>
+    public string SourceTitle { get; init; } = "تحويل عميل";
+    /// <summary>Raw dbo.FinancialTransactions.Category of the wallet movement.</summary>
+    public string CategoryTitle { get; init; } = "";
+    /// <summary>
+    /// True only for a customer transfer created from the transfer screen: it is the one row this screen
+    /// may edit, reverse or delete. Sales, purchase, maintenance, expense and adjustment movements belong
+    /// to their own screens and are read-only here.
+    /// </summary>
+    public bool IsCustomerTransfer { get; init; } = true;
+    /// <summary>Direction of the wallet effect, used for non-transfer movements.</summary>
+    public bool IsIncoming { get; init; }
+
     public bool IsDeposit => Kind == InstapayOperationKind.DepositToCustomer;
-    public bool CanEditOrDelete => !IsReversed;
+    public bool CanEditOrDelete => IsCustomerTransfer && !IsReversed;
     public string StatusTitle => IsReversed ? "معكوسة" : "ناجحة";
-    public string OperationTitle => IsDeposit ? "إيداع للعميل" : "سحب للعميل";
+    public string OperationTitle => IsCustomerTransfer ? (IsDeposit ? "إيداع للعميل" : "سحب للعميل") : SourceTitle;
     public string DateDisplay => Timestamp.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     public string TimeDisplay => Timestamp.ToString("HH:mm", CultureInfo.InvariantCulture);
     public string AmountDisplay => PosFormatting.FormatCurrency(Amount);
     public string CommissionDisplay => PosFormatting.FormatCurrency(Commission);
-    public string TotalCashDisplay => $"{(CashDelta >= 0m ? "+" : "−")} {PosFormatting.FormatCurrency(Math.Abs(CashDelta))}";
+    // Only a customer transfer moves the cash box; the other rows are wallet-only effects.
+    public string TotalCashDisplay => IsCustomerTransfer
+        ? $"{(CashDelta >= 0m ? "+" : "−")} {PosFormatting.FormatCurrency(Math.Abs(CashDelta))}"
+        : "—";
     public string WalletBalanceAfterDisplay => PosFormatting.FormatCurrency(WalletBalanceAfter);
-    public string WalletEffectDisplay => IsDeposit ? $"− {AmountDisplay}" : $"+ {AmountDisplay}";
-    public string DetailsDisplay => $"{OperationTitle} · {WalletAlias} · {CustomerNumber} · {AmountDisplay} · عمولة {CommissionDisplay}";
+    public string WalletEffectDisplay => IsCustomerTransfer
+        ? (IsDeposit ? $"− {AmountDisplay}" : $"+ {AmountDisplay}")
+        : $"{(IsIncoming ? "+" : "−")} {AmountDisplay}";
+    public string DetailsDisplay => IsCustomerTransfer
+        ? $"{OperationTitle} · {WalletAlias} · {CustomerNumber} · {AmountDisplay} · عمولة {CommissionDisplay}"
+        : $"{SourceTitle} · {WalletAlias} · {CategoryTitle} · {CustomerNumber} · {AmountDisplay}";
 }
 
 public static class InstapayTransferDesignSeedData
