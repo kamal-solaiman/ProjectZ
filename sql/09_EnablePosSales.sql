@@ -36,7 +36,8 @@ IF OBJECT_ID(N'dbo.FinancialAccounts', N'U') IS NOT NULL
 IF OBJECT_ID(N'dbo.FinancialTransactions', N'U') IS NOT NULL
     GRANT SELECT, INSERT ON OBJECT::dbo.FinancialTransactions TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.CustomerTransfers', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.CustomerTransfers TO [ProjectZClient];
+    -- Transfer posting is granted only through sql/23_EnableCustomerTransferCorrections.sql.
+    GRANT SELECT ON OBJECT::dbo.CustomerTransfers TO [ProjectZClient];
 GO
 
 /* Sales document: invoice header, lines, serialized units, payments and activity history. */

@@ -324,6 +324,14 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     Console.WriteLine("PASS: sql/21 migrates a legacy single-account expense without losing its account or amount");
     Console.WriteLine("PASS: split expenses write dbo.Expenses, dbo.ExpensePayments, ledger rows and audit on LocalDB");
 
+    var legacyTransfer = WalletCorrectionTests.SeedLegacyEdit(admin, financialRepository, liveCash.Id, userId);
+    var beforeWalletUpgrade = WalletCorrectionTests.Footprint(admin);
+    var walletMigration = Path.Combine(FindRepositoryRoot(), "sql", "23_EnableCustomerTransferCorrections.sql");
+    RunScript(admin, walletMigration);
+    RunScript(admin, walletMigration);
+    Check(WalletCorrectionTests.Footprint(admin) == beforeWalletUpgrade,
+        "Installing and rerunning sql/23 changes no existing header, account, ledger or audit row");
+
     // A stopped line keeps its transfer history, but LoadAccountsInto only loads IsActive = 1 rows, so
     // the records screen lost the wallet object. Its edit path resolved that wallet with
     // accounts.Accounts.First(w => w.Id == operation.WalletId) and crashed with
@@ -333,44 +341,44 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
         account.Kind == FinancialAccountKind.VodafoneCash && account.IsActive).Id;
     Execute(admin, $"UPDATE dbo.FinancialAccounts SET CurrentBalance = 5000 WHERE Id = {stoppedLineId};");
     var stoppedLineTransfer = financialRepository.ExecuteCustomerTransfer(
-        FinancialAccountKind.VodafoneCash, stoppedLineId, "DepositToCustomer", "01012345678", 200m, 2m,
-        "عملية على خط سيُوقَف بعدها");
+        FinancialAccountKind.VodafoneCash, new(stoppedLineId, true, "01012345678", 200m, 2m, "عملية على خط سيُوقَف بعدها"));
     Check(stoppedLineTransfer.TransferId > 0, "A Vodafone Cash transfer is saved before its line is stopped");
     Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 0 WHERE Id = {stoppedLineId};");
     financialRepository.LoadAccountsInto(liveAccounts);
     Check(liveAccounts.All(account => account.Id != stoppedLineId),
         "A stopped line disappears from the active accounts while its transfer stays in the register");
 
+    var stoppedFootprint = WalletCorrectionTests.Footprint(admin);
     Exception? stoppedEditError = null;
     try
     {
-        financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
-            FinancialAccountKind.VodafoneCash, 200m, 2m, true, "01012345678",
-            stoppedLineId, "DepositToCustomer", "01012345678", 250m, 2m, "تعديل بعد إيقاف الخط");
+        financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineTransfer.RowVersion,
+            FinancialAccountKind.VodafoneCash, new(stoppedLineId, true, "01012345678", 250m, 2m, "تعديل بعد إيقاف الخط"));
     }
     catch (Exception ex) { stoppedEditError = ex; }
     Check(stoppedEditError is FinancialDataException { Message: var stoppedMessage }
-          && stoppedMessage.Contains("كل خطوط فودافون كاش موقوفة", StringComparison.Ordinal)
+          && stoppedMessage.Contains("المحفظة الأصلية موقوفة", StringComparison.Ordinal)
           && !stoppedMessage.Contains("مكررة", StringComparison.Ordinal),
         "Editing a transfer of a stopped line reports the stopped line in Arabic, not a duplicate-data error");
 
     Exception? stoppedReverseError = null;
     try
     {
-        financialRepository.ReverseCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
-            FinancialAccountKind.VodafoneCash, -200m, 202m, "01012345678", "عكس بعد إيقاف الخط");
+        financialRepository.ReverseCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineTransfer.RowVersion,
+            FinancialAccountKind.VodafoneCash, "عكس بعد إيقاف الخط");
     }
     catch (Exception ex) { stoppedReverseError = ex; }
     Check(stoppedReverseError is FinancialDataException { Message: var stoppedReverseMessage }
           && stoppedReverseMessage.Contains("موقوفة", StringComparison.Ordinal),
         "Reversing a transfer of a stopped line is refused with an Arabic financial error, not an unhandled LINQ crash");
 
-    Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 1, CurrentBalance = 5000 WHERE Id = {stoppedLineId};");
+    Check(stoppedFootprint == WalletCorrectionTests.Footprint(admin), "Neither stopped-line request changed any financial data");
+    Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 1 WHERE Id = {stoppedLineId};");
     financialRepository.LoadAccountsInto(liveAccounts);
-    financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
-        FinancialAccountKind.VodafoneCash, 200m, 2m, true, "01012345678",
-        stoppedLineId, "DepositToCustomer", "01012345678", 250m, 5m, "تعديل بعد إعادة تفعيل الخط");
-    Check(Scalar<decimal>(admin, $"SELECT Amount FROM dbo.CustomerTransfers WHERE Id={stoppedLineTransfer.TransferId};") == 250m,
+    var correctedLine = financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineTransfer.RowVersion,
+        FinancialAccountKind.VodafoneCash, new(stoppedLineId, true, "01012345678", 250m, 5m, "تعديل بعد إعادة تفعيل الخط"));
+    Check(Scalar<decimal>(admin, $"SELECT Amount FROM dbo.CustomerTransfers WHERE Id={correctedLine.TransferId} AND CorrectsTransferId={stoppedLineTransfer.TransferId};") == 250m
+        && Scalar<decimal>(admin, $"SELECT Amount FROM dbo.CustomerTransfers WHERE Id={stoppedLineTransfer.TransferId} AND OperationStatus=1;") == 200m,
         "Re-activating the line lets the very same edit succeed");
     Console.WriteLine("PASS: a stopped Vodafone Cash line is reported in Arabic instead of crashing the edit flow");
 
@@ -463,6 +471,7 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
         "Both records screens read the same ledger shape from dbo.FinancialTransactions");
     Console.WriteLine("PASS: the InstaPay records screen reads every InstaPay wallet movement from the same ledger");
     Console.WriteLine("PASS: «تعيين افتراضية» and «تفعيل / إيقاف» persist per kind in dbo.FinancialAccounts");
+    WalletCorrectionTests.Run(admin, settings, userId, cashRowId, legacyTransfer);
     var saleMigration = Path.Combine(FindRepositoryRoot(), "sql", "22_EnableSaleSettlement.sql");
     RunScript(admin, saleMigration);
     RunScript(admin, saleMigration); // Repeat as on an upgraded installation; no business rows may be posted.

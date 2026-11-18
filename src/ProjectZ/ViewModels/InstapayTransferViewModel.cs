@@ -98,7 +98,7 @@ public sealed class InstapayTransferViewModel : ObservableObject
     {
         this.accounts = accounts;
         this.currentUserName = currentUserName;
-        Operations = InstapayTransferDesignSeedData.CreateOperations();
+        Operations = accounts.Repository is null ? InstapayTransferDesignSeedData.CreateOperations() : [];
         nextOperationId = Operations.Select(o => o.Id).DefaultIfEmpty(0).Max() + 1;
         nextFinancialTransactionId = accounts.Transactions.Select(t => t.Id).DefaultIfEmpty(0).Max() + 1;
 
@@ -122,13 +122,9 @@ public sealed class InstapayTransferViewModel : ObservableObject
 
     private void LoadOperationsFromDatabase()
     {
-        Operations.Clear();
-        if (accounts.Repository is null)
+        if (accounts.Repository is not null)
         {
-            foreach (var op in InstapayTransferDesignSeedData.CreateOperations()) Operations.Add(op);
-        }
-        else
-        {
+            Operations.Clear();
             accounts.LoadInstapayTransfers(Operations);
         }
         nextOperationId = Operations.Select(o => o.Id).DefaultIfEmpty(0).Max() + 1;
@@ -177,9 +173,7 @@ public sealed class InstapayTransferViewModel : ObservableObject
             try
             {
                 accounts.Repository.ExecuteCustomerTransfer(
-                    SelectedWallet.Kind, SelectedWallet.Id,
-                    IsDepositSelected ? "DepositToCustomer" : "WithdrawForCustomer",
-                    normalizedCustomer, amount, commission, Note.Trim());
+                    SelectedWallet.Kind, new(SelectedWallet.Id, IsDepositSelected, normalizedCustomer, amount, commission, Note));
                 accounts.NotifyExternalDataChanged();
                 LoadOperationsFromDatabase();
                 RefreshWallets(); RefreshFilteredOperations(); NotifyPreviewChanged();

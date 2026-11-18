@@ -25,13 +25,17 @@ public sealed record SavedAccount(
 /// <summary>Result of a single movement save (deposit, withdrawal or adjustment).</summary>
 public sealed record SavedTransaction(int TransactionId, int AccountId, decimal BalanceAfter);
 
+/// <summary>Proposed terms only. Original accounts and effects are never supplied by a records screen.</summary>
+public sealed record CustomerTransferTerms(int WalletId, bool IsDeposit, string CustomerNumber, decimal Amount, decimal Commission, string Note);
+
 /// <summary>Result of a customer wallet transfer (Vodafone Cash / InstaPay).</summary>
 public sealed record SavedCustomerTransfer(
     int TransferId,
     int WalletAccountId,
     int CashAccountId,
     decimal WalletBalanceAfter,
-    decimal CashBalanceAfter);
+    decimal CashBalanceAfter,
+    byte[] RowVersion);
 
 /// <summary>SQL Server persistence for the financial accounts, their ledger movements and customer wallet transfers.</summary>
 public sealed class FinancialRepository(ConnectionSettingsProvider settings, int actorUserId)
@@ -96,12 +100,12 @@ ORDER BY IsDefault DESC, Id;";
             command.CommandText = accountId == 0
                 ? @"
 SELECT Id, FinancialAccountId, OccurredAtUtc, IsIncoming, Category, Amount, BalanceAfter,
-       ISNULL(Counterparty,N''), ISNULL(Note,N'')
+       ISNULL(Counterparty,N''), ISNULL(Note,N''), CountsTowardLimits
 FROM dbo.FinancialTransactions
 ORDER BY OccurredAtUtc DESC, Id DESC;"
                 : @"
 SELECT Id, FinancialAccountId, OccurredAtUtc, IsIncoming, Category, Amount, BalanceAfter,
-       ISNULL(Counterparty,N''), ISNULL(Note,N'')
+       ISNULL(Counterparty,N''), ISNULL(Note,N''), CountsTowardLimits
 FROM dbo.FinancialTransactions
 WHERE FinancialAccountId = @Account
 ORDER BY OccurredAtUtc DESC, Id DESC;";
@@ -120,7 +124,7 @@ ORDER BY OccurredAtUtc DESC, Id DESC;";
                     BalanceAfter = reader.GetDecimal(6),
                     Counterparty = reader.GetString(7),
                     Note = reader.GetString(8),
-                    CountsTowardLimits = true
+                    CountsTowardLimits = reader.GetBoolean(9)
                 });
             }
         }
@@ -389,294 +393,58 @@ VALUES(@Account,SYSUTCDATETIME(),@Incoming,@Category,@Amount,@Balance,@Counterpa
 
     // ---------------------------------------------------------------- customer transfers
 
-    /// <summary>
-    /// Executes a customer wallet transfer (deposit to customer or withdrawal for customer), updates the
-    /// wallet and cash balances and records the transfer plus its ledger movements in one transaction.
-    /// </summary>
-    public SavedCustomerTransfer ExecuteCustomerTransfer(
-        FinancialAccountKind walletKind,
-        int walletAccountId,
-        string operationKind,
-        string customerNumber,
-        decimal amount,
-        decimal commission,
-        string note)
+    private enum TransferAction : byte { Issue = 1, Correct = 2, Reverse = 3 }
+
+    public SavedCustomerTransfer ExecuteCustomerTransfer(FinancialAccountKind provider, CustomerTransferTerms terms) =>
+        PostCustomerTransfer(TransferAction.Issue, provider, null, null, terms, terms.Note);
+
+    /// <summary>Reverse the saved effect and issue a linked replacement; returns the replacement, not the old ID.</summary>
+    public SavedCustomerTransfer UpdateCustomerTransfer(int transferId, byte[] expectedVersion, FinancialAccountKind provider, CustomerTransferTerms replacement) =>
+        PostCustomerTransfer(TransferAction.Correct, provider, transferId, expectedVersion, replacement, replacement.Note);
+
+    public void ReverseCustomerTransfer(int transferId, byte[] expectedVersion, FinancialAccountKind provider, string note) =>
+        PostCustomerTransfer(TransferAction.Reverse, provider, transferId, expectedVersion, null, note);
+
+    private SavedCustomerTransfer PostCustomerTransfer(TransferAction action, FinancialAccountKind provider, int? id,
+        byte[]? expectedVersion, CustomerTransferTerms? terms, string note)
     {
-        customerNumber = Trim(customerNumber, 30, "");
-        note = Trim(note, 1000, "");
-        amount = Math.Round(amount, 2, MidpointRounding.AwayFromZero);
-        commission = Math.Round(commission, 2, MidpointRounding.AwayFromZero);
-
-        if (amount <= 0m)
-            throw new FinancialDataException("المبلغ يجب أن يكون أكبر من الصفر.");
-
-        var isDeposit = operationKind == "DepositToCustomer";
-        // Match the local-design semantics: deposit takes money out of the wallet line and puts
-        // amount + commission into cash; withdrawal puts amount into the wallet line and takes
-        // amount - commission out of cash (net cash delta = commission - amount).
-        var walletDelta = isDeposit ? -amount : amount;
-        var cashDelta = isDeposit ? amount + commission : commission - amount;
-
+        if (action != TransferAction.Issue && expectedVersion is not { Length: 8 })
+            throw new FinancialDataException("نسخة التحويل غير متاحة. حدّث السجلات وافتح العملية من جديد.");
         try
         {
             using var connection = OpenConnection();
-            using var transaction = connection.BeginTransaction();
-
-            var accounts = EnsureAccounts(connection, transaction);
-            var walletAccount = EnsureAccountById(connection, transaction, walletAccountId, walletKind);
-            var cashAccount = accounts[FinancialAccountKind.Cash];
-
-            decimal walletBalanceAfter;
-            using (var wallet = CreateCommand(connection, transaction, @"
-UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
-OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
+            using var command = connection.CreateCommand();
+            command.CommandType = CommandType.StoredProcedure;
+            command.CommandText = "dbo.PostCustomerTransfer";
+            command.Parameters.Add("@Action", SqlDbType.TinyInt).Value = (byte)action;
+            command.Parameters.Add("@Provider", SqlDbType.TinyInt).Value = (byte)provider;
+            command.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
+            if (id.HasValue)
             {
-                AddMoney(wallet, "@Signed", walletDelta);
-                wallet.Parameters.Add("@Id", SqlDbType.Int).Value = walletAccount;
-                walletBalanceAfter = (decimal)wallet.ExecuteScalar()!;
+                command.Parameters.Add("@TransferId", SqlDbType.Int).Value = id.Value;
+                command.Parameters.Add("@ExpectedVersion", SqlDbType.VarBinary, 8).Value = expectedVersion!;
             }
-
-            decimal cashBalanceAfter;
-            using (var cash = CreateCommand(connection, transaction, @"
-UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
-OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
+            if (terms is not null)
             {
-                AddMoney(cash, "@Signed", cashDelta);
-                cash.Parameters.Add("@Id", SqlDbType.Int).Value = cashAccount;
-                cashBalanceAfter = (decimal)cash.ExecuteScalar()!;
+                command.Parameters.Add("@NewWallet", SqlDbType.Int).Value = terms.WalletId;
+                command.Parameters.Add("@NewKind", SqlDbType.TinyInt).Value = terms.IsDeposit ? (byte)1 : (byte)2;
+                command.Parameters.Add("@NewCustomer", SqlDbType.NVarChar, 30).Value = Trim(terms.CustomerNumber, 30, "");
+                AddMoney(command, "@NewAmount", Math.Round(terms.Amount, 2, MidpointRounding.AwayFromZero));
+                AddMoney(command, "@NewCommission", Math.Round(terms.Commission, 2, MidpointRounding.AwayFromZero));
             }
-
-            int transferId;
-            using (var insert = CreateCommand(connection, transaction, @"
-INSERT dbo.CustomerTransfers(FinancialAccountId,OperationKind,CustomerNumber,Amount,Commission,CashDelta,
- WalletBalanceAfter,OperationStatus,Note,OccurredAtUtc,ActorUserId)
-OUTPUT inserted.Id
-VALUES(@Account,@OpKind,@Customer,@Amount,@Commission,@CashDelta,@WalletBalance,0,@Note,SYSUTCDATETIME(),@Actor);"))
-            {
-                insert.Parameters.Add("@Account", SqlDbType.Int).Value = walletAccount;
-                insert.Parameters.Add("@OpKind", SqlDbType.TinyInt).Value = isDeposit ? (byte)1 : (byte)2;
-                insert.Parameters.Add("@Customer", SqlDbType.NVarChar, 30).Value = customerNumber;
-                AddMoney(insert, "@Amount", amount);
-                AddMoney(insert, "@Commission", commission);
-                AddMoney(insert, "@CashDelta", cashDelta);
-                AddMoney(insert, "@WalletBalance", walletBalanceAfter);
-                insert.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
-                insert.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
-                transferId = (int)insert.ExecuteScalar()!;
-            }
-
-            RecordWalletMovement(connection, transaction, walletAccount, walletBalanceAfter,
-                walletDelta, isDeposit ? "تحويل للعميل" : "سحب للعميل", customerNumber,
-                isDeposit ? note : $"{note} (سحب للعميل)", actorUserId, transferId);
-
-            RecordWalletMovement(connection, transaction, cashAccount, cashBalanceAfter,
-                cashDelta, isDeposit ? "تحويل من العميل" : "تحويل للعميل", customerNumber,
-                isDeposit ? $"{note} (إيداع من العميل)" : note, actorUserId, transferId);
-
-            transaction.Commit();
-            return new SavedCustomerTransfer(transferId, walletAccount, cashAccount, walletBalanceAfter, cashBalanceAfter);
+            command.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = Trim(note, 1000, "");
+            using var reader = command.ExecuteReader();
+            if (!reader.Read()) throw new FinancialDataException("لم يصل إيصال الحفظ. حدّث السجلات وتحقق قبل إعادة المحاولة.");
+            return new SavedCustomerTransfer(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2),
+                reader.GetDecimal(3), reader.GetDecimal(4), (byte[])reader[5]);
+        }
+        catch (SqlException ex) when (ex.Number is 2812 or 229 or 230)
+        {
+            throw new FinancialDataException("يلزم تهيئة إجراءات التحويل وصلاحياتها على الخادم: sql/23_EnableCustomerTransferCorrections.sql.", ex);
         }
         catch (Exception ex)
         {
-            throw Describe(ex, "تعذّر تنفيذ التحويل المالي.");
-        }
-    }
-
-    /// <summary>
-    /// Reverses a customer transfer: marks it reversed and applies the opposite financial effect on the
-    /// wallet and cash balances. walletDelta/cashDelta are the original signed effects of the transfer; the
-    /// method applies their negation to the current balances read from the database.
-    /// </summary>
-    public void ReverseCustomerTransfer(
-        int transferId,
-        int walletAccountId,
-        FinancialAccountKind walletKind,
-        decimal walletDelta,
-        decimal cashDelta,
-        string counterparty,
-        string note)
-    {
-        try
-        {
-            using var connection = OpenConnection();
-            using var transaction = connection.BeginTransaction();
-
-            var accounts = EnsureAccounts(connection, transaction);
-            var walletAccount = EnsureAccountById(connection, transaction, walletAccountId, walletKind);
-            var cashAccount = accounts[FinancialAccountKind.Cash];
-
-            decimal walletBalanceAfter;
-            using (var wallet = CreateCommand(connection, transaction, @"
-UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
-OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
-            {
-                AddMoney(wallet, "@Signed", -walletDelta);
-                wallet.Parameters.Add("@Id", SqlDbType.Int).Value = walletAccount;
-                var walletResult = wallet.ExecuteScalar();
-                if (walletResult is null or DBNull)
-                    throw new FinancialDataException("تعذّر عكس التحويل: المحفظة غير موجودة.");
-                walletBalanceAfter = (decimal)walletResult;
-            }
-
-            decimal cashBalanceAfter;
-            using (var cash = CreateCommand(connection, transaction, @"
-UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
-OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
-            {
-                AddMoney(cash, "@Signed", -cashDelta);
-                cash.Parameters.Add("@Id", SqlDbType.Int).Value = cashAccount;
-                var cashResult = cash.ExecuteScalar();
-                if (cashResult is null or DBNull)
-                    throw new FinancialDataException("تعذّر عكس التحويل: حساب النقد غير موجود.");
-                cashBalanceAfter = (decimal)cashResult;
-            }
-
-            RecordWalletMovement(connection, transaction, walletAccount, walletBalanceAfter,
-                -walletDelta, "عكس تحويل", counterparty, note, actorUserId, transferId);
-            RecordWalletMovement(connection, transaction, cashAccount, cashBalanceAfter,
-                -cashDelta, "عكس تحويل", counterparty, note, actorUserId, transferId);
-
-            using (var reverse = CreateCommand(connection, transaction, @"
-UPDATE dbo.CustomerTransfers SET OperationStatus = 1, ReversedAtUtc = SYSUTCDATETIME(), ReversedByUserId = @Actor,
-    WalletBalanceAfter = @WalletBalance
-WHERE Id = @Id AND OperationStatus = 0;"))
-            {
-                reverse.Parameters.Add("@Actor", SqlDbType.Int).Value = actorUserId;
-                AddMoney(reverse, "@WalletBalance", walletBalanceAfter);
-                reverse.Parameters.Add("@Id", SqlDbType.Int).Value = transferId;
-                if (reverse.ExecuteNonQuery() == 0)
-                    throw new FinancialDataException("تعذّر عكس التحويل: العملية معكوسة بالفعل.");
-            }
-
-            transaction.Commit();
-        }
-        catch (Exception ex)
-        {
-            throw Describe(ex, "تعذّر عكس التحويل المالي.");
-        }
-    }
-
-    /// <summary>
-    /// Edits an existing customer transfer in place: reverses the original effect on the wallet and cash
-    /// balances, applies the new effect, updates the CustomerTransfers row with the new values, and records
-    /// settlement movements — all in one transaction. The transfer keeps its original Id and stays active.
-    /// </summary>
-    public void UpdateCustomerTransfer(
-        int transferId,
-        int oldWalletAccountId,
-        FinancialAccountKind walletKind,
-        decimal oldAmount,
-        decimal oldCommission,
-        bool oldIsDeposit,
-        string oldCustomerNumber,
-        int newWalletAccountId,
-        string operationKind,
-        string newCustomerNumber,
-        decimal newAmount,
-        decimal newCommission,
-        string newNote)
-    {
-        newCustomerNumber = Trim(newCustomerNumber, 30, "");
-        newNote = Trim(newNote, 1000, "");
-        newAmount = Math.Round(newAmount, 2, MidpointRounding.AwayFromZero);
-        newCommission = Math.Round(newCommission, 2, MidpointRounding.AwayFromZero);
-
-        if (newAmount <= 0m)
-            throw new FinancialDataException("المبلغ يجب أن يكون أكبر من الصفر.");
-
-        // Match the local-design semantics for both the original and the new effect.
-        var oldWalletDelta = oldIsDeposit ? -oldAmount : oldAmount;
-        var oldCashDelta = oldIsDeposit ? oldAmount + oldCommission : oldCommission - oldAmount;
-        var newIsDeposit = operationKind == "DepositToCustomer";
-        var newWalletDelta = newIsDeposit ? -newAmount : newAmount;
-        var newCashDelta = newIsDeposit ? newAmount + newCommission : newCommission - newAmount;
-
-        try
-        {
-            using var connection = OpenConnection();
-            using var transaction = connection.BeginTransaction();
-
-            var accounts = EnsureAccounts(connection, transaction);
-            var oldWalletAccount = EnsureAccountById(connection, transaction, oldWalletAccountId, walletKind);
-            var newWalletAccount = EnsureAccountById(connection, transaction, newWalletAccountId, walletKind);
-            var cashAccount = accounts[FinancialAccountKind.Cash];
-
-            // 1) Reverse the original effect on the wallet and cash balances.
-            decimal walletAfterReverse;
-            using (var revWallet = CreateCommand(connection, transaction, @"
-UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
-OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
-            {
-                AddMoney(revWallet, "@Signed", -oldWalletDelta);
-                revWallet.Parameters.Add("@Id", SqlDbType.Int).Value = oldWalletAccount;
-                walletAfterReverse = (decimal)revWallet.ExecuteScalar()!;
-            }
-
-            decimal cashAfterReverse;
-            using (var revCash = CreateCommand(connection, transaction, @"
-UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
-OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
-            {
-                AddMoney(revCash, "@Signed", -oldCashDelta);
-                revCash.Parameters.Add("@Id", SqlDbType.Int).Value = cashAccount;
-                cashAfterReverse = (decimal)revCash.ExecuteScalar()!;
-            }
-
-            RecordWalletMovement(connection, transaction, oldWalletAccount, walletAfterReverse,
-                -oldWalletDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId, transferId);
-            RecordWalletMovement(connection, transaction, cashAccount, cashAfterReverse,
-                -oldCashDelta, "عكس تعديل", oldCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — عكس الأثر الأصلي", actorUserId, transferId);
-
-            // 2) Apply the new effect on the wallet and cash balances.
-            decimal walletAfterNew;
-            using (var newWallet = CreateCommand(connection, transaction, @"
-UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
-OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
-            {
-                AddMoney(newWallet, "@Signed", newWalletDelta);
-                newWallet.Parameters.Add("@Id", SqlDbType.Int).Value = newWalletAccount;
-                walletAfterNew = (decimal)newWallet.ExecuteScalar()!;
-            }
-
-            decimal cashAfterNew;
-            using (var newCash = CreateCommand(connection, transaction, @"
-UPDATE dbo.FinancialAccounts SET CurrentBalance = CurrentBalance + @Signed, UpdatedAtUtc = SYSUTCDATETIME()
-OUTPUT inserted.CurrentBalance WHERE Id = @Id;"))
-            {
-                AddMoney(newCash, "@Signed", newCashDelta);
-                newCash.Parameters.Add("@Id", SqlDbType.Int).Value = cashAccount;
-                cashAfterNew = (decimal)newCash.ExecuteScalar()!;
-            }
-
-            RecordWalletMovement(connection, transaction, newWalletAccount, walletAfterNew,
-                newWalletDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId, transferId);
-            RecordWalletMovement(connection, transaction, cashAccount, cashAfterNew,
-                newCashDelta, "تعديل سجل", newCustomerNumber, $"تعديل سجل تحويل رقم {transferId} — تطبيق الأثر الجديد", actorUserId, transferId);
-
-            // 3) Update the transfer row in place with the new values (keeps the original Id and active status).
-            using (var update = CreateCommand(connection, transaction, @"
-UPDATE dbo.CustomerTransfers SET FinancialAccountId = @Account, OperationKind = @OpKind, CustomerNumber = @Customer,
-     Amount = @Amount, Commission = @Commission, CashDelta = @CashDelta, WalletBalanceAfter = @WalletBalance, Note = @Note
-WHERE Id = @Id AND OperationStatus = 0;"))
-            {
-                update.Parameters.Add("@Account", SqlDbType.Int).Value = newWalletAccount;
-                update.Parameters.Add("@OpKind", SqlDbType.TinyInt).Value = newIsDeposit ? (byte)1 : (byte)2;
-                update.Parameters.Add("@Customer", SqlDbType.NVarChar, 30).Value = newCustomerNumber;
-                AddMoney(update, "@Amount", newAmount);
-                AddMoney(update, "@Commission", newCommission);
-                AddMoney(update, "@CashDelta", newCashDelta);
-                AddMoney(update, "@WalletBalance", walletAfterNew);
-                update.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = newNote;
-                update.Parameters.Add("@Id", SqlDbType.Int).Value = transferId;
-                if (update.ExecuteNonQuery() == 0)
-                    throw new FinancialDataException("تعذّر تعديل السجل: العملية معكوسة بالفعل أو غير موجودة.");
-            }
-
-            transaction.Commit();
-        }
-        catch (Exception ex)
-        {
-            throw Describe(ex, "تعذّر تعديل السجل المالي.");
+            throw Describe(ex, "تعذّر حفظ عملية المحفظة.");
         }
     }
 
@@ -706,17 +474,22 @@ WHERE Id = @Id AND OperationStatus = 0;"))
             using var command = connection.CreateCommand();
             command.CommandText = @"
 SELECT t.Id, t.FinancialAccountId, ISNULL(a.Alias,N''), ISNULL(a.Identifier,N''), a.AccountKind,
-       t.IsIncoming, ISNULL(t.Category,N''), t.Amount, t.BalanceAfter, ISNULL(t.Counterparty,N''),
-       ISNULL(t.Note,N''), t.OccurredAtUtc, ISNULL(au.DisplayName,N''), ISNULL(t.SourceEntityType,N''),
+       t.IsIncoming, ISNULL(t.Category,N''), COALESCE(ct.Amount,t.Amount), t.BalanceAfter, COALESCE(ct.CustomerNumber,t.Counterparty),
+       COALESCE(ct.Note,t.Note), t.OccurredAtUtc, ISNULL(au.DisplayName,N''), ISNULL(t.SourceEntityType,N''),
        ct.Id, ISNULL(ct.OperationKind,0), ISNULL(ct.Commission,0), ISNULL(ct.CashDelta,0),
-       ISNULL(ct.OperationStatus,0), ISNULL(ru.DisplayName,N''), ct.ReversedAtUtc
+       ISNULL(ct.OperationStatus,0), ISNULL(ru.DisplayName,N''), ct.ReversedAtUtc, ct.RowVersion, ct.CorrectsTransferId,
+       CASE WHEN t.SourceEntityType=N'CustomerTransfer' THEN t.SourceEntityId END
 FROM dbo.FinancialTransactions t
 JOIN dbo.FinancialAccounts a ON a.Id = t.FinancialAccountId
 LEFT JOIN dbo.Users au ON au.Id = t.ActorUserId
--- Only the original transfer legs carry these categories; the reversal and edit legs stay read-only rows.
+-- One application per header. For a legacy in-place edit the latest application on the
+-- saved wallet, not the original ledger leg, represents the header. All other legs stay raw.
 LEFT JOIN dbo.CustomerTransfers ct
-       ON t.SourceEntityType = N'CustomerTransfer' AND ct.Id = t.SourceEntityId
-      AND t.Category IN (N'تحويل للعميل', N'سحب للعميل')
+       ON t.SourceEntityType=N'CustomerTransfer' AND ct.Id=t.SourceEntityId AND ct.FinancialAccountId=t.FinancialAccountId
+      AND t.Id=(SELECT MAX(ap.Id) FROM dbo.FinancialTransactions ap
+                WHERE ap.SourceEntityType=N'CustomerTransfer' AND ap.SourceEntityId=ct.Id AND ap.FinancialAccountId=ct.FinancialAccountId
+                  AND ap.Category IN (N'تحويل للعميل',N'سحب للعميل',N'تعديل سجل'))
+      AND t.Amount=ct.Amount AND t.IsIncoming=CASE WHEN ct.OperationKind=1 THEN 0 ELSE 1 END
 LEFT JOIN dbo.Users ru ON ru.Id = ct.ReversedByUserId
 WHERE a.AccountKind = @Kind
 ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
@@ -741,7 +514,7 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
                 // The LEFT JOIN means every ct column is NULL for a sale, purchase, expense, maintenance
                 // or adjustment row, so each one must be read through IsDBNull instead of GetXxx.
                 var hasTransfer = !reader.IsDBNull(14);
-                var transferId = hasTransfer ? reader.GetInt32(14) : 0;
+                var transferId = reader.IsDBNull(23) ? 0 : reader.GetInt32(23);
                 var transferKind = hasTransfer ? reader.GetByte(15) : (byte)0;
                 var commission = hasTransfer ? reader.GetDecimal(16) : 0m;
                 var cashDelta = hasTransfer ? reader.GetDecimal(17) : 0m;
@@ -749,7 +522,9 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
                 var reversedBy = hasTransfer ? reader.GetString(19) : string.Empty;
                 var reversedAt = hasTransfer && !reader.IsDBNull(20) ? reader.GetDateTime(20).ToLocalTime() : (DateTime?)null;
 
-                var isCustomerTransfer = transferId > 0;
+                var version = hasTransfer ? (byte[])reader[21] : Array.Empty<byte>();
+                int? correctsId = reader.IsDBNull(22) ? null : reader.GetInt32(22);
+                var isCustomerTransfer = hasTransfer;
                 var sourceTitle = isCustomerTransfer ? "تحويل عميل" : DescribeMovementSource(sourceType, category);
 
                 if (accountKind == (byte)FinancialAccountKind.VodafoneCash)
@@ -758,6 +533,8 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
                     vodafoneTarget.Add(new VodafoneTransferOperation
                     {
                         Id = transferId,
+                        RowVersion = version,
+                        CorrectsTransferId = correctsId,
                         MovementId = movementId,
                         WalletId = accountId,
                         WalletAlias = alias,
@@ -786,6 +563,8 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
                     instapayTarget.Add(new InstapayTransferOperation
                     {
                         Id = transferId,
+                        RowVersion = version,
+                        CorrectsTransferId = correctsId,
                         MovementId = movementId,
                         WalletId = accountId,
                         WalletAlias = alias,
@@ -844,7 +623,7 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
             command.CommandText = @"
 SELECT t.Id, t.FinancialAccountId, ISNULL(a.Alias,N''), a.AccountKind, t.OperationKind, t.CustomerNumber, t.Amount, t.Commission,
        t.CashDelta, t.WalletBalanceAfter, t.OperationStatus, ISNULL(t.Note,N''), t.OccurredAtUtc,
-       ISNULL(ru.DisplayName,N''), t.ReversedAtUtc, ISNULL(au.DisplayName,N'')
+       ISNULL(ru.DisplayName,N''), t.ReversedAtUtc, ISNULL(au.DisplayName,N''), t.RowVersion, t.CorrectsTransferId, ISNULL(a.Identifier,N'')
 FROM dbo.CustomerTransfers t
 LEFT JOIN dbo.FinancialAccounts a ON a.Id = t.FinancialAccountId
 LEFT JOIN dbo.Users ru ON ru.Id = t.ReversedByUserId
@@ -879,6 +658,9 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
                     vodafoneTarget.Add(new VodafoneTransferOperation
                     {
                         Id = id,
+                        RowVersion = (byte[])reader[16],
+                        CorrectsTransferId = reader.IsDBNull(17) ? null : reader.GetInt32(17),
+                        WalletNumber = reader.GetString(18),
                         WalletId = accountId,
                         WalletAlias = alias,
                         Kind = vodafoneKind,
@@ -901,6 +683,9 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
                     instapayTarget.Add(new InstapayTransferOperation
                     {
                         Id = id,
+                        RowVersion = (byte[])reader[16],
+                        CorrectsTransferId = reader.IsDBNull(17) ? null : reader.GetInt32(17),
+                        WalletNumber = reader.GetString(18),
                         WalletId = accountId,
                         WalletAlias = alias,
                         Kind = instapayKind,
@@ -926,34 +711,6 @@ ORDER BY t.OccurredAtUtc DESC, t.Id DESC;";
     }
 
     // ---------------------------------------------------------------- helpers
-
-    /// <summary>
-    /// Appends one ledger row for a customer wallet transfer. SourceEntityType/SourceEntityId must be set
-    /// together: dbo.FinancialTransactions carries CK_FinancialTransactions_Source, which rejects a row that
-    /// names a source type but leaves the id NULL (SQL error 547), and CK_FinancialTransactions_Amount, which
-    /// rejects a zero amount — so a movement that nets to zero writes no row at all.
-    /// </summary>
-    private static void RecordWalletMovement(
-        SqlConnection connection, SqlTransaction transaction, int accountId, decimal balanceAfter,
-        decimal signedAmount, string category, string counterparty, string note, int actor, int transferId)
-    {
-        if (signedAmount == 0m) return;
-
-        using var ledger = CreateCommand(connection, transaction, @"
-INSERT dbo.FinancialTransactions(FinancialAccountId,OccurredAtUtc,IsIncoming,Category,Amount,BalanceAfter,Counterparty,Note,
- ActorUserId,CountsTowardLimits,SourceEntityType,SourceEntityId)
-VALUES(@Account,SYSUTCDATETIME(),@Incoming,@Category,@Amount,@Balance,@Counterparty,@Note,@Actor,1,N'CustomerTransfer',@Source);");
-        ledger.Parameters.Add("@Account", SqlDbType.Int).Value = accountId;
-        ledger.Parameters.Add("@Incoming", SqlDbType.Bit).Value = signedAmount > 0m;
-        ledger.Parameters.Add("@Category", SqlDbType.NVarChar, 50).Value = category;
-        AddMoney(ledger, "@Amount", Math.Abs(signedAmount));
-        AddMoney(ledger, "@Balance", balanceAfter);
-        ledger.Parameters.Add("@Counterparty", SqlDbType.NVarChar, 250).Value = counterparty;
-        ledger.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = note;
-        ledger.Parameters.Add("@Actor", SqlDbType.Int).Value = actor;
-        ledger.Parameters.Add("@Source", SqlDbType.Int).Value = transferId;
-        ledger.ExecuteNonQuery();
-    }
 
     private static int InsertAccount(
         SqlConnection connection, SqlTransaction transaction, FinancialAccountKind kind, string alias, string identifier,
@@ -1029,68 +786,6 @@ SELECT Id FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id AND
         return (int)value;
     }
 
-    private static IReadOnlyDictionary<FinancialAccountKind, int> EnsureAccounts(
-        SqlConnection connection, SqlTransaction transaction)
-    {
-        var accounts = new Dictionary<FinancialAccountKind, int>();
-
-        using (var command = CreateCommand(connection, transaction, @"
-SELECT Id, AccountKind FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK)
-WHERE IsActive = 1
-ORDER BY IsDefault DESC, Id;"))
-        {
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
-            {
-                var kind = (FinancialAccountKind)reader.GetByte(1);
-                accounts.TryAdd(kind, reader.GetInt32(0));
-            }
-        }
-
-        foreach (var kind in new[] { FinancialAccountKind.Cash, FinancialAccountKind.VodafoneCash, FinancialAccountKind.InstaPay })
-        {
-            if (accounts.ContainsKey(kind)) continue;
-
-            // Bootstrap a kind only when the database never had it. A wallet with history is stopped
-            // (IsActive = 0) instead of deleted, so a stopped line leaves rows behind: inserting a
-            // second row with the same automatic alias violates UQ_FinancialAccounts_Kind_Identifier
-            // and surfaced as the misleading «البيانات مكررة» error. Explain the stopped state instead.
-            using (var existing = CreateCommand(connection, transaction, @"
-SELECT COUNT(*) FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK) WHERE AccountKind = @Kind;"))
-            {
-                existing.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
-                if ((int)existing.ExecuteScalar()! > 0)
-                    throw new FinancialDataException(kind switch
-                    {
-                        FinancialAccountKind.Cash => "لا يوجد حساب نقدية نشط في «حساباتي». فعّل الخزنة ثم أعد المحاولة.",
-                        FinancialAccountKind.VodafoneCash => "كل خطوط فودافون كاش موقوفة في «حساباتي». فعّل خطًا واحدًا على الأقل ثم أعد المحاولة.",
-                        _ => "كل محافظ إنستاباي موقوفة في «حساباتي». فعّل محفظة واحدة على الأقل ثم أعد المحاولة."
-                    });
-            }
-
-            using var insert = CreateCommand(connection, transaction, @"
-INSERT dbo.FinancialAccounts(AccountKind,Alias,Identifier,CurrentBalance,IsActive,IsDefault,Notes)
-OUTPUT inserted.Id
-VALUES(@Kind,@Alias,@Identifier,0,1,1,N'أنشئت تلقائيًا للتحويلات');");
-            insert.Parameters.Add("@Kind", SqlDbType.TinyInt).Value = (byte)kind;
-            insert.Parameters.Add("@Alias", SqlDbType.NVarChar, 200).Value = kind switch
-            {
-                FinancialAccountKind.VodafoneCash => "فودافون كاش",
-                FinancialAccountKind.InstaPay => "انستاباي",
-                _ => "الخزنة الرئيسية"
-            };
-            insert.Parameters.Add("@Identifier", SqlDbType.NVarChar, 200).Value = kind switch
-            {
-                FinancialAccountKind.VodafoneCash => "غير محدد",
-                FinancialAccountKind.InstaPay => "غير محدد",
-                _ => ""
-            };
-            accounts[kind] = (int)insert.ExecuteScalar()!;
-        }
-
-        return accounts;
-    }
-
     private static void AddMoney(SqlCommand command, string name, decimal value)
     {
         var parameter = command.Parameters.Add(name, SqlDbType.Decimal);
@@ -1111,6 +806,8 @@ VALUES(@Kind,@Alias,@Identifier,0,1,1,N'أنشئت تلقائيًا للتحوي
                     sql.Message.Contains("CHECK constraint", StringComparison.OrdinalIgnoreCase)
                         ? "قيمة أحد الحقول غير مسموح بها في قاعدة البيانات (قيد تحقق). راجع المبلغ والعمولة ثم أعد المحاولة."
                         : "لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى.", sql),
+                207 when sql.Message.Contains("CorrectsTransferId", StringComparison.OrdinalIgnoreCase) => new FinancialDataException(
+                    "يلزم ترقية سجلات التحويل على الخادم: sql/23_EnableCustomerTransferCorrections.sql.", sql),
                 1205 => new FinancialDataException("تعارضت العملية مع مستخدم آخر. حدّث البيانات ثم أعد المحاولة.", sql),
                 229 or 230 => new FinancialDataException(
                     "حساب الاتصال لا يملك صلاحية العمل على الحسابات المالية. شغّل sql/09_EnablePosSales.sql على الخادم ثم أعد المحاولة.", sql),

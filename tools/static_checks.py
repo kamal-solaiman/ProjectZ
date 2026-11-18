@@ -1264,11 +1264,15 @@ for records_name in ('VodafoneRecordsViewModel.cs', 'InstapayRecordsViewModel.cs
                   'if (FindWallet(SelectedOperation.WalletId) is not { } wallet)',
                   'if (wallet is null) { error = MissingWalletMessage; return false; }',
                   'if (accounts.CashAccount is not { } cash) { error = MissingCashMessage; return false; }',
-                  'if (cashDelta < 0m && cash.Balance < -cashDelta)',
+                  'if (cashDelta < 0m && cash.Balance - original.CashDelta < -cashDelta)',
                   'if (accounts.CashAccount is not { } cash) return MissingCashMessage;'):
         assert token in records_text, f'{records_name} is missing a guarded edit path: {token}'
-    assert records_text.count('if (wallet is null) { SetStatus(MissingWalletMessage, true); return; }') == 2, \
-        f'{records_name} must guard both the reverse and the delete fallback'
+    for token in ('RequestReverse(fromDelete: true)', 'RequestReverse(fromDelete: false)',
+                  'if (wallet is null) { SetStatus(MissingWalletMessage, true); return; }',
+                  'editTarget = new(SelectedOperation, SelectedOperation.RowVersion.ToArray())',
+                  'UpdateCustomerTransfer(operation.Id, target.Version,',
+                  'var version = operation.RowVersion.ToArray()', 'ReverseCustomerTransfer(operation.Id, version,'):
+        assert token in records_text, f'{records_name} must bind edit and both reversal commands to the opened transfer: {token}'
 for transfer_name in ('VodafoneTransferViewModel.cs', 'InstapayTransferViewModel.cs'):
     transfer_text = (root / 'src/ProjectZ/ViewModels' / transfer_name).read_text(encoding='utf-8')
     assert 'accounts.CashAccount.Balance' not in transfer_text, \
@@ -1296,11 +1300,11 @@ for token in ('A stopped line disappears from the active accounts while its tran
 records_repository_text = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
 assert 'FinancialDataException("المحفظة المحددة غير متاحة' in records_repository_text, \
     'EnsureAccountById must stay the single owner of the unavailable-wallet message'
-# Auto-created wallets must not collide with a stopped row of the same kind (UQ_FinancialAccounts_Kind_Identifier).
-assert 'SELECT COUNT(*) FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK) WHERE AccountKind = @Kind;' in records_repository_text, \
-    'EnsureAccounts must not insert a duplicate row when every account of that kind is stopped'
-assert 'كل خطوط فودافون كاش موقوفة' in records_repository_text, \
-    'EnsureAccounts must explain the stopped line in Arabic'
+wallet_posting = (root / 'sql/23_EnableCustomerTransferCorrections.sql').read_text(encoding='utf-8')
+assert 'INSERT dbo.FinancialAccounts' not in wallet_posting, 'a missing or stopped account must never be substituted'
+for token in ('Id=@OldWallet AND AccountKind=@Provider AND IsActive=1', 'المحفظة الأصلية موقوفة',
+              'Id=@NewWallet AND AccountKind=@Provider AND IsActive=1'):
+    assert token in wallet_posting, f'posting must explicitly check both wallets: {token}'
 records_doc = (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
 for token in ('ThrowNoMatchException', 'IsActive = 1', 'MissingWalletMessage'):
     assert token in records_doc, f'docs/DATABASE.md must explain the stopped-line edit guard: {token}'
@@ -2226,12 +2230,12 @@ print('PASS: general settings and backup have separate hosts, and backup uses ma
 # Vodafone Cash / InstaPay deposit, withdrawal, edit and reversal fail with SQL 547, surfaced to the user as
 # "لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى".
 financial_repository = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
-assert "N'CustomerTransfer',@Source" in financial_repository, 'wallet ledger rows must carry SourceEntityId'
-assert "N'CustomerTransfer',NULL" not in financial_repository, 'wallet ledger rows must not leave SourceEntityId NULL'
-assert financial_repository.count('RecordWalletMovement(connection, transaction,') == 8
-assert financial_repository.count(', actorUserId, transferId);') == 8, \
-    'every wallet ledger row must keep its actor and be tied to its transfer'
-assert 'if (signedAmount == 0m) return;' in financial_repository, 'a zero-value ledger row violates CK_FinancialTransactions_Amount'
+for token in ("N'CustomerTransfer',@Id", 'WHERE Delta<>0', 'FROM dbo.CustomerTransfers WITH (UPDLOCK,HOLDLOCK)',
+              '@Version<>@ExpectedVersion', '@OldStatus<>0', 'CorrectsTransferId', 'INSERT dbo.AuditLog',
+              'DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.CustomerTransfers',
+              'DENY EXECUTE ON OBJECT::dbo.WriteCustomerTransferEffect', 'GRANT EXECUTE ON OBJECT::dbo.PostCustomerTransfer'):
+    assert token in wallet_posting, f'missing customer transfer posting invariant: {token}'
+assert 'UPDATE dbo.CustomerTransfers' not in financial_repository and 'INSERT dbo.CustomerTransfers' not in financial_repository
 assert "sql.Message.Contains(\"CHECK constraint\"" in financial_repository, 'error 547 must not blame a foreign key for a CHECK violation'
 for ledger_insert in re.finditer(r'INSERT dbo\.FinancialTransactions\([^)]*SourceEntityType,SourceEntityId\)(.*?);"', financial_repository, re.S):
     tail = ledger_insert.group(1).split('VALUES', 1)[-1].rstrip().rstrip(')')
@@ -2344,7 +2348,8 @@ for token in ('public void LoadWalletMovementsInto(',
               'public void LoadInstapayWalletMovementsInto(',
               'FROM dbo.FinancialTransactions t',
               "LEFT JOIN dbo.CustomerTransfers ct",
-              "AND t.Category IN (N'\u062a\u062d\u0648\u064a\u0644 \u0644\u0644\u0639\u0645\u064a\u0644', N'\u0633\u062d\u0628 \u0644\u0644\u0639\u0645\u064a\u0644')",
+              'ct.FinancialAccountId=t.FinancialAccountId', 'SELECT MAX(ap.Id)',
+              "ap.Category IN (N'تحويل للعميل',N'سحب للعميل',N'تعديل سجل')", 'ct.RowVersion, ct.CorrectsTransferId',
               'WHERE a.AccountKind = @Kind',
               "SELECT t.Id, t.FinancialAccountId",
               'ORDER BY t.OccurredAtUtc DESC, t.Id DESC;'):
