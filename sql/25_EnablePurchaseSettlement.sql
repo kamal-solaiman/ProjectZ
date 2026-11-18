@@ -1,4 +1,4 @@
-/* SQL Server 2016 SP1+. Stop tills; back up; run updated 07, 12 then this file as DBA (stop on error).
+/* SQL Server 2016 SP1+. Stop tills; back up; run updated 07, 12, 22 then this file as DBA (stop on error).
    No opening entitlement is inferred from a historic return, payment or activity string. */
 USE [ProjectZ];
 GO

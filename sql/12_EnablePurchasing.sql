@@ -46,7 +46,8 @@ GRANT SELECT ON OBJECT::dbo.Products TO [ProjectZClient];
 GRANT SELECT ON OBJECT::dbo.Categories TO [ProjectZClient];
 GRANT SELECT ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient];
 GRANT SELECT ON OBJECT::dbo.Users TO [ProjectZClient];
-GRANT SELECT ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.MaintenanceSpareParts TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.MaintenanceSparePartMovements TO [ProjectZClient];
 GRANT INSERT ON OBJECT::dbo.AuditLog TO [ProjectZClient];
 GO
 PRINT N'SUCCESS: purchase directory and read permissions ready. Apply sql/25_EnablePurchaseSettlement.sql before opening tills.';

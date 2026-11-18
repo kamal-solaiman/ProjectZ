@@ -242,7 +242,8 @@ IF EXISTS(SELECT 1 FROM dbo.vwPurchaseInvoiceSummary WHERE SupplierId=@Id AND (R
     THROW 50257,N'لا يمكن أرشفة المورد قبل مطابقة وتسوية الدين والرصيد المتاح للمحل.',1;
 SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.PurchaseInvoices WHERE SupplierId=@Id)
               OR EXISTS (SELECT 1 FROM dbo.InventoryUnits WHERE SupplierId=@Id)
-              OR EXISTS (SELECT 1 FROM dbo.MaintenanceOrderParts WHERE SupplierId=@Id)
+              OR EXISTS (SELECT 1 FROM dbo.MaintenanceSpareParts WHERE SupplierId=@Id)
+              OR EXISTS (SELECT 1 FROM dbo.MaintenanceSparePartMovements WHERE SupplierId=@Id)
             THEN 1 ELSE 0 END;"))
                 {
                     check.Parameters.Add("@Id", SqlDbType.Int).Value = supplierId;

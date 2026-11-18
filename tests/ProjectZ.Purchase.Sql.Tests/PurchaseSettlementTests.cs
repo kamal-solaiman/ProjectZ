@@ -134,6 +134,13 @@ internal static class PurchaseSettlementTests
             "Invoice, supplier summary and chronological posting rows reconcile debt less spendable credit, including cancellations");
 
         Refused(() => repo.DeleteSupplier(supplier.Id),50257,"Outstanding debt/credit cannot disappear from the supplier directory");
+        var noteOnly=repo.CreateSupplier("إشعار بلا ديون", "", "", "", "", "", "", "", "");
+        var onlyPaid=Create(noteOnly.Id,0,6,0,new PurchaseLineRequest(product,1,6));
+        repo.CancelInvoice(onlyPaid.Id,onlyPaid.DatabaseRowVersion);
+        Refused(()=>repo.DeleteSupplier(noteOnly.Id),50257,"A supplier owed nothing cannot be archived while the shop still has an unspent right");
+        onlyPaid=Read(onlyPaid.Id);
+        repo.ReceiveCredit(onlyPaid.Id,onlyPaid.DatabaseRowVersion,onlyPaid.CreditNotes.Single(),6,receiving,"CLOSE-NOTE");
+        Check(!repo.DeleteSupplier(noteOnly.Id) && Scalar<int>(db,$"SELECT IsActive FROM dbo.Suppliers WHERE Id={noteOnly.Id}")==0,"Once settled, directory archives supplier without removing linked history");
         var partly=Create(supplier.Id,0,120,0,new PurchaseLineRequest(product,2,60));
         repo.ReturnToSupplier(new(partly.Id,partly.DatabaseRowVersion,[new(Line(partly,product),1)],"إرجاع نصف الكمية",false));
         partly=Read(partly.Id);
