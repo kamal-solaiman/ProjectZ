@@ -82,6 +82,15 @@ internal static class SettlementInstallerTests
            && Scalar<int>(db, "SELECT IS_ROLEMEMBER('db_owner','ProjectZBackupAdmin') + IS_SRVROLEMEMBER('dbcreator','ProjectZBackupAdmin');") == 2,
             "Explicit legacy demotion is repeatable and leaves the separate backup path intact");
 
+        // An inherited database role is not one of the two direct grants made by the old installer.
+        Execute(db, "CREATE ROLE TestLegacyGroup; ALTER ROLE [db_owner] ADD MEMBER [TestLegacyGroup]; ALTER ROLE [TestLegacyGroup] ADD MEMBER [ProjectZClient];");
+        RefuseBoth();
+        OnlyError(db, demote, 50084);
+        Execute(db, "ALTER ROLE [TestLegacyGroup] DROP MEMBER [ProjectZClient]; ALTER ROLE [db_owner] DROP MEMBER [TestLegacyGroup]; DROP ROLE [TestLegacyGroup];");
+        Execute(db, "ALTER SERVER ROLE [sysadmin] ADD MEMBER [ProjectZClient];");
+        RefuseBoth();
+        Execute(db, "ALTER SERVER ROLE [sysadmin] DROP MEMBER [ProjectZClient];");
+
         // Fail in the actual final GRANT of each installer, after the new schema AND earlier grants.
         Execute(db, """
             CREATE TRIGGER TestSettlementGrant ON DATABASE FOR GRANT_DATABASE AS
