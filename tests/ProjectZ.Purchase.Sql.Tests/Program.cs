@@ -476,7 +476,13 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     RunScript(admin, saleMigration);
     RunScript(admin, saleMigration); // Repeat as on an upgraded installation; no business rows may be posted.
     SaleSettlementTests.Run(admin, settings, userId, categoryId, firstVodafoneId, cashRowId);
-    Console.WriteLine("PASS: sales, purchases, expenses and finance against disposable SQL Server");
+    foreach (var script in new[] { "13_EnableMaintenanceInvoices.sql", "14_EnableMaintenanceIntake.sql", "15_EnableMaintenanceActions.sql", "16_EnableMaintenanceSpareParts.sql", "24_EnableMaintenanceSettlement.sql" })
+        RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
+    MaintenanceSettlementTests.Run(admin, settings, userId, cashRowId);
+    var maintenanceBefore = MaintenanceSettlementTests.Footprint(admin);
+    RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", "24_EnableMaintenanceSettlement.sql"));
+    Check(MaintenanceSettlementTests.Footprint(admin) == maintenanceBefore, "Rerunning sql/24 leaves populated tickets, receipts, stock and accounts untouched");
+    Console.WriteLine("PASS: sales, purchases, expenses, finance and maintenance against disposable SQL Server");
 }
 catch (Exception ex)
 {

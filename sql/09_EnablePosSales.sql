@@ -76,13 +76,13 @@ GO
 IF OBJECT_ID(N'dbo.MaintenanceSpareParts', N'U') IS NOT NULL
     GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceSpareParts TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenanceOrderParts', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenanceOrders', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenanceActivities', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenancePayments', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
 GO
 
 PRINT N'SUCCESS: ProjectZClient can now post POS sales, customer returns, payments and financial ledger rows.';

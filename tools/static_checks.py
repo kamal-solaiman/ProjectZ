@@ -937,14 +937,14 @@ maintenance_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').r
 maintenance_actions_vm = maintenance_actions_vm_path.read_text(encoding='utf-8')
 maintenance_actions_dialogs = maintenance_actions_dialogs_path.read_text(encoding='utf-8')
 for token in ('IsDatabaseBacked', 'DataConnectionBadgeText', 'LastSyncedDisplay', 'ReloadTechnicianDirectory',
-              'isBulkReload', 'ValidateWorkshopFieldLengths', 'AppendMaintenanceActivity', 'RefreshFilteredOrders(selectedId)'):
+              'isBulkReload', 'ValidateWorkshopFieldLengths', 'MaintenancePosting.Deliver', 'RefreshFilteredOrders(selectedId)'):
     assert token in maintenance_actions_vm, f'MaintenanceActions view model missing expected token: {token}'
 for token in ('DataConnectionBadgeText', 'LastSyncedDisplay'):
     assert token in maintenance_actions_xaml, f'MaintenanceActions UI is not SQL-backed: {token}'
 assert 'TechnicianFilterOptions = new[] { "كل الفنيين" }' not in maintenance_actions_vm, \
     'the technician directory is hard-coded from the design samples again'
 assert 'DatabaseRowVersion' in maintenance_order_model, 'MaintenanceOrderDesignItem.DatabaseRowVersion is missing'
-for token in ('RowVersion = @RowVersion', 'OUTPUT inserted.RowVersion', 'LoadTechnicianDirectory'):
+for token in ('MaintenanceTicketKey.Open', 'key.Version is not { Length: 8 }', 'LoadTechnicianDirectory'):
     assert token in maintenance_repository, f'MaintenanceRepository missing expected token: {token}'
 assert 'ملاحظات التسليم أطول من الحد المسموح' in maintenance_actions_dialogs
 assert 'سبب الإلغاء أطول من الحد المسموح' in maintenance_actions_dialogs
@@ -1052,16 +1052,17 @@ assert 'dbo.MaintenanceSparePartMovements' in full_schema and 'dbo.MaintenanceSp
 
 spare_parts_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
 for operation in ('LoadSparePartsInto(', 'LoadSparePartSuppliers(', 'SaveSparePart(', 'DeleteSparePart(',
-                  'DeductSparePartStock(', 'RestoreSparePartStock(', 'RestockSparePart(',
+                  'IssuePart(', 'RemovePart(', 'RestockSparePart(',
                   'LoadSparePartMovementsInto(', 'InsertSparePartMovement('):
     assert operation in spare_parts_repository, f'missing spare-part SQL operation: {operation}'
 for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK',
-              'dbo.MaintenanceSparePartMovements', 'INSERT dbo.MaintenanceOrderParts',
+              'dbo.MaintenanceSparePartMovements', 'dbo.ChangeMaintenancePart',
               'RowVersion', 'COALESCE(@Supplier, sp.SupplierId)',
-              'MaintenanceSparePartMovementKind.Issue',
-              'MaintenanceSparePartMovementKind.Purchase', 'MaintenanceSparePartMovementKind.Return'):
+              'MaintenanceSparePartMovementKind.Purchase'):
     assert guard in spare_parts_repository, f'missing spare-part persistence guard: {guard}'
-assert 'WHERE Id = @Id;' in spare_parts_repository, 'restoring a deactivated part must not require IsActive = 1'
+maintenance_sql = (root / 'sql/24_EnableMaintenanceSettlement.sql').read_text(encoding='utf-8')
+release_line = maintenance_sql.split('PROCEDURE dbo.ReleaseMaintenanceLine', 1)[1].split('\nGO', 1)[0]
+assert 'WHERE Id=@Spare;' in release_line and 'IsActive' not in release_line, 'return a saved line even on a stopped spare'
 assert 'يوجد سجل صرف أو حركات مخزون' in spare_parts_repository, 'deleting a part with history must deactivate it'
 
 spare_parts_vm = (root / 'src/ProjectZ/ViewModels/MaintenanceSparePartsViewModel.cs').read_text(encoding='utf-8')
@@ -1102,8 +1103,18 @@ assert 'GoToSparePartsCommand' in maintenance_actions_xaml_path.read_text(encodi
 assert 'Customers.OpenSparePartRequested' in main_viewmodel
 assert 'sharedMaintenanceSpareParts' in main_viewmodel
 maintenance_actions_code = (root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs').read_text(encoding='utf-8')
-assert 'RestorePartStockToInventory(part, order)' in maintenance_actions_code
-assert 'repository.RestoreSparePartStock(' in maintenance_actions_code
+for token in ('r.IssuePart(', 'r.RemovePart(', 'r.Cancel(', 'r.Reopen('):
+    assert token in maintenance_actions_code, f'missing atomic workshop action: {token}'
+for vm in ('MaintenanceInvoicesViewModel', 'MaintenanceInvoiceDetailsViewModel', 'MaintenanceActionsViewModel', 'CustomersViewModel'):
+    caller = (root / f'src/ProjectZ/ViewModels/{vm}.cs').read_text(encoding='utf-8')
+    assert 'MaintenancePosting.Deliver(' in caller and 'pendingPayments' not in caller, f'{vm} bypasses versioned settlement'
+assert 'Order.Status =' not in maintenance_actions_dialogs and 'Order.FinalPaymentCashPaid +=' not in maintenance_actions_dialogs
+for token in ('dbo.LockMaintenanceTicket', '@Saved<>@Version', 'dbo.PriceMaintenanceTicket', 'dbo.CheckMaintenanceStock',
+              'dbo.ReleaseMaintenanceLine', 'RefundOfPaymentId', 'CurrentBalance>=@Amount', 'SYSUTCDATETIME()',
+              'ProjectZMaintenanceSupervisor', 'XACT_ABORT ON'):
+    assert token in maintenance_sql, f'missing server-side maintenance guard: {token}'
+for table in ('MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments'):
+    assert f'DENY INSERT,UPDATE,DELETE ON OBJECT::dbo.{table} TO [ProjectZClient]' in maintenance_sql
 print('PASS: spare-parts screen persists CRUD, suppliers, restock and the movement ledger to SQL and links every screen')
 
 maintenance_actions_vm_text = (root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs').read_text(encoding='utf-8')

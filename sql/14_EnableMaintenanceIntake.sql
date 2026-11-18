@@ -62,9 +62,9 @@ GO
 IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'ProjectZClient' AND type = N'R')
 BEGIN
     GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.Customers TO [ProjectZClient];
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
-    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
-    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
     GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.DocumentSequences TO [ProjectZClient];
     GRANT SELECT ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient];
     GRANT SELECT, INSERT ON OBJECT::dbo.FinancialTransactions TO [ProjectZClient];

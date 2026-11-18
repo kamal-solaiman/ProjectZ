@@ -113,12 +113,12 @@
                         BorderThickness="1"
                         Visibility="{Binding HasRetainedDeposit, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
-                        <TextBlock Text="{Binding RetainedDepositDisplay, StringFormat='يوجد عربون / رسوم مسددة بقيمة: {0}'}"
+                        <TextBlock Text="{Binding RetainedDepositDisplay, StringFormat='صافي المدفوع المتاح للرد: {0}'}"
                                    Style="{StaticResource PosRtlTextStyle}"
                                    FontSize="12.5"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
-                        <CheckBox Content="تسجيل استرداد العربون للعميل"
+                        <CheckBox Content="رد دفعات للعميل من حساباتها الأصلية"
                                   Style="{StaticResource PosCheckBoxStyle}"
                                   Margin="0,6,0,4"
                                   FontSize="12.5"
@@ -128,6 +128,7 @@
                             <TextBlock Text="مبلغ الاسترداد للعميل (ج.م):" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12" Foreground="{DynamicResource Theme.Legacy.78350F.WarningInk}" />
                             <TextBox Style="{StaticResource PosNumericTextBoxStyle}" Width="120" MinHeight="30" Padding="8,4" Text="{Binding RefundAmountText, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
+                        <TextBlock Text="{Binding RefundAccounts}" Style="{StaticResource PosRtlTextStyle}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
             </StackPanel>

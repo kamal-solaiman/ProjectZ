@@ -494,7 +494,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="مرتجع / رد عربون للعميل:" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}" />
+                                    <TextBlock Grid.Column="0" Text="مجموع المبالغ المردودة للعميل:" Style="{StaticResource PosRtlTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}" />
                                     <TextBlock Grid.Column="1" Text="{Binding Order.RefundedDepositAmountDisplay}" Style="{StaticResource PosLtrTextStyle}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}" />
                                 </Grid>
 
@@ -711,7 +711,7 @@
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{Binding TimestampDisplay}" Style="{StaticResource PosLtrTextStyle}" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas, Segoe UI" FontSize="11" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding HeaderTitle}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding HeaderTitle}" ToolTip="{Binding ReceiptReference}" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding ActorDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                             </StackPanel>
                                             <TextBlock Grid.Column="2" Text="{Binding Note}" Style="{StaticResource PosRtlTextStyle}" VerticalAlignment="Center" FontSize="11.5" Foreground="{DynamicResource Theme.Legacy.334155.Text}" TextTrimming="CharacterEllipsis" Margin="6,0" />

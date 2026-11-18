@@ -257,9 +257,8 @@ public sealed class MainViewModel : ObservableObject
         var sharedPurchaseInvoices = purchaseRepository is null
             ? PurchaseDesignSeedData.CreateSharedSamplePurchaseInvoices(sharedCatalog, sharedRegistrations, sharedSuppliers)
             : new ObservableCollection<PurchaseInvoiceDesignItem>();
-        // With SQL the maintenance screens are a separate future task: no sample orders, so the
-        // customer-screen maintenance tab shows an explicit "not in the database yet" message.
-        var sharedMaintenanceOrders = salesRepository is null
+        // Never populate the live maintenance register with design samples.
+        var sharedMaintenanceOrders = maintenanceRepository is null && salesRepository is null
             ? MaintenanceDesignSeedData.CreateSharedSampleOrders(sharedCustomers)
             : new ObservableCollection<MaintenanceOrderDesignItem>();
         var sharedMaintenanceSpareParts = maintenanceRepository is null
@@ -354,7 +353,6 @@ public sealed class MainViewModel : ObservableObject
                 MaintenanceActions.SelectOrderFromExternal(order);
                 SelectItem(maintenanceCategory.Items[2]);
             },
-            ReloadMaintenanceData,
             maintenanceRepository,
             ReloadMaintenanceData);
         Pos = new PosViewModel(
@@ -435,7 +433,7 @@ public sealed class MainViewModel : ObservableObject
                 MaintenanceInvoices.NotifyExternalDataChanged();
                 MaintenanceActions.NotifyExternalDataChanged();
             },
-            salesRepository);
+            salesRepository, maintenanceRepository, ReloadMaintenanceData);
 
         // Cross-screen links for spare parts: the supplier profile and the customer profile can open
         // the exact spare part, and a movement row can open its supplier or customer.
@@ -648,12 +646,14 @@ public sealed class MainViewModel : ObservableObject
     {
         MaintenanceIntake.NotifyExternalDataChanged();
         MaintenanceInvoices.NotifyExternalDataChanged();
-        MaintenanceActions.NotifyExternalDataChanged();
+        var workshopLoaded = MaintenanceActions.NotifyExternalDataChanged();
         MaintenanceSpareParts.NotifyExternalDataChanged();
         // The customer profile reads the shared order objects, so rebuild its spare-part tab after
         // an issue/return without a second database round-trip. Suppliers already listen to the
         // shared spare-parts collection directly.
         Customers.RefreshSelectedSpareParts();
+        if (!workshopLoaded || MaintenanceInvoices.LastLoadFailed || MaintenanceSpareParts.LastLoadFailed)
+            throw new MaintenanceDataException("تعذّر تحديث جميع شاشات الصيانة. أعد تحميل السجل.");
     }
 
     /// <summary>Reloads the SQL catalog, units, categories and customers after a sale or a return.</summary>

@@ -16,13 +16,7 @@
 --   3. Re-states the least-privilege grants the screen needs (orders, part lines, spare parts,
 --      payments, activities, accounts, ledger and user directory).
 --
--- Write path used by the screen (all inside one transaction in MaintenanceRepository):
---   * UpdateMaintenanceOrder: the editable order columns + the RowVersion guard + new activity rows
---     + new payment rows (deposit / final / refund with FinancialAccounts and FinancialTransactions)
---     + a full re-sync of dbo.MaintenanceOrderParts.
---   * DeductSparePartStock / RestoreSparePartStock: atomic stock +/- with the RowVersion guard on
---     dbo.MaintenanceSpareParts.
---   * AppendMaintenanceActivity: one activity row for a print preview, without rewriting the ticket.
+-- The matching client posts versioned actions through sql/24_EnableMaintenanceSettlement.sql.
 
 USE [ProjectZ];
 GO
@@ -68,11 +62,11 @@ GO
 /* 3) Least-privilege grants for the actions screen (identical to 09/13; re-running is safe). */
 IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'ProjectZClient' AND type = N'R')
 BEGIN
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
-    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
     GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceSpareParts TO [ProjectZClient];
-    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
-    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
     GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient];
     GRANT SELECT, INSERT ON OBJECT::dbo.FinancialTransactions TO [ProjectZClient];
     GRANT SELECT ON OBJECT::dbo.Users TO [ProjectZClient];

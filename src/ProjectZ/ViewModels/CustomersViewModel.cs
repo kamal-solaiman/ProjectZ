@@ -133,7 +133,7 @@ public sealed class CustomerDirectoryEntryViewModel : ObservableObject
 
         var activeOrders = MaintenanceOrders.Where(o => !o.IsCancelled).ToList();
         totalMaintenanceValue = activeOrders.Where(o => !o.IsPriceStillPending).Sum(o => o.CurrentEffectiveCost);
-        totalMaintenancePaid = activeOrders.Sum(o => o.TotalCollectedAll);
+        totalMaintenancePaid = MaintenanceOrders.Sum(o => o.TotalCollectedAll);
         maintenanceRemaining = activeOrders.Where(o => !o.IsPriceStillPending).Sum(o => o.EstimatedRemaining);
 
         DateTime? latestSale = SalesInvoices.Count > 0 ? SalesInvoices.Max(i => i.IssuedAt) : null;
@@ -191,6 +191,8 @@ public sealed class CustomersViewModel : ObservableObject
     private readonly Action<MaintenanceOrderDesignItem>? openOrderInMaintenanceActions;
     private readonly Action? notifyExternalFinancialDataChanged;
     private readonly SalesRepository? repository;
+    private readonly IMaintenanceSettlement? maintenanceRepository;
+    private readonly Action? maintenanceChanged;
 
     private readonly List<CustomerDirectoryEntryViewModel> allEntries = [];
     private CustomerDirectoryEntryViewModel? selectedCustomerEntry;
@@ -362,7 +364,7 @@ public sealed class CustomersViewModel : ObservableObject
     public bool HasNoSelectedCustomerSpareParts => SelectedCustomerSpareParts.Count == 0;
 
     /// <summary>Explains the empty maintenance tab without implying that maintenance is unlinked.</summary>
-    public string MaintenanceEmptyMessage => repository is not null
+    public string MaintenanceEmptyMessage => maintenanceRepository is not null
         ? "لا توجد تذاكر صيانة مسجلة لهذا العميل في قاعدة البيانات بعد."
         : "لا توجد تذاكر صيانة مسجلة لهذا العميل حتى الآن.";
 
@@ -445,7 +447,9 @@ public sealed class CustomersViewModel : ObservableObject
         Action<PosCustomerDesignItem>? startMaintenanceForCustomer = null,
         Action<MaintenanceOrderDesignItem>? openOrderInMaintenanceActions = null,
         Action? notifyExternalFinancialDataChanged = null,
-        SalesRepository? repository = null)
+        SalesRepository? repository = null,
+        IMaintenanceSettlement? maintenanceRepository = null,
+        Action? maintenanceChanged = null)
     {
         this.currentUserName = currentUserName;
         this.sharedCustomers = sharedCustomers;
@@ -456,6 +460,8 @@ public sealed class CustomersViewModel : ObservableObject
         this.openOrderInMaintenanceActions = openOrderInMaintenanceActions;
         this.notifyExternalFinancialDataChanged = notifyExternalFinancialDataChanged;
         this.repository = repository;
+        this.maintenanceRepository = maintenanceRepository;
+        this.maintenanceChanged = maintenanceChanged;
 
         this.sharedCustomers.CollectionChanged += OnExternalCollectionChanged;
         this.sharedSalesInvoices.CollectionChanged += OnExternalCollectionChanged;
@@ -880,17 +886,12 @@ public sealed class CustomersViewModel : ObservableObject
     {
         if (order is null) return;
 
-        var detailsVm = new MaintenanceInvoiceDetailsViewModel(order, currentUserName)
+        var detailsVm = new MaintenanceInvoiceDetailsViewModel(order, currentUserName, maintenanceRepository)
         {
             OpenDeliveryDialogRequested = vm => OpenMaintenanceDeliveryRequested?.Invoke(vm),
             OpenReceiptPreviewRequested = vm => OpenMaintenanceReceiptPreviewRequested?.Invoke(vm),
             OpenInActionsRequested = target => openOrderInMaintenanceActions?.Invoke(target),
-            NotifyOrdersChanged = () =>
-            {
-                var keepId = SelectedCustomerEntry?.Customer.Id;
-                RebuildEntriesAndRefresh(selectCustomerId: keepId);
-                notifyExternalFinancialDataChanged?.Invoke();
-            }
+            NotifyOrdersChanged = AfterMaintenancePosting
         };
 
         OpenMaintenanceDetailsRequested?.Invoke(detailsVm);
@@ -913,24 +914,15 @@ public sealed class CustomersViewModel : ObservableObject
             return;
         }
 
-        var vm = new MaintenanceDeliveryViewModel(order, currentUserName);
-        var result = OpenMaintenanceDeliveryRequested?.Invoke(vm);
-        if (result == true || vm.IsConfirmed)
-        {
-            var keepId = SelectedCustomerEntry?.Customer.Id;
-            RebuildEntriesAndRefresh(selectCustomerId: keepId);
-            notifyExternalFinancialDataChanged?.Invoke();
-            SetStatus($"تم تسليم جهاز الصيانة {order.OrderNumber} وتحديث رصيد العميل.", false);
+        MaintenancePosting.Deliver(new MaintenanceDeliveryViewModel(order), maintenanceRepository, OpenMaintenanceDeliveryRequested,
+            _ => AfterMaintenancePosting(), OpenMaintenanceReceiptPreviewRequested, currentUserName, SetStatus);
+    }
 
-            if (vm.ShouldOpenPrintAfterClose)
-            {
-                var printVm = new MaintenanceReceiptPreviewViewModel(
-                    order,
-                    modeLabel => SetStatus($"تمت طباعة {modeLabel} للتذكرة {order.OrderNumber}.", false),
-                    MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt);
-                OpenMaintenanceReceiptPreviewRequested?.Invoke(printVm);
-            }
-        }
+    private void AfterMaintenancePosting()
+    {
+        var keepId = SelectedCustomerEntry?.Customer.Id;
+        maintenanceChanged?.Invoke();
+        RebuildEntriesAndRefresh(selectCustomerId: keepId);
     }
 
     /// <summary>Rebuilds the selected customer's spare-part usage after a maintenance issue/return.</summary>

@@ -51,26 +51,31 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
 
     public MaintenanceReceiptPreviewViewModel(
         MaintenanceOrderDesignItem order,
-        Action<string>? onPrintPreview = null,
+        Action<MaintenanceReceiptPrintMode, string>? onPrintPreview = null,
         MaintenanceReceiptPrintMode initialMode = MaintenanceReceiptPrintMode.CustomerIntakeReceipt)
     {
         Order = order;
-        mode = initialMode;
+        mode = initialMode == MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt && !Order.IsDelivered
+            ? MaintenanceReceiptPrintMode.CustomerIntakeReceipt : initialMode;
 
         SelectCustomerReceiptModeCommand = new ActionCommand(() => SetMode(MaintenanceReceiptPrintMode.CustomerIntakeReceipt));
         SelectDeviceStickerModeCommand = new ActionCommand(() => SetMode(MaintenanceReceiptPrintMode.DeviceSticker));
-        SelectDeliveryReceiptModeCommand = new ActionCommand(() => SetMode(MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt));
+        SelectDeliveryReceiptModeCommand = new ActionCommand(() => SetMode(MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt), () => Order.IsDelivered);
         PrintCommand = new ActionCommand(() =>
         {
-            StatusMessage = $"مرحلة التصميم (بدون طابعة Backend): تمت معاينة طباعة أمر الصيانة {Order.OrderNumber} بصيغة «{CurrentModeLabel}».";
-            onPrintPreview?.Invoke(CurrentModeLabel);
+            try
+            {
+                onPrintPreview?.Invoke(mode, CurrentModeLabel);
+                StatusMessage = $"تمت معاينة {CurrentModeLabel} للأمر {Order.OrderNumber} (لا توجد طابعة موصولة).";
+            }
+            catch (Exception ex) { StatusMessage = $"تعذّر تأكيد المعاينة: {ex.Message}"; }
         });
         CloseCommand = new ActionCommand(() => RequestClose?.Invoke());
     }
 
     private void SetMode(MaintenanceReceiptPrintMode nextMode)
     {
-        if (mode == nextMode) return;
+        if (mode == nextMode || (nextMode == MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt && !Order.IsDelivered)) return;
         mode = nextMode;
         Changed(nameof(IsCustomerReceiptMode));
         Changed(nameof(IsDeviceStickerMode));

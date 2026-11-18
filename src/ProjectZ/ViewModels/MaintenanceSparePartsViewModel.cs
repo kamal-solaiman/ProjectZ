@@ -45,6 +45,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
     private bool isErrorStatus;
     private DateTime? lastRefreshedAt;
     private bool lastLoadFailed;
+    public bool LastLoadFailed => lastLoadFailed;
 
     public ObservableCollection<MaintenanceSparePartItem> FilteredSpareParts { get; } = [];
     public ObservableCollection<MaintenanceSparePartMovementItem> FilteredMovements { get; } = [];

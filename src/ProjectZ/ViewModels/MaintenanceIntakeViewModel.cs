@@ -515,19 +515,17 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
     public decimal DepositInstaPayAmount => ShowInstaPayDepositInput && PosFormatting.TryParseAmount(DepositInstaPayText, out var i) && i >= 0m ? i : 0m;
     public decimal TotalDepositPaid => DepositCashAmount + DepositVodafoneAmount + DepositInstaPayAmount;
 
-    public bool HasDepositOverEstimate => !IsEstimatePendingInspection && EstimatedCost > 0m && TotalDepositPaid > EstimatedCost;
+    public bool HasDepositOverEstimate => !IsEstimatePendingInspection && TotalDepositPaid > EstimatedCost;
     public decimal EstimatedRemaining => IsEstimatePendingInspection || EstimatedCost <= 0m
         ? 0m
         : Math.Max(0m, EstimatedCost - TotalDepositPaid);
 
     public string EstimatedCostSummaryDisplay => IsEstimatePendingInspection
         ? "يُحدد بعد الفحص"
-        : EstimatedCost > 0m
-            ? PosFormatting.FormatCurrency(EstimatedCost)
-            : "غير محدد بعد";
+        : PosFormatting.FormatCurrency(EstimatedCost);
 
     public string TotalDepositPaidDisplay => PosFormatting.FormatCurrency(TotalDepositPaid);
-    public string EstimatedRemainingDisplay => IsEstimatePendingInspection || EstimatedCost <= 0m
+    public string EstimatedRemainingDisplay => IsEstimatePendingInspection
         ? "يُحدد بعد الفحص"
         : PosFormatting.FormatCurrency(EstimatedRemaining);
 
@@ -1183,8 +1181,19 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             try
             {
                 var saved = repository.CreateMaintenanceOrder(order);
-                order.Id = saved.OrderId;
-                order.OrderNumber = saved.OrderNumber;
+                try
+                {
+                    order = repository.LoadTicket(saved.OrderId);
+                    if (saved.RowVersion is null || order.DatabaseRowVersion is null || !saved.RowVersion.SequenceEqual(order.DatabaseRowVersion))
+                        throw new Data.MaintenanceDataException("تغيّرت نسخة أمر الاستلام.");
+                }
+                catch (Exception ex)
+                {
+                    LastSavedOrder = null;
+                    ResetForm();
+                    SetStatus($"اعتُمد الاستلام {saved.OrderNumber} لكن تعذّرت قراءة إيصال مطابق: {ex.Message} لا تكرر الاستلام.", true);
+                    return;
+                }
                 lastSyncedAt = DateTime.Now;
                 Changed(nameof(LastSyncedDisplay));
                 RefreshNextOrderNumberPreview();
@@ -1200,9 +1209,13 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
         LastSavedOrder = order;
 
         // Let the other maintenance screens (which own their own collections) reload.
-        onOrdersSaved?.Invoke();
-
         ResetForm();
+        try { onOrdersSaved?.Invoke(); }
+        catch (Exception ex)
+        {
+            SetStatus($"حُفظ {order.OrderNumber} لكن تعذّر تحديث الشاشات: {ex.Message} لا تكرر الاستلام.", true);
+            return;
+        }
         SetStatus(
             $"تم تسجيل أمر الصيانة {order.OrderNumber} بنجاح للعميل «{order.CustomerName}» ({order.DeviceFullTitle}){depositDetail}" +
             (repository is null ? " في الذاكرة فقط." : " في قاعدة البيانات."),
@@ -1212,38 +1225,8 @@ public sealed class MaintenanceIntakeViewModel : ObservableObject
             OpenReceiptPreview(order);
     }
 
-    private void OpenReceiptPreview(MaintenanceOrderDesignItem order)
-    {
-        var vm = new MaintenanceReceiptPreviewViewModel(order, modeLabel =>
-        {
-            var entry = new MaintenanceActivityEntry
-            {
-                Timestamp = DateTime.Now,
-                ActionTitle = "معاينة / طباعة تذكرة صيانة",
-                Details = $"معاينة بصيغة «{modeLabel}».",
-                ActorName = currentUserName
-            };
-            order.ActivityLog.Add(entry);
-            PersistActivity(order, entry);
-            SetStatus($"تمت معاينة طباعة {order.OrderNumber} ({modeLabel}).", false);
-        });
-        OpenReceiptPreviewRequested?.Invoke(vm);
-    }
-
-    /// <summary>Persists a single activity entry for an already-saved order.</summary>
-    private void PersistActivity(MaintenanceOrderDesignItem order, MaintenanceActivityEntry entry)
-    {
-        if (repository is null || order.Id <= 0) return;
-
-        try
-        {
-            repository.AppendMaintenanceActivity(order.Id, entry);
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"تعذّر حفظ سجل الطباعة في القاعدة: {ex.Message}", true);
-        }
-    }
+    private void OpenReceiptPreview(MaintenanceOrderDesignItem order) =>
+        MaintenancePosting.Preview(order, repository, currentUserName, OpenReceiptPreviewRequested, SetStatus, MaintenanceReceiptPrintMode.CustomerIntakeReceipt);
 
     private void ResetForm()
     {

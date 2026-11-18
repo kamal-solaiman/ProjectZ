@@ -52,6 +52,7 @@ public sealed record MaintenanceActivityEntry
 
 public sealed class MaintenancePartUsageItem : ObservableObject
 {
+    public int LineId { get; init; }
     /// <summary>POS catalog product id (dbo.Products.Id); 0 for spare-part and manual lines.</summary>
     public int ProductId { get; init; }
 
@@ -89,6 +90,11 @@ public sealed class MaintenancePartUsageItem : ObservableObject
 /// </summary>
 public sealed record MaintenancePaymentHistoryItem
 {
+    public int PaymentId { get; init; }
+    public int AccountId { get; init; }
+    public string AccountAlias { get; init; } = "";
+    public int? RefundOfPaymentId { get; init; }
+    public byte? OriginalStage { get; init; }
     public DateTime PaidAt { get; init; }
 
     /// <summary>1 = deposit (عربون), 2 = final settlement (سداد عند التسليم).</summary>
@@ -112,7 +118,8 @@ public sealed record MaintenancePaymentHistoryItem
         _ => "كاش"
     };
 
-    public string HeaderTitle => $"{KindTitle} {StageTitle} · {ChannelTitle}";
+    public string HeaderTitle => $"{KindTitle} {StageTitle} · {ChannelTitle} {AccountAlias}".TrimEnd();
+    public string ReceiptReference => RefundOfPaymentId is { } id ? $"حركة #{PaymentId} · رد من الدفعة #{id} · الحساب #{AccountId}" : $"حركة #{PaymentId} · الحساب #{AccountId}";
     public string AmountDisplay => PosFormatting.FormatCurrency(Amount);
     public string SignedAmountDisplay => $"{(IsRefund ? "-" : "+")}{PosFormatting.FormatCurrency(Amount)}";
     public string TimestampDisplay => PaidAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
@@ -514,7 +521,7 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
 
     public int Id { get; set; }
     public string OrderNumber { get; set; } = "";
-    public DateTime ReceivedAt { get; init; }
+    public DateTime ReceivedAt { get; set; }
     public string ReceivedByName { get; init; } = "";
 
     /// <summary>
@@ -523,6 +530,8 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     /// silently; null means "not tracked yet" (design mode or a row not loaded from SQL).
     /// </summary>
     public byte[]? DatabaseRowVersion { get; set; }
+    public bool HasReopenPermission { get; init; }
+    public bool CanReopen => !IsActiveOrder && HasReopenPermission;
 
     public DateTime? ExpectedDeliveryAt
     {
@@ -715,7 +724,7 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
 
     public bool HasWorkshopPricing
     {
-        get => hasWorkshopPricing || FinalServiceCost.HasValue || UsedParts.Count > 0 || LaborCost > 0m || DiscountAmount > 0m;
+        get => hasWorkshopPricing || (DatabaseRowVersion is null && (FinalServiceCost.HasValue || UsedParts.Count > 0 || LaborCost > 0m || DiscountAmount > 0m));
         set
         {
             if (hasWorkshopPricing == value) return;
@@ -979,9 +988,28 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     public bool IsWarranty => Priority == MaintenancePriority.WarrantyRecheck;
 
     public decimal TotalDepositPaid => DepositCashPaid + DepositVodafonePaid + DepositInstaPayPaid;
-    public decimal NetDepositRetained => Math.Max(0m, TotalDepositPaid - RefundedDepositAmount);
+    public decimal NetDepositRetained => Math.Max(0m, TotalDepositPaid - RefundedDepositAmount + PaymentHistory.Where(p => p.IsRefund && p.OriginalStage == 2).Sum(p => p.Amount));
     public decimal TotalFinalPaymentPaid => FinalPaymentCashPaid + FinalPaymentVodafonePaid + FinalPaymentInstaPayPaid;
-    public decimal TotalCollectedAll => NetDepositRetained + TotalFinalPaymentPaid;
+    public decimal TotalCollectedAll => Math.Max(0m, TotalDepositPaid + TotalFinalPaymentPaid - RefundedDepositAmount);
+
+    public string DescribeRefund(decimal amount)
+    {
+        if (amount <= 0) return "";
+        if (DatabaseRowVersion is null) return ""; // design sample has no SQL receipt IDs
+        if (PaymentHistory.Any(p => p.IsRefund && p.RefundOfPaymentId is null)) return "يلزم مطابقة الرد القديم قبل الصرف.";
+        var byAccount = new Dictionary<(int Id, string Alias), decimal>();
+        var refunded = PaymentHistory.Where(p => p.IsRefund && p.RefundOfPaymentId.HasValue).ToLookup(p => p.RefundOfPaymentId!.Value);
+        foreach (var p in PaymentHistory.Where(p => !p.IsRefund).OrderBy(p => p.PaymentId))
+        {
+            var share = Math.Min(amount, p.Amount - refunded[p.PaymentId].Sum(r => r.Amount));
+            if (share <= 0) continue;
+            var key = (p.AccountId, p.AccountAlias);
+            byAccount[key] = byAccount.GetValueOrDefault(key) + share;
+            amount -= share;
+            if (amount == 0) break;
+        }
+        return amount > 0 ? "المبلغ غير مغطى بالدفعات المحفوظة." : string.Join(" + ", byAccount.Select(a => $"{a.Key.Alias} (#{a.Key.Id}): {PosFormatting.FormatCurrency(a.Value)}"));
+    }
     public bool HasDeposit => TotalDepositPaid > 0m;
     public bool HasRefundedDeposit => RefundedDepositAmount > 0m;
     public bool HasFinalPayment => TotalFinalPaymentPaid > 0m;
@@ -996,18 +1024,18 @@ public sealed class MaintenanceOrderDesignItem : ObservableObject
     public decimal ComputedServiceTotal => Math.Max(0m, LaborCost + PartsTotal - DiscountAmount);
 
     public decimal CurrentEffectiveCost => HasWorkshopPricing
-        ? (FinalServiceCost ?? ComputedServiceTotal)
+        ? (!IsActiveOrder && FinalServiceCost.HasValue ? FinalServiceCost.Value : ComputedServiceTotal)
         : (IsEstimatePendingInspection ? 0m : EstimatedCost);
 
     public bool IsPriceStillPending => IsEstimatePendingInspection && !HasWorkshopPricing;
 
-    public decimal EstimatedRemaining => IsPriceStillPending
+    public decimal EstimatedRemaining => IsPriceStillPending || IsCancelled
         ? 0m
         : Math.Max(0m, CurrentEffectiveCost - TotalCollectedAll);
 
-    public decimal OverpaidDepositAmount => IsPriceStillPending
+    public decimal OverpaidDepositAmount => IsPriceStillPending || IsCancelled
         ? 0m
-        : Math.Max(0m, NetDepositRetained - CurrentEffectiveCost);
+        : Math.Max(0m, TotalCollectedAll - CurrentEffectiveCost);
 
     public bool HasEstimatedRemaining => !IsPriceStillPending && EstimatedRemaining > 0m;
     public decimal EstimatedProfit => Math.Max(0m, CurrentEffectiveCost - PartsCostTotal);

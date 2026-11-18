@@ -147,16 +147,14 @@ SELECT
     COALESCE(parts.PartsTotal, 0) AS PartsTotal,
     COALESCE(parts.PartsCostTotal, 0) AS PartsCostTotal,
     mo.DiscountAmount,
-    CASE
-        WHEN mo.HasWorkshopPricing = 1 AND mo.FinalServiceCost IS NOT NULL THEN mo.FinalServiceCost
-        WHEN mo.HasWorkshopPricing = 1 AND mo.LaborCost + COALESCE(parts.PartsTotal, 0) - mo.DiscountAmount < 0 THEN 0
-        WHEN mo.HasWorkshopPricing = 1 THEN mo.LaborCost + COALESCE(parts.PartsTotal, 0) - mo.DiscountAmount
-        ELSE mo.EstimatedCost
-    END AS ServiceTotal,
+    price.ServiceTotal,
     COALESCE(payments.DepositCollected, 0) AS DepositCollected,
     COALESCE(payments.DepositRefunded, 0) AS DepositRefunded,
     COALESCE(payments.FinalCollected, 0) AS FinalCollected,
-    COALESCE(payments.Collected, 0) - COALESCE(payments.Refunded, 0) AS NetCollected
+    paid.NetCollected,
+    CASE WHEN mo.OrderStatus<>6 AND price.ServiceTotal>paid.NetCollected THEN price.ServiceTotal-paid.NetCollected ELSE 0 END AS RemainingDue,
+    CASE WHEN mo.OrderStatus<>6 AND (mo.HasWorkshopPricing=1 OR mo.IsEstimatePendingInspection=0) AND paid.NetCollected>price.ServiceTotal
+         THEN paid.NetCollected-price.ServiceTotal ELSE 0 END AS ExcessPaid
 FROM dbo.MaintenanceOrders AS mo
 OUTER APPLY
 (
@@ -169,14 +167,19 @@ OUTER APPLY
 OUTER APPLY
 (
     SELECT
-        SUM(CASE WHEN mp.PaymentKind = 1 THEN mp.Amount ELSE 0 END) AS Collected,
-        SUM(CASE WHEN mp.PaymentKind = 2 THEN mp.Amount ELSE 0 END) AS Refunded,
+        SUM(CASE WHEN mp.PaymentKind = 1 THEN mp.Amount ELSE -mp.Amount END) AS Net,
         SUM(CASE WHEN mp.PaymentStage = 1 AND mp.PaymentKind = 1 THEN mp.Amount ELSE 0 END) AS DepositCollected,
         SUM(CASE WHEN mp.PaymentStage = 1 AND mp.PaymentKind = 2 THEN mp.Amount ELSE 0 END) AS DepositRefunded,
         SUM(CASE WHEN mp.PaymentStage = 2 AND mp.PaymentKind = 1 THEN mp.Amount ELSE 0 END) AS FinalCollected
     FROM dbo.MaintenancePayments AS mp
     WHERE mp.MaintenanceOrderId = mo.Id
-) AS payments;
+) AS payments
+CROSS APPLY (SELECT CONVERT(decimal(19,2), COALESCE(payments.Net,0)) AS NetCollected) AS paid
+CROSS APPLY (SELECT mo.LaborCost + CONVERT(decimal(19,2),COALESCE(parts.PartsTotal,0)) - mo.DiscountAmount AS WorkshopTotal) AS calc
+CROSS APPLY (SELECT CONVERT(decimal(19,2), CASE
+    WHEN mo.HasWorkshopPricing=1 AND mo.OrderStatus>=5 AND mo.FinalServiceCost IS NOT NULL THEN mo.FinalServiceCost
+    WHEN mo.HasWorkshopPricing=1 THEN CASE WHEN calc.WorkshopTotal<0 THEN 0 ELSE calc.WorkshopTotal END
+    WHEN mo.IsEstimatePendingInspection=1 THEN 0 ELSE mo.EstimatedCost END) AS ServiceTotal) AS price;
 GO
 
 CREATE OR ALTER VIEW dbo.vwFinancialAccountDailyUsage

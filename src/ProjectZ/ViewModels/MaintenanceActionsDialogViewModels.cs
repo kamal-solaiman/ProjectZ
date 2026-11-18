@@ -5,7 +5,8 @@ namespace ProjectZ.ViewModels;
 
 public sealed class MaintenanceDeliveryViewModel : ObservableObject
 {
-    private readonly string currentUserName;
+    private readonly Data.MaintenanceTicketKey ticket;
+    public Data.MaintenanceDelivery? Request { get; private set; }
     private MaintenanceDepositMode paymentMode;
     private string laborCostText;
     private string discountText;
@@ -51,8 +52,8 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
     public decimal ParsedLaborCost => PosFormatting.TryParseAmount(LaborCostText, out var v) && v >= 0m ? v : 0m;
     public decimal ParsedDiscount => PosFormatting.TryParseAmount(DiscountText, out var v) && v >= 0m ? v : 0m;
     public decimal EffectiveFinalTotal => Math.Max(0m, Order.PartsTotal + ParsedLaborCost - ParsedDiscount);
-    public decimal RemainingBeforeFinalPayment => Math.Max(0m, EffectiveFinalTotal - Order.NetDepositRetained);
-    public decimal ExcessDepositOverTotal => Math.Max(0m, Order.NetDepositRetained - EffectiveFinalTotal);
+    public decimal RemainingBeforeFinalPayment => Math.Max(0m, EffectiveFinalTotal - Order.TotalCollectedAll);
+    public decimal ExcessDepositOverTotal => Math.Max(0m, Order.TotalCollectedAll - EffectiveFinalTotal);
     public bool HasRemainingToCollect => RemainingBeforeFinalPayment > 0m;
     public bool HasExcessDeposit => ExcessDepositOverTotal > 0m;
 
@@ -72,7 +73,7 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
     public string RemainingBeforeFinalPaymentDisplay => PosFormatting.FormatCurrency(RemainingBeforeFinalPayment);
     public string ExcessDepositOverTotalDisplay => PosFormatting.FormatCurrency(ExcessDepositOverTotal);
     public string ExcessDepositSummary => RefundExcessDeposit
-        ? $"سيتم رد فرق العربون ({ExcessDepositOverTotalDisplay}) للعميل عند التسليم."
+        ? $"سيُرد فرق المدفوع ({ExcessDepositOverTotalDisplay}) إلى حسابات الدفعات الأصلية: {Order.DescribeRefund(ExcessDepositOverTotal)}"
         : $"يبقى الفرق ({ExcessDepositOverTotalDisplay}) ضمن رصيد الإيصال دون رد.";
 
     public bool IsNoFinalPaymentMode => paymentMode == MaintenanceDepositMode.NoDeposit;
@@ -152,7 +153,7 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
             if (customWarrantyDaysText == value) return;
             customWarrantyDaysText = value;
             Changed();
-            if (PosFormatting.TryParseNonNegativeInt(value, out var days))
+            if (PosFormatting.TryParseNonNegativeInt(value, out var days) && days <= (DateTime.MaxValue.Date - DateTime.Today).Days - 1)
                 WarrantyDays = days;
         }
     }
@@ -197,10 +198,10 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
     public ActionCommand ConfirmAndPrintCommand { get; }
     public ActionCommand CancelCommand { get; }
 
-    public MaintenanceDeliveryViewModel(MaintenanceOrderDesignItem order, string currentUserName)
+    public MaintenanceDeliveryViewModel(MaintenanceOrderDesignItem order)
     {
         Order = order;
-        this.currentUserName = currentUserName;
+        ticket = Data.MaintenanceTicketKey.Open(order);
 
         // If workshop pricing hasn't been broken down yet, carry over initial estimate as labor baseline.
         var initialLabor = order.HasWorkshopPricing
@@ -341,6 +342,9 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
     private void ConfirmDelivery(bool printAfter)
     {
         ErrorMessage = "";
+        Request = null;
+        IsConfirmed = false;
+        ShouldOpenPrintAfterClose = false;
 
         if (!PosFormatting.TryParseAmount(LaborCostText, out var labor) || labor < 0m)
         {
@@ -387,7 +391,7 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
             }
         }
 
-        if (!PosFormatting.TryParseNonNegativeInt(CustomWarrantyDaysText, out var wDays))
+        if (!PosFormatting.TryParseNonNegativeInt(CustomWarrantyDaysText, out var wDays) || wDays > (DateTime.MaxValue.Date - DateTime.Today).Days - 1)
         {
             ErrorMessage = "أدخل عدد أيام ضمان صحيح (0 أو أكثر).";
             return;
@@ -399,23 +403,8 @@ public sealed class MaintenanceDeliveryViewModel : ObservableObject
             return;
         }
 
-        Order.LaborCost = labor;
-        Order.DiscountAmount = discount;
-        Order.RecalculateWorkshopTotal();
-
-        Order.FinalPaymentCashPaid += cash;
-        Order.FinalPaymentVodafonePaid += vodafone;
-        Order.FinalPaymentInstaPayPaid += instaPay;
-
-        if (HasExcessDeposit && RefundExcessDeposit)
-            Order.RefundedDepositAmount += ExcessDepositOverTotal;
-
-        Order.WarrantyDays = wDays;
-        Order.DeliveredAt = DateTime.Now;
-        Order.DeliveryNotes = DeliveryNotes.Trim();
-        Order.Status = MaintenanceOrderStatus.Delivered;
-
-        Order.NotifyFinancialsChanged();
+        Request = new Data.MaintenanceDelivery(ticket, labor, discount, EffectiveFinalTotal,
+            cash, vodafone, instaPay, RefundExcessDeposit, wDays, DeliveryNotes.Trim());
         IsConfirmed = true;
         ShouldOpenPrintAfterClose = printAfter;
         RequestClose?.Invoke();
@@ -434,10 +423,11 @@ public sealed class MaintenanceCancelOrderViewModel : ObservableObject
     public MaintenanceOrderDesignItem Order { get; }
     public IReadOnlyList<string> Reasons => MaintenanceDesignSeedData.CancellationReasons;
 
+    public string RefundAccounts => PosFormatting.TryParseAmount(RefundAmountText, out var amount) && RefundDeposit ? Order.DescribeRefund(amount) : "";
     public bool HasUsedParts => Order.HasUsedParts;
     public int UsedPartsCount => Order.UsedPartsTotalCount;
-    public bool HasRetainedDeposit => Order.NetDepositRetained > 0m;
-    public string RetainedDepositDisplay => Order.NetDepositRetainedDisplay;
+    public bool HasRetainedDeposit => Order.TotalCollectedAll > 0m;
+    public string RetainedDepositDisplay => Order.TotalCollectedAllDisplay;
 
     public string SelectedReason
     {
@@ -480,6 +470,7 @@ public sealed class MaintenanceCancelOrderViewModel : ObservableObject
             if (refundDeposit == value) return;
             refundDeposit = value;
             Changed();
+            Changed(nameof(RefundAccounts));
         }
     }
 
@@ -491,6 +482,7 @@ public sealed class MaintenanceCancelOrderViewModel : ObservableObject
             if (refundAmountText == value) return;
             refundAmountText = value;
             Changed();
+            Changed(nameof(RefundAccounts));
         }
     }
 
@@ -522,8 +514,8 @@ public sealed class MaintenanceCancelOrderViewModel : ObservableObject
         Order = order;
         selectedReason = Reasons[0];
         returnUsedPartsToInventory = order.HasUsedParts;
-        refundDeposit = order.NetDepositRetained > 0m;
-        refundAmountText = PosFormatting.FormatPlainNumber(order.NetDepositRetained);
+        refundDeposit = order.TotalCollectedAll > 0m;
+        refundAmountText = PosFormatting.FormatPlainNumber(order.TotalCollectedAll);
 
         SelectQuickReasonCommand = new RelayCommand<string>(r =>
         {
@@ -546,12 +538,12 @@ public sealed class MaintenanceCancelOrderViewModel : ObservableObject
         {
             if (!PosFormatting.TryParseAmount(RefundAmountText, out refundAmount) || refundAmount < 0m)
             {
-                ErrorMessage = "أدخل مبلغ استرداد عربون صحيح.";
+                ErrorMessage = "أدخل مبلغ استرداد صحيح.";
                 return;
             }
-            if (refundAmount > Order.NetDepositRetained)
+            if (refundAmount > Order.TotalCollectedAll)
             {
-                ErrorMessage = $"مبلغ الاسترداد لا يمكن أن يتجاوز صافي العربون ({RetainedDepositDisplay}).";
+                ErrorMessage = $"مبلغ الاسترداد لا يمكن أن يتجاوز صافي المحصّل ({RetainedDepositDisplay}).";
                 return;
             }
         }

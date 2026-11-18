@@ -15,10 +15,6 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
     private readonly Action? notifySparePartsChanged;
     private readonly Data.MaintenanceRepository? repository;
     private readonly Action? onOrdersSaved;
-    // Entries accumulated since the last DB save; flushed together with the order update.
-    private readonly List<MaintenanceActivityEntry> pendingActivities = new();
-    private readonly List<Data.MaintenancePaymentEntry> pendingPayments = new();
-
     private MaintenanceOrderDesignItem? selectedOrder;
     private string searchText = "";
     private string selectedStageFilter = "كل الحالات";
@@ -90,6 +86,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         {
             if (ReferenceEquals(selectedOrder, value)) return;
             selectedOrder = value;
+            ReopenReason = "";
+            ExtraDepositAmountText = "";
             LoadEditableFieldsFromSelected();
             Changed();
             Changed(nameof(HasSelectedOrder));
@@ -576,8 +574,8 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         SetEditWarrantyPriorityCommand = new ActionCommand(() => EditPriority = MaintenancePriority.WarrantyRecheck);
         ApplyEditDeliverySlotCommand = new RelayCommand<string>(ApplyDeliverySlot);
         AppendDiagnosisSnippetCommand = new RelayCommand<string>(AppendDiagnosisSnippet);
-        SaveWorkshopUpdatesCommand = new ActionCommand(() => SaveWorkshopUpdates(showSuccessMessage: true));
-        SavePricingOnlyCommand = new ActionCommand(SavePricingOnly);
+        SaveWorkshopUpdatesCommand = new ActionCommand(() => SaveWorkshopUpdates());
+        SavePricingOnlyCommand = new ActionCommand(() => SaveWorkshopUpdates());
 
         SwitchToCatalogPartModeCommand = new ActionCommand(() => IsCatalogPartInputMode = true);
         SwitchToManualPartModeCommand = new ActionCommand(() => IsCatalogPartInputMode = false);
@@ -596,7 +594,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         SelectedOrder = FilteredOrders.FirstOrDefault() ?? sharedOrders.FirstOrDefault();
         SetStatus(
             repository is null
-                ? "وضع عرض بدون قاعدة بيانات: تُحفظ التغييرات في الذاكرة فقط حتى يُضبط الاتصال."
+                ? "وضع عرض فقط: لا تُعتمد إجراءات الورشة أو الدفعات دون اتصال بقاعدة البيانات."
                 : "جاهز للتحكم: تُحفظ الحالات وتقارير الفحص وقطع الغيار والتحصيل والتسليم مباشرة في SQL Server.",
             false);
         if (repository is not null)
@@ -620,8 +618,6 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             try
             {
                 repository.LoadMaintenanceOrdersInto(sharedOrders);
-                pendingActivities.Clear();
-                pendingPayments.Clear();
                 lastSyncedAt = DateTime.Now;
                 Changed(nameof(LastSyncedDisplay));
             }
@@ -654,42 +650,14 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>Flushes accumulated activities/payments and the order state to the database.</summary>
-    /// <returns>True when the save succeeded (or no repository is connected).</returns>
-    private bool TryPersistOrder(MaintenanceOrderDesignItem order, string successMessage, string errorPrefix)
+    private void RefreshAfterPosting(MaintenanceOrderDesignItem saved)
     {
-        if (repository is null)
-            return true;
-
-        try
-        {
-            repository.UpdateMaintenanceOrder(order, pendingActivities, pendingPayments);
-            pendingActivities.Clear();
-            pendingPayments.Clear();
-            onOrdersSaved?.Invoke();
-            SetStatus(successMessage, false);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            // The in-memory ticket now holds changes SQL Server never accepted (a lost update from
-            // another client, a stock conflict, a dropped connection...). Reload the truth so the
-            // screen never shows a state the database does not have, and say so in the message.
-            var message = $"{errorPrefix}: {ex.Message}";
-            if (NotifyExternalDataChanged())
-                message += " — أُعيد تحميل الأمر من قاعدة البيانات بحالته المحفوظة فعليًا.";
-
-            SetStatus(message, true);
-            return false;
-        }
+        if (onOrdersSaved is not null) onOrdersSaved();
+        else if (!NotifyExternalDataChanged()) throw new Data.MaintenanceDataException("تعذّر تحديث الورشة.");
     }
 
-    /// <summary>Records an activity both in the in-memory log and the pending DB batch.</summary>
-    private void RecordActivity(MaintenanceOrderDesignItem order, MaintenanceActivityEntry entry)
-    {
-        order.ActivityLog.Add(entry);
-        pendingActivities.Add(entry);
-    }
+    private bool Post(MaintenanceOrderDesignItem order, Func<Data.MaintenanceRepository, byte[]> write, string success) =>
+        MaintenancePosting.Save(repository, order, () => write(repository!), RefreshAfterPosting, SetStatus, success);
 
     public void SelectOrderFromExternal(MaintenanceOrderDesignItem order)
     {
@@ -863,124 +831,25 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             : $"{EditDiagnosisNotes.TrimEnd()}\n• {snippet}";
     }
 
-    private bool SaveWorkshopUpdates(bool showSuccessMessage)
+    private bool TryReadPricing(out decimal labor, out decimal discount)
     {
-        var order = SelectedOrder;
-        if (order is null) return false;
-        if (!order.IsActiveOrder)
-        {
-            SetStatus("هذا الأمر مغلق حاليًا؛ أعد فتحه للمراجعة أولًا إذا أردت التعديل.", true);
-            return false;
-        }
-
-        if (!PosFormatting.TryParseAmount(EditLaborCostText, out var labor) || labor < 0m)
-        {
-            SetStatus("أدخل قيمة رقمية صحيحة لأجرة الصيانة والمصنعية.", true);
-            return false;
-        }
-
-        if (!PosFormatting.TryParseAmount(EditDiscountText, out var discount) || discount < 0m)
-        {
-            SetStatus("أدخل قيمة رقمية صحيحة للخصم.", true);
-            return false;
-        }
-
-        if (discount > order.PartsTotal + labor)
-        {
-            SetStatus("الخصم لا يمكن أن يتجاوز مجموع قطع الغيار والمصنعية.", true);
-            return false;
-        }
-
-        if (ValidateWorkshopFieldLengths() is { } lengthProblem)
-        {
-            SetStatus(lengthProblem, true);
-            return false;
-        }
-
-        var changes = new List<string>();
-
-        if (order.Priority != EditPriority)
-        {
-            order.Priority = EditPriority;
-            changes.Add($"الأولوية: {order.PriorityTitle}");
-        }
-
-        var technician = (EditAssignedTechnician ?? "").Trim();
-        if (technician.Length == 0)
-            technician = order.AssignedTechnician;
-
-        if (order.AssignedTechnician != technician)
-        {
-            order.AssignedTechnician = technician;
-            changes.Add($"الفني: {order.AssignedTechnicianDisplay}");
-        }
-
-        if (order.ExpectedDeliveryAt != EditExpectedDeliveryDate
-            || order.ExpectedDeliveryLabel != EditExpectedDeliveryLabel)
-        {
-            order.ExpectedDeliveryAt = EditExpectedDeliveryDate;
-            order.ExpectedDeliveryLabel = EditExpectedDeliveryLabel;
-            changes.Add($"موعد التسليم: {order.ExpectedDeliveryDisplay}");
-        }
-
-        var trimmedDiag = EditDiagnosisNotes.Trim();
-        if (order.DiagnosisNotes != trimmedDiag)
-        {
-            order.DiagnosisNotes = trimmedDiag;
-            changes.Add("تحديث تقرير الفحص الفني");
-        }
-
-        var pricingChanged = order.LaborCost != labor
-            || order.DiscountAmount != discount
-            || !order.HasWorkshopPricing;
-
-        if (pricingChanged)
-        {
-            order.LaborCost = labor;
-            order.DiscountAmount = discount;
-            order.RecalculateWorkshopTotal();
-            changes.Add($"اعتماد التكلفة: {order.EstimatedCostDisplay}");
-        }
-
-        if (changes.Count > 0)
-        {
-            RecordActivity(order, new MaintenanceActivityEntry
-            {
-                Timestamp = DateTime.Now,
-                ActionTitle = "تحديث بيانات الورشة والفحص",
-                Details = string.Join(" · ", changes),
-                ActorName = currentUserName,
-                Amount = pricingChanged ? order.CurrentEffectiveCost : null
-            });
-
-            NotifyStageAndKpiCounts();
-            RefreshFilteredOrders();
-            if (repository is not null)
-                TryPersistOrder(
-                    order,
-                    $"تم حفظ تحديثات الأمر {order.OrderNumber} ({string.Join("، ", changes)}).",
-                    "تعذّر حفظ تحديثات الأمر");
-            else if (showSuccessMessage)
-                SetStatus($"تم حفظ تحديثات الأمر {order.OrderNumber} ({string.Join("، ", changes)}).", false);
-        }
-        else if (showSuccessMessage)
-        {
-            SetStatus($"لا توجد تغييرات جديدة لحفظها في الأمر {order.OrderNumber}.", false);
-        }
-
-        return true;
+        discount = 0m;
+        if (PosFormatting.TryParseAmount(EditLaborCostText, out labor) && labor >= 0 &&
+            PosFormatting.TryParseAmount(EditDiscountText, out discount) && discount >= 0) return true;
+        SetStatus("أدخل قيمًا صحيحة للمصنعية والخصم.", true);
+        return false;
     }
 
-    private void SavePricingOnly()
+    private void SaveWorkshopUpdates(MaintenanceOrderStatus? next = null)
     {
         var order = SelectedOrder;
         if (order is null) return;
-        if (SaveWorkshopUpdates(showSuccessMessage: false))
-        {
-            SetStatus(
-                $"تم اعتماد التسعير النهائي للأمر {order.OrderNumber}: {order.EstimatedCostDisplay} (المتبقي: {order.EstimatedRemainingDisplay}).",
-                false);
-        }
+        if (!order.IsActiveOrder) { SetStatus("الأمر مغلق؛ لا يمكن تعديل بيانات الورشة.", true); return; }
+        if (!TryReadPricing(out var labor, out var discount)) return;
+        if (ValidateWorkshopFieldLengths() is { } error) { SetStatus(error, true); return; }
+        var tech = string.IsNullOrWhiteSpace(EditAssignedTechnician) ? order.AssignedTechnician : EditAssignedTechnician.Trim();
+        Post(order, r => r.SaveWorkshop(order, next ?? order.Status, EditPriority, tech, EditExpectedDeliveryDate,
+            EditExpectedDeliveryLabel, EditDiagnosisNotes.Trim(), labor, discount), $"تم حفظ حالة وتسعير الأمر {order.OrderNumber}.");
     }
 
     private void AdvanceToNextStage()
@@ -993,7 +862,7 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        ApplyStatusTransition(SelectedOrder, nextStatus);
+        SaveWorkshopUpdates(nextStatus);
     }
 
     private void SetDirectStatusByKey(string? statusKey)
@@ -1021,63 +890,24 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        ApplyStatusTransition(SelectedOrder, target);
+        SaveWorkshopUpdates(target);
     }
 
-    private void ApplyStatusTransition(MaintenanceOrderDesignItem order, MaintenanceOrderStatus nextStatus)
+    private string reopenReason = "";
+    public string ReopenReason
     {
-        if (order.Status == nextStatus) return;
-
-        // Persist whatever the workshop form holds first; if that fails (invalid amount, conflict with
-        // another client) the stage must not change, otherwise the UI and the database disagree.
-        if (!SaveWorkshopUpdates(showSuccessMessage: false))
-            return;
-
-        var prevTitle = order.StatusTitle;
-        order.Status = nextStatus;
-
-        RecordActivity(order, new MaintenanceActivityEntry
-        {
-            Timestamp = DateTime.Now,
-            ActionTitle = $"تغيير الحالة إلى: {order.StatusTitle}",
-            Details = $"تم نقل الجهاز من «{prevTitle}» إلى «{order.StatusTitle}».",
-            ActorName = currentUserName
-        });
-
-        NotifyStageAndKpiCounts();
-        RefreshFilteredOrders();
-        Changed(nameof(CanEditSelectedWorkshopFields));
-        if (repository is not null)
-            TryPersistOrder(order, $"تم تغيير حالة الأمر {order.OrderNumber} إلى «{order.StatusTitle}».", "تعذّر حفظ تغيير الحالة");
-        else
-            SetStatus($"تم تغيير حالة الأمر {order.OrderNumber} إلى «{order.StatusTitle}».", false);
+        get => reopenReason;
+        set { reopenReason = value; Changed(); }
     }
 
     private void ReopenOrder()
     {
         var order = SelectedOrder;
         if (order is null || order.IsActiveOrder) return;
-
-        var prevTitle = order.StatusTitle;
-        order.Status = MaintenanceOrderStatus.Diagnosing;
-        order.DeliveredAt = null;
-        order.CancellationReason = "";
-
-        RecordActivity(order, new MaintenanceActivityEntry
-        {
-            Timestamp = DateTime.Now,
-            ActionTitle = "إعادة فتح أمر الصيانة",
-            Details = $"تمت إعادة فتح الأمر من «{prevTitle}» إلى «قيد الفحص» للمتابعة والمراجعة.",
-            ActorName = currentUserName
-        });
-
-        NotifyStageAndKpiCounts();
-        RefreshFilteredOrders();
-        LoadEditableFieldsFromSelected();
-        if (repository is not null)
-            TryPersistOrder(order, $"تمت إعادة فتح الأمر {order.OrderNumber} للمراجعة بحالة «قيد الفحص».", "تعذّر حفظ إعادة الفتح");
-        else
-            SetStatus($"تمت إعادة فتح الأمر {order.OrderNumber} للمراجعة بحالة «قيد الفحص».", false);
+        if (!order.CanReopen) { SetStatus("إعادة الفتح تتطلب اتصال مشرف مخوّل.", true); return; }
+        var reason = ReopenReason.Trim();
+        if (reason.Length is 0 or > 1500) { SetStatus("اكتب سبب إعادة الفتح في حدود 1500 حرف.", true); return; }
+        Post(order, r => r.Reopen(Data.MaintenanceTicketKey.Open(order), reason), $"أعيد فتح {order.OrderNumber} مع حفظ نسخة الإغلاق.");
     }
 
     private void OpenDeliveryDialog()
@@ -1096,77 +926,17 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        SaveWorkshopUpdates(showSuccessMessage: false);
-
-        var vm = new MaintenanceDeliveryViewModel(order, currentUserName);
-        var result = OpenDeliveryDialogRequested?.Invoke(vm);
-        if (result == true || vm.IsConfirmed)
+        // Do not silently save workshop edits when merely opening (or cancelling) delivery.
+        if (EditPriority != order.Priority || (EditAssignedTechnician ?? "").Trim() != order.AssignedTechnician ||
+            EditExpectedDeliveryDate != order.ExpectedDeliveryAt || EditExpectedDeliveryLabel != order.ExpectedDeliveryLabel ||
+            EditDiagnosisNotes.Trim() != order.DiagnosisNotes.Trim())
         {
-            // Snapshot before delivery so only the newly collected amounts are recorded.
-            var cashBefore = order.FinalPaymentCashPaid;
-            var vodBefore = order.FinalPaymentVodafonePaid;
-            var instaBefore = order.FinalPaymentInstaPayPaid;
-            var refundBefore = order.RefundedDepositAmount;
-
-            NotifyStageAndKpiCounts();
-            RefreshFilteredOrders();
-            LoadEditableFieldsFromSelected();
-
-            var cashNew = order.FinalPaymentCashPaid - cashBefore;
-            var vodNew = order.FinalPaymentVodafonePaid - vodBefore;
-            var instaNew = order.FinalPaymentInstaPayPaid - instaBefore;
-            var refundNew = order.RefundedDepositAmount - refundBefore;
-            var totalNewCollected = cashNew + vodNew + instaNew;
-
-            if (cashNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 1, cashNew, DateTime.Now, "دفعة تسليم - كاش"));
-            if (vodNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.VodafoneCash, 2, 1, vodNew, DateTime.Now, "دفعة تسليم - فودافون كاش"));
-            if (instaNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.InstaPay, 2, 1, instaNew, DateTime.Now, "دفعة تسليم - إنستاباي"));
-            if (refundNew > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(FinancialAccountKind.Cash, 2, 2, refundNew, DateTime.Now, "رد فرق عربون عند التسليم"));
-
-            var summaryParts = new List<string>
-            {
-                $"التكلفة النهائية: {order.EstimatedCostDisplay}",
-                vm.WarrantyDays > 0 ? $"ضمان {vm.WarrantyDays} يومًا" : "بدون ضمان"
-            };
-            if (totalNewCollected > 0m)
-                summaryParts.Add($"تحصيل عند التسليم: {PosFormatting.FormatCurrency(totalNewCollected)}");
-            if (refundNew > 0m)
-                summaryParts.Add($"رد فرق عربون: {PosFormatting.FormatCurrency(refundNew)}");
-            if (!string.IsNullOrWhiteSpace(order.DeliveryNotes))
-                summaryParts.Add(order.DeliveryNotes);
-
-            RecordActivity(order, new MaintenanceActivityEntry
-            {
-                Timestamp = DateTime.Now,
-                ActionTitle = "تسليم الجهاز وإغلاق أمر الصيانة",
-                Details = string.Join(" · ", summaryParts),
-                ActorName = currentUserName,
-                Amount = totalNewCollected > 0m ? totalNewCollected : order.CurrentEffectiveCost
-            });
-
-            if (repository is not null)
-                TryPersistOrder(
-                    order,
-                    $"تم تسليم الجهاز {order.OrderNumber} وإغلاق التذكرة ({order.WarrantySummaryDisplay}).",
-                    "تعذّر حفظ التسليم");
-            else
-                SetStatus(
-                    $"تم تسليم الجهاز {order.OrderNumber} وإغلاق التذكرة ({order.WarrantySummaryDisplay}).",
-                    false);
-
-            if (vm.ShouldOpenPrintAfterClose)
-            {
-                var previewVm = new MaintenanceReceiptPreviewViewModel(
-                    order,
-                    modeLabel => RecordPrintActivity(order, modeLabel),
-                    MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt);
-                OpenReceiptPreviewRequested?.Invoke(previewVm);
-            }
+            SetStatus("احفظ تعديلات الفحص والفني قبل فتح نافذة التسليم.", true);
+            return;
         }
+        var dialog = new MaintenanceDeliveryViewModel(order) { LaborCostText = EditLaborCostText, DiscountText = EditDiscountText };
+        MaintenancePosting.Deliver(dialog, repository, OpenDeliveryDialogRequested, RefreshAfterPosting,
+            OpenReceiptPreviewRequested, currentUserName, SetStatus);
     }
 
     private void OpenCancelDialog()
@@ -1179,146 +949,16 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
+        var key = Data.MaintenanceTicketKey.Open(order);
         var vm = new MaintenanceCancelOrderViewModel(order);
-        var result = OpenCancelDialogRequested?.Invoke(vm);
-        if (result == true || vm.IsConfirmed)
-        {
-            var returnedCount = 0;
-            if (vm.ShouldReturnParts && order.UsedParts.Count > 0)
-            {
-                var partsCopy = order.UsedParts.ToList();
-                var spareLines = partsCopy
-                    .Where(part => part.IsSparePartLine)
-                    .Select(part => (SparePartId: part.EffectiveSparePartId, part.Quantity))
-                    .ToList();
-
-                // Return every spare line in one transaction first. If anything fails, the order is
-                // left untouched instead of losing lines while only part of the stock came back.
-                if (repository is not null && spareLines.Count > 0)
-                {
-                    try
-                    {
-                        repository.RestoreSparePartStockForOrder(
-                            order.Id,
-                            spareLines,
-                            $"إرجاع قطع الغيار عند إلغاء الأمر {order.OrderNumber}.");
-                    }
-                    catch (Exception ex)
-                    {
-                        SetStatus($"تعذّر إرجاع قطع الغيار، ولم يتم إلغاء الأمر: {ex.Message}", true);
-                        return;
-                    }
-                }
-
-                foreach (var part in partsCopy)
-                {
-                    if (repository is null)
-                    {
-                        if (!RestorePartStockToInventory(part, order))
-                            return;
-                    }
-                    else if (part.IsSparePartLine)
-                    {
-                        // The atomic SQL batch already raised the database quantity; mirror it in
-                        // the shared item so the open screens update without an extra round-trip.
-                        var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == part.EffectiveSparePartId);
-                        if (sparePart is not null)
-                        {
-                            sparePart.Quantity += part.Quantity;
-                            sparePart.LastMovementAt = DateTime.Now;
-                        }
-                    }
-
-                    order.UsedParts.Remove(part);
-                    if (part.IsSparePartLine)
-                        returnedCount += part.Quantity;
-                }
-                order.RecalculateWorkshopTotal();
-                RefreshFilteredCatalogParts();
-                notifySparePartsChanged?.Invoke();
-            }
-
-            if (vm.ConfirmedRefundAmount > 0m)
-                order.RefundedDepositAmount += vm.ConfirmedRefundAmount;
-
-            order.CancellationReason = vm.FinalReasonText;
-            order.Status = MaintenanceOrderStatus.Cancelled;
-
-            var details = $"السبب: {vm.FinalReasonText}";
-            if (returnedCount > 0)
-                details += $" · تم إرجاع {returnedCount} قطعة غيار لمخزون الصيانة";
-            if (vm.ConfirmedRefundAmount > 0m)
-                details += $" · استرداد عربون: {PosFormatting.FormatCurrency(vm.ConfirmedRefundAmount)}";
-
-            if (vm.ConfirmedRefundAmount > 0m)
-                pendingPayments.Add(new Data.MaintenancePaymentEntry(
-                    FinancialAccountKind.Cash, 1, 2, vm.ConfirmedRefundAmount, DateTime.Now, "رد عربون عند الإلغاء"));
-
-            RecordActivity(order, new MaintenanceActivityEntry
-            {
-                Timestamp = DateTime.Now,
-                ActionTitle = "إلغاء أمر الصيانة",
-                Details = details,
-                ActorName = currentUserName,
-                Amount = vm.ConfirmedRefundAmount > 0m ? vm.ConfirmedRefundAmount : null
-            });
-
-            NotifyStageAndKpiCounts();
-            RefreshFilteredOrders();
-            LoadEditableFieldsFromSelected();
-            if (repository is not null)
-                TryPersistOrder(order, $"تم إلغاء الأمر {order.OrderNumber} ({vm.FinalReasonText}).", "تعذّر حفظ الإلغاء");
-            else
-                SetStatus($"تم إلغاء الأمر {order.OrderNumber} ({vm.FinalReasonText}).", false);
-        }
+        if (OpenCancelDialogRequested?.Invoke(vm) != true || !vm.IsConfirmed) return;
+        Post(order, r => r.Cancel(key, vm.ConfirmedRefundAmount, vm.ShouldReturnParts, vm.FinalReasonText),
+            $"تم إلغاء الأمر {order.OrderNumber} وتسوية الدفعات والقطع.");
     }
 
     private void OpenReceiptPreview()
     {
-        var order = SelectedOrder;
-        if (order is null) return;
-
-        var initialMode = order.IsDelivered || order.IsReadyForPickup
-            ? MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt
-            : MaintenanceReceiptPrintMode.CustomerIntakeReceipt;
-
-        var vm = new MaintenanceReceiptPreviewViewModel(
-            order,
-            modeLabel => RecordPrintActivity(order, modeLabel),
-            initialMode);
-
-        OpenReceiptPreviewRequested?.Invoke(vm);
-    }
-
-    private void RecordPrintActivity(MaintenanceOrderDesignItem order, string modeLabel)
-    {
-        var entry = new MaintenanceActivityEntry
-        {
-            Timestamp = DateTime.Now,
-            ActionTitle = "معاينة / طباعة مستند صيانة",
-            Details = $"صيغة الطباعة: {modeLabel}.",
-            ActorName = currentUserName
-        };
-
-        // Printing is a read-only action on the ticket: append the log row on its own so the order
-        // columns, its part lines and its RowVersion are not rewritten.
-        order.ActivityLog.Add(entry);
-
-        if (repository is null || order.Id <= 0)
-        {
-            SetStatus($"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}».", false);
-            return;
-        }
-
-        try
-        {
-            repository.AppendMaintenanceActivity(order.Id, entry);
-            SetStatus($"تمت معاينة طباعة {order.OrderNumber} بصيغة «{modeLabel}» وحفظ السجل في قاعدة البيانات.", false);
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"تعذّر حفظ سجل الطباعة في قاعدة البيانات: {ex.Message}", true);
-        }
+        if (SelectedOrder is { } order) MaintenancePosting.Preview(order, repository, currentUserName, OpenReceiptPreviewRequested, SetStatus);
     }
 
     // --- Spare Parts Stock Allocation & Release (Maintenance Spare Parts Only) ---
@@ -1350,110 +990,9 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        if (repository is not null && order.Id <= 0)
-        {
-            SetStatus("احفظ أمر الصيانة أولًا قبل صرف قطع الغيار من المخزون.", true);
-            return;
-        }
-
-        if (repository is not null)
-        {
-            try
-            {
-                var barcode = string.IsNullOrWhiteSpace(sparePart.Barcode)
-                    ? sparePart.CodeDisplay
-                    : sparePart.Barcode;
-                repository.DeductSparePartStock(
-                    sparePart.Id, qty, order.Id, sparePart.Name, barcode,
-                    sparePart.CostPrice, sparePart.SellPrice,
-                    $"صرف {sparePart.Name} على الأمر {order.OrderNumber}.");
-            }
-            catch (Exception ex)
-            {
-                SetStatus($"تعذّر صرف قطعة الغيار: {ex.Message}", true);
-                return;
-            }
-        }
-
-        sparePart.Quantity -= qty;
-        sparePart.LastMovementAt = DateTime.Now;
-
-        var partItem = new MaintenancePartUsageItem
-        {
-            // Spare-part lines link dbo.MaintenanceSpareParts through SparePartId; ProductId is
-            // reserved for POS catalog products and stays 0 here.
-            SparePartId = sparePart.Id,
-            Barcode = string.IsNullOrWhiteSpace(sparePart.Barcode) ? sparePart.CodeDisplay : sparePart.Barcode,
-            ProductName = sparePart.Name,
-            Quantity = qty,
-            UnitCost = sparePart.CostPrice,
-            UnitSellPrice = sparePart.SellPrice,
-            IsManualPart = false
-        };
-
-        order.UsedParts.Add(partItem);
-        SyncLaborBeforeWorkshopRecalc(order);
-        order.RecalculateWorkshopTotal();
-        Changed(nameof(LiveComputedTotalDisplay));
-
-        var issueActivity = new MaintenanceActivityEntry
-        {
-            Timestamp = DateTime.Now,
-            ActionTitle = "صرف قطعة غيار من مخزون الصيانة",
-            Details = $"صرف {qty} × {sparePart.Name} ({partItem.LineTotalDisplay}) وخصمها من مخزون قطع الغيار.",
-            ActorName = currentUserName,
-            Amount = partItem.LineTotal
-        };
-        RecordActivity(order, issueActivity);
-
-        CatalogPartQuantityText = "1";
-        RefreshFilteredCatalogParts();
-        NotifyStageAndKpiCounts();
-        notifySparePartsChanged?.Invoke();
-
-        if (order.Id > 0)
-        {
-            if (!TryPersistOrder(
-                    order,
-                    $"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.",
-                    "تعذّر حفظ قطعة الغيار المصروفة"))
-            {
-                // The stock deduction already committed in its own transaction. Try to undo it
-                // through the ledger; only drop the local line when the quantity really returned.
-                if (RestorePartStockToInventory(partItem, order))
-                {
-                    // A failed save reloads the order from SQL, so the local instance may already be
-                    // stale. Only touch it when the reload failed and it is still the selected order.
-                    if (ReferenceEquals(order, SelectedOrder))
-                    {
-                        order.UsedParts.Remove(partItem);
-                        order.ActivityLog.Remove(issueActivity);
-                        pendingActivities.Remove(issueActivity);
-                        SyncLaborBeforeWorkshopRecalc(order);
-                        order.RecalculateWorkshopTotal();
-                        Changed(nameof(LiveComputedTotalDisplay));
-                    }
-                    SetStatus($"تعذّر حفظ القطعة «{sparePart.Name}» في الأمر {order.OrderNumber}؛ أُرجعت الكمية إلى المخزون ولم تُضف إلى التذكرة.", true);
-                }
-                else
-                {
-                    // A successful reload replaced the order with the SQL copy, which has no line;
-                    // claiming the line is still visible would be wrong. Only say so when the reload
-                    // itself failed and the local ticket still holds it.
-                    var lineStillVisible = ReferenceEquals(order, SelectedOrder);
-                    SetStatus(lineStillVisible
-                        ? $"تعذّر حفظ القطعة «{sparePart.Name}» في الأمر {order.OrderNumber} وتعذّر إرجاع كميتها؛ بقي البند في الشاشة ويمكن إعادة المحاولة بعد مراجعة الحالة."
-                        : $"تعذّر حفظ القطعة «{sparePart.Name}» في الأمر {order.OrderNumber} وتعذّر إرجاع كميتها؛ أُعيد تحميل الأمر من قاعدة البيانات فلم يبقَ البند ظاهرًا، والمخزون يحتاج تسوية يدوية من سجل الحركات.", true);
-                }
-
-                RefreshFilteredCatalogParts();
-                NotifyStageAndKpiCounts();
-                notifySparePartsChanged?.Invoke();
-                return;
-            }
-        }
-        else
-            SetStatus($"تم صرف «{sparePart.Name}» ({qty} قطعة) للأمر {order.OrderNumber} وتحديث رصيد قطع الغيار.", false);
+        if (!TryReadPricing(out var labor, out var discount)) return;
+        if (Post(order, r => r.IssuePart(Data.MaintenanceTicketKey.Open(order), sparePart.Id, qty, labor, discount),
+                $"تم صرف {qty} × {sparePart.Name} على الأمر {order.OrderNumber}.")) CatalogPartQuantityText = "1";
     }
 
     private void AddManualPart()
@@ -1496,141 +1035,21 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        var partItem = new MaintenancePartUsageItem
+        if (!TryReadPricing(out var labor, out var discount)) return;
+        if (Post(order, r => r.AddManualPart(Data.MaintenanceTicketKey.Open(order), ManualPartName.Trim(), qty, cost, sellPrice, labor, discount),
+                $"أضيف البند اليدوي إلى {order.OrderNumber}."))
         {
-            ProductId = 0,
-            Barcode = "MANUAL",
-            ProductName = ManualPartName.Trim(),
-            Quantity = qty,
-            UnitCost = cost,
-            UnitSellPrice = sellPrice,
-            IsManualPart = true
-        };
-
-        order.UsedParts.Add(partItem);
-        SyncLaborBeforeWorkshopRecalc(order);
-        order.RecalculateWorkshopTotal();
-        Changed(nameof(LiveComputedTotalDisplay));
-
-        RecordActivity(order, new MaintenanceActivityEntry
-        {
-            Timestamp = DateTime.Now,
-            ActionTitle = "إضافة قطعة غيار يدوية",
-            Details = $"إضافة {qty} × {partItem.ProductName} بقيمة {partItem.LineTotalDisplay}.",
-            ActorName = currentUserName,
-            Amount = partItem.LineTotal
-        });
-
-        ManualPartName = "";
-        ManualPartCostText = "0";
-        ManualPartPriceText = "0";
-        ManualPartQtyText = "1";
-        NotifyStageAndKpiCounts();
-        if (order.Id > 0)
-            TryPersistOrder(
-                order,
-                $"تمت إضافة البند اليدوي «{partItem.ProductName}» للأمر {order.OrderNumber}.",
-                "تعذّر حفظ البند اليدوي");
-        else
-            SetStatus($"تمت إضافة البند اليدوي «{partItem.ProductName}» للأمر {order.OrderNumber}.", false);
+            ManualPartName = ""; ManualPartCostText = "0"; ManualPartPriceText = "0"; ManualPartQtyText = "1";
+        }
     }
 
     private void RemoveUsedPart(MaintenancePartUsageItem? part)
     {
         var order = SelectedOrder;
-        if (order is null || part is null) return;
-        if (!order.IsActiveOrder)
-        {
-            SetStatus("لا يمكن إزالة قطع غيار من تذكرة مغلقة.", true);
-            return;
-        }
-
-        if (!RestorePartStockToInventory(part, order))
-        {
-            // Never remove the order line when the stock return failed; otherwise the line and
-            // the inventory would disagree as soon as the ticket is saved.
-            return;
-        }
-        order.UsedParts.Remove(part);
-        SyncLaborBeforeWorkshopRecalc(order);
-        order.RecalculateWorkshopTotal();
-        Changed(nameof(LiveComputedTotalDisplay));
-
-        RecordActivity(order, new MaintenanceActivityEntry
-        {
-            Timestamp = DateTime.Now,
-            ActionTitle = part.IsManualPart ? "حذف بند قطعة غيار" : "إرجاع قطعة غيار لمخزون الصيانة",
-            Details = $"حذف {part.Quantity} × {part.ProductName} ({part.LineTotalDisplay}).",
-            ActorName = currentUserName
-        });
-
-        RefreshFilteredCatalogParts();
-        NotifyStageAndKpiCounts();
-        if (!part.IsManualPart)
-            notifySparePartsChanged?.Invoke();
-
-        if (order.Id > 0)
-            TryPersistOrder(
-                order,
-                part.IsManualPart
-                    ? $"تم حذف البند «{part.ProductName}» من التذكرة."
-                    : $"تمت إزالة «{part.ProductName}» وإرجاع الكمية لمخزون قطع الغيار بنجاح.",
-                "تعذّر حفظ حذف القطعة");
-        else
-            SetStatus(
-                part.IsManualPart
-                    ? $"تم حذف البند «{part.ProductName}» من التذكرة."
-                    : $"تمت إزالة «{part.ProductName}» وإرجاع الكمية لمخزون قطع الغيار بنجاح.",
-                false);
-    }
-
-    private void SyncLaborBeforeWorkshopRecalc(MaintenanceOrderDesignItem order)
-    {
-        if (PosFormatting.TryParseAmount(EditLaborCostText, out var labor) && labor >= 0m)
-            order.LaborCost = labor;
-        if (PosFormatting.TryParseAmount(EditDiscountText, out var discount) && discount >= 0m)
-            order.DiscountAmount = discount;
-    }
-
-    /// <summary>
-    /// Returns a spare-part line to dbo.MaintenanceSpareParts before the line is dropped from the
-    /// ticket. The id comes from the line itself, so a part that is no longer in the loaded catalog
-    /// is still returned instead of being lost. Returns false when the stock write failed, so the
-    /// caller must keep the line on the ticket.
-    /// </summary>
-    private bool RestorePartStockToInventory(MaintenancePartUsageItem part, MaintenanceOrderDesignItem? order = null)
-    {
-        if (!part.IsSparePartLine) return true;
-
-        var sparePartId = part.EffectiveSparePartId;
-        if (sparePartId <= 0) return true;
-
-        // The SQL restore must run even when the part was deactivated: it is no longer in the
-        // active shared collection, but its order line still has to return stock to the ledger.
-        if (repository is not null)
-        {
-            try
-            {
-                repository.RestoreSparePartStock(
-                    sparePartId,
-                    part.Quantity,
-                    order?.Id ?? 0,
-                    $"إرجاع {part.ProductName} من {order?.OrderNumber ?? "أمر صيانة"}.");
-            }
-            catch (Exception ex)
-            {
-                SetStatus($"تعذّر استرجاع رصيد قطعة الغيار: {ex.Message}", true);
-                return false;
-            }
-        }
-
-        var sparePart = sharedSpareParts.FirstOrDefault(p => p.Id == sparePartId);
-        if (sparePart is not null)
-        {
-            sparePart.Quantity += part.Quantity;
-            sparePart.LastMovementAt = DateTime.Now;
-        }
-        return true;
+        if (order is null || part is null || !order.IsActiveOrder || !order.UsedParts.Contains(part)) return;
+        if (!TryReadPricing(out var labor, out var discount)) return;
+        Post(order, r => r.RemovePart(Data.MaintenanceTicketKey.Open(order), part.LineId, labor, discount),
+            $"تم حذف بند {part.ProductName} من {order.OrderNumber} وتسوية المخزون.");
     }
 
     private void SetExtraDepositMode(MaintenanceDepositMode mode)
@@ -1657,47 +1076,14 @@ public sealed class MaintenanceActionsViewModel : ObservableObject
             return;
         }
 
-        FinancialAccountKind account;
-        string channelTitle;
-        if (extraDepositMode == MaintenanceDepositMode.VodafoneCashOnly)
+        var account = extraDepositMode switch
         {
-            order.DepositVodafonePaid += amount;
-            account = FinancialAccountKind.VodafoneCash;
-            channelTitle = "فودافون كاش";
-        }
-        else if (extraDepositMode == MaintenanceDepositMode.InstaPayOnly)
-        {
-            order.DepositInstaPayPaid += amount;
-            account = FinancialAccountKind.InstaPay;
-            channelTitle = "إنستاباي";
-        }
-        else
-        {
-            order.DepositCashPaid += amount;
-            account = FinancialAccountKind.Cash;
-            channelTitle = "كاش";
-        }
-
-        pendingPayments.Add(new Data.MaintenancePaymentEntry(account, 1, 1, amount, DateTime.Now, $"دفعة إضافية - {channelTitle}"));
-
-        RecordActivity(order, new MaintenanceActivityEntry
-        {
-            Timestamp = DateTime.Now,
-            ActionTitle = "تحصيل دفعة تحت الحساب",
-            Details = $"تحصيل {PosFormatting.FormatCurrency(amount)} عبر {channelTitle}.",
-            ActorName = currentUserName,
-            Amount = amount
-        });
-
-        ExtraDepositAmountText = "";
-        NotifyStageAndKpiCounts();
-        if (repository is not null)
-            TryPersistOrder(
-                order,
-                $"تم تحصيل دفعة إضافية {PosFormatting.FormatCurrency(amount)} على الأمر {order.OrderNumber} ({channelTitle}).",
-                "تعذّر حفظ الدفعة الإضافية");
-        else
-            SetStatus($"تم تحصيل دفعة إضافية {PosFormatting.FormatCurrency(amount)} على الأمر {order.OrderNumber} ({channelTitle}).", false);
+            MaintenanceDepositMode.VodafoneCashOnly => FinancialAccountKind.VodafoneCash,
+            MaintenanceDepositMode.InstaPayOnly => FinancialAccountKind.InstaPay,
+            _ => FinancialAccountKind.Cash
+        };
+        if (Post(order, r => r.CollectDeposit(Data.MaintenanceTicketKey.Open(order), account, amount),
+                $"تم تحصيل {PosFormatting.FormatCurrency(amount)} على الأمر {order.OrderNumber}.")) ExtraDepositAmountText = "";
     }
 
     private void RefreshFilteredOrders(int preferredOrderId = 0)
