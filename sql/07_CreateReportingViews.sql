@@ -95,40 +95,26 @@ CROSS APPLY (SELECT CONVERT(decimal(19,2),CASE WHEN si.InvoiceStatus IN (3,4) TH
                     CONVERT(decimal(19,2),COALESCE(payments.Collected,0)-COALESCE(payments.Refunded,0)) AS NetCollected) n;
 GO
 
-CREATE OR ALTER VIEW dbo.vwPurchaseInvoiceSummary
-AS
-SELECT
-    pi.Id AS PurchaseInvoiceId,
-    pi.InvoiceNumber,
-    pi.SupplierInvoiceNumber,
-    pi.IssuedAtUtc,
-    pi.InvoiceStatus,
-    pi.SupplierId,
-    pi.SupplierNameSnapshot,
-    COALESCE(lines.Subtotal, 0) AS Subtotal,
-    pi.DiscountAmount,
-    COALESCE(lines.NetPurchases, 0) - pi.DiscountAmount AS NetPurchases,
-    COALESCE(payments.Paid, 0) AS PaidAmount,
-    COALESCE(payments.RefundReceived, 0) AS SupplierRefundReceived,
-    COALESCE(payments.Paid, 0) - COALESCE(payments.RefundReceived, 0) AS NetPaid,
-    COALESCE(lines.NetPurchases, 0) - pi.DiscountAmount - COALESCE(payments.Paid, 0) + COALESCE(payments.RefundReceived, 0) AS RemainingPayable
-FROM dbo.PurchaseInvoices AS pi
-OUTER APPLY
-(
-    SELECT
-        SUM(pl.UnitPurchaseCost * pl.Quantity) AS Subtotal,
-        SUM(pl.UnitPurchaseCost * (pl.Quantity - pl.ReturnedQuantity)) AS NetPurchases
-    FROM dbo.PurchaseInvoiceLines AS pl
-    WHERE pl.PurchaseInvoiceId = pi.Id
-) AS lines
-OUTER APPLY
-(
-    SELECT
-        SUM(CASE WHEN pp.PaymentKind = 1 THEN pp.Amount ELSE 0 END) AS Paid,
-        SUM(CASE WHEN pp.PaymentKind = 2 THEN pp.Amount ELSE 0 END) AS RefundReceived
-    FROM dbo.PurchasePayments AS pp
-    WHERE pp.PurchaseInvoiceId = pi.Id
-) AS payments;
+-- Purchase discount stays on the remaining goods, capped at their gross. A return
+-- settles the CHANGE in net, not quantity × cost when the discount absorbs part of it.
+CREATE OR ALTER VIEW dbo.vwPurchaseDocumentValue AS
+SELECT i.Id AS PurchaseInvoiceId, i.InvoiceNumber, i.SupplierInvoiceNumber, i.IssuedAtUtc, i.InvoiceStatus,
+       i.SupplierId, i.SupplierNameSnapshot, g.Subtotal, i.DiscountAmount, g.ActiveGross,
+       CONVERT(decimal(19,2),CASE WHEN i.InvoiceStatus=3 OR g.ActiveGross<i.DiscountAmount THEN 0 ELSE g.ActiveGross-i.DiscountAmount END) AS NetPurchases,
+       p.PaidAmount, p.SupplierRefundReceived, CONVERT(decimal(19,2),p.PaidAmount-p.SupplierRefundReceived) AS NetPaid
+FROM dbo.PurchaseInvoices i
+CROSS APPLY (SELECT CONVERT(decimal(19,2),COALESCE(SUM(UnitPurchaseCost*Quantity),0)) AS Subtotal,
+                    CONVERT(decimal(19,2),COALESCE(SUM(UnitPurchaseCost*(Quantity-ReturnedQuantity)),0)) AS ActiveGross
+             FROM dbo.PurchaseInvoiceLines WHERE PurchaseInvoiceId=i.Id) g
+CROSS APPLY (SELECT CONVERT(decimal(19,2),COALESCE(SUM(CASE WHEN PaymentKind=1 THEN Amount ELSE 0 END),0)) AS PaidAmount,
+                    CONVERT(decimal(19,2),COALESCE(SUM(CASE WHEN PaymentKind=2 THEN Amount ELSE 0 END),0)) AS SupplierRefundReceived
+             FROM dbo.PurchasePayments WHERE PurchaseInvoiceId=i.Id) p;
+GO
+-- 25 installs the credit-aware summary. Re-running 07 must not replace it.
+IF OBJECT_ID(N'dbo.SupplierCreditNotes',N'U') IS NULL
+    EXEC(N'CREATE OR ALTER VIEW dbo.vwPurchaseInvoiceSummary AS
+        SELECT d.*, CONVERT(decimal(19,2),CASE WHEN d.NetPurchases>d.NetPaid AND d.InvoiceStatus NOT IN (3,5)
+            THEN d.NetPurchases-d.NetPaid ELSE 0 END) AS RemainingPayable FROM dbo.vwPurchaseDocumentValue d;');
 GO
 
 CREATE OR ALTER VIEW dbo.vwMaintenanceOrderSummary

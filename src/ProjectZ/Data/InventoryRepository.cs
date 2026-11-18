@@ -42,7 +42,7 @@ SELECT iu.Id, iu.ProductId, p.Name, COALESCE(p.Barcode,N''), iu.PurchaseCost,
 FROM dbo.InventoryUnits iu
 JOIN dbo.Products p ON p.Id=iu.ProductId
 LEFT JOIN dbo.Suppliers s ON s.Id=iu.SupplierId
-WHERE p.IsActiveForSale=1
+WHERE p.IsActiveForSale=1 AND iu.UnitStatus<>3
 ORDER BY iu.RegisteredAtUtc DESC, iu.Id DESC;
 SELECT Name FROM dbo.Categories WHERE IsActive=1 ORDER BY Name;";
         using var reader = command.ExecuteReader();

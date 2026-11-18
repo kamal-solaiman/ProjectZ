@@ -67,7 +67,9 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
     private int availableUnitsCount;
     private int damagedUnitsCount;
 
-    public PurchaseInvoiceDesignItem Invoice { get; }
+    private readonly Func<int, PurchaseInvoiceDesignItem?> findCurrent;
+    private readonly Func<(string Message, bool Error)> actionStatus;
+    public PurchaseInvoiceDesignItem Invoice { get; private set; }
     public ObservableCollection<PurchaseInvoiceLineStatusRow> LineRows { get; } = [];
 
     public int SoldUnitsCount
@@ -149,6 +151,7 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
 
     public ActionCommand PrintPreviewCommand { get; }
     public ActionCommand PayRemainingCommand { get; }
+    public ActionCommand SettleCreditCommand { get; }
     public ActionCommand EditInvoiceCommand { get; }
     public ActionCommand ReturnToSupplierCommand { get; }
     public ActionCommand CancelInvoiceCommand { get; }
@@ -164,7 +167,10 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
         Action<PurchaseInvoiceDesignItem> onEdit,
         Action<PurchaseInvoiceDesignItem> onReturn,
         Action<PurchaseInvoiceDesignItem> onCancel,
-        Func<PurchaseInvoiceDesignItem, bool> onDelete)
+        Func<PurchaseInvoiceDesignItem, bool> onDelete,
+        Action<PurchaseInvoiceDesignItem> onCredit,
+        Func<int, PurchaseInvoiceDesignItem?> findCurrent,
+        Func<(string Message, bool Error)> actionStatus)
     {
         Invoice = invoice;
         this.sharedSuppliers = sharedSuppliers;
@@ -175,11 +181,14 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
         this.onReturn = onReturn;
         this.onCancel = onCancel;
         this.onDelete = onDelete;
+        this.findCurrent = findCurrent;
+        this.actionStatus = actionStatus;
+        SettleCreditCommand = new ActionCommand(() => { onCredit(Invoice); AfterAction(); });
 
         PrintPreviewCommand = new ActionCommand(() =>
         {
             this.onPrint(Invoice);
-            RefreshDetails();
+            AfterAction();
         });
 
         PayRemainingCommand = new ActionCommand(() =>
@@ -190,7 +199,7 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
                 return;
             }
             this.onPayRemaining(Invoice);
-            RefreshDetails();
+            AfterAction();
         });
 
         EditInvoiceCommand = new ActionCommand(() =>
@@ -201,7 +210,7 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
                 return;
             }
             this.onEdit(Invoice);
-            RefreshDetails();
+            AfterAction();
         });
 
         ReturnToSupplierCommand = new ActionCommand(() =>
@@ -212,7 +221,7 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
                 return;
             }
             this.onReturn(Invoice);
-            RefreshDetails();
+            AfterAction();
         });
 
         CancelInvoiceCommand = new ActionCommand(() =>
@@ -223,7 +232,7 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
                 return;
             }
             this.onCancel(Invoice);
-            RefreshDetails();
+            AfterAction();
         });
 
         DeleteInvoiceCommand = new ActionCommand(() =>
@@ -236,6 +245,7 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
 
             if (this.onDelete(Invoice))
                 RequestClose?.Invoke();
+            else AfterAction();
         });
 
         CloseCommand = new ActionCommand(() => RequestClose?.Invoke());
@@ -247,6 +257,14 @@ public sealed class PurchaseInvoiceDetailsViewModel : ObservableObject
     {
         IsErrorStatus = isError;
         StatusMessage = message;
+    }
+
+    private void AfterAction()
+    {
+        Invoice = findCurrent(Invoice.Id) ?? Invoice;
+        var result = actionStatus();
+        SetStatus(result.Message, result.Error);
+        RefreshDetails();
     }
 
     public void RefreshDetails()
@@ -465,9 +483,7 @@ public sealed record PurchaseReturnSubmission(
     IReadOnlyList<PurchaseReturnLineRequest> Lines,
     string Reason,
     string Notes,
-    bool PreferDamagedFirst,
-    string RefundChannel,
-    decimal CashRefundReceived);
+    bool PreferDamagedFirst);
 
 public sealed class PurchaseReturnLineViewModel : ObservableObject
 {
@@ -568,7 +584,6 @@ public sealed class PurchaseReturnViewModel : ObservableObject
     private string reason = "تلف عند الاستلام / عطل مصنعي";
     private string notes = "";
     private bool preferDamagedFirst;
-    private string refundChannel = "نقدي (كاش)";
     private string errorMessage = "";
 
     public PurchaseInvoiceDesignItem Invoice { get; }
@@ -581,14 +596,6 @@ public sealed class PurchaseReturnViewModel : ObservableObject
         "مواصفات غير مطابقة للطلب",
         "اتفاق تصفية مع المورد",
         "فرق سعر / استبدال دفعة"
-    ];
-
-    public IReadOnlyList<string> RefundChannels { get; } =
-    [
-        "نقدي (كاش)",
-        "فودافون كاش",
-        "إنستاباي",
-        "يُترك كرصيد / مقاصة عند المورد (لاحقًا)"
     ];
 
     public string Reason
@@ -625,20 +632,6 @@ public sealed class PurchaseReturnViewModel : ObservableObject
         }
     }
 
-    public string RefundChannel
-    {
-        get => refundChannel;
-        set
-        {
-            if (refundChannel == value || value is null) return;
-            refundChannel = value;
-            Changed();
-            Changed(nameof(ReceiveImmediateCashRefund));
-            Changed(nameof(CashRefundToReceive));
-            Changed(nameof(CashRefundToReceiveDisplay));
-        }
-    }
-
     public string ErrorMessage
     {
         get => errorMessage;
@@ -654,19 +647,16 @@ public sealed class PurchaseReturnViewModel : ObservableObject
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
     public int TotalReturnUnits => Lines.Sum(l => l.ReturnQuantity);
-    public decimal TotalReturnValue => Lines.Sum(l => l.LineReturnValue);
+    public decimal TotalReturnValue => Invoice.NetTotal - Math.Max(0m, Invoice.ActiveGrossTotal - Lines.Sum(l => l.LineReturnValue) - Invoice.DiscountAmount);
     public decimal AppliedToCredit => Math.Min(TotalReturnValue, Invoice.RemainingPayable);
     public decimal ExpectedRefundAboveCredit => Math.Max(0m, TotalReturnValue - AppliedToCredit);
     public bool NeedsSupplierRefundChoice => ExpectedRefundAboveCredit > 0m;
-    public bool ReceiveImmediateCashRefund => !RefundChannel.Contains("لاحقًا", StringComparison.Ordinal);
-    public decimal CashRefundToReceive => ReceiveImmediateCashRefund ? ExpectedRefundAboveCredit : 0m;
     public decimal NewRemainingPayable => Math.Max(0m, Invoice.RemainingPayable - AppliedToCredit);
 
     public string TotalReturnUnitsDisplay => $"{TotalReturnUnits} قطعة";
     public string TotalReturnValueDisplay => PosFormatting.FormatCurrency(TotalReturnValue);
     public string AppliedToCreditDisplay => PosFormatting.FormatCurrency(AppliedToCredit);
     public string ExpectedRefundAboveCreditDisplay => PosFormatting.FormatCurrency(ExpectedRefundAboveCredit);
-    public string CashRefundToReceiveDisplay => PosFormatting.FormatCurrency(CashRefundToReceive);
     public string NewRemainingPayableDisplay => PosFormatting.FormatCurrency(NewRemainingPayable);
 
     public Action? RequestCloseWithSuccess { get; set; }
@@ -729,13 +719,11 @@ public sealed class PurchaseReturnViewModel : ObservableObject
         Changed(nameof(AppliedToCredit));
         Changed(nameof(ExpectedRefundAboveCredit));
         Changed(nameof(NeedsSupplierRefundChoice));
-        Changed(nameof(CashRefundToReceive));
         Changed(nameof(NewRemainingPayable));
         Changed(nameof(TotalReturnUnitsDisplay));
         Changed(nameof(TotalReturnValueDisplay));
         Changed(nameof(AppliedToCreditDisplay));
         Changed(nameof(ExpectedRefundAboveCreditDisplay));
-        Changed(nameof(CashRefundToReceiveDisplay));
         Changed(nameof(NewRemainingPayableDisplay));
     }
 
@@ -762,9 +750,7 @@ public sealed class PurchaseReturnViewModel : ObservableObject
             selected,
             Reason.Trim(),
             Notes.Trim(),
-            PreferDamagedFirst,
-            RefundChannel,
-            CashRefundToReceive);
+            PreferDamagedFirst);
         RequestCloseWithSuccess?.Invoke();
     }
 }
@@ -931,73 +917,25 @@ public sealed record EditPurchaseLineSubmission(
     decimal NewUnitPurchaseCost);
 
 public sealed record EditPurchaseSubmission(
-    SupplierDesignItem Supplier,
     string SupplierInvoiceNumber,
     DateTime PurchaseDate,
     string Notes,
     decimal DiscountAmount,
-    decimal CashPaid,
-    decimal VodafoneCashPaid,
-    decimal InstaPayPaid,
     IReadOnlyList<EditPurchaseLineSubmission> Lines);
 
 public sealed class EditPurchaseInvoiceViewModel : ObservableObject
 {
     private readonly IReadOnlyList<PosProductDesignItem> catalog;
-    private readonly IReadOnlyList<SupplierDesignItem> suppliers;
-
-    private SupplierDesignItem selectedSupplier;
-    private string supplierSearchText = "";
-    private bool isSupplierPickerOpen;
     private string supplierInvoiceNumber;
     private DateTime purchaseDate;
     private string notes;
     private string productSearchText = "";
     private string discountAmountText;
-    private string cashAmountText;
-    private string vodafoneCashAmountText;
-    private string instaPayAmountText;
     private string errorMessage = "";
 
     public PurchaseInvoiceDesignItem Invoice { get; }
     public ObservableCollection<EditPurchaseLineItemViewModel> Lines { get; } = [];
-    public ObservableCollection<SupplierDesignItem> FilteredSuppliers { get; } = [];
     public ObservableCollection<PosProductDesignItem> FilteredCatalog { get; } = [];
-
-    public SupplierDesignItem SelectedSupplier
-    {
-        get => selectedSupplier;
-        private set
-        {
-            if (ReferenceEquals(selectedSupplier, value)) return;
-            selectedSupplier = value;
-            Changed();
-        }
-    }
-
-    public string SupplierSearchText
-    {
-        get => supplierSearchText;
-        set
-        {
-            if (supplierSearchText == value) return;
-            supplierSearchText = value;
-            Changed();
-            RefreshFilteredSuppliers();
-        }
-    }
-
-    public bool IsSupplierPickerOpen
-    {
-        get => isSupplierPickerOpen;
-        set
-        {
-            if (isSupplierPickerOpen == value) return;
-            isSupplierPickerOpen = value;
-            if (isSupplierPickerOpen) RefreshFilteredSuppliers();
-            Changed();
-        }
-    }
 
     public string SupplierInvoiceNumber
     {
@@ -1056,42 +994,6 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
         }
     }
 
-    public string CashAmountText
-    {
-        get => cashAmountText;
-        set
-        {
-            if (cashAmountText == value) return;
-            cashAmountText = value;
-            Changed();
-            NotifyFinancials();
-        }
-    }
-
-    public string VodafoneCashAmountText
-    {
-        get => vodafoneCashAmountText;
-        set
-        {
-            if (vodafoneCashAmountText == value) return;
-            vodafoneCashAmountText = value;
-            Changed();
-            NotifyFinancials();
-        }
-    }
-
-    public string InstaPayAmountText
-    {
-        get => instaPayAmountText;
-        set
-        {
-            if (instaPayAmountText == value) return;
-            instaPayAmountText = value;
-            Changed();
-            NotifyFinancials();
-        }
-    }
-
     public string ErrorMessage
     {
         get => errorMessage;
@@ -1109,24 +1011,18 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
     public decimal Subtotal => Lines.Sum(l => l.LineTotal);
     public decimal ReturnedGoodsTotal => Lines.Sum(l => l.ReturnedQuantity * l.UnitPurchaseCost);
     public decimal ActiveGrossTotal => Math.Max(0m, Subtotal - ReturnedGoodsTotal);
-    public decimal DiscountAmount => PosFormatting.TryParseAmount(DiscountAmountText, out var disc) && disc >= 0m ? disc : 0m;
+    public decimal DiscountAmount => PosFormatting.TryParseAmount(DiscountAmountText, out var disc) ? disc : 0m;
     public decimal EffectiveDiscount => Math.Min(ActiveGrossTotal, DiscountAmount);
     public decimal NetTotal => Math.Max(0m, ActiveGrossTotal - EffectiveDiscount);
 
-    public decimal CashAmount => PosFormatting.TryParseAmount(CashAmountText, out var cash) && cash >= 0m ? cash : 0m;
-    public decimal VodafoneCashAmount => PosFormatting.TryParseAmount(VodafoneCashAmountText, out var vf) && vf >= 0m ? vf : 0m;
-    public decimal InstaPayAmount => PosFormatting.TryParseAmount(InstaPayAmountText, out var ip) && ip >= 0m ? ip : 0m;
-    public decimal TotalPaid => CashAmount + VodafoneCashAmount + InstaPayAmount;
-    public decimal NetCashOutflow => Math.Max(0m, TotalPaid - Invoice.SupplierRefundReceived);
-    public decimal RemainingPayable => Math.Max(0m, NetTotal - NetCashOutflow);
-    public bool HasOverpayment => NetCashOutflow > NetTotal;
+    public decimal RemainingPayable => Math.Max(0m, NetTotal - Invoice.SettledAmount);
+    public bool HasOverpayment => Invoice.SettledAmount > NetTotal;
 
     public string SubtotalDisplay => PosFormatting.FormatCurrency(Subtotal);
     public string ReturnedGoodsTotalDisplay => PosFormatting.FormatCurrency(ReturnedGoodsTotal);
     public bool HasReturnedGoods => ReturnedGoodsTotal > 0m;
     public string EffectiveDiscountDisplay => PosFormatting.FormatCurrency(EffectiveDiscount);
     public string NetTotalDisplay => PosFormatting.FormatCurrency(NetTotal);
-    public string TotalPaidDisplay => PosFormatting.FormatCurrency(TotalPaid);
     public string RemainingPayableDisplay => PosFormatting.FormatCurrency(RemainingPayable);
     public string LinesCountDisplay => $"{Lines.Count} بند · {Lines.Sum(l => l.Quantity)} قطعة";
 
@@ -1134,45 +1030,23 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
     public Action? RequestCloseCancel { get; set; }
     public EditPurchaseSubmission? Result { get; private set; }
 
-    public ActionCommand ToggleSupplierPickerCommand { get; }
-    public RelayCommand<SupplierDesignItem> SelectSupplierCommand { get; }
     public ActionCommand ScanOrSearchEnterCommand { get; }
     public RelayCommand<PosProductDesignItem> AddProductCommand { get; }
-    public ActionCommand FillRemainingCashCommand { get; }
-    public ActionCommand FillRemainingVodafoneCommand { get; }
-    public ActionCommand FillRemainingInstaPayCommand { get; }
-    public ActionCommand ClearPaymentsToCreditCommand { get; }
     public ActionCommand SaveCommand { get; }
     public ActionCommand CancelCommand { get; }
 
     public EditPurchaseInvoiceViewModel(
         PurchaseInvoiceDesignItem invoice,
-        IReadOnlyList<SupplierDesignItem> suppliers,
         IReadOnlyList<PosProductDesignItem> catalog,
         IReadOnlyList<InventoryUnitRegistrationItem> sharedRegistrations)
     {
         Invoice = invoice;
-        this.suppliers = suppliers;
         this.catalog = catalog;
-
-        selectedSupplier = suppliers.FirstOrDefault(s => s.Id == invoice.SupplierId || s.Name == invoice.SupplierName)
-                           ?? new SupplierDesignItem
-                           {
-                               Id = invoice.SupplierId,
-                               Name = invoice.SupplierName,
-                               Phone = invoice.SupplierPhone,
-                               CompanyName = invoice.SupplierCompany,
-                               Address = invoice.SupplierAddress
-                           };
 
         supplierInvoiceNumber = invoice.SupplierInvoiceNumber;
         purchaseDate = invoice.IssuedAt.Date;
         notes = invoice.Notes;
         discountAmountText = invoice.DiscountAmount > 0m ? invoice.DiscountAmount.ToString("0.##", CultureInfo.InvariantCulture) : "0";
-        cashAmountText = invoice.CashPaid > 0m ? invoice.CashPaid.ToString("0.##", CultureInfo.InvariantCulture) : "0";
-        vodafoneCashAmountText = invoice.VodafoneCashPaid > 0m ? invoice.VodafoneCashPaid.ToString("0.##", CultureInfo.InvariantCulture) : "0";
-        instaPayAmountText = invoice.InstaPayPaid > 0m ? invoice.InstaPayPaid.ToString("0.##", CultureInfo.InvariantCulture) : "0";
-
         foreach (var line in invoice.Items)
         {
             var product = catalog.FirstOrDefault(p => p.Id == line.ProductId)
@@ -1203,44 +1077,12 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
                 RemoveLine));
         }
 
-        ToggleSupplierPickerCommand = new ActionCommand(() => IsSupplierPickerOpen = !IsSupplierPickerOpen);
-        SelectSupplierCommand = new RelayCommand<SupplierDesignItem>(sup =>
-        {
-            if (sup is null) return;
-            SelectedSupplier = sup;
-            SupplierSearchText = "";
-            IsSupplierPickerOpen = false;
-        });
-
         ScanOrSearchEnterCommand = new ActionCommand(HandleScanOrAddFirst);
         AddProductCommand = new RelayCommand<PosProductDesignItem>(AddProduct);
-
-        FillRemainingCashCommand = new ActionCommand(() =>
-        {
-            var add = Math.Max(0m, NetTotal - NetCashOutflow);
-            CashAmountText = (CashAmount + add).ToString("0.##", CultureInfo.InvariantCulture);
-        });
-        FillRemainingVodafoneCommand = new ActionCommand(() =>
-        {
-            var add = Math.Max(0m, NetTotal - NetCashOutflow);
-            VodafoneCashAmountText = (VodafoneCashAmount + add).ToString("0.##", CultureInfo.InvariantCulture);
-        });
-        FillRemainingInstaPayCommand = new ActionCommand(() =>
-        {
-            var add = Math.Max(0m, NetTotal - NetCashOutflow);
-            InstaPayAmountText = (InstaPayAmount + add).ToString("0.##", CultureInfo.InvariantCulture);
-        });
-        ClearPaymentsToCreditCommand = new ActionCommand(() =>
-        {
-            CashAmountText = "0";
-            VodafoneCashAmountText = "0";
-            InstaPayAmountText = "0";
-        });
 
         SaveCommand = new ActionCommand(Submit);
         CancelCommand = new ActionCommand(() => RequestCloseCancel?.Invoke());
 
-        RefreshFilteredSuppliers();
         RefreshFilteredCatalog();
     }
 
@@ -1294,20 +1136,6 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
         NotifyFinancials();
     }
 
-    private void RefreshFilteredSuppliers()
-    {
-        var q = SupplierSearchText.Trim();
-        var matches = suppliers.Where(s =>
-            string.IsNullOrEmpty(q)
-            || s.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
-            || s.Phone.Contains(q, StringComparison.OrdinalIgnoreCase)
-            || s.CompanyName.Contains(q, StringComparison.OrdinalIgnoreCase));
-
-        FilteredSuppliers.Clear();
-        foreach (var s in matches)
-            FilteredSuppliers.Add(s);
-    }
-
     private void RefreshFilteredCatalog()
     {
         var q = ProductSearchText.Trim();
@@ -1332,15 +1160,12 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
         Changed(nameof(ActiveGrossTotal));
         Changed(nameof(EffectiveDiscount));
         Changed(nameof(NetTotal));
-        Changed(nameof(TotalPaid));
-        Changed(nameof(NetCashOutflow));
         Changed(nameof(RemainingPayable));
         Changed(nameof(HasOverpayment));
         Changed(nameof(SubtotalDisplay));
         Changed(nameof(ReturnedGoodsTotalDisplay));
         Changed(nameof(EffectiveDiscountDisplay));
         Changed(nameof(NetTotalDisplay));
-        Changed(nameof(TotalPaidDisplay));
         Changed(nameof(RemainingPayableDisplay));
         Changed(nameof(LinesCountDisplay));
     }
@@ -1369,27 +1194,18 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
             }
         }
 
-        if (Invoice.SupplierRefundReceived > 0m && TotalPaid < Invoice.SupplierRefundReceived)
+        if ((!string.IsNullOrWhiteSpace(DiscountAmountText) && !PosFormatting.TryParseAmount(DiscountAmountText, out _)) ||
+            DiscountAmount < 0m || DiscountAmount > ActiveGrossTotal || NetTotal <= 0m || HasOverpayment)
         {
-            ErrorMessage = $"إجمالي المدفوع ({TotalPaidDisplay}) لا يمكن أن يقل عن المبلغ المسترد سابقًا من المورد ({Invoice.SupplierRefundReceivedDisplay}).";
-            return;
-        }
-
-        if (HasOverpayment)
-        {
-            ErrorMessage = $"صافي المدفوع للمورد يتجاوز صافي الفاتورة ({NetTotalDisplay}). يرجى ضبط المبالغ المدفوعة.";
+            ErrorMessage = "راجع الخصم والصافي بعد المرتجعات. يجب أن يغطي الصافي السداد والمقاصة المسجلين؛ لا يغيّر التعديل أي دفعة.";
             return;
         }
 
         Result = new EditPurchaseSubmission(
-            SelectedSupplier,
             SupplierInvoiceNumber.Trim(),
             PurchaseDate.Date,
             Notes.Trim(),
             DiscountAmount,
-            CashAmount,
-            VodafoneCashAmount,
-            InstaPayAmount,
             Lines.Select(l => new EditPurchaseLineSubmission(l.ExistingLine, l.Product, l.Quantity, l.UnitPurchaseCost)).ToList());
         RequestCloseWithSuccess?.Invoke();
     }

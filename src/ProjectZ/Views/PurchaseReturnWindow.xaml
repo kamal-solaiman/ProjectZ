@@ -245,30 +245,10 @@
                             </StackPanel>
                         </UniformGrid>
 
-                        <Grid Margin="0,10,0,0"
-                              FlowDirection="LeftToRight"
-                              Visibility="{Binding NeedsSupplierRefundChoice, Converter={StaticResource BoolToVis}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="260" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <ComboBox Grid.Column="0"
-                                      Style="{StaticResource PosComboBoxStyle}"
-                                      ItemsSource="{Binding RefundChannels}"
-                                      SelectedItem="{Binding RefundChannel}" />
-
-                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.5B21B6.VioletInk}">
-                                    <Run Text="المبلغ المستحق استرداده من المورد: " />
-                                    <Run Text="{Binding ExpectedRefundAboveCreditDisplay, Mode=OneWay}" />
-                                    <Run Text=" (سيُسجّل فعليًا: " />
-                                    <Run Text="{Binding CashRefundToReceiveDisplay, Mode=OneWay}" />
-                                    <Run Text=")" />
-                                </TextBlock>
-                            </StackPanel>
-                        </Grid>
+                        <TextBlock Visibility="{Binding NeedsSupplierRefundChoice, Converter={StaticResource BoolToVis}}" TextWrapping="Wrap" Margin="0,10,0,0" Style="{StaticResource PosRtlTextStyle}">
+                            <Run Text="سيصدر إشعار لصالح المحل بمبلغ " /><Run Text="{Binding ExpectedRefundAboveCreditDisplay, Mode=OneWay}" />
+                            <Run Text=". لن تزيد الخزينة؛ سجّل القبض الفعلي أو المقاصة لاحقًا من تفاصيل الفاتورة." />
+                        </TextBlock>
                     </StackPanel>
                 </Border>
             </StackPanel>

@@ -31,27 +31,14 @@ IF OBJECT_ID(N'dbo.Suppliers', N'U') IS NOT NULL
     GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Suppliers TO [ProjectZClient];
 GO
 
-/* 2) فاتورة الشراء: الرأس والبنود وربط الوحدات. */
-IF OBJECT_ID(N'dbo.PurchaseInvoices', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.PurchaseInvoices TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.PurchaseInvoiceLines', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.PurchaseInvoiceLines TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.PurchaseInvoiceLineUnits', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, DELETE ON OBJECT::dbo.PurchaseInvoiceLineUnits TO [ProjectZClient];
-GO
-
-/* 3) السداد والاسترداد وسجل الأنشطة. */
-IF OBJECT_ID(N'dbo.PurchasePayments', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.PurchasePayments TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.PurchaseInvoiceActivities', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, DELETE ON OBJECT::dbo.PurchaseInvoiceActivities TO [ProjectZClient];
-GO
-
-/* 4) المرتجع للمورد: رأس المرتجع وبنوده. */
-IF OBJECT_ID(N'dbo.PurchaseReturns', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.PurchaseReturns TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.PurchaseReturnLines', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.PurchaseReturnLines TO [ProjectZClient];
+/* 2–4) The client reads the purchase ledger. sql/25 owns all document writes. */
+GRANT SELECT ON OBJECT::dbo.PurchaseInvoices TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.PurchaseInvoiceLines TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.PurchaseInvoiceLineUnits TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.PurchasePayments TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.PurchaseInvoiceActivities TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.PurchaseReturns TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.PurchaseReturnLines TO [ProjectZClient];
 GO
 
 /* 5) المخزون: وحدات التوريد وحركاتها، وتحديث تكلفة الصنف. */
@@ -81,5 +68,5 @@ IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL
     GRANT SELECT ON OBJECT::dbo.Users TO [ProjectZClient];
 GO
 
-PRINT N'SUCCESS: ProjectZClient can now post purchase invoices, supplier payments, returns and their stock/finance rows.';
+PRINT N'SUCCESS: purchase directory and read permissions ready. Apply sql/25_EnablePurchaseSettlement.sql before opening tills.';
 GO

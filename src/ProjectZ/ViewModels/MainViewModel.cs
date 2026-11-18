@@ -304,7 +304,7 @@ public sealed class MainViewModel : ObservableObject
             sharedPurchaseInvoices,
             sharedCategories,
             () => SelectItem(salesCategory.Items[1]),
-            Inventory.NotifyExternalInventoryChanged,
+            ReloadAfterPurchase,
             ReturnExchange.NotifyExternalDataChanged,
             purchaseRepository,
             SuppliesChanged);
@@ -315,7 +315,7 @@ public sealed class MainViewModel : ObservableObject
             sharedRegistrations,
             user.DisplayName,
             () => SelectItem(purchasesCategory.Items[0]),
-            Inventory.NotifyExternalInventoryChanged,
+            ReloadAfterPurchase,
             ReturnExchange.NotifyExternalDataChanged,
             PurchaseEntry.NotifyExternalCatalogChanged,
             purchaseRepository);
@@ -685,6 +685,15 @@ public sealed class MainViewModel : ObservableObject
         Inventory.RefreshFromDatabase();
         Pos.NotifyExternalInventoryChanged();
         AddProduct.NotifyInventoryLoaded();
+    }
+
+    private void ReloadAfterPurchase()
+    {
+        if (!Inventory.RefreshFromDatabase()) throw new PurchaseDataException("تعذر تحميل المخزون بعد حفظ المشتريات.");
+        Pos.NotifyExternalInventoryChanged();
+        AddProduct.NotifyInventoryLoaded();
+        MyAccounts.NotifyExternalDataChanged();
+        if (MyAccounts.IsErrorStatus) throw new PurchaseDataException(MyAccounts.StatusMessage);
     }
 
     /// <summary>Called by the invoice screen after it changed stock or money in SQL.</summary>

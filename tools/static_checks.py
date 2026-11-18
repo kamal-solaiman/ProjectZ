@@ -43,10 +43,10 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-# 46 CREATE TABLE statements: 06 creates the 39 business tables + Users, 01 creates Users,
+# 50 CREATE TABLE statements (including four purchase settlement/trace tables in 25): 06 creates the 39 business tables + Users, 01 creates Users,
 # and 16/19/20/21 repeat the movement, expense-section, expense and expense-payment tables
 # idempotently so an existing database can be upgraded without re-running 06.
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 46
+assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 50
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
 assert 'CREATE DATABASE [ProjectZ]' in sql
 assert '[ProjectZClient]' in (root / 'sql/04_SetupLanSqlAuth.sql').read_text(encoding='utf-8')
@@ -62,13 +62,13 @@ expected_tables = {
     'SalesInvoiceActivities', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits',
     'MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments', 'MaintenanceActivities',
     'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'ExpenseCategories', 'Expenses',
-    'ExpensePayments', 'AuditLog'
+    'ExpensePayments', 'AuditLog', 'SupplierCreditNotes', 'SupplierCreditApplications', 'SupplierCreditReceipts', 'PurchaseReturnUnits'
 }
 created_tables = set(re.findall(r'CREATE\s+TABLE\s+dbo\.([A-Za-z0-9_]+)', sql, re.I))
 assert created_tables == expected_tables, f'schema table mismatch: missing={expected_tables-created_tables}, extra={created_tables-expected_tables}'
 assert set(re.findall(r'CREATE\s+OR\s+ALTER\s+VIEW\s+dbo\.(\w+)', reporting_views, re.I)) == {
     'vwProductStock', 'vwSalesLineValuation', 'vwSalesInvoiceSummary', 'vwPurchaseInvoiceSummary',
-    'vwMaintenanceOrderSummary', 'vwFinancialAccountDailyUsage'
+    'vwMaintenanceOrderSummary', 'vwFinancialAccountDailyUsage', 'vwPurchaseDocumentValue'
 }
 for required_relation in ('SalesInvoiceId', 'PurchaseInvoiceId', 'MaintenanceOrderId', 'FinancialAccountId', 'ProductId', 'ActorUserId'):
     assert required_relation in full_schema, f'missing relational key: {required_relation}'
@@ -85,7 +85,7 @@ assert '01_CreateDatabase.sql' in (root / 'docs/DATABASE.md').read_text(encoding
 schema_verification = (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8')
 assert 'SELECT expected.v AS MissingView' in schema_verification
 assert 'SELECT v.name AS MissingView' not in schema_verification
-print('PASS: complete ProjectZ database schema, 40 related tables, six reporting views, compatibility 130')
+print('PASS: complete ProjectZ database schema, 40 base tables + four purchase settlement tables, seven base reporting views, compatibility 130')
 
 # --- Application shutdown: closing the UI must terminate the WPF process ---
 app_xaml = (root / 'src/ProjectZ/App.xaml').read_text(encoding='utf-8')
@@ -606,25 +606,18 @@ assert purchase_permissions_path.is_file(), 'sql/12_EnablePurchasing.sql is miss
 purchase_repository = purchase_repository_path.read_text(encoding='utf-8')
 purchase_permissions = purchase_permissions_path.read_text(encoding='utf-8')
 
-# The repository must really write the purchase ledger, not only read it.
-for token in (
-    'INSERT dbo.PurchaseInvoices',
-    'INSERT dbo.PurchaseInvoiceLines',
-    'INSERT dbo.PurchaseInvoiceLineUnits',
-    'INSERT dbo.PurchaseReturns',
-    'INSERT dbo.PurchaseReturnLines',
-    'INSERT dbo.PurchasePayments',
-    'INSERT dbo.PurchaseInvoiceActivities',
-    'INSERT dbo.InventoryUnits',
-    "N'Supply'",
-    'INSERT dbo.FinancialTransactions',
-    'UPDATE dbo.FinancialAccounts',
-    'UPDATE dbo.Suppliers',
-    'INSERT dbo.Suppliers',
-    'SELECT Id, AccountKind FROM dbo.FinancialAccounts',
-    'NextDocumentNumber',
-):
-    assert token in purchase_repository, f'PurchaseRepository missing SQL token: {token}'
+# Purchase settlement is owned by the database. Never restore the old ad-hoc edit/payment path.
+purchase_settlement = (root / 'sql/25_EnablePurchaseSettlement.sql').read_text(encoding='utf-8')
+for proc in ('CreatePurchaseDocument','PayPurchaseDocument','EditPurchaseDocument','ReturnPurchaseDocument',
+             'ApplySupplierCredit','ReceiveSupplierCredit','DeleteUnsettledPurchase'):
+    assert f'PROCEDURE dbo.{proc} ' in purchase_settlement and f'Post("{proc}"' in purchase_repository
+    assert f'GRANT EXECUTE ON OBJECT::dbo.{proc} TO [ProjectZClient]' in purchase_settlement
+for token in ('INSERT dbo.PurchaseReturnLines','INSERT dbo.PurchaseReturnUnits','INSERT dbo.SupplierCreditNotes',
+              'INSERT dbo.SupplierCreditApplications','INSERT dbo.SupplierCreditReceipts','EXEC dbo.LockPurchaseDocument'):
+    assert token in purchase_settlement
+assert 'SyncChannel' not in purchase_repository and 'INSERT dbo.PurchasePayments' not in purchase_repository
+edit_proc = purchase_settlement.split('PROCEDURE dbo.EditPurchaseDocument',1)[1].split('\nGO',1)[0]
+assert 'WritePurchasePayment' not in edit_proc and 'Products SET CostPrice' not in edit_proc
 
 for customer_sql in ('UPDATE dbo.Customers', 'DELETE dbo.Customers',
                      'UPDATE dbo.Customers SET IsActive=0'):
@@ -663,8 +656,8 @@ for view_model, name in ((purchase_entry_vm, 'PurchaseEntryViewModel'),
 
 assert 'repository.CreateInvoice' in purchase_entry_vm, 'the purchase entry screen must save through SQL'
 assert 'مرحلة التصميم (بدون Backend)' not in purchase_entry_vm
-for command in ('repository.PayInvoice', 'repository.ReturnToSupplier', 'repository.CancelInvoice',
-                'repository.DeleteInvoice', 'repository.UpdateInvoice', 'repository.LoadInvoicesInto'):
+for command in ('repo.PayInvoice', 'repo.ReturnToSupplier', 'repo.CancelInvoice', 'repo.ApplyCredit', 'repo.ReceiveCredit',
+                'repo.DeleteInvoice', 'repo.UpdateInvoice', 'repository.LoadInvoicesInto'):
     assert command in purchase_invoices_vm, f'the purchase invoices screen must use {command}'
 assert 'مرحلة التصميم (بدون Backend)' not in purchase_invoices_vm
 for command in ('repository.CreateSupplier', 'repository.UpdateSupplier', 'repository.DeleteSupplier',
@@ -689,16 +682,10 @@ assert 'RefreshFromDatabaseCommand' in purchase_invoices_xaml_text
 
 # Permissions script: idempotent grants only, and no table is created in it.
 assert 'CREATE TABLE' not in purchase_permissions, 'sql/12 must not create tables'
-for grant in (
-    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.PurchaseInvoices TO [ProjectZClient];',
-    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.PurchaseInvoiceLines TO [ProjectZClient];',
-    'GRANT SELECT, INSERT, DELETE ON OBJECT::dbo.PurchaseInvoiceLineUnits TO [ProjectZClient];',
-    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchasePayments TO [ProjectZClient];',
-    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchaseReturns TO [ProjectZClient];',
-    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchaseReturnLines TO [ProjectZClient];',
-    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Suppliers TO [ProjectZClient];',
-):
-    assert grant in purchase_permissions, f'sql/12 is missing a grant: {grant}'
+for table in ('PurchaseInvoices','PurchaseInvoiceLines','PurchaseInvoiceLineUnits','PurchasePayments','PurchaseReturns','PurchaseReturnLines'):
+    assert f'GRANT SELECT ON OBJECT::dbo.{table} TO [ProjectZClient]' in purchase_permissions
+    assert f'DENY INSERT,UPDATE,DELETE ON OBJECT::dbo.{table} TO [ProjectZClient]' in purchase_settlement
+assert 'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Suppliers TO [ProjectZClient]' in purchase_permissions
 # Every SQL parameter declared in a purchase statement must also be bound in C#, and every
 # INSERT..OUTPUT inserted.Id must be read back. A missing binding makes SQL Server reject the whole
 # save with 137 ("must declare the scalar variable"), which surfaced as the generic
@@ -733,13 +720,7 @@ for broken in (
         'parameter checker must inspect multiline verbatim SQL and ordinary SQL strings'
 unbound = _unbound_parameters(purchase_repository, 'PurchaseRepository.cs')
 assert not unbound, 'unbound SQL parameters break the purchase save: ' + '; '.join(unbound)
-# PurchaseInvoiceLines carries OUTPUT inserted.Id on both the create and the edit path; the id feeds
-# PurchaseInvoiceLineUnits, so an ignored result would insert unit links against line id 0.
-assert purchase_repository.count('OUTPUT inserted.Id') >= 1
-assert 'lineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
-    'the created purchase line id must be read back for its stock units'
-assert 'newLineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
-    'an added purchase line id must be read back for its stock units'
+assert 'SET @Line=CONVERT(int,SCOPE_IDENTITY())' in purchase_settlement and 'INSERT dbo.PurchaseInvoiceLineUnits' in purchase_settlement
 assert '137 or 8178' in purchase_repository, 'an unbound SQL parameter must be reported instead of a generic save error'
 assert 'SET ARITHABORT ON;' in purchase_repository and 'SET NUMERIC_ROUNDABORT OFF;' in purchase_repository, \
     'purchase writes to filtered indexes must restore the required session options on pooled connections'
@@ -1182,7 +1163,7 @@ for removed_binding in ('TotalSuppliersCountDisplay', 'TotalPaidAllDisplay', 'To
                         'SpecializationsBreakdownSubtext', 'CreditorsCountSubtext'):
     assert removed_binding not in suppliers_xaml, f'removed suppliers KPI binding is back: {removed_binding}'
 suppliers_vm_text = suppliers_vm_path.read_text(encoding='utf-8')
-for token in ('BuildStatement', 'RunningBalance', 'ReturnedGoodsTotal', 'NetCashOutflow', 'RemainingPayable'):
+for token in ('BuildStatement', 'RunningBalance', 'DocumentedReturnValue', 'NetCashOutflow', 'RemainingPayable', 'AvailableCredit', 'DocumentDelta', 'i.Postings'):
     assert token in suppliers_vm_text, f'Suppliers ledger missing expected calculation: {token}'
 supplier_model_text = (root / 'src/ProjectZ/Models/PurchaseDesignModels.cs').read_text(encoding='utf-8')
 for token in ('Specialization', 'VodafoneCashNumber', 'InstaPayAddress'):

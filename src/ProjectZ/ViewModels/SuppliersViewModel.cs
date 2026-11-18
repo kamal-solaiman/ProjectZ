@@ -36,14 +36,16 @@ public sealed class SupplierDirectoryEntryViewModel : ObservableObject
     public decimal TotalReturns { get; private set; }
     public decimal Outstanding { get; private set; }
     public DateTime? LastActivityAt { get; private set; }
-    public bool HasTransactions => InvoicesCount > 0;
+    public bool HasTransactions => PurchaseInvoices.Count > 0;
+    public decimal AvailableCredit => PurchaseInvoices.Sum(i => i.AvailableCredit);
+    public string AvailableCreditDisplay => PosFormatting.FormatCurrency(AvailableCredit);
     public bool HasOutstanding => Outstanding > 0m;
     public string TotalPurchasesDisplay => PosFormatting.FormatCurrency(TotalPurchases);
     public string TotalPaidDisplay => PosFormatting.FormatCurrency(TotalPaid);
     public string TotalReturnsDisplay => PosFormatting.FormatCurrency(TotalReturns);
     public string OutstandingDisplay => PosFormatting.FormatCurrency(Outstanding);
     public string InvoicesSummary => HasTransactions ? $"{InvoicesCount} فاتورة · مفتوحة {OpenInvoicesCount}" : "بدون فواتير";
-    public string BalanceStatusTitle => HasOutstanding ? $"مستحق له: {OutstandingDisplay}" : HasTransactions ? "خالص / مسدد" : "رصيد صفر";
+    public string BalanceStatusTitle => AvailableCredit > 0m ? $"لنا: {AvailableCreditDisplay} · له: {OutstandingDisplay}" : HasOutstanding ? $"مستحق له: {OutstandingDisplay}" : HasTransactions ? "خالص / مسدد" : "رصيد صفر";
     public string LastActivityDisplay => LastActivityAt?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "—";
 
     public bool IsSelected
@@ -80,13 +82,15 @@ public sealed class SupplierDirectoryEntryViewModel : ObservableObject
         InvoicesCount = PurchaseInvoices.Count(i => !i.IsCancelled);
         OpenInvoicesCount = PurchaseInvoices.Count(i => i.HasRemainingPayable);
         TotalPurchases = PurchaseInvoices.Where(i => !i.IsCancelled).Sum(i => i.NetTotal);
-        TotalPaid = PurchaseInvoices.Where(i => !i.IsCancelled).Sum(i => i.NetCashOutflow);
-        TotalReturns = PurchaseInvoices.Where(i => !i.IsCancelled).Sum(i => i.ReturnedGoodsTotal);
+        TotalPaid = PurchaseInvoices.Sum(i => i.NetCashOutflow);
+        TotalReturns = PurchaseInvoices.Sum(i => i.DocumentedReturnValue);
         Outstanding = PurchaseInvoices.Sum(i => i.RemainingPayable);
         LastActivityAt = PurchaseInvoices.Count == 0 ? null : PurchaseInvoices.Max(i => i.IssuedAt);
 
         Supplier.TotalPurchasesCount = InvoicesCount;
         Supplier.OutstandingPayable = Outstanding;
+        Supplier.AvailableCredit = AvailableCredit;
+        Changed(nameof(AvailableCredit)); Changed(nameof(AvailableCreditDisplay));
         Changed(nameof(InvoicesCount)); Changed(nameof(OpenInvoicesCount));
         Changed(nameof(TotalPurchases)); Changed(nameof(TotalPaid)); Changed(nameof(TotalReturns)); Changed(nameof(Outstanding));
         Changed(nameof(LastActivityAt)); Changed(nameof(HasTransactions)); Changed(nameof(HasOutstanding));
@@ -121,7 +125,7 @@ public sealed class SuppliersViewModel : ObservableObject
     public ObservableCollection<SupplierStatementRow> SelectedSupplierStatement { get; } = [];
     public ObservableCollection<MaintenanceSparePartItem> SelectedSupplierSpareParts { get; } = [];
     public ObservableCollection<string> SpecializationFilterOptions { get; } = ["كل التخصصات"];
-    public IReadOnlyList<string> BalanceFilterOptions { get; } = ["جميع الموردين", "مستحق لهم مبالغ", "خالصون / مسددون", "لديهم فواتير", "بدون معاملات بعد"];
+    public IReadOnlyList<string> BalanceFilterOptions { get; } = ["جميع الموردين", "مستحق لهم مبالغ", "لنا رصيد عندهم", "خالصون / مسددون", "لديهم فواتير", "بدون معاملات بعد"];
     public IReadOnlyList<string> SortOptions { get; } = ["الأحدث نشاطًا", "الأعلى تعاملًا", "الأعلى مستحقًا", "الأكثر فواتير", "الاسم أبجديًا"];
 
     public Action<string?, Func<string, bool>, Func<string, int?, string?>, Action<SupplierDesignItem>>? OpenAddSupplierDialogRequested { get; set; }
@@ -283,6 +287,7 @@ public sealed class SuppliersViewModel : ObservableObject
         try
         {
             var previousId = SelectedSupplierEntry?.Supplier.Id;
+            repository.LoadInvoicesInto(sharedPurchaseInvoices);
             repository.LoadSuppliersInto(sharedSuppliers);
             RebuildSpecializations();
             RebuildEntriesAndRefresh(previousId);
@@ -512,21 +517,21 @@ public sealed class SuppliersViewModel : ObservableObject
         if (invoice is null) return;
         if (!invoice.CanPayRemaining) { SetStatus($"الفاتورة {invoice.InvoiceNumber} لا تحتوي على رصيد مستحق للسداد.", true); return; }
         purchaseActions.OpenPaymentFromSupplier(invoice);
-        AfterInvoiceAction($"تمت مراجعة سداد الفاتورة {invoice.InvoiceNumber} وتحديث حساب المورد.");
+        AfterInvoiceAction();
     }
 
     private void ReturnInvoice(PurchaseInvoiceDesignItem? invoice)
     {
         if (invoice is null) return;
         purchaseActions.OpenReturnFromSupplier(invoice);
-        AfterInvoiceAction($"تم تحديث المرتجع وحساب المورد للفاتورة {invoice.InvoiceNumber}.");
+        AfterInvoiceAction();
     }
 
     private void OpenInvoiceDetails(PurchaseInvoiceDesignItem? invoice)
     {
         if (invoice is null) return;
         purchaseActions.OpenDetailsFromSupplier(invoice);
-        AfterInvoiceAction($"تم إغلاق تفاصيل الفاتورة {invoice.InvoiceNumber} وتحديث الحساب.");
+        AfterInvoiceAction();
     }
 
     private void PrintInvoice(PurchaseInvoiceDesignItem? invoice)
@@ -536,12 +541,10 @@ public sealed class SuppliersViewModel : ObservableObject
         SetStatus($"تم فتح معاينة طباعة فاتورة الشراء {invoice.InvoiceNumber}.", false);
     }
 
-    private void AfterInvoiceAction(string message)
+    private void AfterInvoiceAction()
     {
-        var id = SelectedSupplierEntry?.Supplier.Id;
-        RebuildEntriesAndRefresh(id);
-        notifyExternalDataChanged?.Invoke();
-        SetStatus(message, false);
+        RebuildEntriesAndRefresh(SelectedSupplierEntry?.Supplier.Id);
+        SetStatus(purchaseActions.StatusMessage, purchaseActions.IsErrorStatus);
     }
 
     private void ClearAllFilters()
@@ -583,7 +586,8 @@ public sealed class SuppliersViewModel : ObservableObject
         filtered = SelectedBalanceFilter switch
         {
             "مستحق لهم مبالغ" => filtered.Where(e => e.HasOutstanding),
-            "خالصون / مسددون" => filtered.Where(e => e.HasTransactions && !e.HasOutstanding),
+            "لنا رصيد عندهم" => filtered.Where(e => e.AvailableCredit > 0m),
+            "خالصون / مسددون" => filtered.Where(e => e.HasTransactions && !e.HasOutstanding && e.AvailableCredit == 0m && !e.PurchaseInvoices.Any(i => i.NeedsReview)),
             "لديهم فواتير" => filtered.Where(e => e.HasTransactions),
             "بدون معاملات بعد" => filtered.Where(e => !e.HasTransactions),
             _ => filtered
@@ -625,31 +629,27 @@ public sealed class SuppliersViewModel : ObservableObject
         Changed(nameof(HasNoSelectedSupplierSpareParts));
     }
 
-    private static List<SupplierStatementRow> BuildStatement(SupplierDirectoryEntryViewModel entry)
+    public static List<SupplierStatementRow> BuildStatement(SupplierDirectoryEntryViewModel entry)
     {
-        var events = new List<(DateTime At, string Text, string Ref, decimal Debit, decimal Credit, int Order)>();
-        foreach (var invoice in entry.PurchaseInvoices.Where(i => !i.IsCancelled))
+        var events = new List<(DateTime At, string Text, string Ref, decimal Change, int Order)>();
+        foreach (var i in entry.PurchaseInvoices)
         {
-            var gross = invoice.NetTotal + invoice.ReturnedGoodsTotal;
-            if (gross > 0m) events.Add((invoice.IssuedAt, "فاتورة شراء — زيادة مستحق المورد", invoice.InvoiceNumber, 0m, gross, 0));
-            var laterPayments = invoice.ActivityLog.Where(a => a.ActionTitle.Contains("سداد", StringComparison.Ordinal)).Sum(a => a.Amount ?? 0m);
-            var initialPaid = Math.Max(0m, invoice.TotalPaid - laterPayments);
-            if (initialPaid > 0m) events.Add((invoice.IssuedAt.AddSeconds(1), "سداد عند إنشاء الفاتورة", invoice.InvoiceNumber, initialPaid, 0m, 1));
-            foreach (var activity in invoice.ActivityLog)
-            {
-                if (activity.ActionTitle.Contains("سداد", StringComparison.Ordinal))
-                    events.Add((activity.Timestamp, activity.ActionTitle, invoice.InvoiceNumber, activity.Amount ?? 0m, 0m, 2));
-                else if (activity.ActionTitle.Contains("مرتجع", StringComparison.Ordinal))
-                    events.Add((activity.Timestamp, activity.ActionTitle, invoice.InvoiceNumber, activity.Amount ?? 0m, 0m, 2));
-            }
-            if (invoice.SupplierRefundReceived > 0m)
-                events.Add((invoice.ActivityLog.LastOrDefault(a => a.ActionTitle.Contains("مرتجع", StringComparison.Ordinal))?.Timestamp ?? invoice.IssuedAt, "مبلغ مسترد نقدًا من المورد", invoice.InvoiceNumber, 0m, invoice.SupplierRefundReceived, 3));
+            // On upgrade we know the current document basis, not its historical edit dates.
+            // Never reconstruct payments or entitlements by interpreting localized activity text.
+            var carried = i.NetTotal - i.ActivityLog.Sum(a => a.DocumentDelta ?? 0m);
+            if (carried != 0m || i.NeedsReview)
+                events.Add((i.IssuedAt, i.NeedsReview ? "مستند تاريخي يتطلب مطابقة" : "قيمة مستند سابقة للتسوية الموثقة", i.InvoiceNumber, carried, 0));
+            foreach (var a in i.ActivityLog.Where(a => a.DocumentDelta.HasValue))
+                events.Add((a.Timestamp, a.ActionTitle + " · " + a.Details, i.InvoiceNumber, a.DocumentDelta!.Value, 1));
+            foreach (var posting in i.Postings)
+                events.Add((posting.At, posting.Details, i.InvoiceNumber, posting.Change, 2));
         }
         decimal balance = 0m;
         return events.OrderBy(e => e.At).ThenBy(e => e.Order).Select(e =>
         {
-            balance += e.Credit - e.Debit;
-            return new SupplierStatementRow { Timestamp = e.At, Description = e.Text, Reference = e.Ref, Debit = e.Debit, Credit = e.Credit, RunningBalance = balance };
+            balance += e.Change;
+            return new SupplierStatementRow { Timestamp = e.At, Description = e.Text, Reference = e.Ref,
+                Debit = Math.Max(0m, -e.Change), Credit = Math.Max(0m, e.Change), RunningBalance = balance };
         }).ToList();
     }
 

@@ -84,6 +84,8 @@
                             Visibility="{Binding Invoice.CanPayRemaining, Converter={StaticResource BoolToVis}}"
                             Command="{Binding PayRemainingCommand}" />
 
+                    <Button Content="تسوية إشعار المورد" Style="{StaticResource DetailsToolbarBtnStyle}"
+                            Visibility="{Binding Invoice.CanSettleCredit, Converter={StaticResource BoolToVis}}" Command="{Binding SettleCreditCommand}" />
                     <Button Content="تعديل الفاتورة"
                             Style="{StaticResource DetailsToolbarBtnStyle}"
                             Background="{DynamicResource Theme.Legacy.1D4ED8.Info}"
@@ -344,6 +346,8 @@
                                            Foreground="{DynamicResource Theme.Legacy.102E48.Heading}"
                                            Margin="0,0,0,8" />
 
+                                <TextBlock Text="{Binding Invoice.CreditSummary}" TextWrapping="Wrap" Style="{StaticResource PosRtlTextStyle}" FontWeight="Bold" />
+                                <TextBlock Text="هذا المستند يحتاج مطابقة تاريخية؛ التسوية موقوفة." Visibility="{Binding Invoice.NeedsReview, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosRtlTextStyle}" />
                                 <Grid Margin="0,2,0,0" Visibility="{Binding Invoice.HasCashPaid, Converter={StaticResource BoolToVis}}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />

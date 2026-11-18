@@ -657,15 +657,7 @@ public sealed class PurchaseEntryViewModel : ObservableObject
             ActiveInvoice.SupplierInvoiceNumber.Trim(),
             ActiveInvoice.PurchaseDate.Date.Add(DateTime.Now.TimeOfDay),
             ActiveInvoice.EffectiveDiscount,
-            ActiveInvoice.Items.Select(item => new PurchaseLineRequest(
-                item.Product.Id,
-                item.Product.Barcode,
-                item.Product.Name,
-                item.Product.Category,
-                item.Product.UnitDisplay,
-                item.Product.TrackSerialNumber,
-                item.Quantity,
-                item.UnitPurchaseCost)).ToList(),
+            ActiveInvoice.Items.Select(item => new PurchaseLineRequest(item.Product.Id, item.Quantity, item.UnitPurchaseCost)).ToList(),
             ActiveInvoice.CashAmount,
             ActiveInvoice.VodafoneCashAmount,
             ActiveInvoice.InstaPayAmount,
@@ -682,21 +674,28 @@ public sealed class PurchaseEntryViewModel : ObservableObject
             return;
         }
 
-        // Re-read from SQL: the invoice rows, the stock units and the cash balances all changed.
-        // The shared collections are reloaded by MainViewModel once the other screens are notified.
-        notifyInventoryChanged?.Invoke();
-        notifySuppliersChanged?.Invoke();
-        notifyReturnExchangeChanged?.Invoke();
-        NotifyExternalCatalogChanged();
-
-        LastSavedInvoice = sharedPurchaseInvoices.FirstOrDefault(i => i.Id == saved.InvoiceId)
-                           ?? sharedPurchaseInvoices.FirstOrDefault();
+        // Commit already succeeded: retire the draft even if the connection fails on readback.
+        ActiveInvoice.ClearInvoice();
+        LastSavedInvoice = null;
+        try
+        {
+            notifyInventoryChanged?.Invoke();
+            notifySuppliersChanged?.Invoke();
+            notifyReturnExchangeChanged?.Invoke();
+            NotifyExternalCatalogChanged();
+            LastSavedInvoice = sharedPurchaseInvoices.FirstOrDefault(i => i.Id == saved.InvoiceId);
+            if (LastSavedInvoice is null) throw new PurchaseDataException("تعذر تحميل المستند المحفوظ.");
+        }
+        catch (Exception)
+        {
+            SetStatus($"حُفظت الفاتورة {saved.InvoiceNumber} لكن تعذر تحديث العرض. أعد تحميل السجل ولا تعِد إدخال الفاتورة.", true);
+            return;
+        }
 
         var creditSuffix = saved.RemainingPayable > 0m
             ? $" | متبقي آجل للمورد: {PosFormatting.FormatCurrency(saved.RemainingPayable)}"
             : "";
 
-        ActiveInvoice.ClearInvoice();
         var keepSupplier = Suppliers.FirstOrDefault(s => s.Id == supplier.Id) ?? Suppliers.FirstOrDefault();
         if (keepSupplier is not null)
             ActiveInvoice.SelectSupplier(keepSupplier);
