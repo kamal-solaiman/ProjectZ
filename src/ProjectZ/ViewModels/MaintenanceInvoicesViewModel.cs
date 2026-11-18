@@ -13,14 +13,8 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     private readonly ObservableCollection<MaintenanceOrderDesignItem> seedOrders;
     private readonly Action? navigateToIntake;
     private readonly Action<MaintenanceOrderDesignItem>? openInMaintenanceActions;
-    private readonly Action? notifyMaintenanceOrdersChanged;
     private readonly Data.MaintenanceRepository? repository;
     private readonly Action? onOrdersSaved;
-    // Entries accumulated since the last DB save, grouped by order id so a failed save for one
-    // invoice can never flush its activities or payments onto another invoice.
-    private readonly List<(int OrderId, MaintenanceActivityEntry Entry)> pendingActivities = new();
-    private readonly List<(int OrderId, Data.MaintenancePaymentEntry Entry)> pendingPayments = new();
-
     private MaintenanceOrderDesignItem? selectedOrder;
     private string searchText = "";
     private string selectedDateBasis = "تاريخ الاستلام";
@@ -39,6 +33,7 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     private string[] technicianFilterOptions = ["كل الفنيين"];
     private DateTime? lastRefreshedAt;
     private bool lastLoadFailed;
+    public bool LastLoadFailed => lastLoadFailed;
     // A database reload clears and refills Orders item by item; filtering each time would be
     // O(n^2) work and would flash the summary strip. One refresh runs after the bulk load.
     private bool isBulkLoading;
@@ -335,7 +330,7 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
     public int CancelledCasesCount => FilteredOrders.Count(o => o.IsCancelled);
     public int DueCollectionCasesCount => FilteredOrders.Count(o => !o.IsCancelled && o.HasEstimatedRemaining);
 
-    public decimal ShownCollectedTotal => FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.TotalCollectedAll);
+    public decimal ShownCollectedTotal => FilteredOrders.Sum(o => o.TotalCollectedAll);
     public decimal ShownRemainingTotal => FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.EstimatedRemaining);
     public decimal ShownPartsCostTotal => FilteredOrders.Sum(o => o.PartsCostTotal);
     public decimal ShownProfitTotal => FilteredOrders.Where(o => !o.IsCancelled).Sum(o => o.EstimatedProfit);
@@ -387,7 +382,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         ObservableCollection<MaintenanceOrderDesignItem> sharedOrders,
         Action? navigateToIntake = null,
         Action<MaintenanceOrderDesignItem>? openInMaintenanceActions = null,
-        Action? notifyMaintenanceOrdersChanged = null,
         Data.MaintenanceRepository? repository = null,
         Action? onOrdersSaved = null)
     {
@@ -395,7 +389,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         this.seedOrders = sharedOrders;
         this.navigateToIntake = navigateToIntake;
         this.openInMaintenanceActions = openInMaintenanceActions;
-        this.notifyMaintenanceOrdersChanged = notifyMaintenanceOrdersChanged;
         this.repository = repository;
         this.onOrdersSaved = onOrdersSaved;
 
@@ -457,8 +450,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
             try
             {
                 repository.LoadMaintenanceOrdersInto(Orders);
-                pendingActivities.Clear();
-                pendingPayments.Clear();
                 lastRefreshedAt = DateTime.Now;
                 lastLoadFailed = false;
                 Changed(nameof(LastRefreshDisplay));
@@ -539,65 +530,6 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         RefreshFilteredOrders();
     }
 
-    /// <summary>Flushes accumulated activities/payments and the order state to the database.</summary>
-    /// <returns>True when the save succeeded (or no repository is connected).</returns>
-    private bool TryPersistOrder(MaintenanceOrderDesignItem order, string successMessage, string errorPrefix)
-    {
-        if (repository is null)
-            return true;
-
-        // Only this invoice's pending rows are flushed; a failed save of another invoice must not
-        // write its activities or payments onto this order.
-        var activities = pendingActivities.Where(p => p.OrderId == order.Id).Select(p => p.Entry).ToList();
-        var payments = pendingPayments.Where(p => p.OrderId == order.Id).Select(p => p.Entry).ToList();
-
-        try
-        {
-            repository.UpdateMaintenanceOrder(order, activities, payments);
-            pendingActivities.RemoveAll(p => p.OrderId == order.Id);
-            pendingPayments.RemoveAll(p => p.OrderId == order.Id);
-            onOrdersSaved?.Invoke();
-            SetStatus(successMessage, false);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"{errorPrefix}: {ex.Message}", true);
-            return false;
-        }
-    }
-
-    /// <summary>Records an activity both in the in-memory log and the pending DB batch.</summary>
-    private void RecordActivity(MaintenanceOrderDesignItem order, MaintenanceActivityEntry entry)
-    {
-        order.ActivityLog.Add(entry);
-        pendingActivities.Add((order.Id, entry));
-    }
-
-    /// <summary>
-    /// Queues a payment for the database and mirrors it into the invoice's payment history so the
-    /// open details window shows the row immediately; the next reload reads the same row back.
-    /// </summary>
-    private void AddPendingPayment(
-        MaintenanceOrderDesignItem order, FinancialAccountKind account, int stage, int kind, decimal amount, string note)
-    {
-        if (amount <= 0m) return;
-
-        var paidAt = DateTime.Now;
-        pendingPayments.Add((order.Id, new Data.MaintenancePaymentEntry(account, stage, kind, amount, paidAt, note)));
-        order.PaymentHistory.Insert(0, new MaintenancePaymentHistoryItem
-        {
-            PaidAt = paidAt,
-            Stage = stage,
-            Kind = kind,
-            Account = account,
-            Amount = amount,
-            Note = note,
-            ActorName = currentUserName
-        });
-        order.NotifyFinancialsChanged();
-    }
-
     private void OnOrdersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (isBulkLoading) return;
@@ -651,11 +583,7 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
             OpenDeliveryDialogRequested = vm => OpenDeliveryDialogRequested?.Invoke(vm),
             OpenReceiptPreviewRequested = vm => OpenReceiptPreviewRequested?.Invoke(vm),
             OpenInActionsRequested = target => openInMaintenanceActions?.Invoke(target),
-            NotifyOrdersChanged = () =>
-            {
-                RefreshFilteredOrders();
-                notifyMaintenanceOrdersChanged?.Invoke();
-            }
+            NotifyOrdersChanged = ReloadAfterPosting
         };
 
         OpenDetailsDialogRequested?.Invoke(detailsVm);
@@ -679,98 +607,20 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
             return;
         }
 
-        var vm = new MaintenanceDeliveryViewModel(order, currentUserName);
-        var result = OpenDeliveryDialogRequested?.Invoke(vm);
-        if (result == true || vm.IsConfirmed)
-        {
-            var cashBefore = order.FinalPaymentCashPaid;
-            var vodBefore = order.FinalPaymentVodafonePaid;
-            var instaBefore = order.FinalPaymentInstaPayPaid;
-            var refundBefore = order.RefundedDepositAmount;
-
-            RefreshFilteredOrders();
-            notifyMaintenanceOrdersChanged?.Invoke();
-
-            var cashNew = order.FinalPaymentCashPaid - cashBefore;
-            var vodNew = order.FinalPaymentVodafonePaid - vodBefore;
-            var instaNew = order.FinalPaymentInstaPayPaid - instaBefore;
-            var refundNew = order.RefundedDepositAmount - refundBefore;
-            var totalNewCollected = cashNew + vodNew + instaNew;
-
-            // stage 2 = final settlement, kind 1 = collected, kind 2 = refunded.
-            AddPendingPayment(order, FinancialAccountKind.Cash, 2, 1, cashNew, "دفعة تسليم - كاش");
-            AddPendingPayment(order, FinancialAccountKind.VodafoneCash, 2, 1, vodNew, "دفعة تسليم - فودافون كاش");
-            AddPendingPayment(order, FinancialAccountKind.InstaPay, 2, 1, instaNew, "دفعة تسليم - إنستاباي");
-            AddPendingPayment(order, FinancialAccountKind.Cash, 2, 2, refundNew, "رد فرق عربون عند التسليم");
-
-            var summaryParts = new List<string>
-            {
-                $"التكلفة النهائية: {order.EstimatedCostDisplay}",
-                vm.WarrantyDays > 0 ? $"ضمان {vm.WarrantyDays} يومًا" : "بدون ضمان"
-            };
-            if (totalNewCollected > 0m)
-                summaryParts.Add($"تحصيل عند التسليم: {PosFormatting.FormatCurrency(totalNewCollected)}");
-            if (refundNew > 0m)
-                summaryParts.Add($"رد فرق عربون: {PosFormatting.FormatCurrency(refundNew)}");
-            if (!string.IsNullOrWhiteSpace(order.DeliveryNotes))
-                summaryParts.Add(order.DeliveryNotes);
-
-            RecordActivity(order, new MaintenanceActivityEntry
-            {
-                Timestamp = DateTime.Now,
-                ActionTitle = "تسليم الجهاز وإغلاق أمر الصيانة",
-                Details = string.Join(" · ", summaryParts),
-                ActorName = currentUserName,
-                Amount = totalNewCollected > 0m ? totalNewCollected : order.CurrentEffectiveCost
-            });
-
-            if (repository is not null)
-                TryPersistOrder(
-                    order,
-                    $"تم تسليم الجهاز وإغلاق الفاتورة {order.OrderNumber} ({order.WarrantySummaryDisplay}).",
-                    "تعذّر حفظ التسليم");
-            else
-                SetStatus(
-                    $"تم تسليم الجهاز وإغلاق الفاتورة {order.OrderNumber} ({order.WarrantySummaryDisplay}).",
-                    false);
-
-            if (vm.ShouldOpenPrintAfterClose)
-                OpenPrintPreview(order, MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt);
-        }
+        MaintenancePosting.Deliver(new MaintenanceDeliveryViewModel(order), repository, OpenDeliveryDialogRequested,
+            _ => ReloadAfterPosting(), OpenReceiptPreviewRequested, currentUserName, SetStatus);
     }
 
-    private void OpenPrintPreview(MaintenanceOrderDesignItem? order, MaintenanceReceiptPrintMode? explicitMode)
+    private void ReloadAfterPosting()
     {
-        if (order is null) return;
-        SelectedOrder = order;
+        if (onOrdersSaved is not null) onOrdersSaved();
+        else NotifyExternalDataChanged();
+        if (lastLoadFailed) throw new Data.MaintenanceDataException("تعذّر تحديث سجل فواتير الصيانة.");
+    }
 
-        var initialMode = explicitMode ?? (order.IsDelivered || order.IsReadyForPickup
-            ? MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt
-            : MaintenanceReceiptPrintMode.CustomerIntakeReceipt);
-
-        var vm = new MaintenanceReceiptPreviewViewModel(
-            order,
-            modeLabel =>
-            {
-                RecordActivity(order, new MaintenanceActivityEntry
-                {
-                    Timestamp = DateTime.Now,
-                    ActionTitle = $"طباعة: {modeLabel}",
-                    Details = $"معاينة وطباعة {modeLabel} من فواتير الصيانة {order.OrderNumber}.",
-                    ActorName = currentUserName
-                });
-
-                if (repository is not null && order.Id > 0)
-                    TryPersistOrder(
-                        order,
-                        $"تمت معاينة طباعة الفاتورة {order.OrderNumber} ({modeLabel}).",
-                        "تعذّر حفظ سجل الطباعة");
-                else
-                    SetStatus($"تمت معاينة طباعة الفاتورة {order.OrderNumber} ({modeLabel}).", false);
-            },
-            initialMode);
-
-        OpenReceiptPreviewRequested?.Invoke(vm);
+    private void OpenPrintPreview(MaintenanceOrderDesignItem? order, MaintenanceReceiptPrintMode? mode)
+    {
+        if (order is not null) MaintenancePosting.Preview(order, repository, currentUserName, OpenReceiptPreviewRequested, SetStatus, mode);
     }
 
     private void RefreshFilteredOrders()

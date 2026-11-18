@@ -43,10 +43,10 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-# 46 CREATE TABLE statements: 06 creates the 39 business tables + Users, 01 creates Users,
+# 50 CREATE TABLE statements (including four purchase settlement/trace tables in 25): 06 creates the 39 business tables + Users, 01 creates Users,
 # and 16/19/20/21 repeat the movement, expense-section, expense and expense-payment tables
 # idempotently so an existing database can be upgraded without re-running 06.
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 46
+assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 50
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
 assert 'CREATE DATABASE [ProjectZ]' in sql
 assert '[ProjectZClient]' in (root / 'sql/04_SetupLanSqlAuth.sql').read_text(encoding='utf-8')
@@ -62,11 +62,14 @@ expected_tables = {
     'SalesInvoiceActivities', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits',
     'MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments', 'MaintenanceActivities',
     'MaintenanceSpareParts', 'MaintenanceSparePartMovements', 'ExpenseCategories', 'Expenses',
-    'ExpensePayments', 'AuditLog'
+    'ExpensePayments', 'AuditLog', 'SupplierCreditNotes', 'SupplierCreditApplications', 'SupplierCreditReceipts', 'PurchaseReturnUnits'
 }
 created_tables = set(re.findall(r'CREATE\s+TABLE\s+dbo\.([A-Za-z0-9_]+)', sql, re.I))
 assert created_tables == expected_tables, f'schema table mismatch: missing={expected_tables-created_tables}, extra={created_tables-expected_tables}'
-assert len(re.findall(r'CREATE\s+OR\s+ALTER\s+VIEW\s+dbo\.', reporting_views, re.I)) == 5
+assert set(re.findall(r'CREATE\s+OR\s+ALTER\s+VIEW\s+dbo\.(\w+)', reporting_views, re.I)) == {
+    'vwProductStock', 'vwSalesLineValuation', 'vwSalesInvoiceSummary', 'vwPurchaseInvoiceSummary',
+    'vwMaintenanceOrderSummary', 'vwFinancialAccountDailyUsage', 'vwPurchaseDocumentValue'
+}
 for required_relation in ('SalesInvoiceId', 'PurchaseInvoiceId', 'MaintenanceOrderId', 'FinancialAccountId', 'ProductId', 'ActorUserId'):
     assert required_relation in full_schema, f'missing relational key: {required_relation}'
 assert 'ON DELETE CASCADE' not in full_schema.upper(), 'financial and inventory history must not be cascade-deleted'
@@ -82,7 +85,7 @@ assert '01_CreateDatabase.sql' in (root / 'docs/DATABASE.md').read_text(encoding
 schema_verification = (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8')
 assert 'SELECT expected.v AS MissingView' in schema_verification
 assert 'SELECT v.name AS MissingView' not in schema_verification
-print('PASS: complete ProjectZ database schema, 38 related tables, five reporting views, compatibility 130')
+print('PASS: complete ProjectZ database schema, 40 base tables + four purchase settlement tables, seven base reporting views, compatibility 130')
 
 # --- Application shutdown: closing the UI must terminate the WPF process ---
 app_xaml = (root / 'src/ProjectZ/App.xaml').read_text(encoding='utf-8')
@@ -530,7 +533,7 @@ for token in (
     'DamagedReturnQtyDisplay',
     'ReplacementItems',
     'FilteredReplacementCatalog',
-    'NeedsCustomerRefund',
+    'HasInvoiceReduction',
     'NeedsCustomerPayment',
     'ConfirmOperationCommand',
     'OpenOperationInvoiceCommand',
@@ -563,20 +566,19 @@ assert 'repository.LoadInvoicesInto(sharedInvoices)' in return_exchange_vm
 assert 'repository.LoadReturnExchanges()' in return_exchange_vm
 assert 'IsConnectedToDatabase' in return_exchange_vm
 
-# Repository: exchange posting, history read, mixed good/damaged returns and financial settlement.
-assert 'public string CreateExchange(ExchangeRequest request, ExchangePayment payment)' in sales_repository
+# The public client sends selections and expected versions, never a refund amount or return price.
+sale_posting = (root / 'sql/22_EnableSaleSettlement.sql').read_text(encoding='utf-8')
+for proc in ('IssueSale', 'CollectSalePayment', 'AdjustSale', 'UpdateSaleNotes'):
+    assert f'Post("dbo.{proc}"' in sales_repository
+    assert f'GRANT EXECUTE ON OBJECT::dbo.{proc} TO [ProjectZClient]' in sale_posting
 assert 'public List<ReturnExchangeRecord> LoadReturnExchanges()' in sales_repository
-for table in ('dbo.ReturnExchanges', 'dbo.ReturnExchangeLines', 'dbo.ReturnExchangeUnits'):
-    assert table in sales_repository, f'the return screen does not write {table}'
-assert 'VALUES(@Operation,1,@SalesLine' in sales_repository and 'VALUES(@Operation,2,NULL' in sales_repository
-assert 'public int DamagedQuantity => Quantity - GoodQuantityValue;' in sales_repository
-assert 'goodRemaining > 0' in sales_repository, 'mixed good/damaged returns are not split per unit'
-assert 'ApplyExchangePayment(connection, transaction, request.Invoice, payment)' in sales_repository
-assert 'private static ExchangeStockClaim ClaimExchangeUnits(' in sales_repository
-assert 'RecordUntrackedExchange(connection, transaction, request.Invoice.Id, product.Id' in sales_repository
-assert 'RefundAccounts(connection, transaction, request.Invoice, Math.Abs(difference)' in sales_repository
-assert 'StockMovement(connection, transaction, request.Invoice.Id, unit.Id, "ExchangeOut"' in sales_repository
-assert 'INSERT dbo.AuditLog' in sales_repository
+assert 'record ReturnLineRequest(int SalesInvoiceLineId, int GoodQuantity, int DamagedQuantity)' in sales_repository
+assert '"@ExpectedVersion"' in sales_repository
+for table in ('SalesPayments', 'SalesInvoices', 'SalesInvoiceLineUnits', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits'):
+    assert f'DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.{table} TO [ProjectZClient]' in sale_posting
+for invariant in ('WITH (UPDLOCK,HOLDLOCK)', 'RowVersion=@ExpectedVersion', 'GROUP BY p.FinancialAccountId',
+                  'dbo.vwSalesInvoiceSummary', 'a.CurrentBalance>=p.Amount', 'SET AllocationStatus=1', 'dbo.SaleShare('):
+    assert invariant in sale_posting, f'missing sale posting guard: {invariant}'
 
 # Cross-screen wiring: the sales repository feeds the screen and invoice writes reload stock from SQL.
 assert 'Invoices.StockReloadRequested = ReloadInventoryOnly;' in main_viewmodel
@@ -586,9 +588,9 @@ assert 'salesRepository);' in main_viewmodel
 assert "if (!ReturnExchange.RefreshFromDatabase())" in main_viewmodel
 
 # Permissions script is idempotent and grants only the return/exchange tables.
-assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];' in return_exchange_permissions
-assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];' in return_exchange_permissions
-assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];' in return_exchange_permissions
+assert 'GRANT SELECT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];' in return_exchange_permissions
+assert 'GRANT SELECT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];' in return_exchange_permissions
+assert 'GRANT SELECT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];' in return_exchange_permissions
 assert 'DELETE' not in return_exchange_permissions.replace('-- ', ''), 'the return permission script must not grant DELETE'
 print('PASS: return/exchange screen persists to SQL, reads its ledger back, and reloads stock across screens')
 
@@ -604,25 +606,18 @@ assert purchase_permissions_path.is_file(), 'sql/12_EnablePurchasing.sql is miss
 purchase_repository = purchase_repository_path.read_text(encoding='utf-8')
 purchase_permissions = purchase_permissions_path.read_text(encoding='utf-8')
 
-# The repository must really write the purchase ledger, not only read it.
-for token in (
-    'INSERT dbo.PurchaseInvoices',
-    'INSERT dbo.PurchaseInvoiceLines',
-    'INSERT dbo.PurchaseInvoiceLineUnits',
-    'INSERT dbo.PurchaseReturns',
-    'INSERT dbo.PurchaseReturnLines',
-    'INSERT dbo.PurchasePayments',
-    'INSERT dbo.PurchaseInvoiceActivities',
-    'INSERT dbo.InventoryUnits',
-    "N'Supply'",
-    'INSERT dbo.FinancialTransactions',
-    'UPDATE dbo.FinancialAccounts',
-    'UPDATE dbo.Suppliers',
-    'INSERT dbo.Suppliers',
-    'SELECT Id, AccountKind FROM dbo.FinancialAccounts',
-    'NextDocumentNumber',
-):
-    assert token in purchase_repository, f'PurchaseRepository missing SQL token: {token}'
+# Purchase settlement is owned by the database. Never restore the old ad-hoc edit/payment path.
+purchase_settlement = (root / 'sql/25_EnablePurchaseSettlement.sql').read_text(encoding='utf-8')
+for proc in ('CreatePurchaseDocument','PayPurchaseDocument','EditPurchaseDocument','ReturnPurchaseDocument',
+             'ApplySupplierCredit','ReceiveSupplierCredit','DeleteUnsettledPurchase'):
+    assert f'PROCEDURE dbo.{proc} ' in purchase_settlement and f'Post("{proc}"' in purchase_repository
+    assert f'GRANT EXECUTE ON OBJECT::dbo.{proc} TO [ProjectZClient]' in purchase_settlement
+for token in ('INSERT dbo.PurchaseReturnLines','INSERT dbo.PurchaseReturnUnits','INSERT dbo.SupplierCreditNotes',
+              'INSERT dbo.SupplierCreditApplications','INSERT dbo.SupplierCreditReceipts','EXEC dbo.LockPurchaseDocument'):
+    assert token in purchase_settlement
+assert 'SyncChannel' not in purchase_repository and 'INSERT dbo.PurchasePayments' not in purchase_repository
+edit_proc = purchase_settlement.split('PROCEDURE dbo.EditPurchaseDocument',1)[1].split('\nGO',1)[0]
+assert 'WritePurchasePayment' not in edit_proc and 'Products SET CostPrice' not in edit_proc
 
 for customer_sql in ('UPDATE dbo.Customers', 'DELETE dbo.Customers',
                      'UPDATE dbo.Customers SET IsActive=0'):
@@ -661,8 +656,8 @@ for view_model, name in ((purchase_entry_vm, 'PurchaseEntryViewModel'),
 
 assert 'repository.CreateInvoice' in purchase_entry_vm, 'the purchase entry screen must save through SQL'
 assert 'مرحلة التصميم (بدون Backend)' not in purchase_entry_vm
-for command in ('repository.PayInvoice', 'repository.ReturnToSupplier', 'repository.CancelInvoice',
-                'repository.DeleteInvoice', 'repository.UpdateInvoice', 'repository.LoadInvoicesInto'):
+for command in ('repo.PayInvoice', 'repo.ReturnToSupplier', 'repo.CancelInvoice', 'repo.ApplyCredit', 'repo.ReceiveCredit',
+                'repo.DeleteInvoice', 'repo.UpdateInvoice', 'repository.LoadInvoicesInto'):
     assert command in purchase_invoices_vm, f'the purchase invoices screen must use {command}'
 assert 'مرحلة التصميم (بدون Backend)' not in purchase_invoices_vm
 for command in ('repository.CreateSupplier', 'repository.UpdateSupplier', 'repository.DeleteSupplier',
@@ -687,16 +682,10 @@ assert 'RefreshFromDatabaseCommand' in purchase_invoices_xaml_text
 
 # Permissions script: idempotent grants only, and no table is created in it.
 assert 'CREATE TABLE' not in purchase_permissions, 'sql/12 must not create tables'
-for grant in (
-    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.PurchaseInvoices TO [ProjectZClient];',
-    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.PurchaseInvoiceLines TO [ProjectZClient];',
-    'GRANT SELECT, INSERT, DELETE ON OBJECT::dbo.PurchaseInvoiceLineUnits TO [ProjectZClient];',
-    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchasePayments TO [ProjectZClient];',
-    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchaseReturns TO [ProjectZClient];',
-    'GRANT SELECT, INSERT ON OBJECT::dbo.PurchaseReturnLines TO [ProjectZClient];',
-    'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Suppliers TO [ProjectZClient];',
-):
-    assert grant in purchase_permissions, f'sql/12 is missing a grant: {grant}'
+for table in ('PurchaseInvoices','PurchaseInvoiceLines','PurchaseInvoiceLineUnits','PurchasePayments','PurchaseReturns','PurchaseReturnLines'):
+    assert f'GRANT SELECT ON OBJECT::dbo.{table} TO [ProjectZClient]' in purchase_permissions
+    assert f'DENY INSERT,UPDATE,DELETE ON OBJECT::dbo.{table} TO [ProjectZClient]' in purchase_settlement
+assert 'GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.Suppliers TO [ProjectZClient]' in purchase_permissions
 # Every SQL parameter declared in a purchase statement must also be bound in C#, and every
 # INSERT..OUTPUT inserted.Id must be read back. A missing binding makes SQL Server reject the whole
 # save with 137 ("must declare the scalar variable"), which surfaced as the generic
@@ -731,13 +720,7 @@ for broken in (
         'parameter checker must inspect multiline verbatim SQL and ordinary SQL strings'
 unbound = _unbound_parameters(purchase_repository, 'PurchaseRepository.cs')
 assert not unbound, 'unbound SQL parameters break the purchase save: ' + '; '.join(unbound)
-# PurchaseInvoiceLines carries OUTPUT inserted.Id on both the create and the edit path; the id feeds
-# PurchaseInvoiceLineUnits, so an ignored result would insert unit links against line id 0.
-assert purchase_repository.count('OUTPUT inserted.Id') >= 1
-assert 'lineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
-    'the created purchase line id must be read back for its stock units'
-assert 'newLineId = (int)insert.ExecuteScalar()!' in purchase_repository, \
-    'an added purchase line id must be read back for its stock units'
+assert 'SET @Line=CONVERT(int,SCOPE_IDENTITY())' in purchase_settlement and 'INSERT dbo.PurchaseInvoiceLineUnits' in purchase_settlement
 assert '137 or 8178' in purchase_repository, 'an unbound SQL parameter must be reported instead of a generic save error'
 assert 'SET ARITHABORT ON;' in purchase_repository and 'SET NUMERIC_ROUNDABORT OFF;' in purchase_repository, \
     'purchase writes to filtered indexes must restore the required session options on pooled connections'
@@ -935,14 +918,14 @@ maintenance_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').r
 maintenance_actions_vm = maintenance_actions_vm_path.read_text(encoding='utf-8')
 maintenance_actions_dialogs = maintenance_actions_dialogs_path.read_text(encoding='utf-8')
 for token in ('IsDatabaseBacked', 'DataConnectionBadgeText', 'LastSyncedDisplay', 'ReloadTechnicianDirectory',
-              'isBulkReload', 'ValidateWorkshopFieldLengths', 'AppendMaintenanceActivity', 'RefreshFilteredOrders(selectedId)'):
+              'isBulkReload', 'ValidateWorkshopFieldLengths', 'MaintenancePosting.Deliver', 'RefreshFilteredOrders(selectedId)'):
     assert token in maintenance_actions_vm, f'MaintenanceActions view model missing expected token: {token}'
 for token in ('DataConnectionBadgeText', 'LastSyncedDisplay'):
     assert token in maintenance_actions_xaml, f'MaintenanceActions UI is not SQL-backed: {token}'
 assert 'TechnicianFilterOptions = new[] { "كل الفنيين" }' not in maintenance_actions_vm, \
     'the technician directory is hard-coded from the design samples again'
 assert 'DatabaseRowVersion' in maintenance_order_model, 'MaintenanceOrderDesignItem.DatabaseRowVersion is missing'
-for token in ('RowVersion = @RowVersion', 'OUTPUT inserted.RowVersion', 'LoadTechnicianDirectory'):
+for token in ('MaintenanceTicketKey.Open', 'key.Version is not { Length: 8 }', 'LoadTechnicianDirectory'):
     assert token in maintenance_repository, f'MaintenanceRepository missing expected token: {token}'
 assert 'ملاحظات التسليم أطول من الحد المسموح' in maintenance_actions_dialogs
 assert 'سبب الإلغاء أطول من الحد المسموح' in maintenance_actions_dialogs
@@ -1050,16 +1033,17 @@ assert 'dbo.MaintenanceSparePartMovements' in full_schema and 'dbo.MaintenanceSp
 
 spare_parts_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
 for operation in ('LoadSparePartsInto(', 'LoadSparePartSuppliers(', 'SaveSparePart(', 'DeleteSparePart(',
-                  'DeductSparePartStock(', 'RestoreSparePartStock(', 'RestockSparePart(',
+                  'IssuePart(', 'RemovePart(', 'RestockSparePart(',
                   'LoadSparePartMovementsInto(', 'InsertSparePartMovement('):
     assert operation in spare_parts_repository, f'missing spare-part SQL operation: {operation}'
 for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK',
-              'dbo.MaintenanceSparePartMovements', 'INSERT dbo.MaintenanceOrderParts',
+              'dbo.MaintenanceSparePartMovements', 'dbo.ChangeMaintenancePart',
               'RowVersion', 'COALESCE(@Supplier, sp.SupplierId)',
-              'MaintenanceSparePartMovementKind.Issue',
-              'MaintenanceSparePartMovementKind.Purchase', 'MaintenanceSparePartMovementKind.Return'):
+              'MaintenanceSparePartMovementKind.Purchase'):
     assert guard in spare_parts_repository, f'missing spare-part persistence guard: {guard}'
-assert 'WHERE Id = @Id;' in spare_parts_repository, 'restoring a deactivated part must not require IsActive = 1'
+maintenance_sql = (root / 'sql/24_EnableMaintenanceSettlement.sql').read_text(encoding='utf-8')
+release_line = maintenance_sql.split('PROCEDURE dbo.ReleaseMaintenanceLine', 1)[1].split('\nGO', 1)[0]
+assert 'WHERE Id=@Spare;' in release_line and 'IsActive' not in release_line, 'return a saved line even on a stopped spare'
 assert 'يوجد سجل صرف أو حركات مخزون' in spare_parts_repository, 'deleting a part with history must deactivate it'
 
 spare_parts_vm = (root / 'src/ProjectZ/ViewModels/MaintenanceSparePartsViewModel.cs').read_text(encoding='utf-8')
@@ -1100,8 +1084,18 @@ assert 'GoToSparePartsCommand' in maintenance_actions_xaml_path.read_text(encodi
 assert 'Customers.OpenSparePartRequested' in main_viewmodel
 assert 'sharedMaintenanceSpareParts' in main_viewmodel
 maintenance_actions_code = (root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs').read_text(encoding='utf-8')
-assert 'RestorePartStockToInventory(part, order)' in maintenance_actions_code
-assert 'repository.RestoreSparePartStock(' in maintenance_actions_code
+for token in ('r.IssuePart(', 'r.RemovePart(', 'r.Cancel(', 'r.Reopen('):
+    assert token in maintenance_actions_code, f'missing atomic workshop action: {token}'
+for vm in ('MaintenanceInvoicesViewModel', 'MaintenanceInvoiceDetailsViewModel', 'MaintenanceActionsViewModel', 'CustomersViewModel'):
+    caller = (root / f'src/ProjectZ/ViewModels/{vm}.cs').read_text(encoding='utf-8')
+    assert 'MaintenancePosting.Deliver(' in caller and 'pendingPayments' not in caller, f'{vm} bypasses versioned settlement'
+assert 'Order.Status =' not in maintenance_actions_dialogs and 'Order.FinalPaymentCashPaid +=' not in maintenance_actions_dialogs
+for token in ('dbo.LockMaintenanceTicket', '@Saved<>@Version', 'dbo.PriceMaintenanceTicket', 'dbo.CheckMaintenanceStock',
+              'dbo.ReleaseMaintenanceLine', 'RefundOfPaymentId', 'CurrentBalance>=@Amount', 'SYSUTCDATETIME()',
+              'ProjectZMaintenanceSupervisor', 'XACT_ABORT ON'):
+    assert token in maintenance_sql, f'missing server-side maintenance guard: {token}'
+for table in ('MaintenanceOrders', 'MaintenanceOrderParts', 'MaintenancePayments'):
+    assert f'DENY INSERT,UPDATE,DELETE ON OBJECT::dbo.{table} TO [ProjectZClient]' in maintenance_sql
 print('PASS: spare-parts screen persists CRUD, suppliers, restock and the movement ledger to SQL and links every screen')
 
 maintenance_actions_vm_text = (root / 'src/ProjectZ/ViewModels/MaintenanceActionsViewModel.cs').read_text(encoding='utf-8')
@@ -1169,7 +1163,7 @@ for removed_binding in ('TotalSuppliersCountDisplay', 'TotalPaidAllDisplay', 'To
                         'SpecializationsBreakdownSubtext', 'CreditorsCountSubtext'):
     assert removed_binding not in suppliers_xaml, f'removed suppliers KPI binding is back: {removed_binding}'
 suppliers_vm_text = suppliers_vm_path.read_text(encoding='utf-8')
-for token in ('BuildStatement', 'RunningBalance', 'ReturnedGoodsTotal', 'NetCashOutflow', 'RemainingPayable'):
+for token in ('BuildStatement', 'RunningBalance', 'DocumentedReturnValue', 'NetCashOutflow', 'RemainingPayable', 'AvailableCredit', 'DocumentDelta', 'i.Postings'):
     assert token in suppliers_vm_text, f'Suppliers ledger missing expected calculation: {token}'
 supplier_model_text = (root / 'src/ProjectZ/Models/PurchaseDesignModels.cs').read_text(encoding='utf-8')
 for token in ('Specialization', 'VodafoneCashNumber', 'InstaPayAddress'):
@@ -1262,11 +1256,15 @@ for records_name in ('VodafoneRecordsViewModel.cs', 'InstapayRecordsViewModel.cs
                   'if (FindWallet(SelectedOperation.WalletId) is not { } wallet)',
                   'if (wallet is null) { error = MissingWalletMessage; return false; }',
                   'if (accounts.CashAccount is not { } cash) { error = MissingCashMessage; return false; }',
-                  'if (cashDelta < 0m && cash.Balance < -cashDelta)',
+                  'if (cashDelta < 0m && cash.Balance - original.CashDelta < -cashDelta)',
                   'if (accounts.CashAccount is not { } cash) return MissingCashMessage;'):
         assert token in records_text, f'{records_name} is missing a guarded edit path: {token}'
-    assert records_text.count('if (wallet is null) { SetStatus(MissingWalletMessage, true); return; }') == 2, \
-        f'{records_name} must guard both the reverse and the delete fallback'
+    for token in ('RequestReverse(fromDelete: true)', 'RequestReverse(fromDelete: false)',
+                  'if (wallet is null) { SetStatus(MissingWalletMessage, true); return; }',
+                  'editTarget = new(SelectedOperation, SelectedOperation.RowVersion.ToArray())',
+                  'UpdateCustomerTransfer(operation.Id, target.Version,',
+                  'var version = operation.RowVersion.ToArray()', 'ReverseCustomerTransfer(operation.Id, version,'):
+        assert token in records_text, f'{records_name} must bind edit and both reversal commands to the opened transfer: {token}'
 for transfer_name in ('VodafoneTransferViewModel.cs', 'InstapayTransferViewModel.cs'):
     transfer_text = (root / 'src/ProjectZ/ViewModels' / transfer_name).read_text(encoding='utf-8')
     assert 'accounts.CashAccount.Balance' not in transfer_text, \
@@ -1294,11 +1292,11 @@ for token in ('A stopped line disappears from the active accounts while its tran
 records_repository_text = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
 assert 'FinancialDataException("المحفظة المحددة غير متاحة' in records_repository_text, \
     'EnsureAccountById must stay the single owner of the unavailable-wallet message'
-# Auto-created wallets must not collide with a stopped row of the same kind (UQ_FinancialAccounts_Kind_Identifier).
-assert 'SELECT COUNT(*) FROM dbo.FinancialAccounts WITH (UPDLOCK, HOLDLOCK) WHERE AccountKind = @Kind;' in records_repository_text, \
-    'EnsureAccounts must not insert a duplicate row when every account of that kind is stopped'
-assert 'كل خطوط فودافون كاش موقوفة' in records_repository_text, \
-    'EnsureAccounts must explain the stopped line in Arabic'
+wallet_posting = (root / 'sql/23_EnableCustomerTransferCorrections.sql').read_text(encoding='utf-8')
+assert 'INSERT dbo.FinancialAccounts' not in wallet_posting, 'a missing or stopped account must never be substituted'
+for token in ('Id=@OldWallet AND AccountKind=@Provider AND IsActive=1', 'المحفظة الأصلية موقوفة',
+              'Id=@NewWallet AND AccountKind=@Provider AND IsActive=1'):
+    assert token in wallet_posting, f'posting must explicitly check both wallets: {token}'
 records_doc = (root / 'docs/DATABASE.md').read_text(encoding='utf-8')
 for token in ('ThrowNoMatchException', 'IsActive = 1', 'MissingWalletMessage'):
     assert token in records_doc, f'docs/DATABASE.md must explain the stopped-line edit guard: {token}'
@@ -1672,10 +1670,10 @@ enable_pos_sql = enable_pos_sql_path.read_text(encoding='utf-8')
 for operation in ('LoadCustomersInto', 'CreateCustomer', 'CompleteSale', 'CollectPayment', 'LoadInvoicesInto',
                   'UpdateNotes', 'CancelSale', 'CreateReturn'):
     assert f'public' in sales_repository and operation + '(' in sales_repository, f'missing POS SQL operation: {operation}'
-for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK', 'dbo.DocumentSequences',
+for guard in ('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE', 'UPDLOCK,HOLDLOCK', 'dbo.DocumentSequences',
               'dbo.SalesPayments', 'dbo.FinancialTransactions', 'dbo.StockMovements', 'dbo.AuditLog',
               'INSERT dbo.SalesInvoiceLineUnits', 'CountsTowardLimits'):
-    assert guard in sales_repository, f'missing POS persistence guard: {guard}'
+    assert guard in sale_posting, f'missing POS persistence guard: {guard}'
 for message_code in ('229 or 230', '1205', '2601 or 2627'):
     assert message_code in sales_repository, f'missing SQL error mapping: {message_code}'
 for table in ('Customers', 'DocumentSequences', 'FinancialAccounts', 'FinancialTransactions', 'SalesInvoices',
@@ -2224,12 +2222,12 @@ print('PASS: general settings and backup have separate hosts, and backup uses ma
 # Vodafone Cash / InstaPay deposit, withdrawal, edit and reversal fail with SQL 547, surfaced to the user as
 # "لا يمكن إتمام العملية لارتباط السجل بحساب أو حركة أخرى".
 financial_repository = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
-assert "N'CustomerTransfer',@Source" in financial_repository, 'wallet ledger rows must carry SourceEntityId'
-assert "N'CustomerTransfer',NULL" not in financial_repository, 'wallet ledger rows must not leave SourceEntityId NULL'
-assert financial_repository.count('RecordWalletMovement(connection, transaction,') == 8
-assert financial_repository.count(', actorUserId, transferId);') == 8, \
-    'every wallet ledger row must keep its actor and be tied to its transfer'
-assert 'if (signedAmount == 0m) return;' in financial_repository, 'a zero-value ledger row violates CK_FinancialTransactions_Amount'
+for token in ("N'CustomerTransfer',@Id", 'WHERE Delta<>0', 'FROM dbo.CustomerTransfers WITH (UPDLOCK,HOLDLOCK)',
+              '@Version<>@ExpectedVersion', '@OldStatus<>0', 'CorrectsTransferId', 'INSERT dbo.AuditLog',
+              'DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.CustomerTransfers',
+              'DENY EXECUTE ON OBJECT::dbo.WriteCustomerTransferEffect', 'GRANT EXECUTE ON OBJECT::dbo.PostCustomerTransfer'):
+    assert token in wallet_posting, f'missing customer transfer posting invariant: {token}'
+assert 'UPDATE dbo.CustomerTransfers' not in financial_repository and 'INSERT dbo.CustomerTransfers' not in financial_repository
 assert "sql.Message.Contains(\"CHECK constraint\"" in financial_repository, 'error 547 must not blame a foreign key for a CHECK violation'
 for ledger_insert in re.finditer(r'INSERT dbo\.FinancialTransactions\([^)]*SourceEntityType,SourceEntityId\)(.*?);"', financial_repository, re.S):
     tail = ledger_insert.group(1).split('VALUES', 1)[-1].rstrip().rstrip(')')
@@ -2342,7 +2340,8 @@ for token in ('public void LoadWalletMovementsInto(',
               'public void LoadInstapayWalletMovementsInto(',
               'FROM dbo.FinancialTransactions t',
               "LEFT JOIN dbo.CustomerTransfers ct",
-              "AND t.Category IN (N'\u062a\u062d\u0648\u064a\u0644 \u0644\u0644\u0639\u0645\u064a\u0644', N'\u0633\u062d\u0628 \u0644\u0644\u0639\u0645\u064a\u0644')",
+              'ct.FinancialAccountId=t.FinancialAccountId', 'SELECT MAX(ap.Id)',
+              "ap.Category IN (N'تحويل للعميل',N'سحب للعميل',N'تعديل سجل')", 'ct.RowVersion, ct.CorrectsTransferId',
               'WHERE a.AccountKind = @Kind',
               "SELECT t.Id, t.FinancialAccountId",
               'ORDER BY t.OccurredAtUtc DESC, t.Id DESC;'):

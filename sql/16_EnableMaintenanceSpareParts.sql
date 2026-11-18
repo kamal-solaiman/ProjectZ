@@ -271,8 +271,7 @@ GRANT SELECT ON OBJECT::dbo.Suppliers TO [ProjectZClient];
 GRANT SELECT ON OBJECT::dbo.Customers TO [ProjectZClient];
 GRANT SELECT ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
 GRANT SELECT ON OBJECT::dbo.Users TO [ProjectZClient];
-GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
-GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
 GO
 
 /* 6) Verification: the columns, table, constraints and indexes must all exist. */

@@ -26,10 +26,12 @@ public sealed class InventoryRepository(ConnectionSettingsProvider settings, int
 SELECT p.Id, p.Barcode, p.Sku, p.Name, c.Name, p.UnitName, p.CostPrice,
        p.RetailPrice, p.SpecialPrice, p.WholesalePrice, p.MinimumStockAlert,
        p.TrackSerialNumber, p.IsActiveForSale, p.Notes, p.RowVersion,
-       CASE WHEN EXISTS (SELECT 1 FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id)
+       CASE WHEN EXISTS (SELECT 1 FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id AND x.UnitStatus<>3)
             THEN (SELECT COUNT(*) FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id AND x.UnitStatus=0)
             ELSE COALESCE((SELECT SUM(m.QuantityDelta) FROM dbo.StockMovements m WHERE m.ProductId=p.Id),0) END,
        (SELECT COUNT(*) FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id AND x.UnitStatus=2)
+         + COALESCE((SELECT SUM(-m.QuantityDelta) FROM dbo.StockMovements m WHERE m.ProductId=p.Id AND m.InventoryUnitId IS NULL
+             AND m.MovementType=N'Damage' AND m.SourceEntityType=N'SalesInvoice'),0)
 FROM dbo.Products p JOIN dbo.Categories c ON c.Id=p.CategoryId
 WHERE p.IsActiveForSale=1
 ORDER BY p.Name;
@@ -40,7 +42,7 @@ SELECT iu.Id, iu.ProductId, p.Name, COALESCE(p.Barcode,N''), iu.PurchaseCost,
 FROM dbo.InventoryUnits iu
 JOIN dbo.Products p ON p.Id=iu.ProductId
 LEFT JOIN dbo.Suppliers s ON s.Id=iu.SupplierId
-WHERE p.IsActiveForSale=1
+WHERE p.IsActiveForSale=1 AND iu.UnitStatus<>3
 ORDER BY iu.RegisteredAtUtc DESC, iu.Id DESC;
 SELECT Name FROM dbo.Categories WHERE IsActive=1 ORDER BY Name;";
         using var reader = command.ExecuteReader();

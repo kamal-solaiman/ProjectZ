@@ -111,8 +111,8 @@
                             </Border>
                             <Border Margin="0,0,8,0" Padding="10,8" CornerRadius="10" Background="{DynamicResource Theme.Legacy.F0FDFA.AccentSoft}" BorderBrush="{DynamicResource Theme.Legacy.99F6E4.Border}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="المدفوع مقدمًا (عربون)" Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
-                                    <TextBlock Text="{Binding Order.NetDepositRetainedDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
+                                    <TextBlock Text="المدفوع سابقًا (صافي)" Style="{StaticResource PosCenterTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
+                                    <TextBlock Text="{Binding Order.TotalCollectedAllDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                 </StackPanel>
                             </Border>
                             <Border Margin="0,0,8,0" Padding="10,8" CornerRadius="10" Background="{DynamicResource Theme.Legacy.FEF2F2.DangerSoft}" BorderBrush="{DynamicResource Theme.Legacy.FECACA.DangerBorder}" BorderThickness="1">
@@ -134,12 +134,12 @@
                         BorderThickness="1"
                         Visibility="{Binding HasExcessDeposit, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
-                        <TextBlock Text="تنبيه: العربون المدفوع سابقًا أكبر من التكلفة النهائية"
+                        <TextBlock Text="تنبيه: صافي المدفوع سابقًا أكبر من التكلفة النهائية"
                                    Style="{StaticResource PosRtlTextStyle}"
                                    FontSize="13"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource Theme.Legacy.92400E.WarningInk}" />
-                        <CheckBox Content="رد فرق العربون الزائد للعميل عند التسليم"
+                        <CheckBox Content="رد فرق المبلغ الزائد للعميل عند التسليم"
                                   Style="{StaticResource PosCheckBoxStyle}"
                                   Margin="0,5,0,2"
                                   FontSize="12.5"

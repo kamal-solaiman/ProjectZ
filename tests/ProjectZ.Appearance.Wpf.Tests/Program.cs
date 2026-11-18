@@ -273,6 +273,7 @@ internal static class Program
         var guardTransfers = new VodafoneTransferViewModel(guardAccounts, "اختبار الحماية");
         var guardRecords = new VodafoneRecordsViewModel(guardTransfers, guardAccounts, "اختبار الحماية");
         var orphanedOperation = guardRecords.FilteredOperations.First(operation => operation.Id == 1);
+        var originalWalletId = orphanedOperation.WalletId;
         orphanedOperation.WalletId = 999; // the saved line is no longer one of the active accounts
         var editorOpened = false;
         guardRecords.EditRequested = () => editorOpened = true;
@@ -281,6 +282,10 @@ internal static class Program
               && guardRecords.StatusMessage == VodafoneRecordsViewModel.MissingWalletMessage,
             "Editing an operation whose line is gone explains it in Arabic instead of throwing");
         // The dialog can already be open when the line disappears, so the save path must be guarded too.
+        orphanedOperation.WalletId = originalWalletId;
+        guardRecords.BeginOperationEditCommand.Execute(orphanedOperation);
+        Check(editorOpened, "A valid line opens the editor");
+        guardAccounts.Accounts.Remove(guardRecords.EditWallet!);
         guardRecords.EditWallet = guardAccounts.Accounts.First(account => account.Kind == FinancialAccountKind.VodafoneCash);
         guardRecords.EditKind = "إيداع للعميل";
         guardRecords.EditCustomerNumber = "01012345678";
@@ -298,6 +303,27 @@ internal static class Program
         guardRecords.DeleteOperationCommand.Execute(orphanedOperation);
         Check(guardRecords.FilteredOperations.Contains(orphanedOperation),
             "Deleting an operation whose line is gone refuses instead of dropping the record");
+        var selectionAccounts = new MyAccountsViewModel();
+        var selectionRecords = new VodafoneRecordsViewModel(new VodafoneTransferViewModel(selectionAccounts, "اختبار"), selectionAccounts, "اختبار");
+        var opened = selectionRecords.FilteredOperations.First(o => o.Id == 1 && o.IsCustomerTransfer);
+        var unrelated = selectionRecords.FilteredOperations.First(o => o.Id == 2 && o.IsCustomerTransfer);
+        var untouched = unrelated.Amount;
+        selectionRecords.BeginOperationEditCommand.Execute(opened);
+        selectionRecords.SelectedOperation = unrelated;
+        selectionRecords.EditAmountText = "10";
+        selectionRecords.EditKind = "سحب للعميل";
+        selectionRecords.EditCommissionText = "1";
+        Check(selectionRecords.ApplyEdit() && opened.IsReversed && opened.Amount == 1500 && unrelated.Amount == untouched,
+            "Changing the list selection cannot retarget an already-open transfer editor");
+        var replacement = selectionRecords.FilteredOperations.Single(o => o.CorrectsTransferId == opened.Id);
+        Check(replacement.Amount == 10 && !replacement.IsReversed, "The corrected row is linked to the original");
+        Action? confirmDelete = null;
+        selectionRecords.ConfirmRequested = (_, action) => confirmDelete = action;
+        selectionRecords.DeleteOperationCommand.Execute(replacement);
+        selectionRecords.SelectedOperation = unrelated;
+        confirmDelete!();
+        Check(replacement.IsReversed && !unrelated.IsReversed && selectionRecords.FilteredOperations.Contains(replacement),
+            "Delete confirmation reverses the confirmed transfer and retains its history");
         var instapayGuardAccounts = new MyAccountsViewModel();
         var instapayGuardRecords = new InstapayRecordsViewModel(
             new InstapayTransferViewModel(instapayGuardAccounts, "اختبار الحماية"), instapayGuardAccounts, "اختبار الحماية");
@@ -423,6 +449,8 @@ internal static class Program
         Check(mainVm.HeaderDate.Contains(DateTime.UtcNow.Year.ToString(), StringComparison.Ordinal)
               || mainVm.HeaderDate.Contains((DateTime.UtcNow.Year + 1).ToString(), StringComparison.Ordinal),
             "The clock date follows Egypt's calendar year, not a placeholder");
+        MaintenancePostingTests.Run(Check);
+        PurchasePostingTests.Run(Check);
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

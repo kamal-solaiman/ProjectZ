@@ -1,0 +1,34 @@
+<Window x:Class="ProjectZ.Views.SupplierCreditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | تسوية إشعار المورد'}" Width="510" SizeToContent="Height" WindowStartupLocation="CenterOwner" FlowDirection="LeftToRight" Language="ar-EG" ShowInTaskbar="False"
+        Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}">
+    <Grid>
+    <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
+    <StackPanel Margin="20" FlowDirection="RightToLeft">
+        <TextBlock Text="تسوية إشعار لصالح المحل" Style="{StaticResource PosRtlTextStyle}" FontWeight="Bold" FontSize="19" />
+        <TextBlock Text="{Binding SourceLabel}" Style="{StaticResource PosRtlTextStyle}" Margin="0,4,0,12" />
+        <TextBlock Text="الإشعار والرصيد المتاح منه" Style="{StaticResource PosRtlTextStyle}" />
+        <ComboBox ItemsSource="{Binding Credits}" SelectedItem="{Binding Credit}" DisplayMemberPath="Label" Style="{StaticResource PosComboBoxStyle}" />
+        <StackPanel Orientation="Horizontal" Margin="0,12">
+            <RadioButton Content="مقاصة على دين" IsChecked="{Binding IsApplication}" Margin="8,0" />
+            <RadioButton Content="قبض فعلي موثّق" IsChecked="{Binding IsReceipt}" Margin="8,0" />
+        </StackPanel>
+        <StackPanel Visibility="{Binding IsApplication, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="الفاتورة المدينة لنفس المورد" Style="{StaticResource PosRtlTextStyle}" />
+            <ComboBox ItemsSource="{Binding Debts}" SelectedItem="{Binding Target}" DisplayMemberPath="DebtLabel" Style="{StaticResource PosComboBoxStyle}" />
+        </StackPanel>
+        <StackPanel Visibility="{Binding IsReceipt, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="الحساب الذي دخل إليه المبلغ" Style="{StaticResource PosRtlTextStyle}" />
+            <ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding Account}" DisplayMemberPath="Label" Style="{StaticResource PosComboBoxStyle}" />
+            <TextBlock Text="مرجع إثبات القبض" Style="{StaticResource PosRtlTextStyle}" Margin="0,6,0,0" />
+            <TextBox Text="{Binding Evidence, UpdateSourceTrigger=PropertyChanged}" MaxLength="120" Style="{StaticResource PosCompactTextBoxStyle}" />
+        </StackPanel>
+        <TextBlock Text="المبلغ (ج.م)" Style="{StaticResource PosRtlTextStyle}" Margin="0,8,0,0" />
+        <TextBox Text="{Binding AmountText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PosNumericTextBoxStyle}" />
+        <TextBlock Text="{Binding Error}" TextWrapping="Wrap" Style="{StaticResource PosRtlTextStyle}" Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}" Margin="0,8" />
+        <Button Content="{Binding ConfirmLabel}" Command="{Binding ConfirmCommand}" Style="{StaticResource PosSecondaryButtonStyle}" />
+        <Button Content="رجوع دون تسوية" IsCancel="True" Style="{StaticResource PosSecondaryButtonStyle}" Margin="0,4,0,0" />
+    </StackPanel>
+    </Grid>
+</Window>

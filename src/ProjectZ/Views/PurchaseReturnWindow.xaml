@@ -116,7 +116,7 @@
 
                                         <!-- Line Return Value -->
                                         <StackPanel Grid.Column="0" VerticalAlignment="Center" MinWidth="105">
-                                            <TextBlock Text="قيمة المرتجع" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
+                                            <TextBlock Text="قيمة البند قبل الخصم" Style="{StaticResource PosCenterTextStyle}" FontSize="10.5" Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                             <TextBlock Text="{Binding LineReturnValueDisplay}" Style="{StaticResource PosCenterTextStyle}" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}" />
                                         </StackPanel>
 
@@ -232,7 +232,7 @@
                                 <TextBlock Text="{Binding TotalReturnUnitsDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.102E48.Heading}" />
                             </StackPanel>
                             <StackPanel>
-                                <TextBlock Text="قيمة المرتجع" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.5B21B6.VioletInk}" />
+                                <TextBlock Text="الخفض الفعلي للصافي" Style="{StaticResource PosRtlTextStyle}" FontSize="11" Foreground="{DynamicResource Theme.Legacy.5B21B6.VioletInk}" />
                                 <TextBlock Text="{Binding TotalReturnValueDisplay}" Style="{StaticResource PosRtlTextStyle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}" />
                             </StackPanel>
                             <StackPanel>
@@ -245,30 +245,10 @@
                             </StackPanel>
                         </UniformGrid>
 
-                        <Grid Margin="0,10,0,0"
-                              FlowDirection="LeftToRight"
-                              Visibility="{Binding NeedsSupplierRefundChoice, Converter={StaticResource BoolToVis}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="260" />
-                                <ColumnDefinition Width="12" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <ComboBox Grid.Column="0"
-                                      Style="{StaticResource PosComboBoxStyle}"
-                                      ItemsSource="{Binding RefundChannels}"
-                                      SelectedItem="{Binding RefundChannel}" />
-
-                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                <TextBlock Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.5B21B6.VioletInk}">
-                                    <Run Text="المبلغ المستحق استرداده من المورد: " />
-                                    <Run Text="{Binding ExpectedRefundAboveCreditDisplay, Mode=OneWay}" />
-                                    <Run Text=" (سيُسجّل فعليًا: " />
-                                    <Run Text="{Binding CashRefundToReceiveDisplay, Mode=OneWay}" />
-                                    <Run Text=")" />
-                                </TextBlock>
-                            </StackPanel>
-                        </Grid>
+                        <TextBlock Visibility="{Binding NeedsSupplierRefundChoice, Converter={StaticResource BoolToVis}}" TextWrapping="Wrap" Margin="0,10,0,0" Style="{StaticResource PosRtlTextStyle}">
+                            <Run Text="سيصدر إشعار لصالح المحل بمبلغ " /><Run Text="{Binding ExpectedRefundAboveCreditDisplay, Mode=OneWay}" />
+                            <Run Text=". لن تزيد الخزينة؛ سجّل القبض الفعلي أو المقاصة لاحقًا من تفاصيل الفاتورة." />
+                        </TextBlock>
                     </StackPanel>
                 </Border>
             </StackPanel>

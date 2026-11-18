@@ -73,6 +73,8 @@ public sealed class SupplierDesignItem : ObservableObject
         }
     }
 
+    public decimal AvailableCredit { get; set; }
+
     public decimal OutstandingPayable
     {
         get => outstandingPayable;
@@ -95,6 +97,18 @@ public sealed class SupplierDesignItem : ObservableObject
     public string OutstandingPayableDisplay => PosFormatting.FormatCurrency(OutstandingPayable);
 }
 
+public sealed record SupplierCreditItem(int Id, int SupplierId, int SourceInvoiceId, string ReturnNumber, decimal Amount, decimal Applied,
+    decimal Received, decimal Available, byte[] Version)
+{
+    public string Breakdown => $"#{Id} · {ReturnNumber} · صادر {Amount:0.00} · مقاصة {Applied:0.00} · مقبوض {Received:0.00} · متاح {Available:0.00}";
+    public string Label => $"إشعار #{Id} · {ReturnNumber} · متاح {PosFormatting.FormatCurrency(Available)}";
+}
+public sealed record PurchaseReceiptAccount(int Id, string Alias, string Identifier)
+{
+    public string Label => $"{Alias} · {Identifier} (#{Id})";
+}
+public sealed record PurchaseStatementPosting(DateTime At, string Details, decimal Change);
+
 public sealed record PurchaseInvoiceActivityEntry
 {
     public DateTime Timestamp { get; init; }
@@ -102,6 +116,7 @@ public sealed record PurchaseInvoiceActivityEntry
     public string Details { get; init; } = "";
     public string ActorName { get; init; } = "";
     public decimal? Amount { get; init; }
+    public decimal? DocumentDelta { get; init; }
 
     public string TimestampDisplay => Timestamp.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
     public string AmountDisplay => Amount.HasValue ? PosFormatting.FormatCurrency(Amount.Value) : "—";
@@ -259,6 +274,19 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
     private string notes = "";
     private bool isSelected;
 
+    public byte[] DatabaseRowVersion { get; init; } = [];
+    public bool NeedsReview { get; init; }
+    public decimal DocumentedReturnValue { get; init; }
+    public decimal CreditApplied { get; init; }
+    public List<SupplierCreditItem> CreditNotes { get; } = [];
+    public List<PurchaseStatementPosting> Postings { get; } = [];
+    public decimal AvailableCredit => CreditNotes.Sum(c => c.Available);
+    public decimal SettledAmount => NetCashOutflow + CreditApplied - CreditNotes.Sum(c => c.Amount - c.Received);
+    public bool HasAvailableCredit => AvailableCredit > 0m;
+    public string AvailableCreditDisplay => PosFormatting.FormatCurrency(AvailableCredit);
+    public bool CanSettleCredit => !NeedsReview && AvailableCredit > 0m;
+    public string DebtLabel => $"{InvoiceNumber} · متبقٍ {RemainingPayable:0.00}";
+    public string CreditSummary => $"مقاصة مستخدمة على الفاتورة: {CreditApplied:0.00} · رصيد متاح من مرتجعاتها: {AvailableCredit:0.00}";
     public int Id { get; init; }
     public string InvoiceNumber { get; init; } = "";
     public string BuyerName { get; init; } = "";
@@ -476,12 +504,8 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
         ? 0m
         : Math.Max(0m, ActiveGrossTotal - EffectiveDiscount);
     public decimal TotalPaid => CashPaid + VodafoneCashPaid + InstaPayPaid;
-    public decimal NetCashOutflow => Status == PurchaseInvoiceStatus.Cancelled
-        ? 0m
-        : Math.Max(0m, TotalPaid - SupplierRefundReceived);
-    public decimal RemainingPayable => Status == PurchaseInvoiceStatus.Cancelled || Status == PurchaseInvoiceStatus.FullyReturned
-        ? 0m
-        : Math.Max(0m, NetTotal - NetCashOutflow);
+    public decimal NetCashOutflow => TotalPaid - SupplierRefundReceived;
+    public decimal RemainingPayable => IsCancelled || IsFullyReturned ? 0m : Math.Max(0m, NetTotal - SettledAmount);
 
     public bool HasDiscount => EffectiveDiscount > 0m;
     public bool HasRemainingPayable => RemainingPayable > 0m;
@@ -520,10 +544,10 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
     public bool IsFullyReturned => Status == PurchaseInvoiceStatus.FullyReturned;
     public bool IsCancelled => Status == PurchaseInvoiceStatus.Cancelled;
 
-    public bool CanPayRemaining => !IsCancelled && !IsFullyReturned && RemainingPayable > 0m;
-    public bool CanEdit => !IsCancelled && !IsFullyReturned;
-    public bool CanReturn => !IsCancelled && !IsFullyReturned && Items.Any(i => i.RemainingQuantity > 0);
-    public bool CanCancel => !IsCancelled && !IsFullyReturned;
+    public bool CanPayRemaining => !NeedsReview && !IsCancelled && !IsFullyReturned && RemainingPayable > 0m;
+    public bool CanEdit => !NeedsReview && !IsCancelled && !IsFullyReturned;
+    public bool CanReturn => !NeedsReview && !IsCancelled && !IsFullyReturned && Items.Any(i => i.RemainingQuantity > 0);
+    public bool CanCancel => !NeedsReview && !IsCancelled && !IsFullyReturned;
 
     public string PaymentMethodSummary
     {
@@ -536,6 +560,7 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
             if (CashPaid > 0m) channels.Add("كاش");
             if (VodafoneCashPaid > 0m) channels.Add("فودافون كاش");
             if (InstaPayPaid > 0m) channels.Add("إنستاباي");
+            if (CreditApplied > 0m) channels.Add("مقاصة");
 
             if (channels.Count == 0)
                 return HasRemainingPayable ? "آجل بالكامل للمورد" : "غير محدد";

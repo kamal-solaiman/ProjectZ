@@ -1,3 +1,4 @@
+-- Sale documents are read-only here; install sql/22_EnableSaleSettlement.sql for posting.
 /* ============================================================================
    ProjectZ — صلاحيات شاشة «المرتجع والاستبدال»
    ----------------------------------------------------------------------------
@@ -21,24 +22,24 @@ GO
 
 /* 1) عمليات المرتجع والاستبدال (رأس العملية + البنود + الوحدات). */
 IF OBJECT_ID(N'dbo.ReturnExchanges', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.ReturnExchangeLines', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.ReturnExchangeUnits', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];
 GO
 
 /* 2) الفواتير التي تُقرأ وتُعدَّل بالمرتجع (الكميات المرتجعة والحالة والتسديد). */
 IF OBJECT_ID(N'dbo.SalesInvoices', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SalesInvoices TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesInvoices TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.SalesInvoiceLines', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SalesInvoiceLines TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesInvoiceLines TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.SalesInvoiceLineUnits', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SalesInvoiceLineUnits TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesInvoiceLineUnits TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.SalesPayments', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.SalesPayments TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesPayments TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.SalesInvoiceActivities', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.SalesInvoiceActivities TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesInvoiceActivities TO [ProjectZClient];
 GO
 
 /* 3) الحركة المالية لفرق الاستبدال (تحصيل أو رد) والحسابات. */

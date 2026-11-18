@@ -80,8 +80,7 @@ public sealed record InvoiceReturnLineRequest(SalesInvoiceLineDesignItem Line, i
 public sealed record InvoiceReturnSubmission(
     IReadOnlyList<InvoiceReturnLineRequest> Lines,
     string Reason,
-    bool ReturnAsAvailableStock,
-    bool RefundCashToCustomer);
+    bool ReturnAsAvailableStock);
 
 public sealed class InvoiceReturnLineViewModel : ObservableObject
 {
@@ -109,7 +108,7 @@ public sealed class InvoiceReturnLineViewModel : ObservableObject
     }
 
     public string ReturnQuantityDisplay => ReturnQuantity.ToString(CultureInfo.InvariantCulture);
-    public decimal LineRefundAmount => ReturnQuantity * Line.UnitPrice;
+    public decimal LineRefundAmount => Line.ReturnValue(ReturnQuantity);
     public string LineRefundAmountDisplay => PosFormatting.FormatCurrency(LineRefundAmount);
 
     public ActionCommand IncrementCommand { get; }
@@ -130,7 +129,6 @@ public sealed class InvoiceReturnViewModel : ObservableObject
 {
     private string reason = "";
     private bool returnAsAvailableStock = true;
-    private bool refundCashToCustomer = true;
     private string error = "";
 
     public SalesInvoiceDesignItem Invoice { get; }
@@ -167,21 +165,11 @@ public sealed class InvoiceReturnViewModel : ObservableObject
         set => ReturnAsAvailableStock = !value;
     }
 
-    public bool RefundCashToCustomer
-    {
-        get => refundCashToCustomer;
-        set
-        {
-            if (refundCashToCustomer == value) return;
-            refundCashToCustomer = value;
-            Changed();
-        }
-    }
-
     public int TotalReturnUnits => ReturnLines.Sum(l => l.ReturnQuantity);
     public decimal EstimatedReturnTotal => ReturnLines.Sum(l => l.LineRefundAmount);
     public string EstimatedReturnTotalDisplay => PosFormatting.FormatCurrency(EstimatedReturnTotal);
-    public string SummaryDisplay => $"إجمالي القطع المرتجعة: {TotalReturnUnits} قطعة · القيمة: {EstimatedReturnTotalDisplay}";
+    public string SummaryDisplay => $"قيمة {TotalReturnUnits} قطعة بعد الخصم: {EstimatedReturnTotalDisplay} · " +
+        Invoice.DescribeReduction(EstimatedReturnTotal);
 
     public string Error
     {
@@ -203,7 +191,6 @@ public sealed class InvoiceReturnViewModel : ObservableObject
         Func<InvoiceReturnSubmission, string?> onConfirm)
     {
         Invoice = invoice;
-        refundCashToCustomer = !invoice.HasRemaining;
 
         foreach (var line in invoice.Items.Where(i => i.RemainingQuantity > 0))
             ReturnLines.Add(new InvoiceReturnLineViewModel(line, NotifyTotals));
@@ -240,7 +227,7 @@ public sealed class InvoiceReturnViewModel : ObservableObject
                 return;
             }
 
-            var error = onConfirm(new InvoiceReturnSubmission(selected, trimmedReason, ReturnAsAvailableStock, RefundCashToCustomer));
+            var error = onConfirm(new InvoiceReturnSubmission(selected, trimmedReason, ReturnAsAvailableStock));
             if (!string.IsNullOrWhiteSpace(error))
             {
                 // The SQL write failed: keep the dialog and its numbers so nothing is lost.
@@ -359,6 +346,11 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
 
         ConfirmCommand = new ActionCommand(() =>
         {
+            if (!new[] { CashAmountText, VodafoneAmountText, InstaPayAmountText }.All(PosFormatting.IsValidTender))
+            {
+                Error = "تحقق من مبالغ التحصيل وأدخل كل مبلغ بدقّة القرش.";
+                return;
+            }
             if (PaymentTotal <= 0m)
             {
                 Error = "أدخل مبلغ تحصيل أكبر من صفر.";

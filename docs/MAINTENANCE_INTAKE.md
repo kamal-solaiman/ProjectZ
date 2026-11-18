@@ -59,7 +59,7 @@
 
 | الإجراء | العملية | معاملة |
 | --- | --- | --- |
-| «حفظ أمر الصيانة» | `INSERT dbo.MaintenanceOrders` (الحالة `Received`) + سطر `dbo.MaintenanceActivities` «استلام جهاز صيانة» + عربون `dbo.MaintenancePayments` (Stage=1، Kind=1) لكل قناة + حركة `dbo.FinancialTransactions` + تحديث أرصدة `dbo.FinancialAccounts` عبر `EnsureAccounts` | `CreateMaintenanceOrder` — معاملة واحدة، والرقم من `NextDocumentNumber` |
+| «حفظ أمر الصيانة» | `INSERT dbo.MaintenanceOrders` (الحالة `Received`) + سطر `dbo.MaintenanceActivities` «استلام جهاز صيانة» + عربون `dbo.MaintenancePayments` (Stage=1، Kind=1) لكل قناة + حركة `dbo.FinancialTransactions` + تحديث أرصدة `dbo.FinancialAccounts` على الحسابات النشطة للقنوات | `CreateMaintenanceOrder` — معاملة واحدة، والرقم والتوقيت من `dbo.OpenMaintenanceTicket` |
 | «+ عميل جديد» | `INSERT dbo.Customers` ثم إعادة تحميل الدليل المشترك | `SalesRepository.CreateCustomer` |
 | معاينة/طباعة إيصال | `INSERT dbo.MaintenanceActivities` فقط | `AppendMaintenanceActivity` (جديد) |
 | «تحديث من القاعدة» | قراءة فقط (أوامر + عملاء + رقم قادم) | لا كتابة |
@@ -120,7 +120,7 @@
 - التصفية والبحث في قائمة «أحدث الأجهزة» يجريان في الذاكرة على الأوامر المحمّلة (نمط باقي الشاشات)،
   والسجل يُحمَّل كاملًا بلا صفحات.
 - شارة رقم الأمر القادم تقديرية بطبيعتها: قد يتغيّر الرقم إذا سجّل عميل آخر أمرًا بين القراءة والحفظ؛
-  الرقم النهائي دائمًا هو ما يعيده `NextDocumentNumber` داخل معاملة الحفظ ويُعرض في رسالة النجاح.
+  الرقم النهائي دائمًا هو ما يعيده `OpenMaintenanceTicket` داخل معاملة الحفظ ويُعرض في رسالة النجاح.
 - فحص تكرار السيريال يمنع الحفظ فقط عندما يكون الأمر السابق غير مسلَّم وغير ملغى؛ ولذلك يكفي تسليم
   أو إلغاء الأمر السابق (أو تعديل السيريال) للمتابعة.
 - تعديل «هاتف التواصل» لا يغيّر هاتف العميل في `dbo.Customers`؛ يُحفظ في لقطة الأمر
@@ -131,7 +131,7 @@
 
 ## 8) خطوات القبول على Windows + SQL Server 2016 SP1+
 
-1. نفّذ `sql/06` ثم `sql/09` ثم `sql/13` ثم `sql/14` بحساب إداري، ثم `sql/03_VerifyEnvironment.sql`
+1. نفّذ `sql/06` ثم `sql/09` ثم `sql/13` ثم `sql/14` و15 و16 ثم النسخة المحدثة من 07 و`sql/24_EnableMaintenanceSettlement.sql` بحساب إداري، ثم `sql/03_VerifyEnvironment.sql`
    (المستوى 130).
 2. افتح «أمر صيانة»: الشارة خضراء «متصل بقاعدة البيانات — SQL Server»، ورقم الأمر القادم يطابق:
    ```sql

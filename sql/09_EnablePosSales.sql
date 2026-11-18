@@ -1,3 +1,4 @@
+-- Sale documents are read-only here; install sql/22_EnableSaleSettlement.sql for posting.
 -- Grant the least-privilege LAN client exactly what the POS sales screen needs.
 -- Run once after 06_CreateFullSchema.sql / 07_CreateReportingViews.sql / 08_VerifyFullSchema.sql.
 -- Idempotent: GRANT repeats safely and no table, column or row is modified here.
@@ -35,29 +36,30 @@ IF OBJECT_ID(N'dbo.FinancialAccounts', N'U') IS NOT NULL
 IF OBJECT_ID(N'dbo.FinancialTransactions', N'U') IS NOT NULL
     GRANT SELECT, INSERT ON OBJECT::dbo.FinancialTransactions TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.CustomerTransfers', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.CustomerTransfers TO [ProjectZClient];
+    -- Transfer posting is granted only through sql/23_EnableCustomerTransferCorrections.sql.
+    GRANT SELECT ON OBJECT::dbo.CustomerTransfers TO [ProjectZClient];
 GO
 
 /* Sales document: invoice header, lines, serialized units, payments and activity history. */
 IF OBJECT_ID(N'dbo.SalesInvoices', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SalesInvoices TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesInvoices TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.SalesInvoiceLines', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SalesInvoiceLines TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesInvoiceLines TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.SalesInvoiceLineUnits', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.SalesInvoiceLineUnits TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesInvoiceLineUnits TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.SalesPayments', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.SalesPayments TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesPayments TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.SalesInvoiceActivities', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.SalesInvoiceActivities TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.SalesInvoiceActivities TO [ProjectZClient];
 GO
 
 /* Customer returns created from the invoice screen. */
 IF OBJECT_ID(N'dbo.ReturnExchanges', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.ReturnExchangeLines', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.ReturnExchangeUnits', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];
 GO
 
 /* Inventory and audit grants stay as created by 04; re-stated so a partial run is repaired. */
@@ -74,13 +76,13 @@ GO
 IF OBJECT_ID(N'dbo.MaintenanceSpareParts', N'U') IS NOT NULL
     GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceSpareParts TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenanceOrderParts', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenanceOrders', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceOrders TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenanceActivities', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenanceActivities TO [ProjectZClient];
 IF OBJECT_ID(N'dbo.MaintenancePayments', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
+    GRANT SELECT ON OBJECT::dbo.MaintenancePayments TO [ProjectZClient];
 GO
 
 PRINT N'SUCCESS: ProjectZClient can now post POS sales, customer returns, payments and financial ledger rows.';

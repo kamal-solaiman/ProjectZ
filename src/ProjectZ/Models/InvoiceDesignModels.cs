@@ -103,8 +103,21 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
     }
 
     public decimal LineGrossTotal => UnitPrice * Quantity;
-    public decimal LineReturnedTotal => UnitPrice * ReturnedQuantity;
-    public decimal LineNetTotal => UnitPrice * RemainingQuantity;
+    // Loaded from vwSalesLineValuation. Sample invoices derive the same cumulative shares locally.
+    public decimal? SavedNetAmount { get; init; }
+    internal SalesInvoiceDesignItem? SampleInvoice { get; set; }
+    private decimal NetBasis => SavedNetAmount ?? SampleInvoice?.SampleLineBasis(this) ?? LineGrossTotal;
+    private decimal CumulativeReturn(int qty)
+    {
+        if (Quantity == 0) return 0m;
+        // Match dbo.SaleShare exactly even at a half-cent boundary.
+        var numerator = NetBasis * 100m * qty;
+        var remainder = numerator % Quantity;
+        return ((numerator - remainder) / Quantity + (2m * remainder >= Quantity ? 1m : 0m)) / 100m;
+    }
+    public decimal ReturnValue(int qty) => CumulativeReturn(ReturnedQuantity + Math.Clamp(qty, 0, RemainingQuantity)) - LineReturnedTotal;
+    public decimal LineReturnedTotal => CumulativeReturn(ReturnedQuantity);
+    public decimal LineNetTotal => NetBasis - LineReturnedTotal;
     public decimal LineCostTotal => UnitCost * RemainingQuantity;
     public decimal LineProfit => LineNetTotal - LineCostTotal;
 
@@ -114,6 +127,8 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
     public string LineCostTotalDisplay => PosFormatting.FormatCurrency(LineCostTotal);
     public string LineProfitDisplay => PosFormatting.FormatCurrency(LineProfit);
 }
+
+public sealed record SalePayingAccount(int Id, string Name, decimal NetPaid);
 
 public sealed class SalesInvoiceDesignItem : ObservableObject
 {
@@ -192,6 +207,27 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
 
     public ObservableCollection<SalesInvoiceLineDesignItem> Items { get; } = [];
     public ObservableCollection<SalesInvoiceActivityEntry> ActivityLog { get; } = [];
+
+    public SalesInvoiceDesignItem()
+    {
+        Items.CollectionChanged += (_, e) =>
+        {
+            if (e.NewItems is null) return;
+            foreach (SalesInvoiceLineDesignItem line in e.NewItems)
+                if (line.SavedNetAmount is null) line.SampleInvoice = this;
+        };
+    }
+
+    internal decimal SampleLineBasis(SalesInvoiceLineDesignItem line)
+    {
+        if (DiscountAmount == 0m || line.IsExchangeReplacement) return line.LineGrossTotal;
+        var originals = Items.Where(i => !i.IsExchangeReplacement);
+        var gross = originals.Sum(i => i.LineGrossTotal);
+        if (gross == 0m) return 0m;
+        var before = originals.Where(i => i.LineNumber < line.LineNumber).Sum(i => i.LineGrossTotal);
+        decimal Share(decimal amount) => Math.Round(Math.Min(DiscountAmount, gross) * amount / gross, 2, MidpointRounding.AwayFromZero);
+        return line.LineGrossTotal - (Share(before + line.LineGrossTotal) - Share(before));
+    }
 
     public SalesInvoiceStatus Status
     {
@@ -338,10 +374,30 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     }
 
     public decimal GrossPaid => CashPaid + VodafoneCashPaid + InstaPayPaid;
-    public decimal NetCollected => Math.Max(0m, GrossPaid - RefundedAmount);
+    public decimal NetCollected => GrossPaid - RefundedAmount;
     public decimal RemainingAmount => Status is SalesInvoiceStatus.Cancelled or SalesInvoiceStatus.FullyReturned
         ? 0m
         : Math.Max(0m, EffectiveNetSales - NetCollected);
+    // Read in the same order as PostSaleMoney. This is a till preview only; SQL recomputes every share.
+    internal List<SalePayingAccount> PayingAccounts { get; } = [];
+    public decimal EstimateRefund(decimal reduction) => Math.Max(0m, reduction - RemainingAmount);
+    public string DescribeReduction(decimal reduction)
+    {
+        var refund = EstimateRefund(reduction);
+        var summary = $"تخفيض الدين: {PosFormatting.FormatCurrency(reduction - refund)} · رد للعميل: {PosFormatting.FormatCurrency(refund)}";
+        if (refund == 0m || PayingAccounts.Count == 0) return summary;
+        var left = refund;
+        var parts = new List<string>();
+        foreach (var account in PayingAccounts)
+        {
+            if (account.NetPaid < 0m) return "مدفوعات الحسابات السابقة تحتاج إلى مطابقة مالية.";
+            var amount = Math.Min(left, account.NetPaid);
+            if (amount <= 0m) continue;
+            parts.Add($"{account.Name} (#{account.Id}): {PosFormatting.FormatCurrency(amount)}");
+            left -= amount;
+        }
+        return summary + " · " + string.Join("، ", parts);
+    }
     public decimal ChangeAmount => Status is SalesInvoiceStatus.Cancelled or SalesInvoiceStatus.FullyReturned
         ? 0m
         : Math.Max(0m, NetCollected - EffectiveNetSales);

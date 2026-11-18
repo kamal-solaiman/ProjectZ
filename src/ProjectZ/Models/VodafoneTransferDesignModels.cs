@@ -25,6 +25,9 @@ public sealed class VodafoneTransferOperation : ObservableObject
     private bool isReversed;
 
     public int Id { get; init; }
+    public byte[] RowVersion { get; init; } = [];
+    public int? CorrectsTransferId { get; init; }
+    public string TransferHistoryDisplay => CorrectsTransferId is int prior ? $"{Id} — تصحيح للتحويل {prior}" : Id > 0 ? Id.ToString(CultureInfo.InvariantCulture) : "—";
     public int WalletId { get => walletId; set { walletId = value; Changed(); } }
     public string WalletAlias { get => walletAlias; set { walletAlias = value; Changed(); } }
     public string WalletNumber { get => walletNumber; set { walletNumber = value; Changed(); } }

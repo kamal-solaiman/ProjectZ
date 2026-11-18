@@ -5,6 +5,7 @@ using Microsoft.Data.SqlClient;
 using ProjectZ.Data;
 using ProjectZ.Models;
 using ProjectZ.Services;
+using static SqlTest;
 
 // This harness is deliberately unable to use the application's LAN settings. Run.ps1 creates
 // a disposable LocalDB instance; both the instance name and Windows authentication are checked.
@@ -30,7 +31,7 @@ try
     Execute(admin, "CREATE USER [ProjectZClient] FOR LOGIN [ProjectZClient]; GRANT CONNECT TO [ProjectZClient];");
     foreach (var script in new[]
              {
-                 "09_EnablePosSales.sql", "11_EnableReturnExchange.sql", "12_EnablePurchasing.sql",
+                 "09_EnablePosSales.sql", "11_EnableReturnExchange.sql", "12_EnablePurchasing.sql", "25_EnablePurchaseSettlement.sql",
                  "19_EnableExpenseCategories.sql", "20_EnableExpenses.sql", "21_EnableExpenseSplitPayments.sql"
              })
         RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
@@ -63,10 +64,10 @@ OUTPUT inserted.Id VALUES(@Category,N'PUR-TEST-SERIAL',N'صنف شراء بسي�
         "هواتف", "عنوان اختبار", "01000000000", "test@instapay", "بيانات اختبار مؤقتة");
     Check(supplier.Id > 0, "Supplier can be created with the limited SQL client grants");
 
-    var ordinary = new PurchaseLineRequest(ordinaryProductId, "PUR-TEST-ORDINARY", "صنف شراء عادي",
-        "اختبار المشتريات", "قطعة", false, 2, 100.25m);
-    var serialized = new PurchaseLineRequest(serialProductId, "PUR-TEST-SERIAL", "صنف شراء بسيريال",
-        "اختبار المشتريات", "قطعة", true, 1, 200.50m);
+    // A real payment needs a funded, active account. Only the isolated test DBA seeds opening balances.
+    Execute(admin, "INSERT dbo.FinancialAccounts(AccountKind,Alias,Identifier,IsDefault,CurrentBalance) VALUES (0,N'اختبار نقدي',N'',1,1000),(1,N'اختبار فودافون',N'01011111111',1,1000),(2,N'اختبار إنستاباي',N'test@ip',1,1000);");
+    var ordinary = new PurchaseLineRequest(ordinaryProductId, 2, 100.25m);
+    var serialized = new PurchaseLineRequest(serialProductId, 1, 200.50m);
     PurchaseInvoiceRequest Request(decimal discount, decimal cash, decimal vodafone, decimal instaPay, string notes) =>
         new(supplier.Id, "SUP-REF-001", new DateTime(2026, 11, 14, 10, 30, 0), discount,
             [ordinary, serialized], cash, vodafone, instaPay, notes);
@@ -88,49 +89,46 @@ OUTPUT inserted.Id VALUES(@Category,N'PUR-TEST-SERIAL',N'صنف شراء بسي�
     Check(partial.InvoiceId > 0 && partial.InvoiceNumber == $"PUR-{DateTime.Now.Year}-0001", "Purchase saves with the driver's normal session and gets a real sequence number");
     Check(partial.NetTotal == 391m && partial.PaidTotal == 75m && partial.RemainingPayable == 316m, "Discount, split payment and remaining payable are exact");
     VerifyInvoice(admin, partial.InvoiceId, supplier.Id, userId, 391m, 75m, 316m, PurchaseInvoiceStatus.PartialCredit);
-    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == -75m, "Cash and wallet balances are debited once");
+    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == 2925m, "Cash and wallet balances are debited once");
     Check(Scalar<decimal>(admin, $"SELECT CostPrice FROM dbo.Products WHERE Id={ordinaryProductId};") == 100.25m, "Product cost is synchronized");
     Console.WriteLine("PASS: header, lines, units, links, stock movements, payments, ledger, activity, audit and balances agree");
 
     var credit = repository.CreateInvoice(Request(0m, 0m, 0m, 0m, "آجل بالكامل"));
     VerifyInvoice(admin, credit.InvoiceId, supplier.Id, userId, 401m, 0m, 401m, PurchaseInvoiceStatus.FullCredit);
     Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.PurchasePayments WHERE PurchaseInvoiceId={credit.InvoiceId};") == 0, "Full-credit purchase creates no zero-value payment");
-    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == -75m, "Full-credit purchase does not change balances");
+    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == 2925m, "Full-credit purchase does not change balances");
 
     var paid = repository.CreateInvoice(Request(1m, 100m, 100m, 200m, "سداد كامل"));
     VerifyInvoice(admin, paid.InvoiceId, supplier.Id, userId, 400m, 400m, 0m, PurchaseInvoiceStatus.Paid);
-    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == -475m, "All three payment channels are posted exactly once");
+    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == 2525m, "All three payment channels are posted exactly once");
 
     var invoices = new ObservableCollection<PurchaseInvoiceDesignItem>();
     repository.LoadInvoicesInto(invoices);
     Check(invoices.Count == 3 && invoices.All(i => i.Items.Count == 2 && i.Items.Sum(l => l.UnitRegistrationIds.Count) == 3), "Saved purchases reload with their real line/unit links");
     Check(invoices.Single(i => i.Id == partial.InvoiceId).Notes == "ملاحظة شراء عربية", "Arabic notes survive the SQL round trip");
 
-    // Edit an existing line: this exercises the separate UPDATE command's @Id binding, adds one
-    // stock unit, and posts only the payment difference through the shared ledger/activity helpers.
+    // A document edit changes the selected line, never the payout or the current catalog price.
     var loadedPartial = invoices.Single(i => i.Id == partial.InvoiceId);
-    var editedLines = loadedPartial.Items.Select(l => new PurchaseLineEdit(
-        l.DatabaseLineId, l.ProductId, l.Barcode, l.ProductName, l.Category, l.Unit, l.TrackSerialNumber,
-        l.ProductId == ordinaryProductId ? 3 : l.Quantity,
-        l.ProductId == ordinaryProductId ? 110m : l.UnitPurchaseCost)).ToList();
-    repository.UpdateInvoice(new PurchaseInvoiceEdit(partial.InvoiceId, supplier.Id, "SUP-REF-EDIT",
-        "ملاحظة بعد التعديل", 10.5m, 100m, 50m, 0m, editedLines));
+    var editedLines = loadedPartial.Items.Select(l => new PurchaseLineRequest(l.ProductId,
+        l.ProductId == ordinaryProductId ? 3 : l.Quantity, l.ProductId == ordinaryProductId ? 110m : l.UnitPurchaseCost, l.DatabaseLineId)).ToList();
+    repository.UpdateInvoice(new PurchaseInvoiceEdit(partial.InvoiceId, loadedPartial.DatabaseRowVersion, supplier.Id, "SUP-REF-EDIT", loadedPartial.IssuedAt,
+        "ملاحظة بعد التعديل", 10.5m, editedLines));
     Check(Scalar<int>(admin, $"SELECT Quantity FROM dbo.PurchaseInvoiceLines WHERE PurchaseInvoiceId={partial.InvoiceId} AND ProductId={ordinaryProductId};") == 3
         && Scalar<decimal>(admin, $"SELECT UnitPurchaseCost FROM dbo.PurchaseInvoiceLines WHERE PurchaseInvoiceId={partial.InvoiceId} AND ProductId={ordinaryProductId};") == 110m,
         "Editing an existing purchase line binds its real Id and persists quantity/cost");
     Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.PurchaseInvoiceLineUnits lu JOIN dbo.PurchaseInvoiceLines l ON l.Id=lu.PurchaseInvoiceLineId WHERE l.PurchaseInvoiceId={partial.InvoiceId};") == 4,
         "Editing quantity adds exactly one linked stock unit");
-    Check(Scalar<decimal>(admin, $"SELECT SUM(CASE WHEN PaymentKind=1 THEN Amount ELSE -Amount END) FROM dbo.PurchasePayments WHERE PurchaseInvoiceId={partial.InvoiceId};") == 150m,
-        "Editing payments posts only the channel differences");
-    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == -550m,
-        "Edited payment differences adjust balances exactly once");
+    Check(Scalar<decimal>(admin, $"SELECT SUM(CASE WHEN PaymentKind=1 THEN Amount ELSE -Amount END) FROM dbo.PurchasePayments WHERE PurchaseInvoiceId={partial.InvoiceId};") == 75m,
+        "Editing the document leaves its posted payments untouched");
+    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == 2525m && Scalar<decimal>(admin, $"SELECT CostPrice FROM dbo.Products WHERE Id={ordinaryProductId}") == 100.25m,
+        "Edit neither moves money nor overwrites the catalog cost");
     Check(Scalar<int>(admin, $"SELECT COUNT(*) FROM dbo.PurchaseInvoiceActivities WHERE PurchaseInvoiceId={partial.InvoiceId} AND ActorUserId={userId};") == 2,
         "Edit activity binds the acting user");
 
-    repository.PayInvoice(new PurchasePaymentRequest(credit.InvoiceId, 100.25m, 0m, 0m, "سداد لاحق"));
+    repository.PayInvoice(new PurchasePaymentRequest(credit.InvoiceId, invoices.Single(i => i.Id == credit.InvoiceId).DatabaseRowVersion, 100.25m, 0m, 0m, "سداد لاحق"));
     Check(Scalar<decimal>(admin, $"SELECT SUM(Amount) FROM dbo.PurchasePayments WHERE PurchaseInvoiceId={credit.InvoiceId} AND PaymentKind=1;") == 100.25m,
         "A later supplier payment is persisted");
-    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == -650.25m,
+    Check(Scalar<decimal>(admin, "SELECT SUM(CurrentBalance) FROM dbo.FinancialAccounts;") == 2424.75m,
         "A later supplier payment debits the account once");
 
     // A pooled physical connection can retain incompatible SET options. Every repository checkout
@@ -169,7 +167,7 @@ END;");
     }
     finally { Execute(admin, "DROP TRIGGER dbo.TR_PurchaseTest_FailLastWrite;"); }
 
-    Execute(admin, "DENY INSERT ON OBJECT::dbo.PurchaseInvoiceActivities TO [ProjectZClient];");
+    Execute(admin, "DENY EXECUTE ON OBJECT::dbo.CreatePurchaseDocument TO [ProjectZClient];");
     try
     {
         var beforeDenied = Counts(admin);
@@ -178,14 +176,14 @@ END;");
         catch (PurchaseDataException ex)
         {
             denied = ex.InnerException is SqlException { Number: 229 or 230 };
-            Check(ex.Message.Contains("sql/12_EnablePurchasing.sql", StringComparison.Ordinal), "Missing grant points to the purchasing permissions script");
+            Check(ex.Message.Contains("sql/25_EnablePurchaseSettlement.sql", StringComparison.Ordinal), "Missing grant points to the purchasing permissions script");
         }
-        Check(denied && Counts(admin) == beforeDenied, "Missing INSERT permission fails atomically with an actionable message");
+        Check(denied && Counts(admin) == beforeDenied, "Missing EXECUTE permission fails atomically with an actionable message");
     }
     finally
     {
-        Execute(admin, "REVOKE INSERT ON OBJECT::dbo.PurchaseInvoiceActivities FROM [ProjectZClient];");
-        RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", "12_EnablePurchasing.sql"));
+        Execute(admin, "REVOKE EXECUTE ON OBJECT::dbo.CreatePurchaseDocument FROM [ProjectZClient];");
+        RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", "25_EnablePurchaseSettlement.sql"));
     }
     var afterRepair = repository.CreateInvoice(Request(0m, 0m, 0m, 0m, "بعد استعادة الصلاحية"));
     Check(afterRepair.InvoiceId > 0, "Purchase succeeds after the least-privilege grant is restored");
@@ -323,6 +321,14 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     Console.WriteLine("PASS: sql/21 migrates a legacy single-account expense without losing its account or amount");
     Console.WriteLine("PASS: split expenses write dbo.Expenses, dbo.ExpensePayments, ledger rows and audit on LocalDB");
 
+    var legacyTransfer = WalletCorrectionTests.SeedLegacyEdit(admin, financialRepository, liveCash.Id, userId);
+    var beforeWalletUpgrade = WalletCorrectionTests.Footprint(admin);
+    var walletMigration = Path.Combine(FindRepositoryRoot(), "sql", "23_EnableCustomerTransferCorrections.sql");
+    RunScript(admin, walletMigration);
+    RunScript(admin, walletMigration);
+    Check(WalletCorrectionTests.Footprint(admin) == beforeWalletUpgrade,
+        "Installing and rerunning sql/23 changes no existing header, account, ledger or audit row");
+
     // A stopped line keeps its transfer history, but LoadAccountsInto only loads IsActive = 1 rows, so
     // the records screen lost the wallet object. Its edit path resolved that wallet with
     // accounts.Accounts.First(w => w.Id == operation.WalletId) and crashed with
@@ -332,44 +338,44 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
         account.Kind == FinancialAccountKind.VodafoneCash && account.IsActive).Id;
     Execute(admin, $"UPDATE dbo.FinancialAccounts SET CurrentBalance = 5000 WHERE Id = {stoppedLineId};");
     var stoppedLineTransfer = financialRepository.ExecuteCustomerTransfer(
-        FinancialAccountKind.VodafoneCash, stoppedLineId, "DepositToCustomer", "01012345678", 200m, 2m,
-        "عملية على خط سيُوقَف بعدها");
+        FinancialAccountKind.VodafoneCash, new(stoppedLineId, true, "01012345678", 200m, 2m, "عملية على خط سيُوقَف بعدها"));
     Check(stoppedLineTransfer.TransferId > 0, "A Vodafone Cash transfer is saved before its line is stopped");
     Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 0 WHERE Id = {stoppedLineId};");
     financialRepository.LoadAccountsInto(liveAccounts);
     Check(liveAccounts.All(account => account.Id != stoppedLineId),
         "A stopped line disappears from the active accounts while its transfer stays in the register");
 
+    var stoppedFootprint = WalletCorrectionTests.Footprint(admin);
     Exception? stoppedEditError = null;
     try
     {
-        financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
-            FinancialAccountKind.VodafoneCash, 200m, 2m, true, "01012345678",
-            stoppedLineId, "DepositToCustomer", "01012345678", 250m, 2m, "تعديل بعد إيقاف الخط");
+        financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineTransfer.RowVersion,
+            FinancialAccountKind.VodafoneCash, new(stoppedLineId, true, "01012345678", 250m, 2m, "تعديل بعد إيقاف الخط"));
     }
     catch (Exception ex) { stoppedEditError = ex; }
     Check(stoppedEditError is FinancialDataException { Message: var stoppedMessage }
-          && stoppedMessage.Contains("كل خطوط فودافون كاش موقوفة", StringComparison.Ordinal)
+          && stoppedMessage.Contains("المحفظة الأصلية موقوفة", StringComparison.Ordinal)
           && !stoppedMessage.Contains("مكررة", StringComparison.Ordinal),
         "Editing a transfer of a stopped line reports the stopped line in Arabic, not a duplicate-data error");
 
     Exception? stoppedReverseError = null;
     try
     {
-        financialRepository.ReverseCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
-            FinancialAccountKind.VodafoneCash, -200m, 202m, "01012345678", "عكس بعد إيقاف الخط");
+        financialRepository.ReverseCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineTransfer.RowVersion,
+            FinancialAccountKind.VodafoneCash, "عكس بعد إيقاف الخط");
     }
     catch (Exception ex) { stoppedReverseError = ex; }
     Check(stoppedReverseError is FinancialDataException { Message: var stoppedReverseMessage }
           && stoppedReverseMessage.Contains("موقوفة", StringComparison.Ordinal),
         "Reversing a transfer of a stopped line is refused with an Arabic financial error, not an unhandled LINQ crash");
 
-    Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 1, CurrentBalance = 5000 WHERE Id = {stoppedLineId};");
+    Check(stoppedFootprint == WalletCorrectionTests.Footprint(admin), "Neither stopped-line request changed any financial data");
+    Execute(admin, $"UPDATE dbo.FinancialAccounts SET IsActive = 1 WHERE Id = {stoppedLineId};");
     financialRepository.LoadAccountsInto(liveAccounts);
-    financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineId,
-        FinancialAccountKind.VodafoneCash, 200m, 2m, true, "01012345678",
-        stoppedLineId, "DepositToCustomer", "01012345678", 250m, 5m, "تعديل بعد إعادة تفعيل الخط");
-    Check(Scalar<decimal>(admin, $"SELECT Amount FROM dbo.CustomerTransfers WHERE Id={stoppedLineTransfer.TransferId};") == 250m,
+    var correctedLine = financialRepository.UpdateCustomerTransfer(stoppedLineTransfer.TransferId, stoppedLineTransfer.RowVersion,
+        FinancialAccountKind.VodafoneCash, new(stoppedLineId, true, "01012345678", 250m, 5m, "تعديل بعد إعادة تفعيل الخط"));
+    Check(Scalar<decimal>(admin, $"SELECT Amount FROM dbo.CustomerTransfers WHERE Id={correctedLine.TransferId} AND CorrectsTransferId={stoppedLineTransfer.TransferId};") == 250m
+        && Scalar<decimal>(admin, $"SELECT Amount FROM dbo.CustomerTransfers WHERE Id={stoppedLineTransfer.TransferId} AND OperationStatus=1;") == 200m,
         "Re-activating the line lets the very same edit succeed");
     Console.WriteLine("PASS: a stopped Vodafone Cash line is reported in Arabic instead of crashing the edit flow");
 
@@ -462,7 +468,23 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
         "Both records screens read the same ledger shape from dbo.FinancialTransactions");
     Console.WriteLine("PASS: the InstaPay records screen reads every InstaPay wallet movement from the same ledger");
     Console.WriteLine("PASS: «تعيين افتراضية» and «تفعيل / إيقاف» persist per kind in dbo.FinancialAccounts");
-    Console.WriteLine("PASS: all purchase and expense SQL integration checks passed on a disposable SQL Server instance");
+    WalletCorrectionTests.Run(admin, settings, userId, cashRowId, legacyTransfer);
+    var saleMigration = Path.Combine(FindRepositoryRoot(), "sql", "22_EnableSaleSettlement.sql");
+    RunScript(admin, saleMigration);
+    RunScript(admin, saleMigration); // Repeat as on an upgraded installation; no business rows may be posted.
+    SaleSettlementTests.Run(admin, settings, userId, categoryId, firstVodafoneId, cashRowId);
+    foreach (var script in new[] { "13_EnableMaintenanceInvoices.sql", "14_EnableMaintenanceIntake.sql", "15_EnableMaintenanceActions.sql", "16_EnableMaintenanceSpareParts.sql", "24_EnableMaintenanceSettlement.sql" })
+        RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
+    MaintenanceSettlementTests.Run(admin, settings, userId, cashRowId);
+    PurchaseSettlementTests.Run(admin, settings, userId, ordinaryProductId, serialProductId);
+    var purchaseFootprint = PurchaseSettlementTests.Footprint(admin);
+    foreach (var script in new[] { "07_CreateReportingViews.sql", "12_EnablePurchasing.sql", "25_EnablePurchaseSettlement.sql" })
+        RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
+    Check(purchaseFootprint == PurchaseSettlementTests.Footprint(admin), "07/12/25 are repeatable with populated supplier notes, receipts and applications");
+    var maintenanceBefore = MaintenanceSettlementTests.Footprint(admin);
+    RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", "24_EnableMaintenanceSettlement.sql"));
+    Check(MaintenanceSettlementTests.Footprint(admin) == maintenanceBefore, "Rerunning sql/24 leaves populated tickets, receipts, stock and accounts untouched");
+    Console.WriteLine("PASS: sales, purchases, expenses, finance and maintenance against disposable SQL Server");
 }
 catch (Exception ex)
 {
@@ -484,12 +506,6 @@ finally
     if (File.Exists(temporarySettings)) File.Delete(temporarySettings);
 }
 
-static void Check(bool condition, string name)
-{
-    if (!condition) throw new InvalidOperationException(name);
-    Console.WriteLine("PASS: " + name);
-}
-
 static string FindRepositoryRoot()
 {
     var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -505,24 +521,6 @@ static void RunScript(SqlConnection connection, string path)
         if (!string.IsNullOrWhiteSpace(batch)) Execute(connection, batch);
     }
     Console.WriteLine("PASS: executed " + Path.GetFileName(path));
-}
-
-static void Execute(SqlConnection connection, string sql, params (string Name, object Value)[] parameters)
-{
-    using var command = connection.CreateCommand();
-    command.CommandTimeout = 120;
-    command.CommandText = sql;
-    foreach (var (name, value) in parameters) command.Parameters.AddWithValue(name, value);
-    command.ExecuteNonQuery();
-}
-
-static T Scalar<T>(SqlConnection connection, string sql, params (string Name, object Value)[] parameters)
-{
-    using var command = connection.CreateCommand();
-    command.CommandTimeout = 120;
-    command.CommandText = sql;
-    foreach (var (name, value) in parameters) command.Parameters.AddWithValue(name, value);
-    return (T)Convert.ChangeType(command.ExecuteScalar()!, typeof(T));
 }
 
 static string Counts(SqlConnection connection) => string.Join(",", new[]

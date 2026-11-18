@@ -19,6 +19,7 @@ public partial class PurchaseInvoicesView : UserControl
             oldVm.OpenDetailsDialogRequested = null;
             oldVm.OpenPrintPreviewRequested = null;
             oldVm.OpenPaySupplierDialogRequested = null;
+            oldVm.OpenSupplierCreditRequested = null;
             oldVm.OpenEditDialogRequested = null;
             oldVm.OpenReturnDialogRequested = null;
             oldVm.OpenConfirmDialogRequested = null;
@@ -28,6 +29,7 @@ public partial class PurchaseInvoicesView : UserControl
         {
             newVm.OpenDetailsDialogRequested = vm => ShowOwnedDialog(new PurchaseInvoiceDetailsWindow(vm));
             newVm.OpenPrintPreviewRequested = vm => ShowOwnedDialog(new PurchaseInvoicePrintPreviewWindow(vm));
+            newVm.OpenSupplierCreditRequested = vm => ShowOwnedDialog(new SupplierCreditWindow(vm));
             newVm.OpenPaySupplierDialogRequested = vm => ShowOwnedDialog(new PaySupplierInvoiceWindow(vm));
             newVm.OpenEditDialogRequested = vm => ShowOwnedDialog(new EditPurchaseInvoiceWindow(vm));
             newVm.OpenReturnDialogRequested = vm => ShowOwnedDialog(new PurchaseReturnWindow(vm));

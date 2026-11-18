@@ -398,13 +398,16 @@
                                             Margin="0,0,0,0"
                                             Command="{Binding AdvanceToNextStageCommand}"
                                             Visibility="{Binding SelectedOrder.CanAdvanceStatus, Converter={StaticResource BoolToVis}}" />
+                                    <TextBox Text="{Binding ReopenReason, UpdateSourceTrigger=PropertyChanged}" Width="160" MaxLength="1500"
+                                             ToolTip="سبب إعادة الفتح (إلزامي)" Style="{StaticResource PosCompactTextBoxStyle}"
+                                             Visibility="{Binding SelectedOrder.CanReopen, Converter={StaticResource BoolToVis}}" />
                                     <Button Content="إعادة فتح للمراجعة"
                                             Style="{StaticResource PosOutlineTealButtonStyle}"
                                             Padding="11,7"
                                             FontSize="11.5"
                                             Margin="6,0,0,0"
                                             Command="{Binding ReopenOrderCommand}"
-                                            Visibility="{Binding SelectedOrder.IsActiveOrder, Converter={StaticResource InverseBoolToVis}}" />
+                                            Visibility="{Binding SelectedOrder.CanReopen, Converter={StaticResource BoolToVis}}" />
                                     <Button Content="إلغاء / لا يُصلح"
                                             Style="{StaticResource PosDangerButtonStyle}"
                                             Padding="11,7"
