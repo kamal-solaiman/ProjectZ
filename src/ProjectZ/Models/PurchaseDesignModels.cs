@@ -100,6 +100,7 @@ public sealed class SupplierDesignItem : ObservableObject
 public sealed record SupplierCreditItem(int Id, int SupplierId, int SourceInvoiceId, string ReturnNumber, decimal Amount, decimal Applied,
     decimal Received, decimal Available, byte[] Version)
 {
+    public string Breakdown => $"#{Id} · {ReturnNumber} · صادر {Amount:0.00} · مقاصة {Applied:0.00} · مقبوض {Received:0.00} · متاح {Available:0.00}";
     public string Label => $"إشعار #{Id} · {ReturnNumber} · متاح {PosFormatting.FormatCurrency(Available)}";
 }
 public sealed record PurchaseReceiptAccount(int Id, string Alias, string Identifier)
@@ -281,6 +282,8 @@ public sealed class PurchaseInvoiceDesignItem : ObservableObject
     public List<PurchaseStatementPosting> Postings { get; } = [];
     public decimal AvailableCredit => CreditNotes.Sum(c => c.Available);
     public decimal SettledAmount => NetCashOutflow + CreditApplied - CreditNotes.Sum(c => c.Amount - c.Received);
+    public bool HasAvailableCredit => AvailableCredit > 0m;
+    public string AvailableCreditDisplay => PosFormatting.FormatCurrency(AvailableCredit);
     public bool CanSettleCredit => !NeedsReview && AvailableCredit > 0m;
     public string DebtLabel => $"{InvoiceNumber} · متبقٍ {RemainingPayable:0.00}";
     public string CreditSummary => $"مقاصة مستخدمة على الفاتورة: {CreditApplied:0.00} · رصيد متاح من مرتجعاتها: {AvailableCredit:0.00}";

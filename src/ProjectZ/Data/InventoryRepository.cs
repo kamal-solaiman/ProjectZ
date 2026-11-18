@@ -26,7 +26,7 @@ public sealed class InventoryRepository(ConnectionSettingsProvider settings, int
 SELECT p.Id, p.Barcode, p.Sku, p.Name, c.Name, p.UnitName, p.CostPrice,
        p.RetailPrice, p.SpecialPrice, p.WholesalePrice, p.MinimumStockAlert,
        p.TrackSerialNumber, p.IsActiveForSale, p.Notes, p.RowVersion,
-       CASE WHEN EXISTS (SELECT 1 FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id)
+       CASE WHEN EXISTS (SELECT 1 FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id AND x.UnitStatus<>3)
             THEN (SELECT COUNT(*) FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id AND x.UnitStatus=0)
             ELSE COALESCE((SELECT SUM(m.QuantityDelta) FROM dbo.StockMovements m WHERE m.ProductId=p.Id),0) END,
        (SELECT COUNT(*) FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id AND x.UnitStatus=2)

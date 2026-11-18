@@ -108,7 +108,7 @@ BEGIN
         DELETE FROM @Claim;
         INSERT @Claim SELECT TOP (@Qty) Id,PurchaseCost FROM dbo.InventoryUnits WITH (UPDLOCK,HOLDLOCK)
             WHERE ProductId=@Product AND UnitStatus=0 ORDER BY RegisteredAtUtc,Id;
-        IF EXISTS (SELECT 1 FROM dbo.InventoryUnits WITH (UPDLOCK,HOLDLOCK) WHERE ProductId=@Product)
+        IF EXISTS (SELECT 1 FROM dbo.InventoryUnits WITH (UPDLOCK,HOLDLOCK) WHERE ProductId=@Product AND UnitStatus<>3)
         BEGIN
             IF (SELECT COUNT(*) FROM @Claim)<>@Qty THROW 50106, N'عدد الوحدات المتاحة أقل من الكمية المطلوبة.', 1;
             SELECT @Cost=ROUND(AVG(Cost),2) FROM @Claim;

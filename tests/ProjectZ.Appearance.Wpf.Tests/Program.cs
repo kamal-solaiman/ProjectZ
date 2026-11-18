@@ -450,6 +450,7 @@ internal static class Program
               || mainVm.HeaderDate.Contains((DateTime.UtcNow.Year + 1).ToString(), StringComparison.Ordinal),
             "The clock date follows Egypt's calendar year, not a placeholder");
         MaintenancePostingTests.Run(Check);
+        PurchasePostingTests.Run(Check);
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

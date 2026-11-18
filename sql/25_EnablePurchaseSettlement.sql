@@ -51,7 +51,7 @@ GO
 CREATE OR ALTER VIEW dbo.vwPurchaseInvoiceSummary AS
 SELECT d.*, n.CreditIssued, n.AvailableCredit, a.CreditApplied, n.CreditReceived, s.SettledAmount,
        CONVERT(decimal(19,2),CASE WHEN d.InvoiceStatus NOT IN (3,5) AND d.NetPurchases>s.SettledAmount THEN d.NetPurchases-s.SettledAmount ELSE 0 END) AS RemainingPayable,
-       CONVERT(bit,CASE WHEN s.SettledAmount<0 OR s.SettledAmount>d.NetPurchases OR (d.InvoiceStatus IN (3,5) AND d.NetPurchases<>0)
+       CONVERT(bit,CASE WHEN d.DiscountAmount>d.Subtotal OR s.SettledAmount<0 OR s.SettledAmount>d.NetPurchases OR (d.InvoiceStatus IN (3,5) AND d.NetPurchases<>0)
          OR d.SupplierRefundReceived<>n.CreditReceived
          OR EXISTS(SELECT q.AccountId,q.Kind FROM (
              SELECT p.FinancialAccountId AS AccountId,p.PaymentKind AS Kind,p.Amount AS Difference FROM dbo.PurchasePayments p WHERE p.PurchaseInvoiceId=d.PurchaseInvoiceId
@@ -76,6 +76,9 @@ BEGIN
     IF @Status IN (3,5) AND @AllowClosed=0 THROW 50252,N'الفاتورة ملغاة أو مرتجعة بالكامل.',1;
     IF EXISTS(SELECT 1 FROM dbo.vwPurchaseInvoiceSummary WHERE PurchaseInvoiceId=@Id AND NeedsReview=1)
         THROW 50253,N'الفاتورة تحتاج مطابقة تاريخية للمبالغ أو مستندات المرتجع. لم تُسجّل حركة جديدة.',1;
+    IF @Status NOT IN (3,5) AND EXISTS(SELECT 1 FROM dbo.PurchaseInvoiceLines l WHERE l.PurchaseInvoiceId=@Id AND l.Quantity-l.ReturnedQuantity<>
+        (SELECT COUNT(*) FROM dbo.PurchaseInvoiceLineUnits lu JOIN dbo.InventoryUnits u ON u.Id=lu.InventoryUnitId WHERE lu.PurchaseInvoiceLineId=l.Id AND u.ProductId=l.ProductId AND u.UnitStatus<>3))
+        THROW 50254,N'روابط وحدات المخزون لا تطابق الكميات المحفوظة.',1;
 END;
 GO
 CREATE OR ALTER PROCEDURE dbo.NextPurchaseNumber @Type nvarchar(30),@Prefix nvarchar(4),@Number nvarchar(50) OUTPUT AS
@@ -98,7 +101,7 @@ BEGIN
         WHEN s.RemainingPayable=0 THEN 0 WHEN s.SettledAmount>0 THEN 1 ELSE 2 END,UpdatedAtUtc=SYSUTCDATETIME()
         FROM dbo.PurchaseInvoices i JOIN dbo.vwPurchaseInvoiceSummary s ON s.PurchaseInvoiceId=i.Id WHERE i.Id=@Id;
     INSERT dbo.PurchaseInvoiceActivities(PurchaseInvoiceId,OccurredAtUtc,ActionTitle,Details,Amount,ActorUserId,DocumentDelta)
-        VALUES(@Id,SYSUTCDATETIME(),@Title,@Details,@Amount,@Actor,@Delta);
+        SELECT @Id,CASE WHEN @Action=N'CreatePurchaseInvoice' THEN CreatedAtUtc ELSE SYSUTCDATETIME() END,@Title,@Details,@Amount,@Actor,@Delta FROM dbo.PurchaseInvoices WHERE Id=@Id;
     INSERT dbo.AuditLog(ActorUserId,Module,ActionName,EntityType,EntityId,NewValuesJson)
         SELECT @Actor,N'Purchasing',@Action,N'PurchaseInvoice',CONVERT(nvarchar(100),@Id),
         (SELECT @Details AS Details,@Amount AS Amount,@Delta AS DocumentDelta, s.NetPurchases,s.RemainingPayable,s.AvailableCredit FROM dbo.vwPurchaseInvoiceSummary s WHERE PurchaseInvoiceId=@Id FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
@@ -131,9 +134,6 @@ BEGIN
        OR EXISTS(SELECT LineId FROM @Items WHERE LineId IS NOT NULL GROUP BY LineId HAVING COUNT(*)>1)
        OR EXISTS(SELECT 1 FROM @Items x WHERE x.LineId IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dbo.PurchaseInvoiceLines l WHERE l.Id=x.LineId AND l.ProductId=x.ProductId AND l.PurchaseInvoiceId=@Id))
         THROW 50252,N'راجع هوية بنود الفاتورة وكمياتها وأسعارها.',1;
-    IF EXISTS(SELECT 1 FROM dbo.PurchaseInvoiceLines l WHERE l.PurchaseInvoiceId=@Id AND l.Quantity-l.ReturnedQuantity<>
-        (SELECT COUNT(*) FROM dbo.PurchaseInvoiceLineUnits lu JOIN dbo.InventoryUnits u ON u.Id=lu.InventoryUnitId WHERE lu.PurchaseInvoiceLineId=l.Id AND u.ProductId=l.ProductId AND u.UnitStatus<>3))
-        THROW 50254,N'روابط وحدات المخزون لا تطابق الكميات المحفوظة.',1;
     DECLARE @Line int,@Qty int,@Old int,@Returned int,@OldCost decimal(19,2),@Count int,@Product int,@Cost decimal(19,2),@Unit int,@Track bit,
             @Number nvarchar(50),@Supplier int,@Ordinal int=0,@LineNo int=(SELECT COALESCE(MAX(LineNumber),0) FROM dbo.PurchaseInvoiceLines WHERE PurchaseInvoiceId=@Id);
     SELECT @Number=InvoiceNumber,@Supplier=SupplierId FROM dbo.PurchaseInvoices WHERE Id=@Id;
@@ -319,6 +319,7 @@ BEGIN
     IF @Owner<>@Supplier OR @Amount IS NULL OR @Amount<=0 OR @Amount>(SELECT AvailableAmount FROM dbo.vwSupplierCreditBalances WHERE Id=@Credit)
         THROW 50257,N'لا يكفي الرصيد المتاح لهذا المورد أو أن الإشعار لمورد آخر.',1;
     SELECT @Source=SourceInvoiceId FROM dbo.vwSupplierCreditBalances WHERE Id=@Credit;
+    IF EXISTS(SELECT 1 FROM dbo.vwPurchaseInvoiceSummary WHERE PurchaseInvoiceId=@Source AND NeedsReview=1) THROW 50253,N'فاتورة مصدر الإشعار تحتاج مطابقة قبل استخدام الرصيد.',1;
     UPDATE dbo.SupplierCreditNotes SET UpdatedAtUtc=SYSUTCDATETIME() WHERE Id=@Credit;
 END;
 GO

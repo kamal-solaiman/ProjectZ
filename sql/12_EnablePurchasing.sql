@@ -3,11 +3,8 @@
    ----------------------------------------------------------------------------
    يمنح حساب الشبكة ProjectZClient ما تحتاجه شاشتا المشتريات فقط:
      • دليل الموردين: قراءة/إضافة/تعديل/حذف (الحذف يُستبدل بالأرشفة عند وجود سجل).
-     • فاتورة الشراء: رأس الفاتورة وبنودها وربط الوحدات، والمدفوعات والأنشطة.
-     • المرتجع للمورد: PurchaseReturns + PurchaseReturnLines.
-     • المخزون الناتج عن التوريد/المرتجع: InventoryUnits + StockMovements.
-     • الحركة المالية للسداد والاسترداد: FinancialAccounts + FinancialTransactions.
-     • أرقام المستندات من DocumentSequences، والتدقيق في AuditLog.
+     • قراءة مستندات المشتريات وسدادها ومرتجعاتها وبيانات المخزون والحسابات.
+     • تسوية المستندات تتم عبر إجراءات sql/25 فقط، لا عبر كتابة مباشرة من الكاشير.
 
    Idempotent: كل GRANT يُعاد تنفيذه بأمان، ولا يُنشئ جدولًا ولا يعدّل صفًا.
    يُنفَّذ بحساب إداري بعد sql/06 ثم sql/09 (أو 11).
@@ -41,32 +38,16 @@ GRANT SELECT ON OBJECT::dbo.PurchaseReturns TO [ProjectZClient];
 GRANT SELECT ON OBJECT::dbo.PurchaseReturnLines TO [ProjectZClient];
 GO
 
-/* 5) المخزون: وحدات التوريد وحركاتها، وتحديث تكلفة الصنف. */
-IF OBJECT_ID(N'dbo.InventoryUnits', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.InventoryUnits TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.StockMovements', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.StockMovements TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.Products', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.Products TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.Categories', N'U') IS NOT NULL
-    GRANT SELECT ON OBJECT::dbo.Categories TO [ProjectZClient];
+/* 5) Remaining reads for the directory/screens. Stock and cash posting is owned by 25.
+      Do not grant new direct ledger access here, or revoke shared permissions of other modules. */
+GRANT SELECT ON OBJECT::dbo.InventoryUnits TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.StockMovements TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.Products TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.Categories TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.Users TO [ProjectZClient];
+GRANT SELECT ON OBJECT::dbo.MaintenanceOrderParts TO [ProjectZClient];
+GRANT INSERT ON OBJECT::dbo.AuditLog TO [ProjectZClient];
 GO
-
-/* 6) الحركة المالية: خصم السداد من الخزائن/المحافظ وإضافة الاسترداد. */
-IF OBJECT_ID(N'dbo.FinancialAccounts', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.FinancialAccounts TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.FinancialTransactions', N'U') IS NOT NULL
-    GRANT SELECT, INSERT ON OBJECT::dbo.FinancialTransactions TO [ProjectZClient];
-GO
-
-/* 7) أرقام المستندات (PUR / PRT) والتدقيق. */
-IF OBJECT_ID(N'dbo.DocumentSequences', N'U') IS NOT NULL
-    GRANT SELECT, INSERT, UPDATE ON OBJECT::dbo.DocumentSequences TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
-    GRANT INSERT ON OBJECT::dbo.AuditLog TO [ProjectZClient];
-IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL
-    GRANT SELECT ON OBJECT::dbo.Users TO [ProjectZClient];
-GO
-
 PRINT N'SUCCESS: purchase directory and read permissions ready. Apply sql/25_EnablePurchaseSettlement.sql before opening tills.';
 GO

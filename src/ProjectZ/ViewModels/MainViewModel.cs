@@ -624,8 +624,7 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     private void SuppliesChanged()
     {
-        PurchaseInvoices.RefreshFromDatabase();
-        Suppliers.RefreshFromDatabase();
+        if (PurchaseInvoices.RefreshFromDatabase()) Suppliers.RefreshFromDatabase(reloadInvoices: false);
     }
 
     /// <summary>

@@ -406,6 +406,8 @@
 
                                                 <!-- Paid & Remaining Payable -->
                                                 <StackPanel Grid.Column="5" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding AvailableCreditDisplay, StringFormat='لنا: {0}'}" Visibility="{Binding HasAvailableCredit, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="Bold" />
+                                                    <TextBlock Text="تحتاج مطابقة" Visibility="{Binding NeedsReview, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosCenterTextStyle}" FontSize="11" />
                                                     <TextBlock Text="{Binding TotalPaidDisplay, StringFormat='مدفوع: {0}'}" Style="{StaticResource PosCenterTextStyle}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Theme.Legacy.0F766E.SuccessInk}" />
                                                     <TextBlock Text="{Binding RemainingPayableDisplay, StringFormat='آجل: {0}'}" Style="{StaticResource PosCenterTextStyle}" Margin="0,1,0,0" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource Theme.Legacy.B42318.DangerInk}" Visibility="{Binding HasRemainingPayable, Converter={StaticResource BoolToVis}}" />
                                                 </StackPanel>

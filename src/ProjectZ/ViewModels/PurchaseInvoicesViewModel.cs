@@ -13,7 +13,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
     private readonly ObservableCollection<SupplierDesignItem> sharedSuppliers;
     private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
     private readonly ObservableCollection<InventoryUnitRegistrationItem> sharedRegistrations;
-    private readonly string currentUserName;
     private readonly Action? navigateToPurchaseEntry;
     private readonly Action? notifyInventoryChanged;
     private readonly Action? notifyReturnExchangeChanged;
@@ -253,7 +252,6 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
             this.sharedCatalog,
             this.sharedRegistrations,
             this.sharedSuppliers);
-        this.currentUserName = currentUserName;
         this.navigateToPurchaseEntry = navigateToPurchaseEntry;
         this.notifyInventoryChanged = notifyInventoryChanged;
         this.notifyReturnExchangeChanged = notifyReturnExchangeChanged;
@@ -390,6 +388,7 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         if (invoice is null) return;
         SelectedInvoice = invoice;
 
+        SetStatus($"تفاصيل الفاتورة {invoice.InvoiceNumber}.", false);
         var detailsVm = new PurchaseInvoiceDetailsViewModel(
             invoice,
             sharedSuppliers,

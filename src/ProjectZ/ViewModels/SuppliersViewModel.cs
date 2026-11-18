@@ -45,7 +45,7 @@ public sealed class SupplierDirectoryEntryViewModel : ObservableObject
     public string TotalReturnsDisplay => PosFormatting.FormatCurrency(TotalReturns);
     public string OutstandingDisplay => PosFormatting.FormatCurrency(Outstanding);
     public string InvoicesSummary => HasTransactions ? $"{InvoicesCount} فاتورة · مفتوحة {OpenInvoicesCount}" : "بدون فواتير";
-    public string BalanceStatusTitle => AvailableCredit > 0m ? $"لنا: {AvailableCreditDisplay} · له: {OutstandingDisplay}" : HasOutstanding ? $"مستحق له: {OutstandingDisplay}" : HasTransactions ? "خالص / مسدد" : "رصيد صفر";
+    public string BalanceStatusTitle => PurchaseInvoices.Any(i => i.NeedsReview) ? "توجد فاتورة تحتاج مطابقة" : AvailableCredit > 0m ? $"لنا: {AvailableCreditDisplay} · له: {OutstandingDisplay}" : HasOutstanding ? $"مستحق له: {OutstandingDisplay}" : HasTransactions ? "خالص / مسدد" : "رصيد صفر";
     public string LastActivityDisplay => LastActivityAt?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "—";
 
     public bool IsSelected
@@ -276,7 +276,7 @@ public sealed class SuppliersViewModel : ObservableObject
     }
 
     /// <summary>Re-reads dbo.Suppliers (and the purchase ledger) so the directory shows the live rows.</summary>
-    public bool RefreshFromDatabase()
+    public bool RefreshFromDatabase(bool reloadInvoices = true)
     {
         if (repository is null)
         {
@@ -287,7 +287,7 @@ public sealed class SuppliersViewModel : ObservableObject
         try
         {
             var previousId = SelectedSupplierEntry?.Supplier.Id;
-            repository.LoadInvoicesInto(sharedPurchaseInvoices);
+            if (reloadInvoices && !purchaseActions.RefreshFromDatabase()) throw new PurchaseDataException(purchaseActions.StatusMessage);
             repository.LoadSuppliersInto(sharedSuppliers);
             RebuildSpecializations();
             RebuildEntriesAndRefresh(previousId);
@@ -441,7 +441,7 @@ public sealed class SuppliersViewModel : ObservableObject
                 RefreshFromDatabase();
                 RebuildEntriesAndRefresh(updated.Id);
                 notifyExternalDataChanged?.Invoke();
-                SetStatus($"تم تحديث بيانات المورد «{updated.Name}» في قاعدة البيانات ومزامنتها مع فواتير المشتريات.", false);
+                SetStatus($"تم تحديث بيانات المورد «{updated.Name}» في الدليل؛ تحتفظ الفواتير السابقة ببياناتها وقت الاعتماد.", false);
                 return;
             }
 
@@ -460,6 +460,11 @@ public sealed class SuppliersViewModel : ObservableObject
     private void DeleteSupplier(SupplierDirectoryEntryViewModel? entry)
     {
         if (entry is null) return;
+        if (entry.AvailableCredit > 0m || entry.PurchaseInvoices.Any(i => i.NeedsReview))
+        {
+            SetStatus("لا يمكن أرشفة المورد قبل تسوية إشعاراته ومطابقة أي مستند قديم.", true);
+            return;
+        }
         if (entry.HasOutstanding)
         {
             SetStatus($"لا يمكن حذف المورد «{entry.Supplier.Name}» قبل سداد المستحق له ({entry.OutstandingDisplay}).", true);

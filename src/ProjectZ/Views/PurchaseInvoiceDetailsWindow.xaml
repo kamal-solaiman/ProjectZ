@@ -347,6 +347,9 @@
                                            Margin="0,0,0,8" />
 
                                 <TextBlock Text="{Binding Invoice.CreditSummary}" TextWrapping="Wrap" Style="{StaticResource PosRtlTextStyle}" FontWeight="Bold" />
+                                <ItemsControl ItemsSource="{Binding Invoice.CreditNotes}">
+                                    <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding Breakdown}" TextWrapping="Wrap" Style="{StaticResource PosRtlTextStyle}" /></DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
                                 <TextBlock Text="هذا المستند يحتاج مطابقة تاريخية؛ التسوية موقوفة." Visibility="{Binding Invoice.NeedsReview, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosRtlTextStyle}" />
                                 <Grid Margin="0,2,0,0" Visibility="{Binding Invoice.HasCashPaid, Converter={StaticResource BoolToVis}}">
                                     <Grid.ColumnDefinitions>

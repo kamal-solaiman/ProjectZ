@@ -22,7 +22,7 @@ public sealed class SupplierCreditDialogViewModel : ObservableObject
     public bool IsReceipt
     {
         get => isReceipt;
-        set { isReceipt = value; Changed(); Changed(nameof(IsApplication)); Changed(nameof(ConfirmLabel)); }
+        set { if (value == isReceipt) return; isReceipt = value; Changed(); Changed(nameof(IsApplication)); Changed(nameof(ConfirmLabel)); }
     }
     public bool IsApplication { get => !isReceipt; set { if (value) IsReceipt = false; } }
     public string ConfirmLabel => IsReceipt ? "تأكيد استلام المبلغ في الحساب المحدد" : "تأكيد المقاصة دون قبض أو صرف";
@@ -44,6 +44,7 @@ public sealed class SupplierCreditDialogViewModel : ObservableObject
     private void Submit()
     {
         Error = "";
+        Result = null;
         if (Credit is null || !Credits.Contains(Credit) || !PosFormatting.TryParseAmount(AmountText, out var amount) || amount <= 0m || amount > Credit.Available || decimal.Round(amount, 2) != amount)
             Error = "اختر إشعارًا وأدخل مبلغًا موجبًا بالقرش لا يتجاوز المتاح منه.";
         else if (IsReceipt && (Account is null || !Accounts.Contains(Account) || string.IsNullOrWhiteSpace(Evidence) || Evidence.Trim().Length > 120))

@@ -1,11 +1,11 @@
 <Window x:Class="ProjectZ.Views.SupplierCreditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | تسوية إشعار المورد'}" Width="510" SizeToContent="Height" WindowStartupLocation="CenterOwner" FlowDirection="RightToLeft"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | تسوية إشعار المورد'}" Width="510" SizeToContent="Height" WindowStartupLocation="CenterOwner" FlowDirection="LeftToRight" Language="ar-EG" ShowInTaskbar="False"
         Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}">
     <Grid>
     <ContentControl Style="{StaticResource ThemeBackdropStyle}" />
-    <StackPanel Margin="20">
+    <StackPanel Margin="20" FlowDirection="RightToLeft">
         <TextBlock Text="تسوية إشعار لصالح المحل" Style="{StaticResource PosRtlTextStyle}" FontWeight="Bold" FontSize="19" />
         <TextBlock Text="{Binding SourceLabel}" Style="{StaticResource PosRtlTextStyle}" Margin="0,4,0,12" />
         <TextBlock Text="الإشعار والرصيد المتاح منه" Style="{StaticResource PosRtlTextStyle}" />

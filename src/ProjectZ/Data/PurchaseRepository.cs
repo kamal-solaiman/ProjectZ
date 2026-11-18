@@ -238,6 +238,8 @@ WHERE Id=@Id;"))
             {
                 bool hasHistory;
                 using (var check = CreateCommand(connection, transaction, @"
+IF EXISTS(SELECT 1 FROM dbo.vwPurchaseInvoiceSummary WHERE SupplierId=@Id AND (RemainingPayable>0 OR AvailableCredit>0 OR NeedsReview=1))
+    THROW 50257,N'لا يمكن أرشفة المورد قبل مطابقة وتسوية الدين والرصيد المتاح للمحل.',1;
 SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.PurchaseInvoices WHERE SupplierId=@Id)
               OR EXISTS (SELECT 1 FROM dbo.InventoryUnits WHERE SupplierId=@Id)
               OR EXISTS (SELECT 1 FROM dbo.MaintenanceOrderParts WHERE SupplierId=@Id)
@@ -323,7 +325,7 @@ FROM dbo.PurchaseInvoiceActivities a
 JOIN dbo.Users u ON u.Id = a.ActorUserId
 ORDER BY a.Id;
 SELECT SourceInvoiceId,Id,SupplierId,ReturnNumber,Amount,AppliedAmount,ReceivedAmount,AvailableAmount,RowVersion FROM dbo.vwSupplierCreditBalances ORDER BY Id;
-SELECT a.InvoiceId,a.AppliedAtUtc,c.ReturnNumber,a.Amount FROM dbo.SupplierCreditApplications a JOIN dbo.vwSupplierCreditBalances c ON c.Id=a.CreditId ORDER BY a.Id;";
+SELECT a.InvoiceId,a.AppliedAtUtc,c.ReturnNumber,a.Amount,c.Id FROM dbo.SupplierCreditApplications a JOIN dbo.vwSupplierCreditBalances c ON c.Id=a.CreditId ORDER BY a.Id;";
 
             using var reader = command.ExecuteReader();
             while (reader.Read())
@@ -450,7 +452,7 @@ SELECT a.InvoiceId,a.AppliedAtUtc,c.ReturnNumber,a.Amount FROM dbo.SupplierCredi
             reader.NextResult();
             while (reader.Read())
                 byId[reader.GetInt32(0)].Postings.Add(new PurchaseStatementPosting(AsLocal(reader.GetDateTime(1)),
-                    $"مقاصة من {reader.GetString(2)} · {reader.GetDecimal(3):0.00} (نقل بين مستندين، دون قبض أو صرف)", 0m));
+                    $"مقاصة من إشعار #{reader.GetInt32(4)} · {reader.GetString(2)} · {reader.GetDecimal(3):0.00} (نقل بين مستندين، دون قبض أو صرف)", 0m));
             reader.Close();
             snapshot.Commit();
 

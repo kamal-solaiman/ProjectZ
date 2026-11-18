@@ -11,7 +11,7 @@ internal static class PurchaseSettlementTests
     internal static string Footprint(SqlConnection db)
     {
         string Rows(string table, string order = "Id") => Scalar<string>(db, $"SELECT (SELECT * FROM dbo.{table} ORDER BY {order} FOR JSON PATH) ;");
-        return string.Join('|', new[] { "PurchaseInvoices", "PurchaseInvoiceLines", "PurchaseReturns", "PurchaseReturnLines", "SupplierCreditNotes",
+        return string.Join('|', new[] { "Suppliers", "PurchaseInvoices", "PurchaseInvoiceLines", "PurchaseReturns", "PurchaseReturnLines", "SupplierCreditNotes",
             "SupplierCreditApplications", "SupplierCreditReceipts", "InventoryUnits", "Products", "StockMovements", "FinancialAccounts", "FinancialTransactions",
             "PurchasePayments", "PurchaseInvoiceActivities", "AuditLog" }.Select(t => Rows(t)))
             + Rows("PurchaseInvoiceLineUnits", "PurchaseInvoiceLineId,InventoryUnitId") + Rows("PurchaseReturnUnits", "InventoryUnitId") + Rows("DocumentSequences", "DocumentType,SequenceYear");
@@ -133,6 +133,27 @@ internal static class PurchaseSettlementTests
               rows.Sum(i=>i.Postings.Sum(p=>p.Change)+i.ActivityLog.Sum(a=>a.DocumentDelta??0m))==directory.OutstandingPayable-directory.AvailableCredit,
             "Invoice, supplier summary and chronological posting rows reconcile debt less spendable credit, including cancellations");
 
+        Refused(() => repo.DeleteSupplier(supplier.Id),50257,"Outstanding debt/credit cannot disappear from the supplier directory");
+        var partly=Create(supplier.Id,0,120,0,new PurchaseLineRequest(product,2,60));
+        repo.ReturnToSupplier(new(partly.Id,partly.DatabaseRowVersion,[new(Line(partly,product),1)],"إرجاع نصف الكمية",false));
+        partly=Read(partly.Id);
+        repo.ReceiveCredit(partly.Id,partly.DatabaseRowVersion,partly.CreditNotes.Single(),20,receiving,"ACTUAL-20");
+        partly=Read(partly.Id); ledger=CashRows(); var receivedBalance=Balance(receiving);
+        var edit=Edit(partly,0) with { Lines=[new(product,2,60,Line(partly,product)),new(serial,1,10)] };
+        repo.UpdateInvoice(edit); partly=Read(partly.Id);
+        Check(partly.NetTotal==70 && partly.RemainingPayable==10 && partly.SupplierRefundReceived==20 && partly.AvailableCredit==40 && CashRows()==ledger && Balance(receiving)==receivedBalance &&
+              partly.Items.Single(l=>l.ProductId==serial).UnitRegistrationIds.Count==1, "Adding a historic line after a real receipt preserves cash, prior receipt and remaining note; real new line ID owns its unit");
+        Refused(()=>repo.UpdateInvoice(edit),50251,"A stale edit after a receipt cannot be replayed");
+        Refused(()=>repo.UpdateInvoice(Edit(partly,11)),50255,"Edit after receipt cannot depress net below posted coverage");
+        var debtor=Create(supplier.Id,0,100,0,new PurchaseLineRequest(product,10,100)); ledger=CashRows();
+        var debtReturn=repo.ReturnToSupplier(new(debtor.Id,debtor.DatabaseRowVersion,[new(Line(debtor,product),5)],"رد على الحساب",false));
+        Check(debtReturn.CreditIssued==0 && debtReturn.DebtReduction==500 && Read(debtor.Id).RemainingPayable==400 && CashRows()==ledger,"Debt-only return: 1000 invoice / 100 paid / 500 returned leaves 400 due, no cash or note");
+        Refused(()=>repo.PayInvoice(new(debtor.Id,debtor.DatabaseRowVersion,10,0,0,"")),50251,"Payment dialog opened before return cannot post later");
+        var cashId=Scalar<int>(db,"SELECT Id FROM dbo.FinancialAccounts WHERE AccountKind=0");
+        Execute(db,$"UPDATE dbo.FinancialAccounts SET CurrentBalance=0 WHERE Id={cashId};");
+        var due=Read(debtor.Id);
+        Refused(()=>repo.PayInvoice(new(due.Id,due.DatabaseRowVersion,1,0,0,"")),50256,"Insufficient actual funds refuse the payout");
+
         var stock=Create(supplier.Id,0,0,0,new PurchaseLineRequest(serial,1,30));
         var unit=stock.Items[0].UnitRegistrationIds.Single();
         Execute(db,$"UPDATE dbo.InventoryUnits SET UnitStatus=1 WHERE Id={unit};");
@@ -142,6 +163,13 @@ internal static class PurchaseSettlementTests
         repo.ReturnToSupplier(new(stock.Id,stock.DatabaseRowVersion,[new(Line(stock,serial),1)],"هالك",true));
         Check(Scalar<int>(db,$"SELECT SUM(QuantityDelta) FROM dbo.StockMovements WHERE InventoryUnitId={unit};")==0 && Scalar<int>(db,$"SELECT COUNT(*) FROM dbo.PurchaseReturnUnits WHERE InventoryUnitId={unit} AND WasDamaged=1")==1,
             "Returning damaged goods records physical evidence without decrementing sellable stock twice");
+        // Terminal units retain history but cannot mask older quantity-only stock after the last live unit leaves.
+        var mixed=Scalar<int>(db,$"INSERT dbo.Products(CategoryId,Name,UnitName,RetailPrice) OUTPUT inserted.Id SELECT CategoryId,N'رصيد كمي باق',N'قطعة',10 FROM dbo.Products WHERE Id={product}");
+        Execute(db,$"INSERT dbo.StockMovements(ProductId,MovementType,QuantityDelta,ActorUserId) VALUES({mixed},N'Supply',3,{actor});");
+        var onlyUnit=Create(supplier.Id,0,0,0,new PurchaseLineRequest(mixed,1,10));
+        repo.CancelInvoice(onlyUnit.Id,onlyUnit.DatabaseRowVersion);
+        new SalesRepository(settings,actor).CompleteSale(new(null,true,PriceTier.Retail,0,[new(mixed,1,PriceTier.Retail,10)],10,0,0,""));
+        Check(Scalar<int>(db,$"SELECT QuantityOnHand FROM dbo.vwProductStock WHERE ProductId={mixed}")==2,"Retired purchased unit cannot hide the remaining quantity-only stock from POS");
         // Old client left a return header but never executed the detail insert. No automatic credit/backfill.
         var legacy=Create(supplier.Id,0,0,0,new PurchaseLineRequest(product,2,20));
         Execute(db,$"INSERT dbo.PurchaseReturns(ReturnNumber,PurchaseInvoiceId,ReturnedAtUtc,ActorUserId) VALUES(N'PRT-LEGACY-25',{legacy.Id},SYSUTCDATETIME(),{actor}); UPDATE dbo.PurchaseInvoiceLines SET ReturnedQuantity=1 WHERE PurchaseInvoiceId={legacy.Id};");

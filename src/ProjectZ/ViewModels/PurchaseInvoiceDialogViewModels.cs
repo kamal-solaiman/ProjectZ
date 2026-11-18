@@ -456,6 +456,11 @@ public sealed class PaySupplierInvoiceViewModel : ObservableObject
 
     private void Submit()
     {
+        if (!PosFormatting.IsValidTender(CashAmountText) || !PosFormatting.IsValidTender(VodafoneCashAmountText) || !PosFormatting.IsValidTender(InstaPayAmountText))
+        {
+            ErrorMessage = "راجع مبالغ القنوات؛ لا يقبل السداد قيمًا سالبة أو كسورًا أقل من قرش.";
+            return;
+        }
         if (TotalPayNow <= 0m)
         {
             ErrorMessage = "أدخل مبلغ سداد أكبر من صفر.";
@@ -680,7 +685,7 @@ public sealed class PurchaseReturnViewModel : ObservableObject
         {
             var regs = sharedRegistrations.Where(r => line.UnitRegistrationIds.Contains(r.Id)).ToList();
             var available = regs.Count(r => r.IsAvailable);
-            var damaged = regs.Count(r => r.IsDamaged);
+            var damaged = regs.Count(r => r.CanMarkReturnedToSupplier);
             var sold = regs.Count(r => r.IsSold);
             if (damaged > 0) anyDamaged = true;
 
@@ -1187,14 +1192,14 @@ public sealed class EditPurchaseInvoiceViewModel : ObservableObject
                 return;
             }
 
-            if (line.UnitPurchaseCost <= 0m)
+            if (!PosFormatting.IsValidTender(line.UnitPurchaseCostText) || line.UnitPurchaseCost <= 0m)
             {
                 ErrorMessage = $"يرجى إدخال سعر شراء صحيح لصنف «{line.Product.Name}».";
                 return;
             }
         }
 
-        if ((!string.IsNullOrWhiteSpace(DiscountAmountText) && !PosFormatting.TryParseAmount(DiscountAmountText, out _)) ||
+        if (!PosFormatting.IsValidTender(DiscountAmountText) ||
             DiscountAmount < 0m || DiscountAmount > ActiveGrossTotal || NetTotal <= 0m || HasOverpayment)
         {
             ErrorMessage = "راجع الخصم والصافي بعد المرتجعات. يجب أن يغطي الصافي السداد والمقاصة المسجلين؛ لا يغيّر التعديل أي دفعة.";
