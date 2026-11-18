@@ -291,7 +291,7 @@ public sealed class MainViewModel : ObservableObject
             sharedReturnOperations,
             user.DisplayName,
             () => SelectItem(salesCategory.Items[4]),
-            Inventory.NotifyExternalInventoryChanged,
+            salesRepository is null ? Inventory.NotifyExternalInventoryChanged : ReloadInventoryOnly,
             Invoices.NotifyExternalInvoicesChanged,
             salesRepository);
         Invoices.SetReturnExchangeNotifier(ReturnExchange.NotifyExternalDataChanged);

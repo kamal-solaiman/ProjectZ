@@ -47,7 +47,7 @@ public sealed class ReturnExchangeInvoiceLineViewModel : ObservableObject
 
     public int TotalSelectedReturnQty => GoodReturnQty + DamagedReturnQty;
     public bool HasSelectedReturn => TotalSelectedReturnQty > 0;
-    public decimal LineReturnValue => TotalSelectedReturnQty * Line.UnitPrice;
+    public decimal LineReturnValue => Line.ReturnValue(TotalSelectedReturnQty);
     public string GoodReturnQtyDisplay => GoodReturnQty.ToString(CultureInfo.InvariantCulture);
     public string DamagedReturnQtyDisplay => DamagedReturnQty.ToString(CultureInfo.InvariantCulture);
     public string LineReturnValueDisplay => PosFormatting.FormatCurrency(LineReturnValue);
@@ -208,7 +208,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     private string replacementSearchText = "";
     private PriceTier replacementDefaultTier = PriceTier.Retail;
 
-    private string refundMethod = "كاش (نقدي)";
     private string diffCashText = "";
     private string diffVodafoneText = "";
     private string diffInstaPayText = "";
@@ -227,7 +226,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
 
     public IReadOnlyList<string> DatePresets { get; } = ["الكل", "اليوم", "آخر 7 أيام", "هذا الشهر", "فترة مخصصة"];
     public IReadOnlyList<string> SuggestedReasons => ReturnExchangeDesignSeedData.OperationReasons;
-    public IReadOnlyList<string> RefundMethods { get; } = ["كاش (نقدي)", "فودافون كاش", "إنستاباي", "خصم من المتبقي الآجل"];
     public IReadOnlyList<string> HistoryTypeFilters { get; } = ["الكل", "مرتجع", "استبدال"];
     public IReadOnlyList<PriceTierOption> PriceTierOptions => PosFormatting.PriceTierOptions;
 
@@ -423,18 +421,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     public bool HasReplacementItems => ReplacementItems.Count > 0;
     public bool HasNoReplacementResults => FilteredReplacementCatalog.Count == 0;
 
-    public string RefundMethod
-    {
-        get => refundMethod;
-        set
-        {
-            if (refundMethod == value || value is null) return;
-            refundMethod = value;
-            Changed();
-        }
-    }
-
-
     public string DiffCashText
     {
         get => diffCashText;
@@ -464,11 +450,13 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     public decimal NetDifference => IsExchangeMode ? TotalReplacementValue - TotalReturnedValue : -TotalReturnedValue;
 
     public bool HasAnySelectedReturn => TotalReturnedUnitsSelected > 0;
-    public bool NeedsCustomerRefund => HasAnySelectedReturn && NetDifference < 0m;
+    public bool HasInvoiceReduction => HasAnySelectedReturn && NetDifference < 0m;
     public bool NeedsCustomerPayment => IsExchangeMode && TotalReplacementUnitsSelected > 0 && NetDifference > 0m;
     public bool IsEvenExchange => IsExchangeMode && HasAnySelectedReturn && TotalReplacementUnitsSelected > 0 && NetDifference == 0m;
 
     public decimal SettlementMagnitude => Math.Abs(NetDifference);
+    private decimal Reduction => Math.Max(0m, -NetDifference);
+    public string RefundPreview => SelectedInvoice?.DescribeReduction(Reduction) ?? "";
     public string TotalReturnedValueDisplay => PosFormatting.FormatCurrency(TotalReturnedValue);
     public string TotalReplacementValueDisplay => PosFormatting.FormatCurrency(TotalReplacementValue);
     public string SettlementMagnitudeDisplay => PosFormatting.FormatCurrency(SettlementMagnitude);
@@ -478,7 +466,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         get
         {
             if (NeedsCustomerPayment) return "فرق مستحق على العميل دفعه:";
-            if (NeedsCustomerRefund) return "مبلغ مستحق ردّه / خصمه للعميل:";
+            if (HasInvoiceReduction) return "صافي تخفيض قيمة الفاتورة:";
             return "الفرق المالي الصافي:";
         }
     }
@@ -844,8 +832,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         {
             replacementDefaultTier = SelectedInvoice.DefaultPriceTier;
             Changed(nameof(ReplacementDefaultTier));
-            refundMethod = SelectedInvoice.HasRemaining ? "خصم من المتبقي الآجل" : "كاش (نقدي)";
-            Changed(nameof(RefundMethod));
 
             foreach (var line in SelectedInvoice.Items.Where(i => i.RemainingQuantity > 0))
                 InvoiceLines.Add(new ReturnExchangeInvoiceLineViewModel(line, NotifySettlementChanged));
@@ -922,7 +908,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             return;
         }
 
-        foreach (var rep in ReplacementItems)
+        foreach (var rep in ReplacementItems.Where(_ => IsExchangeMode))
         {
             var totalRequestedForProduct = ReplacementItems
                 .Where(r => r.Product.Id == rep.Product.Id)
@@ -941,14 +927,14 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             return;
         }
 
-        if (NeedsCustomerPayment && TotalDiffPaid == 0m)
-        {
-            // Nothing typed yet: assume the customer pays the whole difference in cash (the operator can split it).
-            DiffCashText = PosFormatting.FormatPlainNumber(SettlementMagnitude);
-        }
-
         if (NeedsCustomerPayment)
         {
+            var amounts = new[] { DiffCashText, DiffVodafoneText, DiffInstaPayText };
+            if (amounts.All(string.IsNullOrWhiteSpace) || !amounts.All(PosFormatting.IsValidTender))
+            {
+                SetStatus("أدخل المبلغ المحصّل بدقّة القرش، أو صفرًا لترحيل فرق العميل المسجّل للآجل.", true);
+                return;
+            }
             if (TotalDiffPaid > SettlementMagnitude)
             {
                 SetStatus($"المبلغ المدفوع ({TotalDiffPaidDisplay}) أكبر من فرق الاستبدال المستحق ({SettlementMagnitudeDisplay}).", true);
@@ -977,6 +963,14 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         var goodUnitsTotal = 0;
         var damagedUnitsTotal = 0;
         var returnedSummaryParts = new List<string>();
+
+        var returnedValue = TotalReturnedValue;
+        var replacementValue = TotalReplacementValue;
+        var previewRefund = invoice.EstimateRefund(Reduction);
+        var previewDescription = RefundPreview;
+        var hasReduction = HasInvoiceReduction;
+        var needsPayment = NeedsCustomerPayment;
+        var creditGap = DiffRemaining;
 
         // 1) Process returned lines (split per line: good -> Available stock, damaged -> Damaged stock)
         foreach (var lineVm in selectedLines)
@@ -1132,30 +1126,13 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         }
 
         // 3) Financial settlement & status update
-        var returnedValue = TotalReturnedValue;
-        var replacementValue = TotalReplacementValue;
         string settlementDesc;
-
-        if (NeedsCustomerRefund)
+        if (hasReduction)
         {
-            var refundAmount = SettlementMagnitude;
-            if (RefundMethod == "خصم من المتبقي الآجل" && invoice.HasRemaining)
-            {
-                var creditCovered = Math.Min(refundAmount, invoice.RemainingAmount);
-                var extraCash = Math.Max(0m, refundAmount - creditCovered);
-                if (extraCash > 0m)
-                    invoice.RefundedAmount += extraCash;
-                settlementDesc = extraCash > 0m
-                    ? $"خصم {PosFormatting.FormatCurrency(creditCovered)} من الآجل + رد {PosFormatting.FormatCurrency(extraCash)}"
-                    : $"خصم {PosFormatting.FormatCurrency(creditCovered)} من المتبقي الآجل";
-            }
-            else
-            {
-                invoice.RefundedAmount += refundAmount;
-                settlementDesc = $"رد للعميل: {PosFormatting.FormatCurrency(refundAmount)} ({RefundMethod})";
-            }
+            invoice.RefundedAmount += previewRefund;
+            settlementDesc = previewDescription;
         }
-        else if (NeedsCustomerPayment)
+        else if (needsPayment)
         {
             invoice.CashPaid += ParsedDiffCash;
             invoice.VodafoneCashPaid += ParsedDiffVodafone;
@@ -1165,8 +1142,8 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             if (ParsedDiffVodafone > 0m) payParts.Add($"فودافون {PosFormatting.FormatCurrency(ParsedDiffVodafone)}");
             if (ParsedDiffInstaPay > 0m) payParts.Add($"إنستاباي {PosFormatting.FormatCurrency(ParsedDiffInstaPay)}");
 
-            settlementDesc = DiffRemaining > 0m
-                ? $"تحصيل فرق {TotalDiffPaidDisplay} ({string.Join(" + ", payParts)}) + ترحيل {DiffRemainingDisplay} آجل"
+            settlementDesc = creditGap > 0m
+                ? $"تحصيل فرق {TotalDiffPaidDisplay} ({string.Join(" + ", payParts)}) + ترحيل {PosFormatting.FormatCurrency(creditGap)} آجل"
                 : $"تحصيل فرق {TotalDiffPaidDisplay} ({string.Join(" + ", payParts)})";
         }
         else
@@ -1256,26 +1233,19 @@ public sealed class ReturnExchangeViewModel : ObservableObject
 
             requests.Add(new SalesRepository.ReturnLineRequest(
                 lineVm.Line.DatabaseLineId,
-                lineVm.TotalSelectedReturnQty,
-                lineVm.DamagedReturnQty == 0,
-                lineVm.Line.UnitPrice,
-                lineVm.Line.UnitCost > 0m ? lineVm.Line.UnitCost : lineVm.Line.UnitPrice,
-                lineVm.GoodReturnQty));
+                lineVm.GoodReturnQty, lineVm.DamagedReturnQty));
         }
 
-        var replacements = ReplacementItems
-            .Select(r => new SalesRepository.ExchangeReplacementRequest(
-                r.Product.Id, r.Quantity, (int)r.SelectedPriceTier))
-            .ToList();
-
-        var payment = new SalesRepository.ExchangePayment(ParsedDiffCash, ParsedDiffVodafone, ParsedDiffInstaPay);
-
-        string operationNumber;
+        var replacements = ReplacementItems.Where(_ => IsExchangeMode).Select(r => new SaleItemRequest(r.Product.Id, r.Quantity, r.SelectedPriceTier, r.UnitPrice)).ToList();
+        var payment = NeedsCustomerPayment
+            ? new SalesRepository.ExchangePayment(ParsedDiffCash, ParsedDiffVodafone, ParsedDiffInstaPay)
+            : new SalesRepository.ExchangePayment(0m, 0m, 0m);
+        SalesRepository.AdjustmentReceipt receipt;
         try
         {
-            operationNumber = IsExchangeMode
+            receipt = IsExchangeMode
                 ? repository!.CreateExchange(new SalesRepository.ExchangeRequest(invoice, reason, requests, replacements), payment)
-                : repository!.CreateReturn(new SalesRepository.ReturnRequest(invoice, reason, true, requests));
+                : repository!.CreateReturn(new SalesRepository.ReturnRequest(invoice, reason, requests));
         }
         catch (SalesDataException data)
         {
@@ -1294,13 +1264,13 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         notifyInventoryChanged?.Invoke();
         notifyInvoicesChanged?.Invoke();
 
-        var returnedUnits = requests.Sum(r => r.Quantity);
+        var returnedUnits = requests.Sum(r => r.GoodQuantity + r.DamagedQuantity);
         var note = reloaded
             ? string.Empty
             : " (تعذر إعادة تحميل الفواتير تلقائيًا؛ اضغط «تحديث من قاعدة البيانات».)";
         SetStatus(
-            $"تم حفظ {(IsExchangeMode ? "الاستبدال" : "المرتجع")} {operationNumber} للفاتورة {invoice.InvoiceNumber}: " +
-            $"{returnedUnits} وحدة راجعة، {ReplacementItems.Sum(r => r.Quantity)} وحدة بديلة.{note}",
+            $"تم حفظ {(IsExchangeMode ? "الاستبدال" : "المرتجع")} {receipt.Number} للفاتورة {invoice.InvoiceNumber}: " +
+            $"{returnedUnits} وحدة راجعة، {replacements.Sum(r => r.Quantity)} وحدة بديلة. {receipt.Settlement}{note}",
             false);
     }
 
@@ -1314,7 +1284,8 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         Changed(nameof(TotalReplacementValue));
         Changed(nameof(NetDifference));
         Changed(nameof(HasAnySelectedReturn));
-        Changed(nameof(NeedsCustomerRefund));
+        Changed(nameof(HasInvoiceReduction));
+        Changed(nameof(RefundPreview));
         Changed(nameof(NeedsCustomerPayment));
         Changed(nameof(IsEvenExchange));
         Changed(nameof(SettlementMagnitude));

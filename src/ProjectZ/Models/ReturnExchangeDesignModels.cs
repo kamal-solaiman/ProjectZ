@@ -53,13 +53,13 @@ public sealed class ReturnExchangeOperationItem
         get
         {
             if (!IsExchange)
-                return $"رد {PosFormatting.FormatCurrency(ReturnedValue)}";
+                return $"قيمة المرتجع {PosFormatting.FormatCurrency(ReturnedValue)}";
 
             if (NetDifference > 0m)
                 return $"فرق على العميل +{PosFormatting.FormatCurrency(NetDifference)}";
 
             if (NetDifference < 0m)
-                return $"فرق للعميل -{PosFormatting.FormatCurrency(Math.Abs(NetDifference))}";
+                return $"تخفيض قيمة الفاتورة -{PosFormatting.FormatCurrency(Math.Abs(NetDifference))}";
 
             return "متساوي (0.00 ج.م)";
         }

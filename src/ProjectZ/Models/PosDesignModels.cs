@@ -397,6 +397,9 @@ public static class PosFormatting
                || decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.CurrentCulture, out value);
     }
 
+    public static bool IsValidTender(string? text) => TryParseAmount(text, out var amount)
+        && amount is >= 0m and <= 99999999999999999.99m && decimal.Round(amount, 2) == amount;
+
     public static bool TryParseNonNegativeInt(string? text, out int value)
     {
         if (string.IsNullOrWhiteSpace(text))

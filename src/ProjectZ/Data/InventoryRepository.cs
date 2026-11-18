@@ -30,6 +30,8 @@ SELECT p.Id, p.Barcode, p.Sku, p.Name, c.Name, p.UnitName, p.CostPrice,
             THEN (SELECT COUNT(*) FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id AND x.UnitStatus=0)
             ELSE COALESCE((SELECT SUM(m.QuantityDelta) FROM dbo.StockMovements m WHERE m.ProductId=p.Id),0) END,
        (SELECT COUNT(*) FROM dbo.InventoryUnits x WHERE x.ProductId=p.Id AND x.UnitStatus=2)
+         + COALESCE((SELECT SUM(-m.QuantityDelta) FROM dbo.StockMovements m WHERE m.ProductId=p.Id AND m.InventoryUnitId IS NULL
+             AND m.MovementType=N'Damage' AND m.SourceEntityType=N'SalesInvoice'),0)
 FROM dbo.Products p JOIN dbo.Categories c ON c.Id=p.CategoryId
 WHERE p.IsActiveForSale=1
 ORDER BY p.Name;

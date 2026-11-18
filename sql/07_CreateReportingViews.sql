@@ -13,11 +13,14 @@ SELECT
     p.MinimumStockAlert,
     COALESCE(sm.QuantityOnHand, 0) AS QuantityOnHand,
     COALESCE(u.AvailableUnits, 0) AS AvailableSerializedUnits,
-    COALESCE(u.DamagedUnits, 0) AS DamagedSerializedUnits
+    COALESCE(u.DamagedUnits, 0) AS DamagedSerializedUnits,
+    COALESCE(sm.QuantityOnlyDamaged, 0) AS QuantityOnlyDamaged
 FROM dbo.Products AS p
 OUTER APPLY
 (
-    SELECT SUM(m.QuantityDelta) AS QuantityOnHand
+    SELECT SUM(m.QuantityDelta) AS QuantityOnHand,
+           SUM(CASE WHEN m.InventoryUnitId IS NULL AND m.MovementType=N'Damage' AND m.SourceEntityType=N'SalesInvoice'
+               THEN -m.QuantityDelta ELSE 0 END) AS QuantityOnlyDamaged
     FROM dbo.StockMovements AS m
     WHERE m.ProductId = p.Id
 ) AS sm
@@ -31,43 +34,65 @@ OUTER APPLY
 ) AS u;
 GO
 
+-- Round a cumulative non-negative share to cents, without rounding a unit price or
+-- losing the final cent. Integer remainder avoids decimal division near a half cent.
+CREATE OR ALTER FUNCTION dbo.SaleShare(@Amount decimal(19,2), @Part decimal(19,0), @Whole decimal(19,0))
+RETURNS decimal(19,2)
+AS
+BEGIN
+    IF @Whole = 0 RETURN 0;
+    DECLARE @Numerator decimal(38,0) = CONVERT(decimal(19,0), @Amount * 100) * @Part;
+    DECLARE @Remainder decimal(19,0) = @Numerator % @Whole;
+    DECLARE @Cents decimal(19,0) = (@Numerator - @Remainder) / @Whole;
+    RETURN (@Cents + CASE WHEN 2 * @Remainder >= @Whole THEN 1 ELSE 0 END) * 0.01;
+END;
+GO
+
+-- Only immutable facts from the original sale take part in discount allocation.
+-- Adding a replacement or returning a unit never redistributes an earlier line's discount.
+CREATE OR ALTER VIEW dbo.vwSalesLineValuation
+AS
+WITH gross AS (
+    SELECT l.*, CONVERT(decimal(19,2), l.UnitPrice * l.Quantity) AS GrossAmount,
+           CASE WHEN l.IsExchangeReplacement=0 THEN l.UnitPrice * l.Quantity ELSE 0 END AS OriginalGross
+    FROM dbo.SalesInvoiceLines l
+), shares AS (
+    SELECT g.*, SUM(OriginalGross) OVER (PARTITION BY SalesInvoiceId) AS Basis,
+           SUM(OriginalGross) OVER (PARTITION BY SalesInvoiceId ORDER BY LineNumber ROWS UNBOUNDED PRECEDING) AS ToHere
+    FROM gross g
+)
+SELECT s.Id, s.SalesInvoiceId, s.GrossAmount, n.NetLineAmount,
+       dbo.SaleShare(n.NetLineAmount, s.ReturnedQuantity, s.Quantity) AS ReturnedNetAmount,
+       CONVERT(decimal(19,2),s.UnitCost * (s.Quantity - s.ReturnedQuantity)) AS RemainingCost
+FROM shares s JOIN dbo.SalesInvoices i ON i.Id=s.SalesInvoiceId
+CROSS APPLY (SELECT CONVERT(decimal(19,0),s.Basis * 100) AS Whole,
+                    CONVERT(decimal(19,0),s.ToHere * 100) AS ToCents,
+                    CONVERT(decimal(19,0),s.OriginalGross * 100) AS LineCents) c
+CROSS APPLY (SELECT CONVERT(decimal(19,2),s.GrossAmount -
+    (dbo.SaleShare(i.DiscountAmount,c.ToCents,c.Whole) -
+     dbo.SaleShare(i.DiscountAmount,c.ToCents-c.LineCents,c.Whole))) AS NetLineAmount) n;
+GO
+
 CREATE OR ALTER VIEW dbo.vwSalesInvoiceSummary
 AS
-SELECT
-    si.Id AS SalesInvoiceId,
-    si.InvoiceNumber,
-    si.IssuedAtUtc,
-    si.InvoiceStatus,
-    si.CustomerId,
-    si.CustomerNameSnapshot,
-    si.CashierUserId,
-    COALESCE(lines.Subtotal, 0) AS Subtotal,
-    si.DiscountAmount,
-    COALESCE(lines.NetSales, 0) - si.DiscountAmount AS NetSales,
-    COALESCE(lines.NetCost, 0) AS NetCost,
-    COALESCE(lines.NetSales, 0) - si.DiscountAmount - COALESCE(lines.NetCost, 0) AS NetProfit,
-    COALESCE(payments.Collected, 0) AS CollectedAmount,
-    COALESCE(payments.Refunded, 0) AS RefundedAmount,
-    COALESCE(payments.Collected, 0) - COALESCE(payments.Refunded, 0) AS NetCollected,
-    COALESCE(lines.NetSales, 0) - si.DiscountAmount - COALESCE(payments.Collected, 0) + COALESCE(payments.Refunded, 0) AS RemainingAmount
-FROM dbo.SalesInvoices AS si
-OUTER APPLY
-(
-    SELECT
-        SUM(sl.UnitPrice * sl.Quantity) AS Subtotal,
-        SUM(sl.UnitPrice * (sl.Quantity - sl.ReturnedQuantity)) AS NetSales,
-        SUM(sl.UnitCost * (sl.Quantity - sl.ReturnedQuantity)) AS NetCost
-    FROM dbo.SalesInvoiceLines AS sl
-    WHERE sl.SalesInvoiceId = si.Id
-) AS lines
-OUTER APPLY
-(
-    SELECT
-        SUM(CASE WHEN sp.PaymentKind = 1 THEN sp.Amount ELSE 0 END) AS Collected,
-        SUM(CASE WHEN sp.PaymentKind = 2 THEN sp.Amount ELSE 0 END) AS Refunded
-    FROM dbo.SalesPayments AS sp
-    WHERE sp.SalesInvoiceId = si.Id
-) AS payments;
+SELECT si.Id AS SalesInvoiceId, si.InvoiceNumber, si.IssuedAtUtc, si.InvoiceStatus, si.CustomerId,
+       si.CustomerNameSnapshot, si.CashierUserId, COALESCE(lines.Subtotal,0) AS Subtotal, si.DiscountAmount,
+       n.NetSales, n.NetCost, n.NetSales - n.NetCost AS NetProfit,
+       COALESCE(payments.Collected,0) AS CollectedAmount, COALESCE(payments.Refunded,0) AS RefundedAmount,
+       n.NetCollected, n.NetSales - n.NetCollected AS RemainingAmount
+FROM dbo.SalesInvoices si
+OUTER APPLY (
+    SELECT SUM(v.GrossAmount) AS Subtotal, SUM(v.NetLineAmount-v.ReturnedNetAmount) AS NetSales,
+           SUM(v.RemainingCost) AS NetCost FROM dbo.vwSalesLineValuation v WHERE v.SalesInvoiceId=si.Id
+) lines
+OUTER APPLY (
+    SELECT CONVERT(decimal(19,2),SUM(CASE WHEN PaymentKind=1 THEN Amount ELSE 0 END)) AS Collected,
+           CONVERT(decimal(19,2),SUM(CASE WHEN PaymentKind=2 THEN Amount ELSE 0 END)) AS Refunded
+    FROM dbo.SalesPayments WHERE SalesInvoiceId=si.Id
+) payments
+CROSS APPLY (SELECT CONVERT(decimal(19,2),CASE WHEN si.InvoiceStatus IN (3,4) THEN 0 ELSE COALESCE(lines.NetSales,0) END) AS NetSales,
+                    CONVERT(decimal(19,2),CASE WHEN si.InvoiceStatus IN (3,4) THEN 0 ELSE COALESCE(lines.NetCost,0) END) AS NetCost,
+                    CONVERT(decimal(19,2),COALESCE(payments.Collected,0)-COALESCE(payments.Refunded,0)) AS NetCollected) n;
 GO
 
 CREATE OR ALTER VIEW dbo.vwPurchaseInvoiceSummary

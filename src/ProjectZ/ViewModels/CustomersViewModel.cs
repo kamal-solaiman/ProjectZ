@@ -518,7 +518,7 @@ public sealed class CustomersViewModel : ObservableObject
     }
 
     /// <summary>Re-reads dbo.Customers so the directory shows the live rows.</summary>
-    public bool RefreshFromDatabase()
+    public bool RefreshFromDatabase(bool includeSales = false)
     {
         if (repository is null)
         {
@@ -530,6 +530,7 @@ public sealed class CustomersViewModel : ObservableObject
         {
             var previousId = SelectedCustomerEntry?.Customer.Id;
             repository.LoadCustomersInto(sharedCustomers);
+            if (includeSales) repository.LoadInvoicesInto(sharedSalesInvoices);
             RebuildEntriesAndRefresh(previousId);
             return true;
         }
@@ -543,7 +544,7 @@ public sealed class CustomersViewModel : ObservableObject
     /// <summary>Refreshes the directory and reports the outcome on the status strip.</summary>
     private void NotifyExternalDataChangedCallback()
     {
-        if (RefreshFromDatabase())
+        if (RefreshFromDatabase(includeSales: true))
         {
             SetStatus("تم تحديث دليل العملاء وجميع أرصدة المبيعات والصيانة من قاعدة البيانات.", false);
             return;
@@ -792,12 +793,11 @@ public sealed class CustomersViewModel : ObservableObject
         {
             var paidNow = submission.CashAmount + submission.VodafoneAmount + submission.InstaPayAmount;
 
-            if (repository is not null && invoice.Id > 0)
+            if (repository is not null)
             {
                 try
                 {
-                    repository.CollectPayment(invoice.Id, submission.CashAmount, submission.VodafoneAmount,
-                        submission.InstaPayAmount, invoice.RemainingAmount, invoice.CustomerName, submission.Note);
+                    repository.CollectPayment(invoice, submission.CashAmount, submission.VodafoneAmount, submission.InstaPayAmount, submission.Note);
                 }
                 catch (Exception ex)
                 {
@@ -805,6 +805,19 @@ public sealed class CustomersViewModel : ObservableObject
                         ? data.Message
                         : "تعذر حفظ التحصيل في قاعدة البيانات؛ لم يُسجل أي مبلغ.";
                 }
+                var customerId = SelectedCustomerEntry?.Customer.Id;
+                try
+                {
+                    repository.LoadInvoicesInto(sharedSalesInvoices);
+                    RebuildEntriesAndRefresh(customerId);
+                    notifyExternalFinancialDataChanged?.Invoke();
+                    SetStatus($"تم تحصيل {PosFormatting.FormatCurrency(paidNow)} على الفاتورة {invoice.InvoiceNumber}.", false);
+                }
+                catch (SalesDataException)
+                {
+                    SetStatus("حُفظ التحصيل، لكن تعذر تحديث الرصيد. حدّث الفواتير ولا تكرر التحصيل.", true);
+                }
+                return null;
             }
 
             invoice.CashPaid += submission.CashAmount;

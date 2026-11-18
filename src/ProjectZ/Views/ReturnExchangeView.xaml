@@ -1251,20 +1251,8 @@
                                                     CornerRadius="9"
                                                     Padding="10,8"
                                                     Margin="0,0,0,8"
-                                                    Visibility="{Binding NeedsCustomerRefund, Converter={StaticResource BoolToVis}}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="190" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="طريقة رد / تسوية المبلغ للعميل:" Style="{StaticResource PosRtlTextStyle}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                    <ComboBox Grid.Column="1"
-                                                              ItemsSource="{Binding RefundMethods}"
-                                                              SelectedItem="{Binding RefundMethod}"
-                                                              Style="{StaticResource PosComboBoxStyle}" />
-
-                                                </Grid>
+                                                    Visibility="{Binding HasInvoiceReduction, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="{Binding RefundPreview}" Style="{StaticResource PosRtlTextStyle}" TextWrapping="Wrap" FontSize="12" FontWeight="Bold" />
                                             </Border>
 
                                             <!-- Case 2: Collect Difference from Customer (Upgrade Exchange) -->

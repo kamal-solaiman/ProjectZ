@@ -5,6 +5,7 @@ using Microsoft.Data.SqlClient;
 using ProjectZ.Data;
 using ProjectZ.Models;
 using ProjectZ.Services;
+using static SqlTest;
 
 // This harness is deliberately unable to use the application's LAN settings. Run.ps1 creates
 // a disposable LocalDB instance; both the instance name and Windows authentication are checked.
@@ -462,7 +463,11 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
         "Both records screens read the same ledger shape from dbo.FinancialTransactions");
     Console.WriteLine("PASS: the InstaPay records screen reads every InstaPay wallet movement from the same ledger");
     Console.WriteLine("PASS: «تعيين افتراضية» and «تفعيل / إيقاف» persist per kind in dbo.FinancialAccounts");
-    Console.WriteLine("PASS: all purchase and expense SQL integration checks passed on a disposable SQL Server instance");
+    var saleMigration = Path.Combine(FindRepositoryRoot(), "sql", "22_EnableSaleSettlement.sql");
+    RunScript(admin, saleMigration);
+    RunScript(admin, saleMigration); // Repeat as on an upgraded installation; no business rows may be posted.
+    SaleSettlementTests.Run(admin, settings, userId, categoryId, firstVodafoneId, cashRowId);
+    Console.WriteLine("PASS: sales, purchases, expenses and finance against disposable SQL Server");
 }
 catch (Exception ex)
 {
@@ -484,12 +489,6 @@ finally
     if (File.Exists(temporarySettings)) File.Delete(temporarySettings);
 }
 
-static void Check(bool condition, string name)
-{
-    if (!condition) throw new InvalidOperationException(name);
-    Console.WriteLine("PASS: " + name);
-}
-
 static string FindRepositoryRoot()
 {
     var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -505,24 +504,6 @@ static void RunScript(SqlConnection connection, string path)
         if (!string.IsNullOrWhiteSpace(batch)) Execute(connection, batch);
     }
     Console.WriteLine("PASS: executed " + Path.GetFileName(path));
-}
-
-static void Execute(SqlConnection connection, string sql, params (string Name, object Value)[] parameters)
-{
-    using var command = connection.CreateCommand();
-    command.CommandTimeout = 120;
-    command.CommandText = sql;
-    foreach (var (name, value) in parameters) command.Parameters.AddWithValue(name, value);
-    command.ExecuteNonQuery();
-}
-
-static T Scalar<T>(SqlConnection connection, string sql, params (string Name, object Value)[] parameters)
-{
-    using var command = connection.CreateCommand();
-    command.CommandTimeout = 120;
-    command.CommandText = sql;
-    foreach (var (name, value) in parameters) command.Parameters.AddWithValue(name, value);
-    return (T)Convert.ChangeType(command.ExecuteScalar()!, typeof(T));
 }
 
 static string Counts(SqlConnection connection) => string.Join(",", new[]

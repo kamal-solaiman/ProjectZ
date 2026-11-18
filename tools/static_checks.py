@@ -66,7 +66,10 @@ expected_tables = {
 }
 created_tables = set(re.findall(r'CREATE\s+TABLE\s+dbo\.([A-Za-z0-9_]+)', sql, re.I))
 assert created_tables == expected_tables, f'schema table mismatch: missing={expected_tables-created_tables}, extra={created_tables-expected_tables}'
-assert len(re.findall(r'CREATE\s+OR\s+ALTER\s+VIEW\s+dbo\.', reporting_views, re.I)) == 5
+assert set(re.findall(r'CREATE\s+OR\s+ALTER\s+VIEW\s+dbo\.(\w+)', reporting_views, re.I)) == {
+    'vwProductStock', 'vwSalesLineValuation', 'vwSalesInvoiceSummary', 'vwPurchaseInvoiceSummary',
+    'vwMaintenanceOrderSummary', 'vwFinancialAccountDailyUsage'
+}
 for required_relation in ('SalesInvoiceId', 'PurchaseInvoiceId', 'MaintenanceOrderId', 'FinancialAccountId', 'ProductId', 'ActorUserId'):
     assert required_relation in full_schema, f'missing relational key: {required_relation}'
 assert 'ON DELETE CASCADE' not in full_schema.upper(), 'financial and inventory history must not be cascade-deleted'
@@ -82,7 +85,7 @@ assert '01_CreateDatabase.sql' in (root / 'docs/DATABASE.md').read_text(encoding
 schema_verification = (root / 'sql/08_VerifyFullSchema.sql').read_text(encoding='utf-8')
 assert 'SELECT expected.v AS MissingView' in schema_verification
 assert 'SELECT v.name AS MissingView' not in schema_verification
-print('PASS: complete ProjectZ database schema, 38 related tables, five reporting views, compatibility 130')
+print('PASS: complete ProjectZ database schema, 40 related tables, six reporting views, compatibility 130')
 
 # --- Application shutdown: closing the UI must terminate the WPF process ---
 app_xaml = (root / 'src/ProjectZ/App.xaml').read_text(encoding='utf-8')
@@ -530,7 +533,7 @@ for token in (
     'DamagedReturnQtyDisplay',
     'ReplacementItems',
     'FilteredReplacementCatalog',
-    'NeedsCustomerRefund',
+    'HasInvoiceReduction',
     'NeedsCustomerPayment',
     'ConfirmOperationCommand',
     'OpenOperationInvoiceCommand',
@@ -563,20 +566,19 @@ assert 'repository.LoadInvoicesInto(sharedInvoices)' in return_exchange_vm
 assert 'repository.LoadReturnExchanges()' in return_exchange_vm
 assert 'IsConnectedToDatabase' in return_exchange_vm
 
-# Repository: exchange posting, history read, mixed good/damaged returns and financial settlement.
-assert 'public string CreateExchange(ExchangeRequest request, ExchangePayment payment)' in sales_repository
+# The public client sends selections and expected versions, never a refund amount or return price.
+sale_posting = (root / 'sql/22_EnableSaleSettlement.sql').read_text(encoding='utf-8')
+for proc in ('IssueSale', 'CollectSalePayment', 'AdjustSale', 'UpdateSaleNotes'):
+    assert f'Post("dbo.{proc}"' in sales_repository
+    assert f'GRANT EXECUTE ON OBJECT::dbo.{proc} TO [ProjectZClient]' in sale_posting
 assert 'public List<ReturnExchangeRecord> LoadReturnExchanges()' in sales_repository
-for table in ('dbo.ReturnExchanges', 'dbo.ReturnExchangeLines', 'dbo.ReturnExchangeUnits'):
-    assert table in sales_repository, f'the return screen does not write {table}'
-assert 'VALUES(@Operation,1,@SalesLine' in sales_repository and 'VALUES(@Operation,2,NULL' in sales_repository
-assert 'public int DamagedQuantity => Quantity - GoodQuantityValue;' in sales_repository
-assert 'goodRemaining > 0' in sales_repository, 'mixed good/damaged returns are not split per unit'
-assert 'ApplyExchangePayment(connection, transaction, request.Invoice, payment)' in sales_repository
-assert 'private static ExchangeStockClaim ClaimExchangeUnits(' in sales_repository
-assert 'RecordUntrackedExchange(connection, transaction, request.Invoice.Id, product.Id' in sales_repository
-assert 'RefundAccounts(connection, transaction, request.Invoice, Math.Abs(difference)' in sales_repository
-assert 'StockMovement(connection, transaction, request.Invoice.Id, unit.Id, "ExchangeOut"' in sales_repository
-assert 'INSERT dbo.AuditLog' in sales_repository
+assert 'record ReturnLineRequest(int SalesInvoiceLineId, int GoodQuantity, int DamagedQuantity)' in sales_repository
+assert '"@ExpectedVersion"' in sales_repository
+for table in ('SalesPayments', 'SalesInvoices', 'SalesInvoiceLineUnits', 'ReturnExchanges', 'ReturnExchangeLines', 'ReturnExchangeUnits'):
+    assert f'DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.{table} TO [ProjectZClient]' in sale_posting
+for invariant in ('WITH (UPDLOCK,HOLDLOCK)', 'RowVersion=@ExpectedVersion', 'GROUP BY p.FinancialAccountId',
+                  'dbo.vwSalesInvoiceSummary', 'a.CurrentBalance>=p.Amount', 'SET AllocationStatus=1', 'dbo.SaleShare('):
+    assert invariant in sale_posting, f'missing sale posting guard: {invariant}'
 
 # Cross-screen wiring: the sales repository feeds the screen and invoice writes reload stock from SQL.
 assert 'Invoices.StockReloadRequested = ReloadInventoryOnly;' in main_viewmodel
@@ -586,9 +588,9 @@ assert 'salesRepository);' in main_viewmodel
 assert "if (!ReturnExchange.RefreshFromDatabase())" in main_viewmodel
 
 # Permissions script is idempotent and grants only the return/exchange tables.
-assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];' in return_exchange_permissions
-assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];' in return_exchange_permissions
-assert 'GRANT SELECT, INSERT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];' in return_exchange_permissions
+assert 'GRANT SELECT ON OBJECT::dbo.ReturnExchanges TO [ProjectZClient];' in return_exchange_permissions
+assert 'GRANT SELECT ON OBJECT::dbo.ReturnExchangeLines TO [ProjectZClient];' in return_exchange_permissions
+assert 'GRANT SELECT ON OBJECT::dbo.ReturnExchangeUnits TO [ProjectZClient];' in return_exchange_permissions
 assert 'DELETE' not in return_exchange_permissions.replace('-- ', ''), 'the return permission script must not grant DELETE'
 print('PASS: return/exchange screen persists to SQL, reads its ledger back, and reloads stock across screens')
 
@@ -1672,10 +1674,10 @@ enable_pos_sql = enable_pos_sql_path.read_text(encoding='utf-8')
 for operation in ('LoadCustomersInto', 'CreateCustomer', 'CompleteSale', 'CollectPayment', 'LoadInvoicesInto',
                   'UpdateNotes', 'CancelSale', 'CreateReturn'):
     assert f'public' in sales_repository and operation + '(' in sales_repository, f'missing POS SQL operation: {operation}'
-for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOCK', 'dbo.DocumentSequences',
+for guard in ('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE', 'UPDLOCK,HOLDLOCK', 'dbo.DocumentSequences',
               'dbo.SalesPayments', 'dbo.FinancialTransactions', 'dbo.StockMovements', 'dbo.AuditLog',
               'INSERT dbo.SalesInvoiceLineUnits', 'CountsTowardLimits'):
-    assert guard in sales_repository, f'missing POS persistence guard: {guard}'
+    assert guard in sale_posting, f'missing POS persistence guard: {guard}'
 for message_code in ('229 or 230', '1205', '2601 or 2627'):
     assert message_code in sales_repository, f'missing SQL error mapping: {message_code}'
 for table in ('Customers', 'DocumentSequences', 'FinancialAccounts', 'FinancialTransactions', 'SalesInvoices',

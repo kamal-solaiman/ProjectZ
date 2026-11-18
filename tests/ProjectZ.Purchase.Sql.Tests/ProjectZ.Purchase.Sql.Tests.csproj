@@ -7,6 +7,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+    <Compile Include="../../src/ProjectZ/Data/SalesRepository.cs" Link="Data/SalesRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/InvoiceDesignModels.cs" Link="Models/InvoiceDesignModels.cs" />
     <Compile Include="../../src/ProjectZ/Data/PurchaseRepository.cs" Link="Data/PurchaseRepository.cs" />
     <Compile Include="../../src/ProjectZ/Data/ExpenseCategoryRepository.cs" Link="Data/ExpenseCategoryRepository.cs" />
     <Compile Include="../../src/ProjectZ/Data/ExpenseRepository.cs" Link="Data/ExpenseRepository.cs" />
