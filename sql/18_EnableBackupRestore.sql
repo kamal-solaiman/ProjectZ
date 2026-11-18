@@ -1,58 +1,35 @@
--- Enable BACKUP DATABASE / RESTORE DATABASE for the application's SQL login.
--- Run in SSMS on the SQL Server as a member of sysadmin (or a role with ALTER ANY SERVER ROLE
--- and db_owner on the target database). SQL Server 2016 SP1 compatible.
--- Idempotent: it only adds the missing role memberships; it never drops a role or a permission.
---
--- The application connects as ProjectZClient. If your connectionsettings.json uses another SQL
--- login or a different database name, replace ProjectZClient / ProjectZ below consistently.
---
--- Security note: db_owner is required to isolate/restore the target database, and dbcreator is
--- required because RESTORE needs CREATE DATABASE permission on the server. These are broad rights;
--- use a dedicated backup account if your policy does not allow them for the application login.
-
-USE [master];
-GO
-
-IF DB_ID(N'ProjectZ') IS NULL
-    THROW 50080, N'Database [ProjectZ] does not exist. Run sql/01_CreateDatabase.sql first.', 1;
-IF SUSER_ID(N'ProjectZClient') IS NULL
-    THROW 50081, N'Login [ProjectZClient] does not exist. Run sql/04_SetupLanSqlAuth.sql first.', 1;
-GO
-
--- RESTORE DATABASE needs CREATE DATABASE at server scope; this is the dbcreator membership.
-IF ISNULL(IS_SRVROLEMEMBER(N'dbcreator', N'ProjectZClient'), 0) <> 1
-BEGIN
-    ALTER SERVER ROLE [dbcreator] ADD MEMBER [ProjectZClient];
-    PRINT N'Granted: ProjectZClient is now a member of the dbcreator server role.';
-END
-ELSE
-    PRINT N'Already granted: ProjectZClient is a member of the dbcreator server role.';
-GO
-
+/* OPTIONAL. For sites that delegate both BACKUP and RESTORE to a dedicated administrator.
+   Skip this file if the DBA already manages backups. Never put this login on a till.
+   Provision ProjectZBackupAdmin and its matching database user separately (no password in this file).
+   An older version targeted ProjectZClient. This file does NOT revoke existing memberships:
+   see sql/admin/SeparateLegacyBackupRoles.sql and docs/BACKUP.md before migrations 24/25. */
 USE [ProjectZ];
-GO
-
-IF DATABASE_PRINCIPAL_ID(N'ProjectZClient') IS NULL
-    THROW 50082, N'User [ProjectZClient] is missing from [ProjectZ]. Run sql/04_SetupLanSqlAuth.sql first.', 1;
-GO
-
--- BACKUP DATABASE and ALTER DATABASE ... SINGLE_USER/MULTI_USER need db_owner on this database.
-IF ISNULL(IS_ROLEMEMBER(N'db_owner', N'ProjectZClient'), 0) <> 1
+IF @@TRANCOUNT <> 0 OR (@@OPTIONS & 2) <> 0
 BEGIN
-    ALTER ROLE [db_owner] ADD MEMBER [ProjectZClient];
-    PRINT N'Granted: ProjectZClient is now a member of the db_owner database role.';
-END
-ELSE
-    PRINT N'Already granted: ProjectZClient is a member of the db_owner database role.';
-GO
+    RAISERROR(N'استخدم اتصالًا إداريًا جديدًا بدون معاملة مفتوحة أو ضمنية.', 16, 1);
+    RETURN;
+END;
+SET XACT_ABORT ON;
+IF ISNULL(IS_SRVROLEMEMBER(N'sysadmin'),0)<>1 OR ORIGINAL_LOGIN()=N'ProjectZClient'
+    THROW 50080,N'يلزم اتصال مسؤول مستقل لإعداد النسخ والاسترجاع.',1;
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals u JOIN sys.server_principals l ON l.sid=u.sid
+               WHERE u.name=N'ProjectZBackupAdmin' AND l.name=N'ProjectZBackupAdmin')
+    THROW 50081,N'هذا الملف اختياري. جهّز تسجيل دخول ProjectZBackupAdmin ومستخدمًا مطابقًا له في ProjectZ، أو استخدم مسؤول النسخ الحالي خارج البرنامج. لا تستخدم حساب الكاشير.',1;
 
-SELECT
-    SUSER_NAME() AS ExecutedBy,
-    DB_NAME() AS DatabaseName,
-    IS_SRVROLEMEMBER(N'dbcreator', N'ProjectZClient') AS IsDbCreator,
-    IS_ROLEMEMBER(N'db_owner', N'ProjectZClient') AS IsDbOwner;
-GO
-
-PRINT N'SUCCESS: ProjectZClient can BACKUP and RESTORE [ProjectZ].';
-PRINT N'If a backup still fails, verify that the folder/UNC path in the app exists on the SQL Server service account, not only on this client.';
+-- These are broad restore rights, not prerequisites for settlement or for a backup-only job.
+BEGIN TRY
+    BEGIN TRANSACTION;
+    IF IS_SRVROLEMEMBER(N'dbcreator',N'ProjectZBackupAdmin')=0
+        EXEC master.sys.sp_executesql N'ALTER SERVER ROLE [dbcreator] ADD MEMBER [ProjectZBackupAdmin];';
+    IF IS_ROLEMEMBER(N'db_owner',N'ProjectZBackupAdmin')=0
+        ALTER ROLE [db_owner] ADD MEMBER [ProjectZBackupAdmin];
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;
+SELECT N'ProjectZBackupAdmin' AS BackupLogin, DB_NAME() AS DatabaseName,
+       IS_SRVROLEMEMBER(N'dbcreator',N'ProjectZBackupAdmin') AS IsDbCreator,
+       IS_ROLEMEMBER(N'db_owner',N'ProjectZBackupAdmin') AS IsDbOwner;
 GO

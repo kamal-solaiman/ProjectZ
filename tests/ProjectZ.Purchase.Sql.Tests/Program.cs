@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using ProjectZ.Data;
 using ProjectZ.Models;
@@ -31,10 +30,16 @@ try
     Execute(admin, "CREATE USER [ProjectZClient] FOR LOGIN [ProjectZClient]; GRANT CONNECT TO [ProjectZClient];");
     foreach (var script in new[]
              {
-                 "09_EnablePosSales.sql", "11_EnableReturnExchange.sql", "12_EnablePurchasing.sql", "25_EnablePurchaseSettlement.sql",
+                 "09_EnablePosSales.sql", "11_EnableReturnExchange.sql", "12_EnablePurchasing.sql",
+                 "13_EnableMaintenanceInvoices.sql", "14_EnableMaintenanceIntake.sql", "15_EnableMaintenanceActions.sql", "16_EnableMaintenanceSpareParts.sql",
                  "19_EnableExpenseCategories.sql", "20_EnableExpenses.sql", "21_EnableExpenseSplitPayments.sql"
              })
         RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
+
+    var sqlDirectory = Path.Combine(FindRepositoryRoot(), "sql");
+    SettlementInstallerTests.Run(admin, sqlDirectory);
+    foreach (var script in new[] { "24_EnableMaintenanceSettlement.sql", "25_EnablePurchaseSettlement.sql" })
+        RunScript(admin, Path.Combine(sqlDirectory, script));
 
     var userId = Scalar<int>(admin, "SELECT Id FROM dbo.Users WHERE Username=N'admin';");
     var categoryId = Convert.ToInt32(Scalar<object>(admin, @"
@@ -473,8 +478,6 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     RunScript(admin, saleMigration);
     RunScript(admin, saleMigration); // Repeat as on an upgraded installation; no business rows may be posted.
     SaleSettlementTests.Run(admin, settings, userId, categoryId, firstVodafoneId, cashRowId);
-    foreach (var script in new[] { "13_EnableMaintenanceInvoices.sql", "14_EnableMaintenanceIntake.sql", "15_EnableMaintenanceActions.sql", "16_EnableMaintenanceSpareParts.sql", "24_EnableMaintenanceSettlement.sql" })
-        RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
     MaintenanceSettlementTests.Run(admin, settings, userId, cashRowId);
     PurchaseSettlementTests.Run(admin, settings, userId, ordinaryProductId, serialProductId);
     var purchaseFootprint = PurchaseSettlementTests.Footprint(admin);
@@ -516,10 +519,7 @@ static string FindRepositoryRoot()
 
 static void RunScript(SqlConnection connection, string path)
 {
-    foreach (var batch in Regex.Split(File.ReadAllText(path), @"(?m)^\s*GO\s*(?:--.*)?$", RegexOptions.IgnoreCase))
-    {
-        if (!string.IsNullOrWhiteSpace(batch)) Execute(connection, batch);
-    }
+    foreach (var batch in Batches(File.ReadAllText(path))) Execute(connection, batch);
     Console.WriteLine("PASS: executed " + Path.GetFileName(path));
 }
 
