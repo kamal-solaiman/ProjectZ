@@ -1,7 +1,11 @@
+using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 
 internal static class SqlTest
 {
+    internal static IEnumerable<string> Batches(string script) => Regex.Split(script, @"(?m)^\s*GO\s*(?:--.*)?$", RegexOptions.IgnoreCase)
+        .Where(batch => !string.IsNullOrWhiteSpace(batch));
+
     internal static void Check(bool condition, string name)
     {
         if (!condition) throw new InvalidOperationException(name);

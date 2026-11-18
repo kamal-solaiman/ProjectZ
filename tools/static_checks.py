@@ -616,7 +616,13 @@ for token in ('INSERT dbo.PurchaseReturnLines','INSERT dbo.PurchaseReturnUnits',
               'INSERT dbo.SupplierCreditApplications','INSERT dbo.SupplierCreditReceipts','EXEC dbo.LockPurchaseDocument'):
     assert token in purchase_settlement
 assert 'SyncChannel' not in purchase_repository and 'INSERT dbo.PurchasePayments' not in purchase_repository
-edit_proc = purchase_settlement.split('PROCEDURE dbo.EditPurchaseDocument',1)[1].split('\nGO',1)[0]
+def installed_procedure(script, name):
+    # 24/25 compile each module in its own child batch of one atomic installer.
+    match = re.search(r"EXEC sys\.sp_executesql N'(CREATE OR ALTER PROCEDURE dbo\." + re.escape(name) + r"\b(?:''|[^'])*)';", script)
+    assert match, f'missing installer definition: {name}'
+    return match[1].replace("''", "'")
+
+edit_proc = installed_procedure(purchase_settlement, 'EditPurchaseDocument')
 assert 'WritePurchasePayment' not in edit_proc and 'Products SET CostPrice' not in edit_proc
 
 for customer_sql in ('UPDATE dbo.Customers', 'DELETE dbo.Customers',
@@ -1042,7 +1048,7 @@ for guard in ('BeginTransaction(IsolationLevel.Serializable)', 'UPDLOCK, HOLDLOC
               'MaintenanceSparePartMovementKind.Purchase'):
     assert guard in spare_parts_repository, f'missing spare-part persistence guard: {guard}'
 maintenance_sql = (root / 'sql/24_EnableMaintenanceSettlement.sql').read_text(encoding='utf-8')
-release_line = maintenance_sql.split('PROCEDURE dbo.ReleaseMaintenanceLine', 1)[1].split('\nGO', 1)[0]
+release_line = installed_procedure(maintenance_sql, 'ReleaseMaintenanceLine')
 assert 'WHERE Id=@Spare;' in release_line and 'IsActive' not in release_line, 'return a saved line even on a stopped spare'
 assert 'يوجد سجل صرف أو حركات مخزون' in spare_parts_repository, 'deleting a part with history must deactivate it'
 
@@ -2195,18 +2201,12 @@ for token in ('BackupFolderPath', 'BackupFileName', 'RestoreFilePath', 'Availabl
               'IsIdle', 'NewBackupFileNameCommand', 'BackupCommand', 'RestoreCommand'):
     assert token in backup_xaml, f'backup UI missing expected token: {token}'
 
-# Permissions: the app connects as ProjectZClient, which cannot promote itself. The SQL script is the
-# supported fix for SQL 229/230/262 and must stay idempotent and callable by an administrator.
-backup_grant_path = root / 'sql/18_EnableBackupRestore.sql'
-assert backup_grant_path.is_file(), 'missing sql/18_EnableBackupRestore.sql'
-backup_grant = backup_grant_path.read_text(encoding='utf-8')
-for guard in ('ALTER SERVER ROLE [dbcreator] ADD MEMBER [ProjectZClient]',
-              'ALTER ROLE [db_owner] ADD MEMBER [ProjectZClient]',
-              "SUSER_ID(N'ProjectZClient')", "DATABASE_PRINCIPAL_ID(N'ProjectZClient')",
-              'IS_SRVROLEMEMBER', 'IS_ROLEMEMBER'):
-    assert guard in backup_grant, f'sql/18 is missing permission guard: {guard}'
-assert 'sql/18_EnableBackupRestore.sql' in backup_repository, \
-    'the permission error must name the script the administrator has to run'
+# Restore privileges belong exclusively to the pre-provisioned backup administrator, never the till.
+backup_grant = (root / 'sql/18_EnableBackupRestore.sql').read_text(encoding='utf-8')
+for role in ('dbcreator', 'db_owner'):
+    assert f'[{role}] ADD MEMBER [ProjectZBackupAdmin]' in backup_grant
+assert not re.search(r'ADD\s+MEMBER\s+\[?ProjectZClient\b', backup_grant, re.I)
+assert 'docs/BACKUP.md' in backup_repository
 assert 'SqlConnection.ClearAllPools()' in backup_repository, \
     'a permission error should discard the pooled token before retry'
 assert 'sql/18_EnableBackupRestore.sql' in (root / 'docs/BACKUP.md').read_text(encoding='utf-8'), \
