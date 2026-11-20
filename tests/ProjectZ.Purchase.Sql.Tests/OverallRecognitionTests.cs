@@ -125,7 +125,11 @@ internal static partial class OverallReportTests
         var ticket=writer.CreateMaintenanceOrder(new() {CustomerName="PRIVATE-ORDER",IsWalkInCustomer=true,DeviceModel="اختبار",EstimatedCost=300,DepositCashPaid=100});
         int id=ticket.OrderId;
         MaintenanceTicketKey Key()=>MaintenanceTicketKey.Open(writer.LoadTicket(id));
-        void Reopen()=>Execute(db,"EXEC dbo.ReopenMaintenanceTicket @id,@rv,@actor,N'مراجعة';",("@id",id),("@rv",Key().Version!),("@actor",actor));
+        void Reopen()=>Execute(db,"""
+            EXECUTE AS USER=N'MaintenanceTestSupervisor';
+            BEGIN TRY EXEC dbo.ReopenMaintenanceTicket @id,@rv,@actor,N'مراجعة'; END TRY
+            BEGIN CATCH REVERT; THROW; END CATCH; REVERT;
+            """,("@id",id),("@rv",Key().Version!),("@actor",actor));
         writer.AddManualPart(Key(),"PRIVATE PART",2,20,40,220,0); var removed=writer.LoadTicket(id).UsedParts.Single().LineId;
         writer.Deliver(new(Key(),220,0,300,50,0,0,false,1,"")); Reopen();
         writer.CollectDeposit(Key(),FinancialAccountKind.Cash,10);

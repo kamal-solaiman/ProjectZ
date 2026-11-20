@@ -33,11 +33,12 @@ public static class OverallReportProjection
             return Compare(title,current[measure],prior[measure]);
         }
         ReportTable Table(string title, params ReportRow[] rows) => new(title,Comparison,rows);
+        (string Label, decimal? Now, decimal? Before)[] components = [
+            ("هامش المبيعات",current.GrossProfit,prior.GrossProfit), ("مساهمة الصيانة",current.Service,prior.Service),
+            ("عمولة التحويل الصافية",current.Fees,prior.Fees), ("أثر المصروفات (−)",-current[ExpenseWritten],-prior[ExpenseWritten]),
+            ("أثر الهالك بعد الاسترداد (−)",-current.NetDamage,-prior.NetDamage)];
         var tables = new List<ReportTable> {
-            Table(Bridge,
-                Calc("هامش المبيعات",s=>s.GrossProfit), Calc("مساهمة الصيانة",s=>s.Service), Calc("عمولة التحويل الصافية",s=>s.Fees),
-                Calc("أثر المصروفات (−)",s=>-s[ExpenseWritten]), Calc("أثر الهالك بعد الاسترداد (−)",s=>-s.NetDamage),
-                Calc("النتيجة التشغيلية",s=>s.Profit)),
+            new(Bridge,Comparison,components.Select(c=>Compare(c.Label,c.Now,c.Before)).Append(Calc("النتيجة التشغيلية",s=>s.Profit)).ToArray()),
             Table("المبيعات",
                 Measure("فواتير صدرت (عدد)",SalesIssued), Measure("قيمة البيع عند الإصدار بعد الخصم",SaleIssue),
                 Measure("بضاعة بديلة صادرة",SaleReplacement), Measure("مبيعات مرتجعة ومستبدلة",SaleReturn), Measure("قيمة المبيعات الملغاة",SaleCancel),
@@ -83,13 +84,18 @@ public static class OverallReportProjection
                 return Row(day,a.Profit,before,b.Profit,a.Profit-b.Profit,a.CashChange,a.Verdict);
             }).ToArray()));
         var gaps = data.Figures.Where(f=>f.Missing>0).GroupBy(f=>f.Measure).OrderBy(g=>g.Key).Select(g=>Row(
-            measures[g.Key],g.Count(f=>f.Day>=from),g.Count(f=>f.Day<from))).ToArray();
-        tables.Add(new(Review,["بند غير مكتمل","أيام متأثرة حاليًا","أيام متأثرة سابقًا"],gaps));
+            measures[g.Key],g.Count(f=>f.Day>=from),g.Count(f=>f.Day<from),g.Key switch {
+                SaleIssue or SaleReturn or SaleCancel or SaleReplacement or SalesCost=>"راجع قيمة حركة البيع وتكلفة بنودها المحفوظة.",
+                ServiceEarned=>"طابق يوم التسليم ودفعات العميل مع اتجاه القيود وحساباتها.", ServiceParts=>"تحقق من تكلفة القطع عند التسليم الحالي والسابق.",
+                FeeIssued or FeeReversed=>"طابق قيدَي المحفظة والخزنة مع تسجيل التحويل أو عكسه.",
+                Damage or Restored=>"راجع تاريخ الهالك وتقييم الحركة وسجل إعادة الوحدة للمتاح.",
+                Compensation=>"تحقق من الوحدات الهالكة وحصتها المثبتة في تخفيض المورد.", _=>"راجع قيمة مستند الشراء وتسويته المؤرّخة." })).ToArray();
+        tables.Add(new(Review,["بند غير مكتمل","أيام متأثرة حاليًا","أيام متأثرة سابقًا","ما الذي يحتاج مطابقة؟"],gaps));
         // Explain the change using only the five signed components, never intermediate subtotals or cash turnover.
         string drivers="";
         if(current.Profit.HasValue && prior.Profit.HasValue)
         {
-            var changes=tables[0].Rows.SkipLast(1).Select(r=>(Label:r.Display[0],Delta:(decimal)r.Cells[3]!)).ToArray();
+            var changes=components.Select(c=>(c.Label,Delta:(c.Now-c.Before)!.Value)).ToArray();
             string Driver(string name,decimal amount) => $" {name}: {string.Join("، ",changes.Where(c=>c.Delta==amount).Select(c=>c.Label))} ({ReportRow.Format(amount)}).";
             var best=changes.Max(c=>c.Delta); var worst=changes.Min(c=>c.Delta);
             if(best>0) drivers+=Driver("أكبر أثر موجب مقارنة بالسابقة",best);

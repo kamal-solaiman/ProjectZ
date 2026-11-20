@@ -38,6 +38,8 @@ jobs:
             Tee-Object -FilePath appearance-wpf-tests.log
           if ($LASTEXITCODE -ne 0) {
             $text = (Get-Content appearance-wpf-tests.log -Raw)
+            # Keep the failed assertion/stack rather than hundreds of preceding PASS lines.
+            $text = $text.Substring([Math]::Max(0, $text.Length - 3800))
             $escaped = $text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
             Write-Output "::error title=WPF appearance smoke tests::$escaped"
             exit $LASTEXITCODE
