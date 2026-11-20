@@ -36,9 +36,10 @@ public static class FinanceReportProjection
     private static bool AccountMatches(BookAccount a,ReportFilter f)=> (f.AccountId is null || f.AccountId==a.Id) && (f.StatusOrKind is null || f.StatusOrKind==a.Provider)
         && Match(f.Search.Trim(),a.Label,a.MaskedIdentifier) && Match(f.Detail.Trim(),a.Active?"نشط":"موقوف",a.IsDefault?"افتراضي":"غير افتراضي");
 
-    private sealed record Balance(BookAccount Account,decimal? Open,decimal? Created,decimal In,decimal Out,decimal? Close,int Legs,int Breaks,string Basis)
+    private sealed record Gap(string Reason,DateTime? AtUtc,BookLeg? Leg,decimal? Expected,decimal? Recorded);
+    private sealed record Balance(BookAccount Account,decimal? Open,decimal? Created,decimal In,decimal Out,decimal? Close,int Legs,List<Gap> Gaps,string Basis)
     {
-        public bool Review=>Breaks>0 || Open is null || Created is null || Close is null || (Account.LatestPostedBalance is decimal last && last!=Account.Current);
+        public bool Review=>Gaps.Count>0 || Open is null || Created is null || Close is null;
     }
     private static Balance ReadBalance(FinanceReportData d,BookAccount a,IEnumerable<BookLeg> source)
     {
@@ -48,24 +49,37 @@ public static class FinanceReportProjection
         var basis=a.PreviousClose.HasValue?"آخر قيد قبل الفترة":legs.Length>0?"قبل أول قيد في الفترة":a.NextOpen.HasValue?"قبل أول قيد لاحق":"لا يوجد قيد تاريخي";
         // An account may be created with capital and no movement. Today's value is not proof of a past close if it changed since.
         if(seed is null && a.UpdatedUtc<d.Period.EndUtc && (created || a.UpdatedUtc<d.Period.StartUtc)) {seed=a.Current;basis="رصيد محفوظ بلا قيود أو تحديث لاحق للفترة";}
-        decimal? running=seed;int breaks=0;
-        foreach(var l in legs){if(running.HasValue && running!=l.Before)breaks++;running=l.After;}
-        if(a.NextOpen.HasValue && running.HasValue && a.NextOpen!=running)breaks++;
-        if(created && a.PreviousClose.HasValue || legs.Any(l=>l.AtUtc<a.CreatedUtc))breaks++;
-        return new(a,created?0m:seed,created?seed:0m,legs.Where(l=>l.Incoming).Sum(l=>l.Amount),legs.Where(l=>!l.Incoming).Sum(l=>l.Amount),running,legs.Length,breaks,basis);
+        decimal? running=seed;
+        var gaps=new List<Gap>();
+        foreach(var l in legs)
+        {
+            if(running.HasValue && running!=l.Before)gaps.Add(new("الرصيد قبل القيد يختلف عن آخر رصيد",l.AtUtc,l,running,l.Before));
+            running=l.After; // Report the recorded value, not a repaired running total.
+        }
+        if(a.NextOpen.HasValue && running.HasValue && a.NextOpen!=running)
+            gaps.Add(new("الرصيد قبل أول قيد لاحق يختلف عن الإقفال",null,null,running,a.NextOpen));
+        if((created && a.PreviousClose.HasValue) || legs.Any(l=>l.AtUtc<a.CreatedUtc))
+            gaps.Add(new("قيد يسبق إنشاء الحساب",null,null,null,null));
+        if(a.LatestPostedBalance is decimal latest && latest!=a.Current)
+            gaps.Add(new("آخر قيد في الدفتر يختلف عن رصيد الحساب الآن",d.ReadAtUtc,null,latest,a.Current));
+        // If there are no book rows at all, the last saved balance can prove the close without proving the opening.
+        var close=running??(a.LatestPostedBalance is null && a.UpdatedUtc<d.Period.EndUtc?(decimal?)a.Current:null);
+        return new(a,created?0m:seed,created?seed:0m,legs.Where(l=>l.Incoming).Sum(l=>l.Amount),legs.Where(l=>!l.Incoming).Sum(l=>l.Amount),close,legs.Length,gaps,basis);
     }
     private static ReportPage Statement(FinanceReportData d,ReportFilter f,string context,string currency)
     {
         var byAccount=d.Legs.ToLookup(l=>l.AccountId);
         var rows=d.Accounts.Values.Where(a=>AccountMatches(a,f) && (f.InvoiceIds is null || f.InvoiceIds.Contains(a.Id)) && (a.CreatedUtc<d.Period.EndUtc || byAccount.Contains(a.Id) || a.PreviousClose.HasValue))
             .OrderBy(a=>a.Provider).ThenBy(a=>a.Id).Select(a=>ReadBalance(d,a,byAccount[a.Id])).ToArray();
-        const string cols="الحساب|المعرّف المحجوب|الحالة الآن|رصيد أول الفترة|رصيد إنشاء أثناء الفترة|وارد القيود|منصرف القيود|صافي الحركة|رصيد آخر الفترة|الرصيد الآن|أسطر الدفتر|أساس الافتتاح|فواصل غير مطابقة|آخر قيد مقابل الرصيد الآن";
-        ReportRow Row(Balance b)=>Detail([b.Account.Label,b.Account.MaskedIdentifier,b.Account.Active?"نشط":"موقوف",b.Open,b.Created,b.In,b.Out,b.In-b.Out,b.Close,b.Account.Current,b.Legs,b.Basis,b.Breaks,
+        const string cols="الحساب|المعرّف المحجوب|الحالة الآن|رصيد أول الفترة|رصيد إنشاء أثناء الفترة|وارد القيود|منصرف القيود|صافي الحركة|رصيد آخر الفترة|الرصيد الآن|أسطر الدفتر|أساس الافتتاح|فروق المطابقة|آخر قيد مقابل الرصيد الآن";
+        ReportRow Row(Balance b)=>Detail([b.Account.Label,b.Account.MaskedIdentifier,b.Account.Active?"نشط":"موقوف",b.Open,b.Created,b.In,b.Out,b.In-b.Out,b.Close,b.Account.Current,b.Legs,b.Basis,b.Gaps.Count,
             b.Account.LatestPostedBalance is null?"بلا قيود":b.Account.LatestPostedBalance==b.Account.Current?"مطابق":"فرق يحتاج مراجعة"],b.Account.Link,statementAccount:b.Account.Id);
         return new("كشف الأرصدة • أول وآخر الفترة",context,
             [new("أول الفترة",SumKnown(rows.Select(b=>b.Open)),currency),new("أرصدة إنشاء",SumKnown(rows.Select(b=>b.Created)),currency),new("وارد القيود",rows.Sum(b=>b.In),currency),
              new("منصرف القيود",rows.Sum(b=>b.Out),currency),new("آخر الفترة",SumKnown(rows.Select(b=>b.Close)),currency),new("تحتاج مراجعة",rows.Count(b=>b.Review),"حساب")],
             [Table("كشف الأرصدة",cols,rows.Select(Row)),Table("مطابقة الأرصدة",cols,rows.Where(b=>b.Review).Select(Row)),
+             Table("تفاصيل الفروق","الحساب|سبب المراجعة|التوقيت إن توفر|رقم القيد|الرصيد المرجعي|الرصيد المقارن|الفرق",rows.SelectMany(b=>b.Gaps.Select(g=>Detail(
+                 [b.Account.Label,g.Reason,g.AtUtc is DateTime dt?Local(dt):null,g.Leg?.Id,g.Expected,g.Recorded,g.Recorded-g.Expected],b.Account.Link,g.Leg is null?null:d.SourceLink(g.Leg))))),
              Table("حسب القناة","القناة|حسابات|أول الفترة|أرصدة إنشاء|وارد|منصرف|صافي الحركة|آخر الفترة",rows.GroupBy(b=>b.Account.Provider).Select(g=>Group(g.Select(b=>b.Account.Id),[g.First().Account.ProviderLabel,g.Count(),SumKnown(g.Select(b=>b.Open)),SumKnown(g.Select(b=>b.Created)),g.Sum(b=>b.In),g.Sum(b=>b.Out),g.Sum(b=>b.In-b.Out),SumKnown(g.Select(b=>b.Close))])),true)],
             rows.Any(b=>b.Review)?"توجد أرصدة غير مكتملة أو غير متصلة بالدفتر. لا تُملأ الفجوة بتسوية آلية.":"",Section);
     }

@@ -81,7 +81,8 @@ internal static class FinanceReportTests
         Check(Metric(Page(orphan,Ledger),"وارد الحسابات")==12.22m && orphan.SourceLink(orphan.Legs.Single())==null && Metric(fees,"صافي عمولة الفترة")==null
             && fees.Tables.Single(t=>t.Title=="قيود عمولة تحتاج مطابقة").Rows.Count==1,"An orphan transfer leg in an otherwise empty period cannot silently produce zero earnings or an invented destination");
         var gap=Page(orphan,Statement,new(AccountId:ip));
-        Check(gap.Tables.Single(t=>t.Title=="مطابقة الأرصدة").Rows.Count==1 && Metric(gap,"آخر الفترة")==666.66m,
+        Check(gap.Tables.Single(t=>t.Title=="مطابقة الأرصدة").Rows.Count==1 && Metric(gap,"آخر الفترة")==666.66m
+            && gap.Tables.Single(t=>t.Title=="تفاصيل الفروق").Rows.Count==2,
             "Discontinuous posted balances and a live mismatch are reported, not rewritten to the expected arithmetic balance");
     }
 }

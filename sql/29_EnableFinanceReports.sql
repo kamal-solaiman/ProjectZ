@@ -34,13 +34,13 @@ BEGIN
         BEGIN TRANSACTION;
         -- One snapshot of the book, including stopped accounts. Opening capital is not a receipt.
         SELECT a.Id,a.AccountKind,
-            CASE WHEN a.Alias COLLATE Latin1_General_100_BIN2 LIKE N''%[0-9٠-٩۰-۹@+]%'' OR NULLIF(a.Identifier,N'''') IS NOT NULL AND CHARINDEX(a.Identifier,a.Alias)>0
+            CASE WHEN a.Alias COLLATE Latin1_General_100_BIN2 LIKE N''%[0-9٠-٩۰-۹@+]%'' OR NULLIF(ident.MaskedInput,N'''') IS NOT NULL AND CHARINDEX(ident.MaskedInput,a.Alias)>0
                  THEN N''حساب'' ELSE a.Alias END AS SafeAlias,
-            CASE WHEN a.AccountKind=0 OR LEN(a.Identifier)=0 THEN N'''' WHEN LEN(a.Identifier)<=4 THEN N''••••''
-                 WHEN CHARINDEX(N''@'',a.Identifier)>0 THEN N''••••@…'' ELSE N''••••''+RIGHT(a.Identifier,4) END AS MaskedIdentifier,
+            CASE WHEN a.AccountKind=0 OR LEN(ident.MaskedInput)=0 THEN N'''' WHEN LEN(ident.MaskedInput)<=4 THEN N''••••''
+                 WHEN CHARINDEX(N''@'',a.Identifier)>0 THEN N''••••@…'' ELSE N''••••''+RIGHT(ident.MaskedInput,4) END AS MaskedIdentifier,
             a.IsActive,a.IsDefault,a.CreatedAtUtc,a.UpdatedAtUtc,a.CurrentBalance,a.DailyDepositLimit,a.DailyWithdrawalLimit,a.MonthlyDepositLimit,a.MonthlyWithdrawalLimit,
             previous.BalanceAfter AS PreviousClose, later.BeforeBalance AS NextOpen, latest.BalanceAfter AS LastBookBalance
-        INTO #Accounts FROM dbo.FinancialAccounts a
+        INTO #Accounts FROM dbo.FinancialAccounts a CROSS APPLY (VALUES(LTRIM(RTRIM(a.Identifier)))) ident(MaskedInput)
         OUTER APPLY (SELECT TOP(1) BalanceAfter FROM dbo.FinancialTransactions WHERE FinancialAccountId=a.Id AND OccurredAtUtc<@FromUtc ORDER BY OccurredAtUtc DESC,Id DESC) previous
         OUTER APPLY (SELECT TOP(1) BalanceAfter-CASE WHEN IsIncoming=1 THEN Amount ELSE -Amount END AS BeforeBalance FROM dbo.FinancialTransactions
                      WHERE FinancialAccountId=a.Id AND OccurredAtUtc>=@UntilUtc ORDER BY OccurredAtUtc,Id) later
@@ -71,7 +71,7 @@ BEGIN
             UNION SELECT Id FROM dbo.CustomerTransfers WHERE ReversedAtUtc>=@FromUtc AND ReversedAtUtc<@UntilUtc
             UNION SELECT SourceEntityId FROM #Book WHERE SourceKind=6
         ) SELECT h.Id,h.FinancialAccountId,h.CashAccountId,h.OperationKind,h.Amount,h.Commission,h.CashDelta,
-            CASE WHEN LEN(h.CustomerNumber)>4 THEN N''••••''+RIGHT(h.CustomerNumber,4) ELSE N''••••'' END AS MaskedCustomer,
+            CASE WHEN LEN(LTRIM(RTRIM(h.CustomerNumber)))>4 THEN N''••••''+RIGHT(LTRIM(RTRIM(h.CustomerNumber)),4) ELSE N''••••'' END AS MaskedCustomer,
             h.ActorUserId,h.OccurredAtUtc,h.OperationStatus,h.ReversedAtUtc,h.ReversedByUserId,h.CorrectsTransferId,child.Id AS ReplacementId
         INTO #Headers FROM scope JOIN dbo.CustomerTransfers h ON h.Id=scope.Id LEFT JOIN dbo.CustomerTransfers child ON child.CorrectsTransferId=h.Id;
         CREATE UNIQUE CLUSTERED INDEX HeadersId ON #Headers(Id);
