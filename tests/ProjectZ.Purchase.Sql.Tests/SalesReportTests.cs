@@ -47,8 +47,12 @@ internal static class SalesReportTests
         Execute(db,"UPDATE dbo.AuditLog SET OldValuesJson=NULL,NewValuesJson=N'{\"details\":\"إلغاء فاتورة\"}' WHERE Id=@id;", ("@id",cancelled.SourceId));
         var legacyCancel=Read(all.Period).Events.Where(e=>e.Doc.Id==cancel).ToArray();
         Check(legacyCancel.Single(e=>e.Kind==SalesEventKind.Cancel) is {NeedsReview:true, SalesDelta:null} unknown
-            && unknown.AtUtc==cancelled.AtUtc && legacyCancel.Sum(e=>e.Refunded)==425,
-            "Legacy typed cancellation retains its date and actual refund, without manufacturing the missing goods amount");
+            && unknown.AtUtc==cancelled.AtUtc,
+            "Legacy typed cancellation retains its date without manufacturing a missing goods amount");
+        // SaleSettlementTests posted 75 before cancellation and the remaining 425 upon cancellation.
+        Check(legacyCancel.Where(e=>e.Kind==SalesEventKind.Refund).Select(e=>e.Refunded).Order().SequenceEqual([75m,425m])
+            && legacyCancel.Sum(e=>e.Received)==500,
+            "Changing the audit shape does not erase the earlier refund or count cancellation as another money leg");
         var old=SalesReportProjection.Build(all,true,new(InvoiceIds:new HashSet<int>{legacy}),"ج.م");
         Check(old.Metrics[0].Value is null && old.Warning.Length>0 && old.Metrics[3].Value==180,"A legacy return without stored value flags the goods total; actual receipts remain exact");
         var original=all.Lines.First(l=>l.InvoiceId==exchange); var gross=original.Net;
