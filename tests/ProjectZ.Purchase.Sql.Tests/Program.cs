@@ -302,6 +302,8 @@ IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Expenses'
 ALTER TABLE dbo.Expenses ADD FinancialAccountId INT NOT NULL;
 ALTER TABLE dbo.Expenses ADD CONSTRAINT FK_Expenses_Accounts FOREIGN KEY (FinancialAccountId) REFERENCES dbo.FinancialAccounts(Id);
 CREATE INDEX IX_Expenses_Date ON dbo.Expenses(ExpenseDate DESC, Id DESC) INCLUDE (ExpenseNumber, ExpenseCategoryId, FinancialAccountId, Amount);");
+    var expenseReportInstaller = Path.Combine(sqlDirectory,"30_EnableExpenseReports.sql");
+    ExpenseReportTests.RefuseLegacySchema(admin,expenseReportInstaller);
     Execute(admin, @"
 INSERT dbo.Expenses(ExpenseNumber,ExpenseCategoryId,FinancialAccountId,ExpenseDate,Amount,Description,ActorUserId)
 VALUES(N'EXP-OLD-0001', @Category, @Account, CONVERT(date, GETDATE()), 125, N'مصروف قديم بحساب واحد', @Actor);",
@@ -489,6 +491,13 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     RunScript(admin, purchaseReportInstaller);
     RunScript(admin, purchaseReportInstaller);
     PurchaseSettlementTests.Run(admin, settings, userId, ordinaryProductId, serialProductId);
+    var financeReportInstaller=Path.Combine(sqlDirectory,"29_EnableFinanceReports.sql");
+    RunScript(admin,financeReportInstaller);
+    RunScript(admin,financeReportInstaller);
+    FinanceReportTests.Run(admin,settings,userId,cashRowId,legacyTransfer.Id);
+    RunScript(admin,expenseReportInstaller);
+    RunScript(admin,expenseReportInstaller);
+    ExpenseReportTests.Run(admin,settings,userId,cashRowId,expenseReportInstaller);
     var purchaseFootprint = PurchaseSettlementTests.Footprint(admin);
     foreach (var script in new[] { "07_CreateReportingViews.sql", "12_EnablePurchasing.sql", "25_EnablePurchaseSettlement.sql" })
         RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));

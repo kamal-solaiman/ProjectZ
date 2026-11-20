@@ -45,6 +45,9 @@ public sealed class ReportRow(int[] invoiceIds, object?[] cells)
     public object?[] Cells { get; } = cells;
     public int? CustomerId { get; init; }
     public int? PartId { get; init; }
+    public int? StatementAccountId { get; init; }
+    public FinanceLink? FinancialSource { get; init; }
+    public FinanceLink? FinancialAccount { get; init; }
     public int? SupplierId { get; init; }
     public int? RelatedInvoiceId { get; init; }
     public bool CanOpenInvoice { get; init; } = true;
@@ -64,4 +67,4 @@ public sealed record ReportMetric(string Label, decimal? Value, string Unit, str
 public sealed record ReportPage(string Title, string Context, IReadOnlyList<ReportMetric> Metrics,
     IReadOnlyList<ReportTable> Tables, string Warning, string Section);
 public sealed record ReportFilter(string Search = "", int? IssuerId = null, string Detail = "", IReadOnlySet<int>? InvoiceIds = null, string DrillLabel = "",
-    int? StatusOrKind = null, int? AccountId = null, IReadOnlySet<ReportEventKey>? EventKeys = null, int? SupplierId = null);
+    int? StatusOrKind = null, int? AccountId = null, IReadOnlySet<ReportEventKey>? EventKeys = null, int? SupplierId = null, string? DrillTable = null);

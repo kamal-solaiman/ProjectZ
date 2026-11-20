@@ -98,7 +98,15 @@ internal static class Program
         var hostedService=(DocumentReportView)main.FindName("MaintenanceReportWorkspace");
         Check(mainVm.IsMaintenanceReportsSelected && mainVm.IsImplementedScreenSelected && hostedService.DataContext==mainVm.MaintenanceReports
             && ((Grid)hostedService.Parent).Visibility==Visibility.Visible && mainVm.MaintenanceReports.Page is null,"Maintenance reports are hosted and offline mode never invents receipts");
-        mainVm.SelectItem(reportsMenu.Items[3]);
+        mainVm.SelectItem(reportsMenu.Items[3]); PumpDispatcher();
+        var financeHost=(DocumentReportView)main.FindName("FinanceReportWorkspace");
+        Check(mainVm.IsFinanceReportsSelected && mainVm.IsImplementedScreenSelected && financeHost.DataContext==mainVm.FinanceReports
+            && ((Grid)financeHost.Parent).Visibility==Visibility.Visible && mainVm.FinanceReports.Page is null,"Finance has an independent read-only host with no demo money");
+        mainVm.SelectItem(reportsMenu.Items[4]); PumpDispatcher();
+        var expensesHost = (DocumentReportView)main.FindName("ExpenseReportWorkspace");
+        Check(mainVm.IsExpenseReportsSelected && mainVm.IsImplementedScreenSelected && expensesHost.DataContext == mainVm.ExpenseReports
+            && ((Grid)expensesHost.Parent).Visibility == Visibility.Visible && mainVm.ExpenseReports.Page is null,"Expenses have a real report host; offline is not zero spending");
+        mainVm.SelectItem(reportsMenu.Items[5]);
         Check(!mainVm.IsImplementedScreenSelected, "Unimplemented report categories still show the placeholder");
         // «فواتير المصروفات» lists the stored expenses with their split payments. In the design
         // preview it must show the five sample rows, keep them reachable through the filters and
@@ -468,6 +476,8 @@ internal static class Program
         SalesReportUiTests.Run(Check, PumpDispatcher);
         PurchaseReportUiTests.Run(Check, PumpDispatcher);
         MaintenanceReportUiTests.Run(Check, PumpDispatcher);
+        FinanceReportUiTests.Run(Check, PumpDispatcher);
+        ExpenseReportUiTests.Run(Check, PumpDispatcher);
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

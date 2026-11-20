@@ -1369,6 +1369,16 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         Changed(nameof(HasNoReplacementResults));
     }
 
+    public void OpenFromReport(int id)
+    {
+        IsHistoryTabSelected = true;
+        if (repository is not null && IsErrorStatus) { FilteredOperations.Clear(); Changed(nameof(HasNoHistoryRecords)); return; }
+        SelectedHistoryTypeFilter = HistoryTypeFilters[0];
+        HistorySearchText = $"#{id}";
+        RefreshFilteredOperations();
+        SetStatus(FilteredOperations.Count == 1 ? "تم فتح عملية المرتجع / الاستبدال المحددة." : "لم تعد عملية المرتجع / الاستبدال موجودة.", FilteredOperations.Count != 1);
+    }
+
     private void RefreshFilteredOperations()
     {
         var query = historySearchText.Trim();
@@ -1378,6 +1388,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             if (SelectedHistoryTypeFilter == "استبدال" && !op.IsExchange) return false;
 
             if (string.IsNullOrEmpty(query)) return true;
+            if (query.StartsWith('#') && int.TryParse(query.AsSpan(1), out var id)) return op.Id == id;
 
             return op.OperationNumber.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || op.InvoiceNumber.Contains(query, StringComparison.OrdinalIgnoreCase)

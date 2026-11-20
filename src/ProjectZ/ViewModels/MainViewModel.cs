@@ -37,6 +37,8 @@ public sealed class MainViewModel : ObservableObject
 
     public IReadOnlyList<NavigationMenuCategoryViewModel> Categories { get; }
     public SalesReportsViewModel SalesReports { get; }
+    public FinanceReportsViewModel FinanceReports { get; }
+    public ExpenseReportsViewModel ExpenseReports { get; }
     public MaintenanceReportsViewModel MaintenanceReports { get; }
     public PurchaseReportsViewModel PurchaseReports { get; }
     public PosViewModel Pos { get; }
@@ -72,6 +74,8 @@ public sealed class MainViewModel : ObservableObject
     public string HeaderDate => egyptClockDate;
     /// <summary>Current time in Egypt, refreshed every second in the header bar.</summary>
     public string HeaderTime => egyptClockTime;
+    public bool IsExpenseReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[4]);
+    public bool IsFinanceReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[3]);
     public bool IsMaintenanceReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[2]);
     public bool IsPurchaseReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[1]);
     public bool IsSalesReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[0]);
@@ -102,7 +106,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsInstapayRecordsSelected => ReferenceEquals(selectedItem, financeCategory.Items[4]);
     public bool IsBackupSelected => ReferenceEquals(selectedItem, settingsCategory.Items[2]);
     public bool IsImplementedScreenSelected =>
-        IsSalesReportsSelected || IsPurchaseReportsSelected || IsMaintenanceReportsSelected || IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
+        IsSalesReportsSelected || IsPurchaseReportsSelected || IsMaintenanceReportsSelected || IsFinanceReportsSelected || IsExpenseReportsSelected || IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
@@ -202,7 +206,9 @@ public sealed class MainViewModel : ObservableObject
         ExpenseRepository? expenseRepository = null,
         ISalesReportSource? salesReportSource = null,
         IPurchaseReportSource? purchaseReportSource = null,
-        IMaintenanceReportSource? maintenanceReportSource = null)
+        IMaintenanceReportSource? maintenanceReportSource = null,
+        IFinanceReportSource? financeReportSource = null,
+        IExpenseReportSource? expenseReportSource = null)
     {
         this.user = user;
         StartEgyptClock();
@@ -459,6 +465,8 @@ public sealed class MainViewModel : ObservableObject
             },
             salesRepository, maintenanceRepository, ReloadMaintenanceData);
 
+        ExpenseReports = new ExpenseReportsViewModel(expenseReportSource, OpenFinancialSource);
+        FinanceReports = new FinanceReportsViewModel(financeReportSource, OpenFinancialSource);
         MaintenanceReports = new MaintenanceReportsViewModel(maintenanceReportSource, id =>
         {
             SelectItem(maintenanceCategory.Items[1]);
@@ -523,7 +531,15 @@ public sealed class MainViewModel : ObservableObject
             ExpenseInvoices.NotifyExternalDataChanged();
             MyAccounts.NotifyExternalDataChanged();
         };
-        // «فواتير المصروفات» is read-only; its only navigation goes back to the entry screen.
+        void AnalyzeCategory(int id, DateTime day, bool monthToDate)
+        {
+            var first = new DateTime(day.Year,day.Month,1);
+            var last = monthToDate ? day.Date : new DateTime(day.Year,day.Month,DateTime.DaysInMonth(day.Year,day.Month));
+            ExpenseReports.PrepareCategory(id,first,last);
+            SelectItem(reportsCategory.Items[4]);
+        }
+        ExpenseCategories.AnalyzeCategoryRequested = id => AnalyzeCategory(id,ReportPeriod.Today,true);
+        ExpenseInvoices.AnalyzeCategoryRequested = (id,day) => AnalyzeCategory(id,day,false);
         ExpenseInvoices.OpenAddExpenseRequested = () => SelectItem(expensesCategory.Items[0]);
         ExpenseCategories.CategoriesChanged = () =>
         {
@@ -637,6 +653,8 @@ public sealed class MainViewModel : ObservableObject
         SalesReports.Leave();
         PurchaseReports.Leave();
         MaintenanceReports.Leave();
+        FinanceReports.Leave();
+        ExpenseReports.Leave();
         StoreIdentity.Disconnect(OnStoreIdentityChanged);
         // The window is going away; detach the close handler too so the VM is not retained.
         StoreIdentity.Current.Disconnected -= OnStoreIdentityDisconnected;
@@ -809,6 +827,22 @@ public sealed class MainViewModel : ObservableObject
             other.SetExpanded(ReferenceEquals(other, category));
     }
 
+    // SelectItem refreshes the destination first. No navigation calls a posting/edit command.
+    private void OpenFinancialSource(FinanceLink link)
+    {
+        switch (link.Destination)
+        {
+            case FinanceDestination.Account: SelectItem(financeCategory.Items[0]); MyAccounts.OpenFromReport(link.Id); break;
+            case FinanceDestination.Sale: SelectItem(salesCategory.Items[4]); Invoices.SelectFromReport(link.Id); break;
+            case FinanceDestination.ReturnExchange: SelectItem(salesCategory.Items[5]); ReturnExchange.OpenFromReport(link.Id); break;
+            case FinanceDestination.Purchase: SelectItem(purchasesCategory.Items[1]); PurchaseInvoices.OpenFromReport(link.Id); break;
+            case FinanceDestination.Service: SelectItem(maintenanceCategory.Items[1]); MaintenanceInvoices.OpenFromReport(link.Id); break;
+            case FinanceDestination.Expense: SelectItem(expensesCategory.Items[1]); ExpenseInvoices.OpenFromReport(link.Id); break;
+            case FinanceDestination.VodafoneRecord: SelectItem(financeCategory.Items[3]); VodafoneRecords.OpenFromReport(link.Id); break;
+            case FinanceDestination.InstaPayRecord: SelectItem(financeCategory.Items[4]); InstapayRecords.OpenFromReport(link.Id); break;
+        }
+    }
+
     public void SelectItem(NavigationMenuItemViewModel item)
     {
         if (!Categories.Contains(item.Category) || !item.Category.Items.Contains(item)) return;
@@ -823,6 +857,8 @@ public sealed class MainViewModel : ObservableObject
         if (IsSalesReportsSelected) SalesReports.Leave();
         if (IsPurchaseReportsSelected) PurchaseReports.Leave();
         if (IsMaintenanceReportsSelected) MaintenanceReports.Leave();
+        if (IsFinanceReportsSelected) FinanceReports.Leave();
+        if (IsExpenseReportsSelected) ExpenseReports.Leave();
         selectedItem = item;
         // Any sale, purchase, maintenance collection or expense changes dbo.FinancialAccounts, so
         // «حساباتي» re-reads the balances (and therefore the cash card) every time it is opened.
@@ -832,6 +868,10 @@ public sealed class MainViewModel : ObservableObject
             _ = PurchaseReports.RefreshAsync();
         else if (IsMaintenanceReportsSelected)
             _ = MaintenanceReports.RefreshAsync();
+        else if (IsFinanceReportsSelected)
+            _ = FinanceReports.RefreshAsync();
+        else if (IsExpenseReportsSelected)
+            _ = ExpenseReports.RefreshAsync();
         else if (ReferenceEquals(item, financeCategory.Items[0]))
             MyAccounts.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, financeCategory.Items[1]))
@@ -899,6 +939,8 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsSalesReportsSelected));
         Changed(nameof(IsPurchaseReportsSelected));
         Changed(nameof(IsMaintenanceReportsSelected));
+        Changed(nameof(IsFinanceReportsSelected));
+        Changed(nameof(IsExpenseReportsSelected));
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
         Changed(nameof(IsInventorySelected));

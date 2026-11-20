@@ -558,21 +558,11 @@
                                                            Foreground="{DynamicResource Theme.Legacy.64748B.Muted}" />
                                             </StackPanel>
 
-                                            <Border Grid.Column="2"
-                                                    Margin="4,0"
-                                                    Padding="7,3"
-                                                    CornerRadius="6"
-                                                    VerticalAlignment="Center"
-                                                    Background="{DynamicResource Theme.Legacy.E0F2FE.InfoSoft}"
-                                                    BorderBrush="{DynamicResource Theme.Legacy.BAE6FD.InfoBorder}"
-                                                    BorderThickness="1">
-                                                <TextBlock Text="{Binding CategoryName}"
-                                                           Style="{StaticResource PosCenterTextStyle}"
-                                                           FontSize="10.5"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource Theme.Legacy.0369A1.InfoInk}"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </Border>
+                                            <Button Grid.Column="2" Margin="4,0" Padding="4,3" VerticalAlignment="Center"
+                                                    Style="{StaticResource PosOutlineTealButtonStyle}" ToolTip="فتح تقرير التصنيف لشهر هذا المصروف"
+                                                    Command="{Binding DataContext.AnalyzeCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                                <TextBlock Text="{Binding CategoryName}" FontSize="10.5" TextTrimming="CharacterEllipsis"/>
+                                            </Button>
 
                                             <StackPanel Grid.Column="3" Margin="6,0" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DescriptionDisplay}"

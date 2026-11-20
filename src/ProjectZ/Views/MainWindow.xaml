@@ -496,6 +496,34 @@
                             <Style TargetType="Grid">
                                 <Setter Property="Visibility" Value="Collapsed" />
                                 <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsFinanceReportsSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:DocumentReportView x:Name="FinanceReportWorkspace" DataContext="{Binding FinanceReports}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsExpenseReportsSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:DocumentReportView x:Name="ExpenseReportWorkspace" DataContext="{Binding ExpenseReports}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsExpenseInvoicesSelected}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>

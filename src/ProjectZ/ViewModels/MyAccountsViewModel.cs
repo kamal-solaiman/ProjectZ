@@ -521,6 +521,14 @@ public sealed class MyAccountsViewModel : ObservableObject
         return duplicate is null ? null : $"هذا الحساب مسجل بالفعل باسم «{duplicate.Alias}». كل رقم أو عنوان يجب أن يكون مستقلًا.";
     }
 
+    public void OpenFromReport(int id)
+    {
+        if (repository is not null && IsErrorStatus) { SelectedAccount = null; return; }
+        ClearWalletFilters(); TransactionSearchText = ""; SelectedTransactionType = TransactionTypeOptions[0];
+        SelectedAccount = Accounts.FirstOrDefault(a => a.Id == id && a.IsActive);
+        SetStatus(SelectedAccount is null ? "الحساب لم يعد متاحًا في السجل النشط." : "تم فتح كشف الحساب المحدد من التقرير.", SelectedAccount is null);
+    }
+
     private void ClearWalletFilters()
     {
         SelectedProviderFilter = "كل المحافظ"; SelectedStatusFilter = "كل الحالات"; WalletSearchText = "";

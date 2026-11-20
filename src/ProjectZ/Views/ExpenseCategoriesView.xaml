@@ -84,7 +84,7 @@
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource Theme.Legacy.15803D.SuccessInk}" />
                 </Border>
-                <TextBlock Text="أقسام المصروفات مثل الإيجار والفواتير، تُستخدم في شاشة «اضافة مصروف» وتقارير المصروفات عند تنفيذها."
+                <TextBlock Text="أقسام المصروفات مثل الإيجار والفواتير، تُستخدم في تسجيل المصروفات وتصنيفها عند المقارنة في «تقارير المصروفات»."
                            Style="{StaticResource PosRtlTextStyle}"
                            Margin="10,0,0,0"
                            FontSize="12"
@@ -379,6 +379,9 @@
                                                 <StackPanel Orientation="Horizontal"
                                                             FlowDirection="RightToLeft"
                                                             Visibility="{Binding IsNotEditing, Converter={StaticResource BoolToVis}}">
+                                                    <Button Content="تقرير الشهر" ToolTip="تحليل هذا التصنيف من بداية الشهر حتى اليوم ومقارنته بالفترة السابقة"
+                                                            Style="{StaticResource PosOutlineTealButtonStyle}" Padding="8,4" Margin="2,0"
+                                                            Command="{Binding DataContext.AnalyzeCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/>
                                                     <Button Content="تعديل"
                                                             Style="{StaticResource ExpCatActionBtnBaseStyle}"
                                                             Background="{DynamicResource Theme.Legacy.EFF6FF.InfoSoft}"

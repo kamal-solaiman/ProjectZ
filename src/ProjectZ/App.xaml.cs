@@ -110,7 +110,9 @@ public partial class App : Application
                 new ExpenseRepository(connectionSettings, user.Id),
                 new SalesReportRepository(connectionSettings),
                 new PurchaseReportRepository(connectionSettings),
-                new MaintenanceReportRepository(connectionSettings));
+                new MaintenanceReportRepository(connectionSettings),
+                new FinanceReportRepository(connectionSettings),
+                new ExpenseReportRepository(connectionSettings));
             MainWindow = main;
             TrackWindow(main);
 

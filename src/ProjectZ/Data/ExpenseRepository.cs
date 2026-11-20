@@ -52,12 +52,18 @@ public sealed record ExpenseInvoiceRecord(
     DateTime CreatedAtUtc,
     IReadOnlyList<ExpenseInvoicePaymentRecord> Payments);
 
+/// <summary>Read contract for the operational register (unlike the reporting endpoint, this includes the original description).</summary>
+public interface IExpenseInvoiceReader
+{
+    List<ExpenseInvoiceRecord> LoadInvoices(DateTime? fromDate = null, DateTime? toDate = null);
+}
+
 /// <summary>
 /// SQL Server persistence for «اضافة مصروف»: writes the expense row, its split payments,
 /// one deduction and one ledger movement per used account, and the audit row — all inside a
 /// single Serializable transaction.
 /// </summary>
-public sealed class ExpenseRepository(ConnectionSettingsProvider settings, int actorUserId)
+public sealed class ExpenseRepository(ConnectionSettingsProvider settings, int actorUserId) : IExpenseInvoiceReader
 {
     private const string ExpenseSequence = "Expense";
     private const int MaxPayments = 8;
