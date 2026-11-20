@@ -70,7 +70,7 @@ BEGIN
         -- One row per underlying event; quantities/payment splits/physical units do not multiply money.
         CREATE TABLE #Facts(Kind int NOT NULL, SourceId int NOT NULL, Origin int NOT NULL DEFAULT 0,
             InvoiceId int NOT NULL, RelatedId int NULL, AtUtc datetime2(7) NOT NULL, ActorId int NULL,
-            Reference nvarchar(150) NOT NULL, Detail nvarchar(2000) NULL, Delta decimal(19,2) NULL,
+            Reference nvarchar(150) NOT NULL, Detail nvarchar(4000) NULL, Delta decimal(19,2) NULL,
             DebtReduction decimal(19,2) NULL, Amount decimal(19,2) NULL, AccountId int NULL, CreditId int NULL,
             LedgerId int NULL, Review bit NOT NULL DEFAULT 0);
         -- New create/edit/delete store the actual change, independent of the editable supplier document date.
@@ -84,7 +84,8 @@ BEGIN
         INSERT #Facts(Kind,SourceId,Origin,InvoiceId,AtUtc,ActorId,Reference,Detail,Delta,Review)
         SELECT CASE a.ActionName WHEN N''CreatePurchaseInvoice'' THEN 0 WHEN N''DeletePurchaseInvoice'' THEN 4 WHEN N''CancelPurchaseInvoice'' THEN 3 ELSE 1 END,
             a.Id,1,k.InvoiceId,a.OccurredAtUtc,a.ActorUserId,CONCAT(N''تدقيق #'',a.Id),
-            COALESCE(JSON_VALUE(a.NewValuesJson,''$.Details''),JSON_VALUE(a.NewValuesJson,''$.details''),N''حذف مستند غير مسوّى''),k.Delta,
+            COALESCE(JSON_VALUE(a.NewValuesJson,''$.Details''),JSON_VALUE(a.NewValuesJson,''$.details''),
+                CASE a.ActionName WHEN N''DeletePurchaseInvoice'' THEN N''حذف فاتورة شراء'' ELSE N''قيد تدقيق المستند'' END),k.Delta,
             CASE WHEN k.Delta IS NULL THEN 1 ELSE 0 END
         FROM edits JOIN dbo.AuditLog a ON a.Id=edits.Id CROSS APPLY (SELECT TRY_CONVERT(int,a.EntityId),
             CASE WHEN a.ActionName=N''DeletePurchaseInvoice'' THEN -TRY_CONVERT(decimal(19,2),JSON_VALUE(a.OldValuesJson,''$.NetPurchases''))
