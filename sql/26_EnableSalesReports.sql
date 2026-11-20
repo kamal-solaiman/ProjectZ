@@ -13,16 +13,26 @@ IF DATABASE_PRINCIPAL_ID(N'ProjectZClient') IS NULL OR OBJECT_ID(N'dbo.vwSalesLi
     THROW 50260,N'أكمل مخطط المبيعات وحساب الاتصال والنسختين المحدثتين من 07 و22 أولًا.',1;
 BEGIN TRY
     BEGIN TRANSACTION;
-    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.SalesPayments') AND name=N'IX_SalesPayments_ReportDate')
+    EXEC sys.sp_executesql N'IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N''dbo.SalesPayments'') AND name=N''IX_SalesPayments_ReportDate'')
         CREATE INDEX IX_SalesPayments_ReportDate ON dbo.SalesPayments(PaidAtUtc,SalesInvoiceId);
-    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.ReturnExchanges') AND name=N'IX_ReturnExchanges_ReportDate')
+    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N''dbo.ReturnExchanges'') AND name=N''IX_ReturnExchanges_ReportDate'')
         CREATE INDEX IX_ReturnExchanges_ReportDate ON dbo.ReturnExchanges(CreatedAtUtc,SalesInvoiceId);
-    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.AuditLog') AND name=N'IX_AuditLog_ActionDate')
+    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N''dbo.AuditLog'') AND name=N''IX_AuditLog_ActionDate'')
         CREATE INDEX IX_AuditLog_ActionDate ON dbo.AuditLog(Module,ActionName,OccurredAtUtc) INCLUDE(EntityType,EntityId);
+    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N''dbo.ReturnExchanges'') AND name=N''IX_ReturnExchanges_ReportInvoice'')
+        CREATE INDEX IX_ReturnExchanges_ReportInvoice ON dbo.ReturnExchanges(SalesInvoiceId,CreatedAtUtc);
+    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N''dbo.ReturnExchangeLines'') AND name=N''IX_ReturnExchangeLines_Operation'')
+        CREATE INDEX IX_ReturnExchangeLines_Operation ON dbo.ReturnExchangeLines(ReturnExchangeId);';
     EXEC sys.sp_executesql N'CREATE OR ALTER PROCEDURE dbo.ReadSalesReport @FromUtc datetime2(7), @UntilUtc datetime2(7)
 AS
 BEGIN
-    SET NOCOUNT ON; SET XACT_ABORT ON;
+    SET NOCOUNT ON;
+    IF @@TRANCOUNT<>0 OR (@@OPTIONS & 2)<>0
+    BEGIN
+        RAISERROR(N''اقرأ التقرير في اتصال مستقل خارج معاملة الحفظ.'',16,1);
+        RETURN;
+    END;
+    SET XACT_ABORT ON;
     IF @FromUtc IS NULL OR @UntilUtc IS NULL OR @UntilUtc<=@FromUtc OR DATEDIFF_BIG(day,@FromUtc,@UntilUtc)>367
         THROW 50261,N''اختر فترة صحيحة لا تتجاوز سنة.'',1;
     -- One consistent read of document values, lines and events. Release locks BEFORE streaming rows to a till.
@@ -87,9 +97,13 @@ BEGIN
         IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-    SELECT * FROM #Docs ORDER BY IssuedAtUtc DESC,Id DESC;
-    SELECT * FROM #Lines ORDER BY SalesInvoiceId,LineNumber;
-    SELECT * FROM #Events ORDER BY AtUtc DESC,Kind,SourceId,Position;
+    -- Result contracts for SalesReportRepository: headers, valued lines, dated facts, snapshot time.
+    SELECT Id,InvoiceNumber,CustomerId,Customer,CashierUserId,Cashier,IssuedAtUtc,InvoiceStatus,Subtotal,DiscountAmount,
+           NetSales,NetCost,CollectedAmount,RefundedAmount,RemainingAmount FROM #Docs ORDER BY IssuedAtUtc DESC,Id DESC;
+    SELECT SalesInvoiceId,LineNumber,ProductId,ProductNameSnapshot,CategoryNameSnapshot,BarcodeSnapshot,UnitNameSnapshot,
+           IsExchangeReplacement,Quantity,ReturnedQuantity,UnitPrice,UnitCost,GrossAmount,NetLineAmount,ReturnedNetAmount,NetSales,NetCost FROM #Lines ORDER BY SalesInvoiceId,LineNumber;
+    SELECT Id,InvoiceNumber,CustomerId,Customer,CashierUserId,Cashier,Kind,SourceId,Position,AtUtc,ActorId,Actor,Reference,Detail,
+           Quantity,SalesDelta,CostDelta,AccountId,AccountKind,Alias,Received,Refunded FROM #Events ORDER BY AtUtc DESC,Kind,SourceId,Position;
     SELECT @ReadAtUtc AS ReadAtUtc;
 END;';
     EXEC sys.sp_executesql N'GRANT EXECUTE ON OBJECT::dbo.ReadSalesReport TO [ProjectZClient];';

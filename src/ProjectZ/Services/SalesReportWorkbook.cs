@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using ClosedXML.Excel;
 using ProjectZ.Models;
@@ -35,6 +36,9 @@ public static class SalesReportWorkbook
         switch(value)
         {
             case null: break; // missing monetary evidence is a blank, not a numeric zero
+            // Excel only preserves 15 significant digits. Never lose cents on exceptionally large amounts.
+            case decimal n when Math.Abs(n) >= 10_000_000_000_000m:
+                cell.Value=n.ToString("0.00",CultureInfo.InvariantCulture); cell.Style.NumberFormat.Format="@"; break;
             case decimal n: cell.Value=(double)n; cell.Style.NumberFormat.Format="#,##0.00;[Red]-#,##0.00;0.00"; break;
             case int n: cell.Value=n; break;
             case long n: cell.Value=(double)n; break;

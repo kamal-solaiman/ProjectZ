@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -67,9 +68,17 @@ public static class SalesReportPaper
     }
     private static string[] Chunks(string value)
     {
-        if(value.Length<=150)return [value];
-        var text=new StringInfo(value); var result=new List<string>();
-        for(int i=0;i<text.LengthInTextElements;i+=150) result.Add(text.SubstringByTextElements(i,Math.Min(150,text.LengthInTextElements-i)));
+        if(value.Length<=150 && value.Count(c=>c is '\n' or '\r')<6)return [value];
+        var parts=StringInfo.GetTextElementEnumerator(value); var buffer=new StringBuilder();
+        var result=new List<string>(); int length=0,breaks=0;
+        while(parts.MoveNext())
+        {
+            string element=parts.GetTextElement(); buffer.Append(element); length++;
+            if(element.Contains('\n') || element.Contains('\r'))breaks++;
+            if(length<150 && breaks<6)continue;
+            result.Add(buffer.ToString()); buffer.Clear(); length=breaks=0;
+        }
+        if(buffer.Length>0)result.Add(buffer.ToString());
         return result.ToArray();
     }
 }

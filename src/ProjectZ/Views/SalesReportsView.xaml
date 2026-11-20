@@ -31,11 +31,15 @@
                 <Button Content="هذا الشهر" VerticalAlignment="Bottom" Tag="0" Margin="3,0,0,3" Click="Preset_Click" Style="{StaticResource PosSecondaryButtonStyle}"/>
             </WrapPanel>
             <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="1.3*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <StackPanel><TextBlock Text="رقم الفاتورة أو اسم العميل" Style="{StaticResource Caption}"/><TextBox Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
-                <StackPanel Grid.Column="1" Margin="6,0"><TextBlock Text="{Binding DetailLabel}" Style="{StaticResource Caption}"/><TextBox Text="{Binding Detail, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
+                <StackPanel><TextBlock Text="رقم الفاتورة أو اسم العميل" Style="{StaticResource Caption}"/><TextBox x:Name="DocumentSearch" MaxLength="120" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
+                <StackPanel Grid.Column="1" Margin="6,0"><TextBlock Text="{Binding DetailLabel}" Style="{StaticResource Caption}"/><TextBox x:Name="DetailSearch" MaxLength="200" Text="{Binding Detail, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
                 <StackPanel Grid.Column="2"><TextBlock Text="كاشير إصدار الفاتورة" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Cashiers}" SelectedItem="{Binding Cashier}" DisplayMemberPath="Label"/></StackPanel>
                 <Button Grid.Column="3" Margin="6,0,0,0" VerticalAlignment="Bottom" Content="مسح الفلاتر" Command="{Binding ClearCommand}" Style="{StaticResource PosSecondaryButtonStyle}"/>
             </Grid>
+            <Expander Header="فلاتر الحالة والحساب" Foreground="{DynamicResource Theme.Brush.Text}" Margin="0,4,0,0"><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                <StackPanel><TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding KindOptions}" SelectedItem="{Binding SelectedKind}" DisplayMemberPath="Label"/></StackPanel>
+                <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="{Binding AccountLabel}" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}" DisplayMemberPath="Label"/></StackPanel>
+            </Grid></Expander>
         </StackPanel></Border>
         <ItemsControl Grid.Row="2" Margin="0,5" ItemsSource="{Binding Page.Metrics}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
             <Border Style="{StaticResource Panel}" Padding="8,6" Margin="2,0"><StackPanel><TextBlock Text="{Binding Label}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Display}" ToolTip="{Binding Display}" TextTrimming="CharacterEllipsis" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource Theme.Brush.AccentInk}"/></StackPanel></Border>

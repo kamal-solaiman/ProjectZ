@@ -5,7 +5,9 @@ namespace ProjectZ.Models;
 // A single typed projection feeds the grid, A4 and Excel. Never recalculate financial figures in a printer/exporter.
 public sealed record SalesReportRow(int[] InvoiceIds, object?[] Cells)
 {
-    public string[] Display { get; } = Cells.Select(Format).ToArray();
+    public SalesEventKey[]? EventKeys { get; init; }
+    private string[]? display;
+    public string[] Display => display ??= Array.ConvertAll(Cells, Format);
     public static string Format(object? value) => value switch {
         null => "—", decimal n => n.ToString("N2", CultureInfo.InvariantCulture),
         DateTime dt => dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture), _ => value.ToString() ?? "" };
@@ -17,12 +19,15 @@ public sealed record SalesReportMetric(string Label, decimal? Value, string Unit
 }
 public sealed record SalesReportPage(string Title, string Context, IReadOnlyList<SalesReportMetric> Metrics,
     IReadOnlyList<SalesReportTable> Tables, string Warning);
-public sealed record SalesReportFilter(string Search = "", int? CashierId = null, string Detail = "", IReadOnlySet<int>? InvoiceIds = null, string DrillLabel = "");
+public sealed record SalesReportFilter(string Search = "", int? CashierId = null, string Detail = "", IReadOnlySet<int>? InvoiceIds = null, string DrillLabel = "",
+    int? StatusOrKind = null, int? AccountId = null, IReadOnlySet<SalesEventKey>? EventKeys = null);
 
 public static class SalesReportProjection
 {
     private static SalesReportRow Row(int doc, params object?[] cells) => new([doc], cells);
     private static SalesReportRow Group(IEnumerable<int> ids, params object?[] cells) => new(ids.Distinct().ToArray(), cells);
+    private static SalesReportRow EventGroup(IEnumerable<SalesReportEvent> events, params object?[] cells) =>
+        new(events.Select(e=>e.Doc.Id).Distinct().ToArray(), cells) { EventKeys = events.Select(e=>e.Key).ToArray() };
     private static SalesReportTable Table(string title, string headers, IEnumerable<SalesReportRow> rows, bool grouped = false) =>
         new(title, headers.Split('|'), rows.ToList(), grouped);
     private static decimal? Margin(decimal net, decimal profit) => net == 0 ? null : decimal.Round(100 * profit / net, 2);
@@ -37,16 +42,22 @@ public static class SalesReportProjection
         var context = $"{data.Period.Label} | قراءة {SalesReportPeriod.Local(data.ReadAtUtc):yyyy-MM-dd HH:mm} | {currency}"
             + (search.Length == 0 ? "" : $" | رقم/عميل: {search}") + (filter.CashierId.HasValue ? $" | كاشير الفاتورة #{filter.CashierId}" : "")
             + (detail.Length == 0 ? "" : (movement ? " | بيان حركة: " : " | فواتير تتضمن: ") + detail)
-            + (filter.InvoiceIds is null ? "" : $" | فواتير المجموعة: {filter.DrillLabel}");
+            + (filter.StatusOrKind is not int kind ? "" : " | " + (movement ? SalesReportEvent.KindText((SalesEventKind)kind) : ReportInvoice.StatusText((byte)kind)))
+            + (filter.AccountId is null ? "" : $" | {(movement ? "حركة الحساب" : "فواتير تعاملت مع الحساب")} #{filter.AccountId}")
+            + (filter.InvoiceIds is null ? "" : $" | {(movement ? "حركات المجموعة" : "فواتير المجموعة")}: {filter.DrillLabel}");
         if (movement)
         {
             var events = data.Events.Where(e => data.Period.Contains(e.AtUtc) && Match(e.Doc)
+                && (filter.EventKeys is null || filter.EventKeys.Contains(e.Key))
+                && (filter.StatusOrKind is null || (int)e.Kind == filter.StatusOrKind) && (filter.AccountId is null || e.AccountId == filter.AccountId)
                 && (detail.Length == 0 || Has(e.KindLabel, detail) || Has(e.Detail, detail) || Has(e.AccountLabel, detail) || Has(e.Actor, detail) || Has(e.Reference, detail))).ToArray();
             return Activity(events, context, currency);
         }
         var itemMatches = detail.Length == 0 ? null : data.Lines.Where(l => Has(l.Product, detail) || Has(l.Category, detail) || Has(l.Barcode, detail))
             .Select(l => l.InvoiceId).ToHashSet();
-        var docs = data.Invoices.Where(i => Match(i.Doc) && (itemMatches is null || itemMatches.Contains(i.Doc.Id))).ToArray();
+        var accountDocs = filter.AccountId is null ? null : data.Events.Where(e => e.IsMoney && e.AccountId == filter.AccountId).Select(e => e.Doc.Id).ToHashSet();
+        var docs = data.Invoices.Where(i => Match(i.Doc) && (filter.StatusOrKind is null || i.Status == filter.StatusOrKind)
+            && (accountDocs is null || accountDocs.Contains(i.Doc.Id)) && (itemMatches is null || itemMatches.Contains(i.Doc.Id))).ToArray();
         var byId = docs.ToDictionary(i => i.Doc.Id);
         var lines = data.Lines.Where(l => byId.ContainsKey(l.InvoiceId)).ToArray();
         var history = data.Events.Where(e => byId.ContainsKey(e.Doc.Id)).ToArray();
@@ -84,7 +95,7 @@ public static class SalesReportProjection
     }
 
     private static SalesReportTable Accounts(IEnumerable<SalesReportEvent> events) => Table("حسابات السداد", "الحساب الفعلي|القناة|دفعات وردود|تحصيل|رد مالي|صافي الحركة",
-        events.Where(e => e.IsMoney).GroupBy(e => e.AccountId).OrderBy(g => g.Key).Select(g => Group(g.Select(e=>e.Doc.Id),g.First().AccountLabel,g.First().Channel,g.Count(),
+        events.Where(e => e.IsMoney).GroupBy(e => e.AccountId).OrderBy(g => g.Key).Select(g => EventGroup(g,g.First().AccountLabel,g.First().Channel,g.Count(),
             g.Sum(e=>e.Received),g.Sum(e=>e.Refunded),g.Sum(e=>e.Received-e.Refunded))),true);
     private static SalesReportTable EventTable(string title, IEnumerable<SalesReportEvent> events) => Table(title,
         "الفاتورة|التاريخ (مصر)|الحركة|المستند أو السند|البيان|العميل|منفذ الحركة|الكمية ±|أثر البيع ±|أثر التكلفة ±|أثر الربح ±|الحساب الفعلي|تحصيل|رد مالي|المطابقة",
@@ -110,7 +121,7 @@ public static class SalesReportProjection
         SalesReportTable By<TKey>(string title,Func<SalesReportEvent,TKey> key,Func<SalesReportEvent,string> label) => Table(title,
             "البيان|فواتير متأثرة|أسطر حركة|أثر البيع ±|أثر التكلفة ±|أثر الربح ±|تحصيل فعلي|رد مالي|صافي حركة المال",
             events.GroupBy(key).Select(g=>{ var ids=g.Select(e=>e.Doc.Id).Distinct().ToArray(); var s=EventTotals.For(g);
-                return Group(ids,label(g.First()),ids.Length,g.Count(),s.Net,s.Cost,s.Net-s.Cost,s.Received,s.Refunded,s.Received-s.Refunded); }),true);
+                return EventGroup(g,label(g.First()),ids.Length,g.Count(),s.Net,s.Cost,s.Net-s.Cost,s.Received,s.Refunded,s.Received-s.Refunded); }),true);
         return new("حركة الفترة • بحسب تاريخ الحركة",context,
             [new("صافي حركة البيع",sum.Net,currency),new("حركة التكلفة",sum.Cost,currency),new("حركة مجمل الربح",sum.Net-sum.Cost,currency),
              new("تحصيل فعلي",sum.Received,currency),new("رد مالي فعلي",sum.Refunded,currency),new("صافي حركة المال",sum.Received-sum.Refunded,currency)],

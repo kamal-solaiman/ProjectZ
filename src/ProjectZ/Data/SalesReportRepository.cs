@@ -37,7 +37,7 @@ public sealed class SalesReportRepository(ConnectionSettingsProvider settings) :
                 events.Add(new(Doc(), (SalesEventKind)r.GetInt32(6), r.GetInt32(7), Utc(9), r.IsDBNull(10) ? null : r.GetInt32(10),
                     r.GetString(11), r.GetString(12), r.IsDBNull(13) ? "" : r.GetString(13), r.IsDBNull(14) ? null : r.GetInt64(14),
                     r.IsDBNull(15) ? null : r.GetDecimal(15), r.IsDBNull(16) ? null : r.GetDecimal(16), r.IsDBNull(17) ? null : r.GetInt32(17),
-                    r.IsDBNull(18) ? null : r.GetByte(18), r.IsDBNull(19) ? null : r.GetString(19), r.GetDecimal(20), r.GetDecimal(21)));
+                    r.IsDBNull(18) ? null : r.GetByte(18), r.IsDBNull(19) ? null : r.GetString(19), r.GetDecimal(20), r.GetDecimal(21), r.IsDBNull(8) ? 0 : r.GetInt32(8)));
             await Next().ConfigureAwait(false);
             if (!await r.ReadAsync(token).ConfigureAwait(false)) throw new InvalidOperationException("لم يكتمل تحميل تقرير المبيعات.");
             return new(period, Utc(0), docs, lines, events);
