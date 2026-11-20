@@ -84,7 +84,7 @@
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource Theme.Legacy.15803D.SuccessInk}" />
                 </Border>
-                <TextBlock Text="أقسام المصروفات مثل الإيجار والفواتير، تُستخدم في شاشة «اضافة مصروف» وتقارير المصروفات عند تنفيذها."
+                <TextBlock Text="أقسام المصروفات مثل الإيجار والفواتير، تُستخدم في تسجيل المصروفات وتصنيفها عند المقارنة في «تقارير المصروفات»."
                            Style="{StaticResource PosRtlTextStyle}"
                            Margin="10,0,0,0"
                            FontSize="12"

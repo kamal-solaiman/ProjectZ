@@ -49,6 +49,8 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     private int modeId;
     protected int ModeId => modeId;
     public virtual IReadOnlyList<ReportChoice> Modes { get; } = [new(0,"فواتير الفترة"),new(1,"حركة الفترة")];
+    public string CohortModeLabel => Modes.First(m => m.Id == 0).Label;
+    public string MovementModeLabel => Modes.First(m => m.Id == 1).Label;
     public bool HasExtendedModes => Modes.Count>2;
     public virtual string ExportMode => IsMovement ? "Activity" : "Invoices";
     public virtual bool ShowOrderFilters => true;
@@ -129,7 +131,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
             if(value?.Id is not int id || id==modeId || !Modes.Any(m=>m.Id==id))return;
             modeId=id; detail=""; selectedKind=All;
             Changed(); Changed(nameof(IsMovement)); Changed(nameof(IsCohort)); Changed(nameof(KindOptions)); Changed(nameof(SelectedKind));
-            Changed(nameof(KindLabel)); Changed(nameof(AccountLabel)); Changed(nameof(DetailLabel)); Changed(nameof(SearchLabel));
+            Changed(nameof(KindLabel)); Changed(nameof(AccountLabel)); Changed(nameof(DetailLabel)); Changed(nameof(SearchLabel)); Changed(nameof(IssuerLabel));
             Changed(nameof(AccountChoices)); Changed(nameof(ShowIssuerFilter)); Changed(nameof(Explanation)); Changed(nameof(Detail)); Changed(nameof(ShowOrderFilters)); Changed(nameof(HasSupplierTools));
             if(ClearOnModeChange)ClearFilters(); else ResetDrill();
         }
@@ -265,7 +267,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     {
         var title = preferredTable ?? table?.Title;
         page = data is null ? null : Project(data, IsMovement,
-            new(search, issuer.Id, detail, drill, drillLabel, selectedKind.Id, selectedAccount.Id, eventDrill, supplier.Id),
+            new(search, issuer.Id, detail, drill, drillLabel, selectedKind.Id, selectedAccount.Id, eventDrill, supplier.Id, drillTable),
             StoreIdentity.Current.CurrencyLabel);
         Changed(nameof(Page));
         SelectedTable = page?.Tables.FirstOrDefault(t => t.Title == title) ?? page?.Tables.FirstOrDefault();
@@ -277,7 +279,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         if (table.Grouped)
         {
             drill = row.InvoiceIds.ToHashSet();
-            eventDrill = IsMovement ? row.EventKeys?.ToHashSet() : null;
+            eventDrill = row.EventKeys?.ToHashSet(); // Some document groups drill to exact allocated shares, not whole invoices.
             drillLabel = row.Display[0];
             drillTable = table.Title;
             Changed(nameof(HasDrill));

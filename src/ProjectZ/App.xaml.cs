@@ -111,7 +111,8 @@ public partial class App : Application
                 new SalesReportRepository(connectionSettings),
                 new PurchaseReportRepository(connectionSettings),
                 new MaintenanceReportRepository(connectionSettings),
-                new FinanceReportRepository(connectionSettings));
+                new FinanceReportRepository(connectionSettings),
+                new ExpenseReportRepository(connectionSettings));
             MainWindow = main;
             TrackWindow(main);
 

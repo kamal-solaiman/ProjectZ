@@ -257,7 +257,7 @@ assert customers_pos < menu_titles.index('التقارير') < menu_titles.index
     'التقارير and المصروفات belong between العملاء والموردين and المستخدمين'
 assert 'IsReportsSelected' not in main_viewmodel, \
     'a sales report host must not mark every report item implemented'
-for report in ('SalesReports', 'PurchaseReports', 'MaintenanceReports', 'FinanceReports'):
+for report in ('SalesReports', 'PurchaseReports', 'MaintenanceReports', 'FinanceReports', 'ExpenseReports'):
     assert f'DataContext="{{Binding {report}}}"' in main_xaml and f'Is{report}Selected' in main_viewmodel, f'{report} must have its own report host'
 assert 'IsExpenseCategoriesSelected' in main_viewmodel and 'views:ExpenseCategoriesView' in main_xaml, \
     'the expense categories item is implemented and must host its real screen'

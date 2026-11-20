@@ -19,8 +19,8 @@
         </DockPanel>
         <Border Grid.Row="1" Style="{StaticResource Panel}"><StackPanel>
             <WrapPanel><StackPanel Orientation="Horizontal"><StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding HasExtendedModes}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
-                <RadioButton Content="فواتير الفترة" Margin="0,0,0,4" FontWeight="Bold" IsChecked="{Binding IsCohort, Mode=TwoWay}"/>
-                <RadioButton Content="حركة الفترة" Margin="18,0,0,4" FontWeight="Bold" IsChecked="{Binding IsMovement, Mode=TwoWay}"/></StackPanel>
+                <RadioButton Content="{Binding CohortModeLabel}" Margin="0,0,0,4" FontWeight="Bold" IsChecked="{Binding IsCohort, Mode=TwoWay}"/>
+                <RadioButton Content="{Binding MovementModeLabel}" Margin="18,0,0,4" FontWeight="Bold" IsChecked="{Binding IsMovement, Mode=TwoWay}"/></StackPanel>
                 <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" DisplayMemberPath="Label" MinWidth="170" AutomationProperties.Name="عرض التقرير" Visibility="{Binding HasExtendedModes, Converter={StaticResource BoolToVis}}"/>
                 <TextBlock Text="{Binding SourceLabel}" Foreground="{DynamicResource Theme.Brush.AccentInk}" Margin="18,0,0,0" FontSize="11"/></WrapPanel>
             <TextBlock Text="{Binding Explanation}" Foreground="{DynamicResource Theme.Brush.Muted}" TextWrapping="Wrap"/>
@@ -48,6 +48,9 @@
                     <TextBlock Text="الأولوية" Margin="12,0,4,0" VerticalAlignment="Center" Style="{StaticResource Caption}"/><ComboBox Width="140" ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}" DisplayMemberPath="Label"/>
                 </WrapPanel></DataTemplate><DataTemplate DataType="{x:Type vm:FinanceReportsViewModel}">
                 <WrapPanel Margin="0,3" Visibility="{Binding IsMovement, Converter={StaticResource BoolToVis}}"><TextBlock Text="اتجاه القيد" Style="{StaticResource Caption}" VerticalAlignment="Center"/><ComboBox Width="130" ItemsSource="{Binding Directions}" SelectedItem="{Binding Direction}" DisplayMemberPath="Label"/></WrapPanel>
+            </DataTemplate><DataTemplate DataType="{x:Type vm:ExpenseReportsViewModel}">
+                <WrapPanel Margin="0,4"><StackPanel Width="190"><TextBlock Text="تصنيف المصروف" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" DisplayMemberPath="Label"/></StackPanel>
+                    <StackPanel Width="160" Margin="8,0"><TextBlock Text="مطابقة المستند بالكامل" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding VerificationChoices}" SelectedItem="{Binding Verification}" DisplayMemberPath="Label"/></StackPanel></WrapPanel>
             </DataTemplate></ContentControl.Resources></ContentControl></StackPanel></Expander>
         </StackPanel></Border>
         <ItemsControl Grid.Row="2" Margin="0,5" ItemsSource="{Binding Page.Metrics}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
@@ -58,6 +61,8 @@
                 <StackPanel Orientation="Horizontal"><Button Content="ملف العميل" Command="{Binding OpenCustomerCommand}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0" Visibility="{Binding CanOpenCustomer, Converter={StaticResource BoolToVis}}"/>
                     <Button Content="قطعة الغيار" Command="{Binding OpenPartCommand}" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenPart, Converter={StaticResource BoolToVis}}"/></StackPanel>
             </DataTemplate><DataTemplate DataType="{x:Type vm:FinanceReportsViewModel}">
+                <Button Content="فتح الحساب" Command="{Binding OpenAccountCommand}" Margin="4,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenAccount, Converter={StaticResource BoolToVis}}"/>
+            </DataTemplate><DataTemplate DataType="{x:Type vm:ExpenseReportsViewModel}">
                 <Button Content="فتح الحساب" Command="{Binding OpenAccountCommand}" Margin="4,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenAccount, Converter={StaticResource BoolToVis}}"/>
             </DataTemplate></ContentControl.Resources></ContentControl>
             <Button DockPanel.Dock="Left" Content="ملف المورد" Command="{Binding OpenSupplierCommand}" Visibility="{Binding HasSupplierTools, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0"/>
