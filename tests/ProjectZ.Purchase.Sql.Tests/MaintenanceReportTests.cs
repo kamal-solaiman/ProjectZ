@@ -22,7 +22,7 @@ internal static class MaintenanceReportTests
             && closed.Warning.Length==0 && Page(d,Delivered,cancelled).Tables[0].Rows.Count==0,
             "Repeated deliveries/reopens/cancel do not rebook earlier money: 120 in deposits + 30 final - 150 refunded");
         Check(d.Payments.Where(p=>p.OrderId==cancelled && p.Kind==2).All(p=>p.OriginalReceipt!=null && !p.RefundNeedsReview && !p.LedgerNeedsReview)
-            && d.Activities.Count(a=>a.OrderId==cancelled && a.EventType==7)==3,"Refund receipt/account lineage and three independent supervisor reopens remain auditable");
+            && d.Activities.Count(a=>a.OrderId==cancelled && a.EventType==7 && a.RecordedStatus==1)==3,"Refund receipt/account lineage and three independent supervisor reopens remain auditable");
         Check(Metric(Page(d,Received,depositOnly),"صافي المقبوض")==70.17m && Metric(Page(d,Delivered,delivered),"صافي المقبوض")==30,
             "An estimate of 100 with a 70.17 deposit counts only 70.17; delivering at 100 with actual 25+5 counts only 30");
         Check(d.Payments.Single(p=>p.OrderId==legacy && p.Kind==2) is {Amount:5m,RefundNeedsReview:true,LedgerNeedsReview:false}

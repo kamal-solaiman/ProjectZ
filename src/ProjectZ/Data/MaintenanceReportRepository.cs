@@ -35,14 +35,14 @@ public sealed class MaintenanceReportRepository(ConnectionSettingsProvider setti
                 r.GetString(7),r.GetByte(8),r.GetInt32(9),r.GetString(10),Id(11),r.GetBoolean(12),r.GetBoolean(13)));
             await Next().ConfigureAwait(false);
             var activities=new List<ServiceActivity>();
-            while(await r.ReadAsync(token).ConfigureAwait(false)) activities.Add(new(r.GetInt32(0),r.GetInt32(1),Utc(2),r.GetInt32(3),r.GetString(4),r.GetInt32(5)));
+            while(await r.ReadAsync(token).ConfigureAwait(false)) activities.Add(new(r.GetInt32(0),r.GetInt32(1),Utc(2),r.GetInt32(3),r.GetString(4),r.GetInt32(5),r.IsDBNull(6)?null:r.GetByte(6)));
             await Next().ConfigureAwait(false);
             var parts=new Dictionary<int,WorkshopPart>();
             while(await r.ReadAsync(token).ConfigureAwait(false)) parts.Add(r.GetInt32(0),new(r.GetInt32(0),r.GetString(1),r.GetString(2),r.GetString(3),r.GetString(4),r.GetInt32(5),
                 r.GetInt32(6),r.GetInt32(7),r.GetString(8),r.GetBoolean(9),Id(10),Name(11),r.GetBoolean(12)));
             await Next().ConfigureAwait(false);
             var moves=new List<WorkshopMove>();
-            while(await r.ReadAsync(token).ConfigureAwait(false)) moves.Add(new(r.GetInt32(0),r.GetInt32(1),r.GetByte(2),r.GetInt32(3),r.GetInt32(4),r.GetInt32(5),Utc(6),Id(7),Id(8),Name(9),r.GetBoolean(10),r.GetInt32(11),r.GetString(12)));
+            while(await r.ReadAsync(token).ConfigureAwait(false)) moves.Add(new(r.GetInt32(0),r.GetInt32(1),r.GetByte(2),r.GetInt32(3),r.GetInt32(4),r.GetInt32(5),Utc(6),Id(7),Id(8),Name(9),r.GetBoolean(10),r.GetInt32(11),r.GetString(12),Id(13),Name(14),r.GetBoolean(15)));
             await Next().ConfigureAwait(false);
             if(!await r.ReadAsync(token).ConfigureAwait(false)) throw new InvalidOperationException("لم يكتمل تحميل تقرير الصيانة.");
             return new(period,Utc(0),orders,lines,payments,activities,parts,moves);

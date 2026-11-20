@@ -55,19 +55,28 @@ BEGIN
         ;WITH ids AS (
             SELECT Id FROM dbo.MaintenanceActivities WHERE OccurredAtUtc>=@FromUtc AND OccurredAtUtc<@UntilUtc
             UNION SELECT a.Id FROM #Cohort c JOIN dbo.MaintenanceActivities a ON a.MaintenanceOrderId=c.Id
-        ) SELECT a.Id,a.MaintenanceOrderId,a.OccurredAtUtc,a.ActorUserId,u.DisplayName,
-            -- Only fixed classifications leave the server. Historical notes, pricing and protected device data never do.
-            CASE a.ActionTitle WHEN N''استلام جهاز صيانة'' THEN 3 WHEN N''تحديث بيانات الورشة والفحص'' THEN 4
-                WHEN N''تسليم الجهاز وإغلاق أمر الصيانة'' THEN 5 WHEN N''إلغاء أمر الصيانة'' THEN 6 WHEN N''إعادة فتح بإذن المشرف'' THEN 7
-                WHEN N''صرف قطعة غيار'' THEN 8 WHEN N''إضافة بند يدوي'' THEN 9 WHEN N''إزالة بند صيانة'' THEN 10
-                WHEN N''معاينة / طباعة مستند صيانة'' THEN 11 WHEN N''تحصيل دفعة تحت الحساب'' THEN 12 ELSE 13 END AS Kind
-        INTO #Activity FROM ids JOIN dbo.MaintenanceActivities a ON a.Id=ids.Id JOIN dbo.Users u ON u.Id=a.ActorUserId;
+        ) SELECT a.Id,a.MaintenanceOrderId,a.OccurredAtUtc,a.ActorUserId,u.DisplayName,k.Kind,h.RecordedStatus
+        INTO #Activity FROM ids JOIN dbo.MaintenanceActivities a ON a.Id=ids.Id JOIN dbo.Users u ON u.Id=a.ActorUserId
+        -- Return only canonical classifications, not old free-text titles/details which can contain a price or a secret.
+        CROSS APPLY (VALUES(CASE WHEN a.ActionTitle LIKE N''تغيير الحالة إلى:%'' THEN 4 WHEN a.ActionTitle LIKE N''طباعة:%'' THEN 11
+            ELSE CASE a.ActionTitle WHEN N''استلام جهاز صيانة'' THEN 3 WHEN N''تحديث بيانات الورشة والفحص'' THEN 4
+                WHEN N''تسليم الجهاز وإغلاق أمر الصيانة'' THEN 5 WHEN N''إلغاء أمر الصيانة'' THEN 6 WHEN N''إعادة فتح بإذن المشرف'' THEN 7 WHEN N''إعادة فتح أمر الصيانة'' THEN 7
+                WHEN N''صرف قطعة غيار'' THEN 8 WHEN N''صرف قطعة غيار من مخزون الصيانة'' THEN 8 WHEN N''إضافة بند يدوي'' THEN 9 WHEN N''إضافة قطعة غيار يدوية'' THEN 9
+                WHEN N''إزالة بند صيانة'' THEN 10 WHEN N''حذف بند قطعة غيار'' THEN 10 WHEN N''إرجاع قطعة غيار لمخزون الصيانة'' THEN 10
+                WHEN N''معاينة / طباعة مستند صيانة'' THEN 11 WHEN N''معاينة / طباعة تذكرة صيانة'' THEN 11
+                WHEN N''تحصيل دفعة تحت الحساب'' THEN 12 WHEN N''تحصيل دفعة من فاتورة الصيانة'' THEN 12 ELSE 13 END END)) k(Kind)
+        -- 24 stamps activity and audit together. Use a single matching typed stage, never today''s stage in its place.
+        OUTER APPLY (SELECT CASE WHEN COUNT_BIG(*)=1 THEN MIN(TRY_CONVERT(tinyint,JSON_VALUE(log.NewValuesJson,''$.OrderStatus''))) END AS RecordedStatus
+            FROM dbo.AuditLog log WHERE log.EntityType=N''MaintenanceOrder'' AND log.EntityId=CONVERT(nvarchar(100),a.MaintenanceOrderId) AND log.OccurredAtUtc=a.OccurredAtUtc
+                AND log.ActorUserId=a.ActorUserId AND log.Module=N''Maintenance'' AND log.ActionName=CASE k.Kind WHEN 3 THEN N''Intake'' WHEN 4 THEN N''Workshop''
+                    WHEN 5 THEN N''Deliver'' WHEN 6 THEN N''Cancel'' WHEN 7 THEN N''Reopen'' WHEN 8 THEN N''ChangePart'' WHEN 9 THEN N''ChangePart'' WHEN 10 THEN N''ChangePart'' WHEN 12 THEN N''CollectDeposit'' END) h;
         ;WITH ids AS (
             SELECT Id FROM dbo.MaintenanceSparePartMovements WHERE OccurredAtUtc>=@FromUtc AND OccurredAtUtc<@UntilUtc
             UNION SELECT m.Id FROM #Cohort c JOIN dbo.MaintenanceSparePartMovements m ON m.MaintenanceOrderId=c.Id
         ) SELECT m.Id,m.SparePartId,m.MovementKind,m.Quantity,m.QuantityBefore,m.QuantityAfter,m.OccurredAtUtc,m.MaintenanceOrderId,
-                m.SupplierId,s.Name AS SupplierName,CONVERT(bit,COALESCE(s.IsActive,0)) AS SupplierActive,m.ActorUserId,u.DisplayName
-        INTO #Moves FROM ids JOIN dbo.MaintenanceSparePartMovements m ON m.Id=ids.Id JOIN dbo.Users u ON u.Id=m.ActorUserId LEFT JOIN dbo.Suppliers s ON s.Id=m.SupplierId;
+                m.SupplierId,s.Name AS SupplierName,CONVERT(bit,COALESCE(s.IsActive,0)) AS SupplierActive,m.ActorUserId,u.DisplayName,
+                m.CustomerId,c.Name AS CustomerName,CONVERT(bit,COALESCE(c.IsActive,0)) AS CustomerActive
+        INTO #Moves FROM ids JOIN dbo.MaintenanceSparePartMovements m ON m.Id=ids.Id JOIN dbo.Users u ON u.Id=m.ActorUserId LEFT JOIN dbo.Suppliers s ON s.Id=m.SupplierId LEFT JOIN dbo.Customers c ON c.Id=m.CustomerId;
         SELECT p.Id,p.Name,p.Category,COALESCE(p.Barcode,N'''') AS Barcode,p.Unit,p.Quantity,p.MinimumStockAlert,p.ReorderQuantity,p.StorageLocation,p.IsActive,
             p.SupplierId,s.Name AS SupplierName,CONVERT(bit,COALESCE(s.IsActive,0)) AS SupplierActive
         INTO #Catalog FROM dbo.MaintenanceSpareParts p LEFT JOIN dbo.Suppliers s ON s.Id=p.SupplierId;
@@ -91,9 +100,9 @@ BEGIN
     SELECT m.Id,m.MaintenanceOrderId,m.PaidAtUtc,m.PaymentStage,m.PaymentKind,m.Amount,m.FinancialAccountId,m.Alias,m.AccountKind,m.ActorUserId,m.DisplayName,m.RefundOfPaymentId,
         m.RefundNeedsReview,CONVERT(bit,CASE WHEN x.MaintenanceOrderId IS NULL THEN 0 ELSE 1 END) AS LedgerNeedsReview FROM #Money m
         LEFT JOIN #Unmatched x ON x.MaintenanceOrderId=m.MaintenanceOrderId AND x.FinancialAccountId=m.FinancialAccountId AND x.PaymentKind=m.PaymentKind ORDER BY m.PaidAtUtc DESC,m.Id DESC;
-    SELECT Id,MaintenanceOrderId,OccurredAtUtc,ActorUserId,DisplayName,Kind FROM #Activity ORDER BY OccurredAtUtc DESC,Id DESC;
+    SELECT Id,MaintenanceOrderId,OccurredAtUtc,ActorUserId,DisplayName,Kind,RecordedStatus FROM #Activity ORDER BY OccurredAtUtc DESC,Id DESC;
     SELECT Id,Name,Category,Barcode,Unit,Quantity,MinimumStockAlert,ReorderQuantity,StorageLocation,IsActive,SupplierId,SupplierName,SupplierActive FROM #Catalog ORDER BY Name,Id;
-    SELECT Id,SparePartId,MovementKind,Quantity,QuantityBefore,QuantityAfter,OccurredAtUtc,MaintenanceOrderId,SupplierId,SupplierName,SupplierActive,ActorUserId,DisplayName FROM #Moves ORDER BY OccurredAtUtc DESC,Id DESC;
+    SELECT Id,SparePartId,MovementKind,Quantity,QuantityBefore,QuantityAfter,OccurredAtUtc,MaintenanceOrderId,SupplierId,SupplierName,SupplierActive,ActorUserId,DisplayName,CustomerId,CustomerName,CustomerActive FROM #Moves ORDER BY OccurredAtUtc DESC,Id DESC;
     SELECT @ReadUtc AS ReadAtUtc;
 END;';
     EXEC(N'GRANT EXECUTE ON OBJECT::dbo.ReadMaintenanceReport TO [ProjectZClient];');

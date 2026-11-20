@@ -49,6 +49,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     private int modeId;
     protected int ModeId => modeId;
     public virtual IReadOnlyList<ReportChoice> Modes { get; } = [new(0,"فواتير الفترة"),new(1,"حركة الفترة")];
+    public bool HasExtendedModes => Modes.Count>2;
     public virtual string ExportMode => IsMovement ? "Activity" : "Invoices";
     public virtual bool ShowOrderFilters => true;
     public virtual object? ExtraTools => null;

@@ -49,7 +49,7 @@ public sealed class MaintenanceReportsViewModel : ReportWorkspaceViewModel<Maint
     public override IReadOnlyList<ReportChoice> KindOptions=>ShowOrderFilters?base.KindOptions:StockKinds;
     protected override IEnumerable<ReportChoice> GetIssuers(MaintenanceReportData d)=>d.Orders.Values.Select(o=>new ReportChoice(o.ReceiverId,$"{o.Receiver} (#{o.ReceiverId})"));
     protected override IEnumerable<ReportChoice> GetAccounts(MaintenanceReportData d)=>d.Payments.Select(p=>new ReportChoice(p.AccountId,p.AccountLabel));
-    protected override IEnumerable<ReportChoice> GetSuppliers(MaintenanceReportData d)=>d.Parts.Values.Select(p=>(p.SupplierId,p.Supplier)).Concat(d.Moves.Select(m=>(m.SupplierId,m.Supplier)))
+    protected override IEnumerable<ReportChoice> GetSuppliers(MaintenanceReportData d)=>d.Parts.Values.Select(p=>(p.SupplierId,p.Supplier)).Concat(d.Moves.Where(m=>d.Period.Contains(m.AtUtc)).Select(m=>(m.SupplierId,m.Supplier)))
         .Where(s=>s.SupplierId.HasValue).Select(s=>new ReportChoice(s.SupplierId,$"{s.Supplier} (#{s.SupplierId})"));
     public IReadOnlyList<ReportChoice> Priorities {get;}=Enumerable.Range(0,3).Select(i=>new ReportChoice(i,ServiceTicket.PriorityText(i))).Prepend(All).ToArray();
     public IReadOnlyList<TechnicianChoice> Technicians {get;private set;}=[AnyTech];

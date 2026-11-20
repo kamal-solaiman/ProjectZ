@@ -18,8 +18,10 @@
             <StackPanel><TextBlock Text="مركز التقارير" Style="{StaticResource Caption}" Foreground="{DynamicResource Theme.Brush.AccentInk}"/><TextBlock Text="{Binding SectionTitle}" FontWeight="Bold" FontSize="23" Foreground="{DynamicResource Theme.Brush.Heading}"/></StackPanel>
         </DockPanel>
         <Border Grid.Row="1" Style="{StaticResource Panel}"><StackPanel>
-            <WrapPanel><TextBlock Text="عرض التقرير" VerticalAlignment="Center" Margin="0,0,0,4" Style="{StaticResource Caption}"/>
-                <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" DisplayMemberPath="Label" MinWidth="170" AutomationProperties.Name="عرض التقرير"/>
+            <WrapPanel><StackPanel Orientation="Horizontal"><StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding HasExtendedModes}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                <RadioButton Content="فواتير الفترة" Margin="0,0,0,4" FontWeight="Bold" IsChecked="{Binding IsCohort, Mode=TwoWay}"/>
+                <RadioButton Content="حركة الفترة" Margin="18,0,0,4" FontWeight="Bold" IsChecked="{Binding IsMovement, Mode=TwoWay}"/></StackPanel>
+                <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" DisplayMemberPath="Label" MinWidth="170" AutomationProperties.Name="عرض التقرير" Visibility="{Binding HasExtendedModes, Converter={StaticResource BoolToVis}}"/>
                 <TextBlock Text="{Binding SourceLabel}" Foreground="{DynamicResource Theme.Brush.AccentInk}" Margin="18,0,0,0" FontSize="11"/></WrapPanel>
             <TextBlock Text="{Binding Explanation}" Foreground="{DynamicResource Theme.Brush.Muted}" TextWrapping="Wrap"/>
             <WrapPanel Margin="0,6,0,0" VerticalAlignment="Center">

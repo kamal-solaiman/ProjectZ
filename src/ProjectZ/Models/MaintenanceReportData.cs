@@ -19,7 +19,7 @@ public sealed record ServicePayment(int Id,int OrderId,DateTime AtUtc,byte Stage
     public int EventType => Kind==2 ? 2 : Stage==2 ? 1 : 0;
     public string AccountLabel => $"{Channel switch {0=>"نقدي",1=>"فودافون كاش",2=>"إنستاباي",_=>"حساب"}} · {Account} (#{AccountId})";
 }
-public sealed record ServiceActivity(int Id,int OrderId,DateTime AtUtc,int ActorId,string Actor,int EventType);
+public sealed record ServiceActivity(int Id,int OrderId,DateTime AtUtc,int ActorId,string Actor,int EventType,byte? RecordedStatus=null);
 public sealed record WorkshopPart(int Id,string Name,string Category,string Barcode,string Unit,int Quantity,int Minimum,int Reorder,
     string Location,bool Active,int? SupplierId,string Supplier,bool SupplierActive)
 {
@@ -27,7 +27,7 @@ public sealed record WorkshopPart(int Id,string Name,string Category,string Barc
     public string Label => $"{Name} (#{Id})";
 }
 public sealed record WorkshopMove(int Id,int PartId,byte Kind,int Qty,int Before,int After,DateTime AtUtc,int? OrderId,
-    int? SupplierId,string Supplier,bool SupplierActive,int ActorId,string Actor)
+    int? SupplierId,string Supplier,bool SupplierActive,int ActorId,string Actor,int? CustomerId=null,string Customer="",bool CustomerActive=false)
 {
     public static string KindText(int kind) => kind switch { 1=>"رصيد افتتاحي",2=>"توريد للورشة",3=>"صرف للأمر",4=>"إرجاع من أمر",5=>"تسوية زيادة",6=>"تسوية نقص",_=>"غير معروف" };
 }
