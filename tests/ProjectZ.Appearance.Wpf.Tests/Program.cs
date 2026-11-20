@@ -58,8 +58,7 @@ internal static class Program
         main.DataContext = mainVm;
         PumpDispatcher(); // let DataContext inheritance and style-trigger bindings attach
         // New sidebar menus: «التقارير» sits under «العملاء والموردين» and above «المستخدمين», and
-        // «المصروفات» sits under «التقارير» and above «المستخدمين». Only implemented
-        // items get a live screen; the other report items must retain the placeholder.
+        // «المصروفات» sits under «التقارير» and above «المستخدمين». Each report has a distinct host.
         Check(mainVm.Categories.Select(category => category.Title).SequenceEqual(new[]
             {
                 "المبيعات", "المشتريات", "الصيانة", "المالية", "العملاء والموردين",
@@ -481,6 +480,7 @@ internal static class Program
         MaintenanceReportUiTests.Run(Check, PumpDispatcher);
         FinanceReportUiTests.Run(Check, PumpDispatcher);
         ExpenseReportUiTests.Run(Check, PumpDispatcher);
+        OverallReportUiTests.Run(Check, PumpDispatcher);
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }
