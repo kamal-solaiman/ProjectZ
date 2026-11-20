@@ -108,7 +108,9 @@ public partial class App : Application
                 new AppearanceViewModel(themeManager),
                 new ExpenseCategoryRepository(connectionSettings, user.Id),
                 new ExpenseRepository(connectionSettings, user.Id),
-                new SalesReportRepository(connectionSettings));
+                new SalesReportRepository(connectionSettings),
+                new PurchaseReportRepository(connectionSettings),
+                new MaintenanceReportRepository(connectionSettings));
             MainWindow = main;
             TrackWindow(main);
 

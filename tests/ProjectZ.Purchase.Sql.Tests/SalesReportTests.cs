@@ -10,8 +10,8 @@ internal static class SalesReportTests
     {
         // These are real 22 postings. Only the isolated test DBA moves their clocks to deterministic Cairo boundaries.
         var reports=new SalesReportRepository(settings);
-        SalesReportData Read(SalesReportPeriod p)=>reports.LoadAsync(p,CancellationToken.None).GetAwaiter().GetResult();
-        var day=new DateTime(2034,1,12); var period=new SalesReportPeriod(day,day);
+        SalesReportData Read(ReportPeriod p)=>reports.LoadAsync(p,CancellationToken.None).GetAwaiter().GetResult();
+        var day=new DateTime(2034,1,12); var period=new ReportPeriod(day,day);
         Execute(db,$"""
             UPDATE dbo.SalesInvoices SET IssuedAtUtc=DATEADD(second,-1,@start) WHERE Id={older};
             UPDATE dbo.SalesPayments SET PaidAtUtc=CASE WHEN Amount=100 THEN DATEADD(second,-1,@start) ELSE @start END WHERE SalesInvoiceId={older};
@@ -29,7 +29,7 @@ internal static class SalesReportTests
         Check(Read(period).Events.Count==1 && Read(new(day.AddDays(1),day.AddDays(1))).Events.Single().Received==200,
             "Exclusive upper boundary and an independent refresh; no stale or duplicated movement");
 
-        var today=SalesReportPeriod.Today;
+        var today=ReportPeriod.Today;
         var all=Read(new(today.AddDays(-1),today.AddDays(1)));
         var full=all.Invoices.Single(i=>i.Doc.Id==fullyReturned); var eFull=all.Events.Where(e=>e.Doc.Id==fullyReturned).ToArray();
         Check(full.Net==0 && full.Cost==0 && full.Refunded==399.95m && eFull.Where(e=>e.Kind==SalesEventKind.Return).Sum(e=>e.SalesDelta)==-399.95m

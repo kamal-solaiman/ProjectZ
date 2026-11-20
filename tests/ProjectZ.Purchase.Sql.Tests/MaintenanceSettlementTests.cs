@@ -192,6 +192,7 @@ internal static class MaintenanceSettlementTests
             VALUES({legacy.Id},{b},1,2,5,SYSUTCDATETIME(),{actor});
             """);
         Refused(() => first.Cancel(Key(legacy),45,true,"قديم"),50244,"Legacy payment/ledger mismatch");
+        MaintenanceReportTests.CheckUnmatchedRefund(settings,legacy.Id);
         Execute(db,$"""
             UPDATE dbo.FinancialAccounts SET CurrentBalance=CurrentBalance-5 WHERE Id={b};
             INSERT dbo.FinancialTransactions(FinancialAccountId,IsIncoming,Category,Amount,BalanceAfter,ActorUserId,SourceEntityType,SourceEntityId)
@@ -201,5 +202,6 @@ internal static class MaintenanceSettlementTests
         var noVersion=Footprint(db);
         try { Execute(till,$"EXEC dbo.SettleMaintenanceTicket {credit.Id},NULL,{actor},1,@Cash=1;"); throw new InvalidOperationException("Missing version accepted"); }
         catch (SqlException ex) when (ex.Number==50241) { Check(Footprint(db)==noVersion,"SQL itself refuses a missing version"); }
+        MaintenanceReportTests.Run(db,settings,actor,order.Id,credit.Id,pending.Id,legacy.Id,stock.Id,spare);
     }
 }

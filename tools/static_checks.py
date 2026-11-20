@@ -43,10 +43,10 @@ assert hashlib.pbkdf2_hmac('sha256', b'wrong', base64.b64decode(salt), int(itera
 print('PASS: seed hash matches Admin@123, rejects wrong password, matches C# test vector')
 
 sql = '\n'.join(path.read_text(encoding='utf-8') for path in sorted((root / 'sql').glob('*.sql')))
-# 50 CREATE TABLE statements (including four purchase settlement/trace tables in 25): 06 creates the 39 business tables + Users, 01 creates Users,
+# 50 persistent CREATE TABLE statements (exclude per-session #report staging) (including four purchase settlement/trace tables in 25): 06 creates the 39 business tables + Users, 01 creates Users,
 # and 16/19/20/21 repeat the movement, expense-section, expense and expense-payment tables
 # idempotently so an existing database can be upgraded without re-running 06.
-assert len(re.findall(r'CREATE\s+TABLE\s+', sql, re.I)) == 50
+assert len(re.findall(r'CREATE\s+TABLE\s+(?![\s#])', sql, re.I)) == 50
 assert re.search(r'SET\s+COMPATIBILITY_LEVEL\s*=\s*130', sql, re.I)
 assert 'CREATE DATABASE [ProjectZ]' in sql
 assert '[ProjectZClient]' in (root / 'sql/04_SetupLanSqlAuth.sql').read_text(encoding='utf-8')
@@ -257,7 +257,8 @@ assert customers_pos < menu_titles.index('التقارير') < menu_titles.index
     'التقارير and المصروفات belong between العملاء والموردين and المستخدمين'
 assert 'IsReportsSelected' not in main_viewmodel, \
     'a sales report host must not mark every report item implemented'
-assert 'views:SalesReportsView' in main_xaml and 'IsSalesReportsSelected' in main_viewmodel, 'sales reports must have their own host'
+for report in ('SalesReports', 'PurchaseReports', 'MaintenanceReports'):
+    assert f'DataContext="{{Binding {report}}}"' in main_xaml and f'Is{report}Selected' in main_viewmodel, f'{report} must have its own report host'
 assert 'IsExpenseCategoriesSelected' in main_viewmodel and 'views:ExpenseCategoriesView' in main_xaml, \
     'the expense categories item is implemented and must host its real screen'
 assert 'IsExpenseInvoicesSelected' in main_viewmodel and 'views:ExpenseInvoicesView' in main_xaml, \

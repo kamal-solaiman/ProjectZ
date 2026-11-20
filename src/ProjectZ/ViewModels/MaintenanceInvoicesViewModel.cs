@@ -573,6 +573,16 @@ public sealed class MaintenanceInvoicesViewModel : ObservableObject
         SetStatus("تمت إعادة ضبط جميع فلاتر فواتير الصيانة.", false);
     }
 
+    public void OpenFromReport(int id)
+    {
+        if (LastLoadFailed) { SelectedOrder=null; return; }
+        ClearAllFilters();
+        var order=Orders.FirstOrDefault(o=>o.Id==id);
+        if(order is null) { SelectedOrder=null; SetStatus("لم يعد أمر الصيانة موجودًا بعد تحديث السجل.",true); return; }
+        SearchText=order.OrderNumber;
+        OpenInvoiceDetails(order);
+    }
+
     private void OpenInvoiceDetails(MaintenanceOrderDesignItem? order)
     {
         if (order is null) return;

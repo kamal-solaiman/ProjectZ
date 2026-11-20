@@ -183,5 +183,6 @@ internal static class PurchaseSettlementTests
         legacy=Read(legacy.Id);
         Check(legacy.NeedsReview && legacy.AvailableCredit==0,"Incomplete historical return is visible for review, never promoted to spendable credit");
         Refused(()=>repo.PayInvoice(new(legacy.Id,legacy.DatabaseRowVersion,10,0,0,"")),50253,"Legacy evidence gap blocks further settlement");
+        PurchaseReportTests.Run(db,settings,actor,supplier.Id,product,serial,sourceId,winner.Id,note.Id,r1.ReturnNumber,receiving,legacy.Id,onlyPaid.Id);
     }
 }

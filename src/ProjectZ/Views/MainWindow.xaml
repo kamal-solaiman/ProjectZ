@@ -460,7 +460,35 @@
                                 </Style.Triggers>
                             </Style>
                         </Grid.Style>
-                        <views:SalesReportsView DataContext="{Binding SalesReports}" />
+                        <views:DocumentReportView DataContext="{Binding SalesReports}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPurchaseReportsSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:DocumentReportView x:Name="PurchaseReportWorkspace" DataContext="{Binding PurchaseReports}" />
+                    </Grid>
+
+                    <Grid>
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMaintenanceReportsSelected}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <views:DocumentReportView x:Name="MaintenanceReportWorkspace" DataContext="{Binding MaintenanceReports}" />
                     </Grid>
 
                     <Grid>

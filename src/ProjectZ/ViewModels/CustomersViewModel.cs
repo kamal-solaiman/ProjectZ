@@ -201,6 +201,7 @@ public sealed class CustomersViewModel : ObservableObject
     private string selectedBalanceFilter = "جميع العملاء";
     private string selectedSortOption = "الأحدث نشاطًا";
     private int activeDetailTabIndex;
+    private bool lastDirectoryReadFailed;
     private string statusMessage = "شاشة العملاء الموحدة: إدارة ملفات العملاء، متابعة فواتير البيع وتذاكر الصيانة، وتحصيل المستحقات المتبقية.";
     private bool isErrorStatus;
 
@@ -536,12 +537,14 @@ public sealed class CustomersViewModel : ObservableObject
         {
             var previousId = SelectedCustomerEntry?.Customer.Id;
             repository.LoadCustomersInto(sharedCustomers);
+            lastDirectoryReadFailed=false;
             if (includeSales) repository.LoadInvoicesInto(sharedSalesInvoices);
             RebuildEntriesAndRefresh(previousId);
             return true;
         }
         catch (Exception ex)
         {
+            lastDirectoryReadFailed=true;
             SetStatus(ex is SalesDataException data ? data.Message : "تعذر تحميل دليل العملاء من قاعدة البيانات.", true);
             return false;
         }
@@ -932,7 +935,19 @@ public sealed class CustomersViewModel : ObservableObject
     /// Opens the customer selected on another screen (for example a spare-part movement) and
     /// clears the directory filters so the row is guaranteed to be visible.
     /// </summary>
-    public bool SelectCustomerFromExternal(int customerId)
+    public bool SelectCustomerFromExternal(int customerId) => SelectCustomerFromExternal(customerId,false);
+
+    public void OpenMaintenanceFromReport(int id,bool ordersLoaded)
+    {
+        if(!ordersLoaded || lastDirectoryReadFailed)
+        {
+            SelectedCustomerEntry=null;
+            SetStatus("تعذر تحديث بيانات العميل وأوامر الصيانة، لم يتم فتح ملف قديم.",true); return;
+        }
+        SelectCustomerFromExternal(id,true);
+    }
+
+    private bool SelectCustomerFromExternal(int customerId,bool fromMaintenanceReport)
     {
         searchText = "";
         selectedTierFilter = TierFilterOptions[0];
@@ -946,11 +961,14 @@ public sealed class CustomersViewModel : ObservableObject
         var found = SelectedCustomerEntry?.Customer.Id == customerId;
         if (found)
         {
-            ActiveDetailTabIndex = 2;
-            SetStatus("تم فتح ملف العميل من شاشة قطع الغيار على تبويب قطع الغيار المستخدمة.", false);
+            ActiveDetailTabIndex = fromMaintenanceReport ? 1 : 2;
+            SetStatus(fromMaintenanceReport ? "تم فتح ملف العميل على تبويب أوامر الصيانة." : "تم فتح ملف العميل من شاشة قطع الغيار على تبويب قطع الغيار المستخدمة.", false);
         }
         else
+        {
+            SelectedCustomerEntry=null;
             SetStatus("لم يتم العثور على العميل المطلوب في دليل العملاء.", true);
+        }
         return found;
     }
 

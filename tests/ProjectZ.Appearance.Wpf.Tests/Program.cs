@@ -83,11 +83,22 @@ internal static class Program
             .Items.Single(item => item.Title == "تقارير المبيعات");
         mainVm.SelectItem(salesReportsItem);
         PumpDispatcher();
-        var hostedReport = FindLogicalDescendant<SalesReportsView>(main);
+        var hostedReport = FindLogicalDescendant<DocumentReportView>(main);
         Check(mainVm.IsImplementedScreenSelected && mainVm.IsSalesReportsSelected && mainVm.SelectedPageTitle == "تقارير المبيعات"
             && hostedReport?.DataContext == mainVm.SalesReports && ((Grid)hostedReport.Parent).Visibility == Visibility.Visible,
             "Sales reports have a real, visible host; offline preview does not invent balances");
         mainVm.SelectItem(reportsMenu.Items[1]);
+        PumpDispatcher();
+        var hostedPurchaseReport = (DocumentReportView)main.FindName("PurchaseReportWorkspace");
+        Check(mainVm.IsPurchaseReportsSelected && mainVm.IsImplementedScreenSelected && hostedPurchaseReport.DataContext == mainVm.PurchaseReports
+            && ((Grid)hostedPurchaseReport.Parent).Visibility == Visibility.Visible && mainVm.PurchaseReports.Page is null,
+            "Purchase reports have a real host; offline preview never invents invoices");
+        mainVm.SelectItem(reportsMenu.Items[2]);
+        PumpDispatcher();
+        var hostedService=(DocumentReportView)main.FindName("MaintenanceReportWorkspace");
+        Check(mainVm.IsMaintenanceReportsSelected && mainVm.IsImplementedScreenSelected && hostedService.DataContext==mainVm.MaintenanceReports
+            && ((Grid)hostedService.Parent).Visibility==Visibility.Visible && mainVm.MaintenanceReports.Page is null,"Maintenance reports are hosted and offline mode never invents receipts");
+        mainVm.SelectItem(reportsMenu.Items[3]);
         Check(!mainVm.IsImplementedScreenSelected, "Unimplemented report categories still show the placeholder");
         // «فواتير المصروفات» lists the stored expenses with their split payments. In the design
         // preview it must show the five sample rows, keep them reachable through the filters and
@@ -455,6 +466,8 @@ internal static class Program
         MaintenancePostingTests.Run(Check);
         PurchasePostingTests.Run(Check);
         SalesReportUiTests.Run(Check, PumpDispatcher);
+        PurchaseReportUiTests.Run(Check, PumpDispatcher);
+        MaintenanceReportUiTests.Run(Check, PumpDispatcher);
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }
