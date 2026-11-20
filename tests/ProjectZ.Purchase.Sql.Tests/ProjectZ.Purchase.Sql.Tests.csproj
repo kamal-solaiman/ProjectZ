@@ -10,7 +10,11 @@
     <Compile Include="../../src/ProjectZ/Data/MaintenanceRepository.cs" Link="Data/MaintenanceRepository.cs" />
     <Compile Include="../../src/ProjectZ/Models/MaintenanceDesignModels.cs" Link="Models/MaintenanceDesignModels.cs" />
     <Compile Include="../../src/ProjectZ/Services/PasscodeProtection.cs" Link="Services/PasscodeProtection.cs" />
+    <Compile Include="../../src/ProjectZ/Data/PurchaseReportRepository.cs" Link="Data/PurchaseReportRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/PurchaseReportData.cs" Link="Models/PurchaseReportData.cs" />
+    <Compile Include="../../src/ProjectZ/Models/PurchaseReportProjection.cs" Link="Models/PurchaseReportProjection.cs" />
     <Compile Include="../../src/ProjectZ/Data/SalesReportRepository.cs" Link="Data/SalesReportRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/DocumentReport.cs" Link="Models/DocumentReport.cs" />
     <Compile Include="../../src/ProjectZ/Models/SalesReportData.cs" Link="Models/SalesReportData.cs" />
     <Compile Include="../../src/ProjectZ/Models/SalesReportProjection.cs" Link="Models/SalesReportProjection.cs" />
     <Compile Include="../../src/ProjectZ/Data/SalesRepository.cs" Link="Data/SalesRepository.cs" />

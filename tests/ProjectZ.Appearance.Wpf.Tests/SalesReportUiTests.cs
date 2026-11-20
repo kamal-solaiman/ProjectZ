@@ -12,10 +12,10 @@ internal static class SalesReportUiTests
 {
     private sealed class Source : ISalesReportSource
     {
-        public Func<SalesReportPeriod,CancellationToken,Task<SalesReportData>> Read = (p,_) => Task.FromResult(Sample(p));
-        public Task<SalesReportData> LoadAsync(SalesReportPeriod period,CancellationToken token) => Read(period,token);
+        public Func<ReportPeriod,CancellationToken,Task<SalesReportData>> Read = (p,_) => Task.FromResult(Sample(p));
+        public Task<SalesReportData> LoadAsync(ReportPeriod period,CancellationToken token) => Read(period,token);
     }
-    private static SalesReportData Sample(SalesReportPeriod period)
+    private static SalesReportData Sample(ReportPeriod period)
     {
         var time=period.StartUtc.AddHours(3);
         var a=new ReportDocument(31,"INV-R-31",1,"=1+1",51,"أمين");
@@ -34,7 +34,7 @@ internal static class SalesReportUiTests
     {
         var source=new Source(); int opened=0;
         var vm=new SalesReportsViewModel(source,id=>opened=id);
-        var view=new SalesReportsView { DataContext=vm };
+        var view=new DocumentReportView { DataContext=vm };
         vm.RefreshAsync().GetAwaiter().GetResult(); pump();
         view.Measure(new Size(960,620)); view.Arrange(new Rect(0,0,960,620)); view.UpdateLayout(); pump();
         var grid=(DataGrid)view.FindName("Results");
@@ -54,7 +54,7 @@ internal static class SalesReportUiTests
         var path=Path.Combine(Path.GetTempPath(),Guid.NewGuid()+".xlsx");
         try
         {
-            SalesReportWorkbook.Save(path,"متجر الاختبار",vm.Page);
+            ReportWorkbook.Save(path,"متجر الاختبار",vm.Page);
             using var book=new XLWorkbook(path);
             var invoices=book.Worksheet("الفواتير"); var lines=book.Worksheet("بنود الفواتير");
             check(book.Worksheets.Count==vm.Page.Tables.Count+1 && invoices.LastRowUsed()!.RowNumber()==2 && invoices.RightToLeft
@@ -65,13 +65,13 @@ internal static class SalesReportUiTests
         }
         finally { if(File.Exists(path))File.Delete(path); }
         var printable=vm.SelectedTable!;
-        var many=printable with { Rows=Enumerable.Range(1,75).Select(n=>new SalesReportRow([n],printable.Rows[0].Cells.Select((v,i)=>i==0?$"INV-PAPER-{n}":v).ToArray())).ToList() };
-        var paper=SalesReportPaper.Build("متجر الورق",vm.Page,many);
+        var many=printable with { Rows=Enumerable.Range(1,75).Select(n=>new ReportRow([n],printable.Rows[0].Cells.Select((v,i)=>i==0?$"INV-PAPER-{n}":v).ToArray())).ToList() };
+        var paper=ReportPaper.Build("متجر الورق",vm.Page,many);
         var lastPage=paper.Pages[^1].GetPageRoot(false)!;
         var body=lastPage.Children.OfType<StackPanel>().Single();
-        check(paper.Pages.Count>3 && Math.Abs(lastPage.Width-SalesReportPaper.Width)<.1 && body.Children.OfType<Grid>().Last().Children.OfType<Border>().Any(b=>(b.Child as TextBlock)?.Text=="INV-PAPER-75"),
+        check(paper.Pages.Count>3 && Math.Abs(lastPage.Width-ReportPaper.Width)<.1 && body.Children.OfType<Grid>().Last().Children.OfType<Border>().Any(b=>(b.Child as TextBlock)?.Text=="INV-PAPER-75"),
             "A4 preview paginates rows AND columns, repeats the invoice key and includes the final off-screen row");
-        var window=new SalesReportPrintWindow(paper); window.Close();
+        var window=new ReportPrintWindow(paper,vm.Page.Section); window.Close();
         vm.BackToResultsCommand.Execute(null);
         check(!vm.HasDrill && vm.Detail=="000123" && vm.SelectedTable?.Title=="أداء الأصناف", "Return from a group restores the analysis table without discarding active filters");
         vm.ClearCommand.Execute(null); vm.SelectedAccount=vm.Accounts.Single(a=>a.Id==88);
@@ -92,12 +92,12 @@ internal static class SalesReportUiTests
         var tcs=new TaskCompletionSource<SalesReportData>();source.Read=(_,_)=>tcs.Task;
         var pending=vm.RefreshAsync(); vm.From=vm.Through!.Value.AddDays(-2); tcs.SetResult(Sample(new(vm.Through,vm.Through))); pump();
         check(pending.IsCompleted && vm.Page is null && !vm.IsBusy,"A late query after a date change cannot replace the current report");
-        var apr=new DateTime(2026,4,24);var dst=new SalesReportPeriod(apr,apr);
-        check(dst.StartUtc==new SalesReportPeriod(apr.AddDays(-1),apr.AddDays(-1)).EndUtc && SalesReportPeriod.Local(dst.StartUtc).Date==apr
-            && SalesReportPeriod.Local(dst.StartUtc.AddTicks(-1)).Date==apr.AddDays(-1),"Egypt midnight/DST boundary is continuous and workstation independent");
+        var apr=new DateTime(2026,4,24);var dst=new ReportPeriod(apr,apr);
+        check(dst.StartUtc==new ReportPeriod(apr.AddDays(-1),apr.AddDays(-1)).EndUtc && ReportPeriod.Local(dst.StartUtc).Date==apr
+            && ReportPeriod.Local(dst.StartUtc.AddTicks(-1)).Date==apr.AddDays(-1),"Egypt midnight/DST boundary is continuous and workstation independent");
         // Navigate through the actual menu and hosted invoices VM with pre-existing filters.
         var main=new MainViewModel(new UserSession(0,"r","اختبار التقرير"),()=>{},salesReportSource:source);
-        var target=main.Invoices.FilteredInvoices.Last(); var data=Sample(new(SalesReportPeriod.Today,SalesReportPeriod.Today));
+        var target=main.Invoices.FilteredInvoices.Last(); var data=Sample(new(ReportPeriod.Today,ReportPeriod.Today));
         source.Read=(_,_)=>Task.FromResult(data with {Invoices=[data.Invoices[0] with {Doc=data.Invoices[0].Doc with {Id=target.Id,Number=target.InvoiceNumber}}]});
         main.Invoices.SearchText="غير موجود";main.SelectItem(main.Categories.Single(c=>c.Title=="التقارير").Items[0]);
         main.SalesReports.SelectedRow=main.SalesReports.SelectedTable!.Rows.Single(); main.SalesReports.DrillCommand.Execute(null);

@@ -324,6 +324,22 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         }
     }
 
+    /// <summary>After navigation reload, resolve the real SQL ID, not a filtered row or a stale instance.</summary>
+    public void OpenFromReport(int invoiceId)
+    {
+        if (repository is not null && IsErrorStatus) { SelectedInvoice = null; return; }
+        ClearFilters();
+        var invoice = sharedPurchaseInvoices.FirstOrDefault(i => i.Id == invoiceId);
+        if (invoice is null)
+        {
+            SelectedInvoice = null;
+            SetStatus("لم تعد فاتورة الشراء موجودة بعد تحديث السجل.", true);
+            return;
+        }
+        SearchText = invoice.InvoiceNumber;
+        OpenDetails(invoice);
+    }
+
     // Shared invoice actions used by the supplier 360° screen. Keeping one implementation
     // guarantees identical stock, payment, return and audit-log behavior in both screens.
     internal void OpenDetailsFromSupplier(PurchaseInvoiceDesignItem invoice) => OpenDetails(invoice);

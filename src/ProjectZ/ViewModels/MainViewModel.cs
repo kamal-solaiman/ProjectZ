@@ -37,6 +37,7 @@ public sealed class MainViewModel : ObservableObject
 
     public IReadOnlyList<NavigationMenuCategoryViewModel> Categories { get; }
     public SalesReportsViewModel SalesReports { get; }
+    public PurchaseReportsViewModel PurchaseReports { get; }
     public PosViewModel Pos { get; }
     public AddProductViewModel AddProduct { get; }
     public InventoryViewModel Inventory { get; }
@@ -70,6 +71,7 @@ public sealed class MainViewModel : ObservableObject
     public string HeaderDate => egyptClockDate;
     /// <summary>Current time in Egypt, refreshed every second in the header bar.</summary>
     public string HeaderTime => egyptClockTime;
+    public bool IsPurchaseReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[1]);
     public bool IsSalesReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[0]);
     public bool IsPosSelected => ReferenceEquals(selectedItem, salesCategory.Items[0]);
     public bool IsAddProductSelected => ReferenceEquals(selectedItem, salesCategory.Items[1]);
@@ -98,7 +100,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsInstapayRecordsSelected => ReferenceEquals(selectedItem, financeCategory.Items[4]);
     public bool IsBackupSelected => ReferenceEquals(selectedItem, settingsCategory.Items[2]);
     public bool IsImplementedScreenSelected =>
-        IsSalesReportsSelected || IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
+        IsSalesReportsSelected || IsPurchaseReportsSelected || IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
@@ -196,7 +198,8 @@ public sealed class MainViewModel : ObservableObject
         AppearanceViewModel? appearance = null,
         ExpenseCategoryRepository? expenseCategoryRepository = null,
         ExpenseRepository? expenseRepository = null,
-        ISalesReportSource? salesReportSource = null)
+        ISalesReportSource? salesReportSource = null,
+        IPurchaseReportSource? purchaseReportSource = null)
     {
         this.user = user;
         StartEgyptClock();
@@ -414,6 +417,15 @@ public sealed class MainViewModel : ObservableObject
                 MaintenanceSpareParts.SelectPartFromExternal(part.Id);
                 SelectItem(maintenanceCategory.Items[3]);
             });
+        PurchaseReports = new PurchaseReportsViewModel(purchaseReportSource, invoiceId =>
+        {
+            SelectItem(purchasesCategory.Items[1]);
+            PurchaseInvoices.OpenFromReport(invoiceId);
+        }, supplierId =>
+        {
+            SelectItem(customersCategory.Items[1]);
+            Suppliers.SelectSupplierFromExternal(supplierId, fromReport: true);
+        });
         Customers = new CustomersViewModel(
             user.DisplayName,
             sharedCustomers,
@@ -599,6 +611,7 @@ public sealed class MainViewModel : ObservableObject
     private void OnStoreIdentityDisconnected()
     {
         SalesReports.Leave();
+        PurchaseReports.Leave();
         StoreIdentity.Disconnect(OnStoreIdentityChanged);
         // The window is going away; detach the close handler too so the VM is not retained.
         StoreIdentity.Current.Disconnected -= OnStoreIdentityDisconnected;
@@ -783,11 +796,14 @@ public sealed class MainViewModel : ObservableObject
         }
 
         if (IsSalesReportsSelected) SalesReports.Leave();
+        if (IsPurchaseReportsSelected) PurchaseReports.Leave();
         selectedItem = item;
         // Any sale, purchase, maintenance collection or expense changes dbo.FinancialAccounts, so
         // «حساباتي» re-reads the balances (and therefore the cash card) every time it is opened.
         if (IsSalesReportsSelected)
             _ = SalesReports.RefreshAsync();
+        else if (IsPurchaseReportsSelected)
+            _ = PurchaseReports.RefreshAsync();
         else if (ReferenceEquals(item, financeCategory.Items[0]))
             MyAccounts.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, financeCategory.Items[1]))
@@ -853,6 +869,7 @@ public sealed class MainViewModel : ObservableObject
             Backup.RefreshFromDatabase();
 
         Changed(nameof(IsSalesReportsSelected));
+        Changed(nameof(IsPurchaseReportsSelected));
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
         Changed(nameof(IsInventorySelected));

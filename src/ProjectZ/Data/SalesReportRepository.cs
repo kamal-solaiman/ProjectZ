@@ -7,7 +7,7 @@ namespace ProjectZ.Data;
 
 public sealed class SalesReportRepository(ConnectionSettingsProvider settings) : ISalesReportSource
 {
-    public async Task<SalesReportData> LoadAsync(SalesReportPeriod period, CancellationToken token)
+    public async Task<SalesReportData> LoadAsync(ReportPeriod period, CancellationToken token)
     {
         try
         {

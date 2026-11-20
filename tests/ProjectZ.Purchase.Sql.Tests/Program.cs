@@ -482,6 +482,9 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     RunScript(admin, reportInstaller);
     SaleSettlementTests.Run(admin, settings, userId, categoryId, firstVodafoneId, cashRowId);
     MaintenanceSettlementTests.Run(admin, settings, userId, cashRowId);
+    var purchaseReportInstaller = Path.Combine(sqlDirectory, "27_EnablePurchaseReports.sql");
+    RunScript(admin, purchaseReportInstaller);
+    RunScript(admin, purchaseReportInstaller);
     PurchaseSettlementTests.Run(admin, settings, userId, ordinaryProductId, serialProductId);
     var purchaseFootprint = PurchaseSettlementTests.Footprint(admin);
     foreach (var script in new[] { "07_CreateReportingViews.sql", "12_EnablePurchasing.sql", "25_EnablePurchaseSettlement.sql" })

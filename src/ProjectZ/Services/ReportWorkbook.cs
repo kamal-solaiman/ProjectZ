@@ -5,13 +5,13 @@ using ProjectZ.Models;
 
 namespace ProjectZ.Services;
 
-public static class SalesReportWorkbook
+public static class ReportWorkbook
 {
-    public static void Save(string path,string store,SalesReportPage report)
+    public static void Save(string path,string store,ReportPage report)
     {
         using var book=new XLWorkbook();
         var summary=book.AddWorksheet("الملخص"); summary.RightToLeft=true;
-        summary.Cell(1,1).Value=store; summary.Cell(2,1).Value=report.Title; summary.Cell(3,1).Value=report.Context;
+        summary.Cell(1,1).Value=store; summary.Cell(1,2).Value=report.Section; summary.Cell(2,1).Value=report.Title; summary.Cell(3,1).Value=report.Context;
         summary.Cell(4,1).Value=report.Warning; summary.Column(1).Width=42; summary.Column(2).Width=20; summary.Column(3).Width=15;
         summary.Cell(6,1).Value="المؤشر"; summary.Cell(6,2).Value="القيمة"; summary.Cell(6,3).Value="الوحدة"; Header(summary.Range(6,1,6,3));
         int r=7;

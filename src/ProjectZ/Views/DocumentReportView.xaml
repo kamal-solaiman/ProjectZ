@@ -1,4 +1,4 @@
-<UserControl x:Class="ProjectZ.Views.SalesReportsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Language="ar-EG" FlowDirection="RightToLeft">
+<UserControl x:Class="ProjectZ.Views.DocumentReportView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Language="ar-EG" FlowDirection="RightToLeft">
     <UserControl.Resources>
         <Style x:Key="Panel" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource Theme.Brush.Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource Theme.Brush.Border}"/>
@@ -15,7 +15,7 @@
                 <Button Content="معاينة A4" AutomationProperties.Name="معاينة وطباعة الجدول المحدد" Style="{StaticResource PosSecondaryButtonStyle}" Click="Preview_Click" IsEnabled="{Binding CanPrint}"/>
                 <Button Content="تصدير Excel" Margin="5,0" Style="{StaticResource PosOutlineTealButtonStyle}" Click="Export_Click" IsEnabled="{Binding CanExport}"/>
             </StackPanel>
-            <StackPanel><TextBlock Text="مركز التقارير  /  المبيعات" Style="{StaticResource Caption}" Foreground="{DynamicResource Theme.Brush.AccentInk}"/><TextBlock Text="تقارير المبيعات" FontWeight="Bold" FontSize="23" Foreground="{DynamicResource Theme.Brush.Heading}"/></StackPanel>
+            <StackPanel><TextBlock Text="مركز التقارير" Style="{StaticResource Caption}" Foreground="{DynamicResource Theme.Brush.AccentInk}"/><TextBlock Text="{Binding SectionTitle}" FontWeight="Bold" FontSize="23" Foreground="{DynamicResource Theme.Brush.Heading}"/></StackPanel>
         </DockPanel>
         <Border Grid.Row="1" Style="{StaticResource Panel}"><StackPanel>
             <WrapPanel><RadioButton Content="فواتير الفترة" Margin="0,0,0,4" FontWeight="Bold" IsChecked="{Binding IsCohort, Mode=TwoWay}"/>
@@ -31,20 +31,23 @@
                 <Button Content="هذا الشهر" VerticalAlignment="Bottom" Tag="0" Margin="3,0,0,3" Click="Preset_Click" Style="{StaticResource PosSecondaryButtonStyle}"/>
             </WrapPanel>
             <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="1.3*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <StackPanel><TextBlock Text="رقم الفاتورة أو اسم العميل" Style="{StaticResource Caption}"/><TextBox x:Name="DocumentSearch" MaxLength="120" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
+                <StackPanel><TextBlock Text="{Binding SearchLabel}" Style="{StaticResource Caption}"/><TextBox x:Name="DocumentSearch" MaxLength="120" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
                 <StackPanel Grid.Column="1" Margin="6,0"><TextBlock Text="{Binding DetailLabel}" Style="{StaticResource Caption}"/><TextBox x:Name="DetailSearch" MaxLength="200" Text="{Binding Detail, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
-                <StackPanel Grid.Column="2"><TextBlock Text="كاشير إصدار الفاتورة" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Cashiers}" SelectedItem="{Binding Cashier}" DisplayMemberPath="Label"/></StackPanel>
+                <StackPanel Grid.Column="2"><TextBlock Text="{Binding IssuerLabel}" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Issuers}" SelectedItem="{Binding Issuer}" DisplayMemberPath="Label"/></StackPanel>
                 <Button Grid.Column="3" Margin="6,0,0,0" VerticalAlignment="Bottom" Content="مسح الفلاتر" Command="{Binding ClearCommand}" Style="{StaticResource PosSecondaryButtonStyle}"/>
             </Grid>
-            <Expander Header="فلاتر الحالة والحساب" Foreground="{DynamicResource Theme.Brush.Text}" Margin="0,4,0,0"><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <Expander Header="فلاتر إضافية" Foreground="{DynamicResource Theme.Brush.Text}" Margin="0,4,0,0"><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel><TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding KindOptions}" SelectedItem="{Binding SelectedKind}" DisplayMemberPath="Label"/></StackPanel>
                 <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="{Binding AccountLabel}" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}" DisplayMemberPath="Label"/></StackPanel>
+                <StackPanel Grid.Column="2" Width="170" Margin="6,0,0,0" Visibility="{Binding HasSupplierTools, Converter={StaticResource BoolToVis}}"><TextBlock Text="المورد" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding Supplier}" DisplayMemberPath="Label"/></StackPanel>
             </Grid></Expander>
         </StackPanel></Border>
         <ItemsControl Grid.Row="2" Margin="0,5" ItemsSource="{Binding Page.Metrics}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
             <Border Style="{StaticResource Panel}" Padding="8,6" Margin="2,0"><StackPanel><TextBlock Text="{Binding Label}" ToolTip="{Binding Label}" TextTrimming="CharacterEllipsis" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Display}" ToolTip="{Binding Display}" TextTrimming="CharacterEllipsis" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource Theme.Brush.AccentInk}"/></StackPanel></Border>
         </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
         <DockPanel Grid.Row="3" Margin="0,2,0,6"><Button DockPanel.Dock="Left" Content="فتح تفاصيل الصف ←" Style="{StaticResource PosOutlineTealButtonStyle}" Command="{Binding DrillCommand}"/>
+            <Button DockPanel.Dock="Left" Content="ملف المورد" Command="{Binding OpenSupplierCommand}" Visibility="{Binding HasSupplierTools, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0"/>
+            <Button DockPanel.Dock="Left" Content="فاتورة مصدر الإشعار" Command="{Binding OpenRelatedCommand}" Visibility="{Binding HasRelated, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0"/>
             <Button DockPanel.Dock="Left" Content="الرجوع للنتائج" ToolTip="إنهاء عرض المجموعة دون مسح الفلاتر" Margin="5,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding HasDrill, Converter={StaticResource BoolToVis}}" Command="{Binding BackToResultsCommand}"/>
             <ComboBox DockPanel.Dock="Right" Width="172" ItemsSource="{Binding Page.Tables}" SelectedItem="{Binding SelectedTable}" DisplayMemberPath="Title" AutomationProperties.Name="قسم التقرير"/>
             <TextBlock Text="{Binding TableCaption}" TextTrimming="CharacterEllipsis" ToolTip="{Binding TableCaption}" Margin="10,0" VerticalAlignment="Center" Style="{StaticResource Caption}"/></DockPanel>

@@ -10,7 +10,7 @@ using ProjectZ.Models;
 namespace ProjectZ.Views;
 
 /// <summary>A4 landscape with repeated headers. Wide tables continue in column bands; no off-screen grid screenshot.</summary>
-public static class SalesReportPaper
+public static class ReportPaper
 {
     public const double Width=297*96/25.4, Height=210*96/25.4;
     private const double Pad=42, ContentWidth=Width-2*Pad;
@@ -28,7 +28,7 @@ public static class SalesReportPaper
         }
         return g;
     }
-    public static FixedDocument Build(string store, SalesReportPage report, SalesReportTable table)
+    public static FixedDocument Build(string store, ReportPage report, ReportTable table)
     {
         var document=new FixedDocument(); document.DocumentPaginator.PageSize=new Size(Width,Height);
         var bands=Enumerable.Range(1,table.Columns.Length-1).Chunk(5).Select(c=>new[]{0}.Concat(c).ToArray()).ToArray();
@@ -40,7 +40,7 @@ public static class SalesReportPaper
                 var page=new FixedPage { Width=Width, Height=Height, Background=Brushes.White, Language=XmlLanguage.GetLanguage("ar-EG") };
                 body=new StackPanel { Width=ContentWidth, FlowDirection=FlowDirection.RightToLeft };
                 FixedPage.SetLeft(body,Pad);FixedPage.SetTop(body,Pad);page.Children.Add(body);
-                body.Children.Add(Text($"{store}  /  تقارير المبيعات",13,true));body.Children.Add(Text($"{report.Title}  •  {table.Title}",20,true));
+                body.Children.Add(Text($"{store}  /  {report.Section}",13,true));body.Children.Add(Text($"{report.Title}  •  {table.Title}",20,true));
                 body.Children.Add(Text(report.Context,11));
                 body.Children.Add(Text(string.Join("    |    ",report.Metrics.Select(m=>$"{m.Label}: {m.Display}")),11));
                 if(report.Warning.Length>0)body.Children.Add(Text(report.Warning,11));
