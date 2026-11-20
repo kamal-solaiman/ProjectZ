@@ -33,15 +33,23 @@ public sealed class FinanceReportsViewModel : ReportWorkspaceViewModel<FinanceRe
         FinanceReportMode.IssuedTransfers=>"عمليات بتاريخ الإصدار المحفوظ وحالتها الآن؛ ليست عمولات حركة الفترة. التصحيح له مرجع مستقل.",
         FinanceReportMode.Limits=>"الحدود المضبوطة واستخدام اليوم والشهر الآن، واستخدام الفترة المختارة في جداول مستقلة بتوقيت مصر.",
         _=>"كل صف أثر فعلي على حساب واحد. افتح المجموعة لتفصيلها أو القيد للانتقال إلى مستنده. الأرقام الشخصية محجوبة."};
-    public override string TableCaption=>SelectedTable is not {} t?"":$"{t.Rows.Count:N0} صف • "+(t.Grouped?"افتح المجموعة لعرض صفوفها فقط":SelectedRow?.FinancialSource!=null?"فتح السجل الأصلي":"افتح الحساب إن كان متاحًا");
+    public override string TableCaption=>SelectedTable is not {} t?"":$"{t.Rows.Count:N0} صف • "+(t.Grouped?"افتح المجموعة لعرض صفوفها فقط":SelectedRow?.StatementAccountId!=null?"افتح الصف لعرض قيود الحساب داخل الفترة":SelectedRow?.FinancialSource!=null?"فتح السجل الأصلي":"افتح الحساب إن كان متاحًا");
     public bool CanOpenAccount=>SelectedRow?.FinancialAccount!=null;
     public ActionCommand OpenAccountCommand {get;}
     public IReadOnlyList<ReportChoice> Directions {get;}=[All,new(1,"وارد"),new(0,"منصرف")];
     public ReportChoice Direction {get=>direction;set{if(value==null || direction==value)return;direction=value;Changed();ResetDrill();}}
     protected override void ClearExtraFilters(){direction=All;Changed(nameof(Direction));}
     protected override void NotifyRowActions(){Changed(nameof(CanOpenAccount));OpenAccountCommand.NotifyCanExecuteChanged();}
-    protected override bool CanOpenDetail(ReportRow r)=>r.FinancialSource!=null || r.FinancialAccount!=null;
-    protected override void OpenDetail(ReportRow r){if((r.FinancialSource??r.FinancialAccount) is {} link)navigate(link);}
+    protected override bool CanOpenDetail(ReportRow r)=>r.FinancialSource!=null || r.FinancialAccount!=null || r.StatementAccountId.HasValue;
+    protected override void OpenDetail(ReportRow r)
+    {
+        if(r.StatementAccountId is int id)
+        {
+            Mode=Modes.Single(m=>m.Id==(int)FinanceReportMode.Ledger);
+            SelectedAccount=Accounts.Single(a=>a.Id==id); // Stopped accounts still have a historical statement.
+        }
+        else if((r.FinancialSource??r.FinancialAccount) is {} link)navigate(link);
+    }
     protected override IReadOnlyList<ReportChoice> EventChoices {get;}=Enum.GetValues<FinanceSource>().Select(s=>new ReportChoice((int)s,FinanceReportProjection.SourceText(s))).Prepend(All).ToArray();
     protected override IReadOnlyList<ReportChoice> StatusChoices {get;}=[All,new(0,"الخزنة"),new(1,"فودافون كاش"),new(2,"إنستاباي")];
     public override IReadOnlyList<ReportChoice> KindOptions=>Basis switch {FinanceReportMode.Ledger=>EventChoices,FinanceReportMode.Limits=>StatusChoices.Where(c=>c.Id!=0).ToArray(),

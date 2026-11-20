@@ -45,6 +45,7 @@ public sealed class ReportRow(int[] invoiceIds, object?[] cells)
     public object?[] Cells { get; } = cells;
     public int? CustomerId { get; init; }
     public int? PartId { get; init; }
+    public int? StatementAccountId { get; init; }
     public FinanceLink? FinancialSource { get; init; }
     public FinanceLink? FinancialAccount { get; init; }
     public int? SupplierId { get; init; }

@@ -12,7 +12,7 @@ public static class FinanceReportProjection
     private static DateOnly Day(DateTime t)=>DateOnly.FromDateTime(Local(t));
     private static bool Match(string query,params string[] terms)=>query.Length==0 || terms.Any(t=>t.Contains(query,StringComparison.OrdinalIgnoreCase));
     private static ReportTable Table(string title,string columns,IEnumerable<ReportRow> rows,bool group=false)=>new(title,columns.Split('|'),rows.ToArray(),group);
-    private static ReportRow Detail(object?[] values,FinanceLink? account,FinanceLink? source=null)=>new([],values){CanOpenInvoice=false,FinancialAccount=account,FinancialSource=source};
+    private static ReportRow Detail(object?[] values,FinanceLink? account,FinanceLink? source=null,int? statementAccount=null)=>new([],values){StatementAccountId=statementAccount,CanOpenInvoice=false,FinancialAccount=account,FinancialSource=source};
     private static ReportRow Group(IEnumerable<int> keys,object?[] values,FinanceLink? account=null)=>new(keys.ToArray(),values){CanOpenInvoice=false,FinancialAccount=account};
     // If one surviving item cannot be valued, zero would be a materially wrong total.
     private static decimal? SumKnown(IEnumerable<decimal?> values)
@@ -57,16 +57,16 @@ public static class FinanceReportProjection
     private static ReportPage Statement(FinanceReportData d,ReportFilter f,string context,string currency)
     {
         var byAccount=d.Legs.ToLookup(l=>l.AccountId);
-        var rows=d.Accounts.Values.Where(a=>AccountMatches(a,f) && (a.CreatedUtc<d.Period.EndUtc || byAccount.Contains(a.Id) || a.PreviousClose.HasValue))
+        var rows=d.Accounts.Values.Where(a=>AccountMatches(a,f) && (f.InvoiceIds is null || f.InvoiceIds.Contains(a.Id)) && (a.CreatedUtc<d.Period.EndUtc || byAccount.Contains(a.Id) || a.PreviousClose.HasValue))
             .OrderBy(a=>a.Provider).ThenBy(a=>a.Id).Select(a=>ReadBalance(d,a,byAccount[a.Id])).ToArray();
         const string cols="الحساب|المعرّف المحجوب|الحالة الآن|رصيد أول الفترة|رصيد إنشاء أثناء الفترة|وارد القيود|منصرف القيود|صافي الحركة|رصيد آخر الفترة|الرصيد الآن|أسطر الدفتر|أساس الافتتاح|فواصل غير مطابقة|آخر قيد مقابل الرصيد الآن";
         ReportRow Row(Balance b)=>Detail([b.Account.Label,b.Account.MaskedIdentifier,b.Account.Active?"نشط":"موقوف",b.Open,b.Created,b.In,b.Out,b.In-b.Out,b.Close,b.Account.Current,b.Legs,b.Basis,b.Breaks,
-            b.Account.LatestPostedBalance is null?"بلا قيود":b.Account.LatestPostedBalance==b.Account.Current?"مطابق":"فرق يحتاج مراجعة"],b.Account.Link);
+            b.Account.LatestPostedBalance is null?"بلا قيود":b.Account.LatestPostedBalance==b.Account.Current?"مطابق":"فرق يحتاج مراجعة"],b.Account.Link,statementAccount:b.Account.Id);
         return new("كشف الأرصدة • أول وآخر الفترة",context,
             [new("أول الفترة",SumKnown(rows.Select(b=>b.Open)),currency),new("أرصدة إنشاء",SumKnown(rows.Select(b=>b.Created)),currency),new("وارد القيود",rows.Sum(b=>b.In),currency),
              new("منصرف القيود",rows.Sum(b=>b.Out),currency),new("آخر الفترة",SumKnown(rows.Select(b=>b.Close)),currency),new("تحتاج مراجعة",rows.Count(b=>b.Review),"حساب")],
             [Table("كشف الأرصدة",cols,rows.Select(Row)),Table("مطابقة الأرصدة",cols,rows.Where(b=>b.Review).Select(Row)),
-             Table("حسب القناة","القناة|حسابات|أول الفترة|أرصدة إنشاء|وارد|منصرف|صافي الحركة|آخر الفترة",rows.GroupBy(b=>b.Account.Provider).Select(g=>Detail([g.First().Account.ProviderLabel,g.Count(),SumKnown(g.Select(b=>b.Open)),SumKnown(g.Select(b=>b.Created)),g.Sum(b=>b.In),g.Sum(b=>b.Out),g.Sum(b=>b.In-b.Out),SumKnown(g.Select(b=>b.Close))],null)))],
+             Table("حسب القناة","القناة|حسابات|أول الفترة|أرصدة إنشاء|وارد|منصرف|صافي الحركة|آخر الفترة",rows.GroupBy(b=>b.Account.Provider).Select(g=>Group(g.Select(b=>b.Account.Id),[g.First().Account.ProviderLabel,g.Count(),SumKnown(g.Select(b=>b.Open)),SumKnown(g.Select(b=>b.Created)),g.Sum(b=>b.In),g.Sum(b=>b.Out),g.Sum(b=>b.In-b.Out),SumKnown(g.Select(b=>b.Close))])),true)],
             rows.Any(b=>b.Review)?"توجد أرصدة غير مكتملة أو غير متصلة بالدفتر. لا تُملأ الفجوة بتسوية آلية.":"",Section);
     }
     private static ReportPage Ledger(FinanceReportData d,ReportFilter f,string context,string currency,bool? incoming)

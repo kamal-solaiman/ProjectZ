@@ -71,5 +71,17 @@ internal static class FinanceReportTests
             Check(sets==6,"Six redacted, consistent result sets; account aliases cannot forward their raw number/address");
         }
         Check(WalletCorrectionTests.Footprint(db)==startState,"Reading all modes changes no account, version, payment, ledger or audit row");
+        // A legacy/orphan posting with no header in this period is an actual book movement, not a zero commission.
+        var orphanDay=new ReportPeriod(day.AddDays(2),day.AddDays(2));
+        Execute(db,"""
+            INSERT dbo.FinancialTransactions(FinancialAccountId,OccurredAtUtc,IsIncoming,Category,Amount,BalanceAfter,ActorUserId,SourceEntityType,SourceEntityId)
+              VALUES(@id,@at,1,N'سحب للعميل',12.22,666.66,@user,N'CustomerTransfer',2147483600);
+            """,("@id",ip),("@at",orphanDay.StartUtc),("@user",actor));
+        var orphan=Read(orphanDay);var fees=Page(orphan,FeeEvents);
+        Check(Metric(Page(orphan,Ledger),"وارد الحسابات")==12.22m && orphan.SourceLink(orphan.Legs.Single())==null && Metric(fees,"صافي عمولة الفترة")==null
+            && fees.Tables.Single(t=>t.Title=="قيود عمولة تحتاج مطابقة").Rows.Count==1,"An orphan transfer leg in an otherwise empty period cannot silently produce zero earnings or an invented destination");
+        var gap=Page(orphan,Statement,new(AccountId:ip));
+        Check(gap.Tables.Single(t=>t.Title=="مطابقة الأرصدة").Rows.Count==1 && Metric(gap,"آخر الفترة")==666.66m,
+            "Discontinuous posted balances and a live mismatch are reported, not rewritten to the expected arithmetic balance");
     }
 }
