@@ -58,8 +58,8 @@ internal static class Program
         main.DataContext = mainVm;
         PumpDispatcher(); // let DataContext inheritance and style-trigger bindings attach
         // New sidebar menus: «التقارير» sits under «العملاء والموردين» and above «المستخدمين», and
-        // «المصروفات» sits under «التقارير» and above «المستخدمين». They are navigation only in
-        // this stage: selecting an item keeps the placeholder workspace instead of an empty panel.
+        // «المصروفات» sits under «التقارير» and above «المستخدمين». Only implemented
+        // items get a live screen; the other report items must retain the placeholder.
         Check(mainVm.Categories.Select(category => category.Title).SequenceEqual(new[]
             {
                 "المبيعات", "المشتريات", "الصيانة", "المالية", "العملاء والموردين",
@@ -82,10 +82,13 @@ internal static class Program
         var salesReportsItem = mainVm.Categories.Single(category => category.Title == "التقارير")
             .Items.Single(item => item.Title == "تقارير المبيعات");
         mainVm.SelectItem(salesReportsItem);
-        Check(!mainVm.IsImplementedScreenSelected
-            && mainVm.SelectedCategoryTitle == "التقارير"
-            && mainVm.SelectedPageTitle == "تقارير المبيعات",
-            "Menus-only items keep the placeholder workspace and never claim an implemented screen");
+        PumpDispatcher();
+        var hostedReport = FindLogicalDescendant<SalesReportsView>(main);
+        Check(mainVm.IsImplementedScreenSelected && mainVm.IsSalesReportsSelected && mainVm.SelectedPageTitle == "تقارير المبيعات"
+            && hostedReport?.DataContext == mainVm.SalesReports && ((Grid)hostedReport.Parent).Visibility == Visibility.Visible,
+            "Sales reports have a real, visible host; offline preview does not invent balances");
+        mainVm.SelectItem(reportsMenu.Items[1]);
+        Check(!mainVm.IsImplementedScreenSelected, "Unimplemented report categories still show the placeholder");
         // «فواتير المصروفات» lists the stored expenses with their split payments. In the design
         // preview it must show the five sample rows, keep them reachable through the filters and
         // hand a details view model to the window.
@@ -451,6 +454,7 @@ internal static class Program
             "The clock date follows Egypt's calendar year, not a placeholder");
         MaintenancePostingTests.Run(Check);
         PurchasePostingTests.Run(Check);
+        SalesReportUiTests.Run(Check, PumpDispatcher);
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

@@ -248,23 +248,22 @@ menu_groups = re.findall(
 actual_menu = [(title, re.findall(r'"([^"]+)"', items)) for title, _icon, items in menu_groups]
 assert actual_menu == expected_menu, f'sidebar labels/order differ: {actual_menu}'
 assert all(icon for _title, icon, _items in menu_groups), 'every category needs a rail icon'
-# «التقارير» and «المصروفات» were added as navigation only: they sit between
-# «العملاء والموردين» and «المستخدمين», and must not gain a screen host or a screen flag
-# until their screens are actually implemented.
+# Report and expense categories keep their original sidebar positions. Hosts belong
+# to individual implemented items, not to a category-wide placeholder.
 menu_titles = [title for title, _items in actual_menu]
 customers_pos = menu_titles.index('العملاء والموردين')
 users_pos = menu_titles.index('المستخدمين')
 assert customers_pos < menu_titles.index('التقارير') < menu_titles.index('المصروفات') < users_pos, \
     'التقارير and المصروفات belong between العملاء والموردين and المستخدمين'
 assert 'IsReportsSelected' not in main_viewmodel, \
-    'the reports category is still navigation-only and must not claim a screen yet'
-assert 'ReportsView' not in main_xaml, 'the reports category must not host a view yet'
+    'a sales report host must not mark every report item implemented'
+assert 'views:SalesReportsView' in main_xaml and 'IsSalesReportsSelected' in main_viewmodel, 'sales reports must have their own host'
 assert 'IsExpenseCategoriesSelected' in main_viewmodel and 'views:ExpenseCategoriesView' in main_xaml, \
     'the expense categories item is implemented and must host its real screen'
 assert 'IsExpenseInvoicesSelected' in main_viewmodel and 'views:ExpenseInvoicesView' in main_xaml, \
     'the expense invoices item is implemented and must host its real register screen'
 assert 'docs/REPORTS_EXPENSES.md' in (root / 'README.md').read_text(encoding='utf-8'), \
-    'README must document the menus-only categories'
+    'README must document which report and expense items are implemented'
 assert 'ToggleSidebarCommand' in main_viewmodel and 'IsSidebarCollapsed' in main_viewmodel
 assert 'OpenCategoryFromRail' in main_viewmodel
 toggle_button = next(
