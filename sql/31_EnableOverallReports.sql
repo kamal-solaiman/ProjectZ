@@ -16,16 +16,22 @@ BEGIN TRY
     -- DeleteDamaged legitimately removes standalone stock history. Preserve just its dated valuations
     -- transactionally for all client versions, with no FK to the deleted unit. No second stock issue.
     IF OBJECT_ID(N'dbo.OverallRemovedDamage',N'U') IS NULL EXEC(N'CREATE TABLE dbo.OverallRemovedDamage(
-        MovementId int NOT NULL PRIMARY KEY, UnitId int NULL, MovementType nvarchar(40) NOT NULL, OccurredAtUtc datetime2(7) NOT NULL,
+        MovementId int NOT NULL PRIMARY KEY, UnitId int NULL, SalesInvoiceLineId int NULL, MovementType nvarchar(40) NOT NULL, OccurredAtUtc datetime2(7) NOT NULL,
         QuantityDelta int NOT NULL, UnitCost decimal(19,2) NOT NULL); CREATE INDEX IX_OverallRemovedDamage_Unit ON dbo.OverallRemovedDamage(UnitId,OccurredAtUtc);');
+    IF COL_LENGTH(N'dbo.OverallRemovedDamage',N'SalesInvoiceLineId') IS NULL EXEC(N'ALTER TABLE dbo.OverallRemovedDamage ADD SalesInvoiceLineId int NULL;');
+    EXEC sys.sp_executesql N'CREATE OR ALTER VIEW dbo.vwOverallDamageHistory AS
+        SELECT Id,InventoryUnitId,SalesInvoiceLineId,MovementType,OccurredAtUtc,QuantityDelta,UnitCost FROM dbo.StockMovements WHERE MovementType IN(N''Damage'',N''DamageRestore'')
+        UNION ALL SELECT MovementId,UnitId,SalesInvoiceLineId,MovementType,OccurredAtUtc,QuantityDelta,UnitCost FROM dbo.OverallRemovedDamage;';
     EXEC sys.sp_executesql N'CREATE OR ALTER TRIGGER dbo.PreserveRemovedDamage ON dbo.StockMovements AFTER DELETE AS
     BEGIN
         SET NOCOUNT ON;
-        INSERT dbo.OverallRemovedDamage(MovementId,UnitId,MovementType,OccurredAtUtc,QuantityDelta,UnitCost)
-        SELECT Id,InventoryUnitId,MovementType,OccurredAtUtc,QuantityDelta,UnitCost FROM deleted WHERE MovementType IN(N''Damage'',N''DamageRestore'');
+        INSERT dbo.OverallRemovedDamage(MovementId,UnitId,SalesInvoiceLineId,MovementType,OccurredAtUtc,QuantityDelta,UnitCost)
+        SELECT Id,InventoryUnitId,SalesInvoiceLineId,MovementType,OccurredAtUtc,QuantityDelta,UnitCost FROM deleted WHERE MovementType IN(N''Damage'',N''DamageRestore'');
     END;';
     IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.StockMovements') AND name=N'IX_StockMovements_OverallDamage')
         EXEC(N'CREATE INDEX IX_StockMovements_OverallDamage ON dbo.StockMovements(MovementType,OccurredAtUtc) INCLUDE(InventoryUnitId,QuantityDelta,UnitCost);');
+    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.StockMovements') AND name=N'IX_StockMovements_UnitHistory')
+        EXEC(N'CREATE INDEX IX_StockMovements_UnitHistory ON dbo.StockMovements(InventoryUnitId,OccurredAtUtc,Id) INCLUDE(MovementType,UnitCost,QuantityDelta);');
     EXEC sys.sp_executesql N'CREATE OR ALTER PROCEDURE dbo.ReadOverallReport @FromDate date, @ThroughDate date
 AS
 BEGIN
@@ -91,9 +97,10 @@ BEGIN
         -- SERVICE: anchors are a delivery locked in the current header, a 24 delivery event, or
         -- the PRE-reopen closing snapshot. Never back-project today''s part list onto an earlier close.
         SELECT TRY_CONVERT(int,a.EntityId) Id,TRY_CONVERT(datetime2(7),JSON_VALUE(a.OldValuesJson,''$.DeliveredAtUtc'')) ClosedAt,
-            JSON_QUERY(a.OldValuesJson,''$.Parts'') Parts INTO #OldClose FROM dbo.AuditLog a
+            a.Id AS AuditId INTO #OldClose FROM dbo.AuditLog a
         WHERE a.Module=N''Maintenance'' AND a.EntityType=N''MaintenanceOrder'' AND a.ActionName=N''Reopen'' AND TRY_CONVERT(int,JSON_VALUE(a.OldValuesJson,''$.OrderStatus''))=5;
         SELECT p.MaintenanceOrderId Id INTO #Tickets FROM dbo.MaintenancePayments p WHERE p.PaidAtUtc>=@Start AND p.PaidAtUtc<@End
+        UNION SELECT SourceEntityId FROM dbo.FinancialTransactions WHERE SourceEntityType=N''MaintenanceOrder'' AND OccurredAtUtc>=@Start AND OccurredAtUtc<@End
         UNION SELECT Id FROM dbo.MaintenanceOrders WHERE OrderStatus=5 AND DeliveredAtUtc>=@Start AND DeliveredAtUtc<@End
         UNION SELECT Id FROM #OldClose WHERE ClosedAt>=@Start AND ClosedAt<@End AND Id IS NOT NULL
         UNION SELECT MaintenanceOrderId FROM dbo.MaintenanceActivities WHERE ActionTitle=N''تسليم الجهاز وإغلاق أمر الصيانة'' AND OccurredAtUtc>=@Start AND OccurredAtUtc<@End
@@ -105,16 +112,25 @@ BEGIN
         ), events AS (
             SELECT t.Id,COALESCE(TRY_CONVERT(datetime2(7),JSON_VALUE(a.NewValuesJson,''$.DeliveredAtUtc'')),a.OccurredAtUtc) AtUtc FROM #Tickets t JOIN dbo.AuditLog a
                 ON a.Module=N''Maintenance'' AND a.EntityType=N''MaintenanceOrder'' AND a.EntityId=CONVERT(nvarchar(100),t.Id) AND a.ActionName=N''Deliver''
+        ), dated AS (SELECT Id,AtUtc FROM anchors UNION SELECT Id,AtUtc FROM events), reopens AS (
+            SELECT t.Id,a.OccurredAtUtc AtUtc FROM #Tickets t JOIN dbo.MaintenanceActivities a ON a.MaintenanceOrderId=t.Id
+                WHERE a.ActionTitle IN(N''إعادة فتح أمر الصيانة'',N''إعادة فتح بإذن المشرف'')
+            UNION SELECT t.Id,a.OccurredAtUtc FROM #Tickets t JOIN dbo.AuditLog a ON a.Module=N''Maintenance'' AND a.EntityType=N''MaintenanceOrder''
+                AND a.EntityId=CONVERT(nvarchar(100),t.Id) AND a.ActionName=N''Reopen''
         ), markers AS (
-            SELECT Id,AtUtc FROM anchors UNION SELECT Id,AtUtc FROM events
+            SELECT Id,AtUtc FROM dated
+            -- The pre-24 UI stamped the delivery activity and closed header with two different clocks.
+            -- Use the activity only for an episode WITHOUT an authoritative dated close; no fuzzy time matching.
             UNION SELECT t.Id,a.OccurredAtUtc FROM #Tickets t JOIN dbo.MaintenanceActivities a ON a.MaintenanceOrderId=t.Id AND a.ActionTitle=N''تسليم الجهاز وإغلاق أمر الصيانة''
-                WHERE NOT EXISTS(SELECT 1 FROM anchors z WHERE z.Id=t.Id AND z.AtUtc=a.OccurredAtUtc) AND NOT EXISTS(SELECT 1 FROM events z WHERE z.Id=t.Id AND z.AtUtc=a.OccurredAtUtc)
+                WHERE NOT EXISTS(SELECT 1 FROM dated z WHERE z.Id=t.Id AND NOT EXISTS(SELECT 1 FROM reopens rr WHERE rr.Id=t.Id
+                    AND ((rr.AtUtc>z.AtUtc AND rr.AtUtc<=a.OccurredAtUtc) OR (rr.AtUtc>a.OccurredAtUtc AND rr.AtUtc<=z.AtUtc))))
         ) SELECT m.Id,m.AtUtc,CONVERT(decimal(28,2),CASE WHEN saved.Copies=1 AND LEFT(LTRIM(saved.Parts),1)=N''['' THEN historical.Cost
             WHEN saved.Copies=0 AND o.OrderStatus=5 AND o.DeliveredAtUtc=m.AtUtc THEN currentParts.Cost END) Cost
         INTO #Closes FROM markers m JOIN dbo.MaintenanceOrders o ON o.Id=m.Id
-        OUTER APPLY(SELECT COUNT_BIG(*) Copies,MAX(c.Parts) Parts FROM #OldClose c WHERE c.Id=m.Id AND c.ClosedAt=m.AtUtc) saved
+        OUTER APPLY(SELECT COUNT_BIG(*) Copies,MAX(JSON_QUERY(a.OldValuesJson,''$.Parts'')) Parts FROM #OldClose c JOIN dbo.AuditLog a ON a.Id=c.AuditId WHERE c.Id=m.Id AND c.ClosedAt=m.AtUtc) saved
         OUTER APPLY(SELECT CASE WHEN COUNT_BIG(*)=COUNT_BIG(CASE WHEN Quantity>0 AND UnitCost>=0 THEN 1 END) THEN COALESCE(SUM(Quantity*UnitCost),0) END Cost
-            FROM OPENJSON(saved.Parts) WITH(Quantity int ''$.Quantity'',UnitCost decimal(19,2) ''$.UnitCost'')) historical
+            FROM OPENJSON(saved.Parts) WITH(Q nvarchar(64) ''$.Quantity'',C nvarchar(64) ''$.UnitCost'') j
+            CROSS APPLY(VALUES(TRY_CONVERT(int,NULLIF(j.Q,N'''')),TRY_CONVERT(decimal(19,2),NULLIF(j.C,N'''')))) n(Quantity,UnitCost)) historical
         OUTER APPLY(SELECT COALESCE(SUM(l.Quantity*l.UnitCost),0) Cost FROM dbo.MaintenanceOrderParts l WHERE l.MaintenanceOrderId=o.Id) currentParts;
         CREATE UNIQUE CLUSTERED INDEX CloseTime ON #Closes(Id,AtUtc);
         ;WITH changes AS (SELECT *,LAG(Cost,1,CONVERT(decimal(28,2),0)) OVER(PARTITION BY Id ORDER BY AtUtc) PrevCost FROM #Closes)
@@ -124,11 +140,18 @@ BEGIN
         INSERT #Fact SELECT PaidAtUtc,CASE WHEN PaymentKind=2 THEN 24 WHEN PaymentStage=2 THEN 23 ELSE 22 END,Amount FROM dbo.MaintenancePayments WHERE PaidAtUtc>=@Start AND PaidAtUtc<@End;
         -- Advance receipts before first delivery move into earnings ONCE; all subsequent money is
         -- dated at its own event. Reopening earns nothing. No selling price or estimate is revenue.
-        ;WITH firstClose AS (SELECT Id,MIN(AtUtc) FirstAt FROM #Closes GROUP BY Id)
-        INSERT #Fact SELECT x.AtUtc,25,CASE WHEN p.PaymentKind=2 THEN -p.Amount ELSE p.Amount END
-        FROM firstClose c JOIN dbo.MaintenancePayments p ON p.MaintenanceOrderId=c.Id
-        CROSS APPLY(VALUES(CASE WHEN p.PaidAtUtc<c.FirstAt THEN c.FirstAt ELSE p.PaidAtUtc END)) x(AtUtc)
-        WHERE p.PaidAtUtc<@End AND x.AtUtc>=@Start AND x.AtUtc<@End;
+        ;WITH firstClose AS (SELECT Id,MIN(AtUtc) FirstAt FROM #Closes GROUP BY Id), money AS (
+            SELECT c.Id,c.FirstAt,p.FinancialAccountId,p.PaidAtUtc AtUtc,CASE WHEN p.PaymentKind=1 THEN 1 ELSE -1 END Sign,p.Amount,0 IsBook
+            FROM firstClose c JOIN dbo.MaintenancePayments p ON p.MaintenanceOrderId=c.Id WHERE p.PaidAtUtc<@End AND (p.PaidAtUtc>=@Start OR c.FirstAt>=@Start)
+            UNION ALL SELECT c.Id,c.FirstAt,t.FinancialAccountId,t.OccurredAtUtc,CASE WHEN t.IsIncoming=1 THEN 1 ELSE -1 END,t.Amount,1
+            FROM firstClose c JOIN dbo.FinancialTransactions t ON t.SourceEntityType=N''MaintenanceOrder'' AND t.SourceEntityId=c.Id
+                WHERE t.OccurredAtUtc<@End AND (t.OccurredAtUtc>=@Start OR c.FirstAt>=@Start)
+        ), proof AS (
+            -- Keep receipts and refunds separate, so an unmatched +x/-x pair cannot certify zero.
+            SELECT d.StartUtc,m.Id,m.FinancialAccountId,m.Sign,SUM(CASE WHEN IsBook=0 THEN m.Amount END) Receipts,SUM(CASE WHEN IsBook=1 THEN m.Amount END) Posted
+            FROM money m CROSS APPLY(VALUES(CASE WHEN m.AtUtc<m.FirstAt THEN m.FirstAt ELSE m.AtUtc END)) x(RecognizedAt)
+            JOIN #Days d ON x.RecognizedAt>=d.StartUtc AND x.RecognizedAt<d.UntilUtc GROUP BY d.StartUtc,m.Id,m.FinancialAccountId,m.Sign
+        ) INSERT #Fact SELECT StartUtc,25,CASE WHEN Receipts=Posted THEN Sign*Receipts END FROM proof;
         -- A delivery-stage receipt without any dated close is not proof of profit on an invented day.
         INSERT #Fact SELECT p.PaidAtUtc,25,NULL FROM dbo.MaintenancePayments p WHERE p.PaymentStage=2 AND p.PaidAtUtc>=@Start AND p.PaidAtUtc<@End
             AND NOT EXISTS(SELECT 1 FROM #Closes c WHERE c.Id=p.MaintenanceOrderId);
@@ -174,18 +197,38 @@ BEGIN
         -- DAMAGE: only the stock movement is a write-off. A damaged sales return already reversed
         -- COGS: charge the Damage row once, not the return line as a second loss. Deleted standalone
         -- movements preserved by the narrow archive are read at their ORIGINAL day and unit cost.
-        ;WITH stock AS (
-            SELECT Id,InventoryUnitId,MovementType,OccurredAtUtc,QuantityDelta,UnitCost FROM dbo.StockMovements WHERE MovementType IN(N''Damage'',N''DamageRestore'') AND OccurredAtUtc<@End
-            UNION ALL SELECT MovementId,UnitId,MovementType,OccurredAtUtc,QuantityDelta,UnitCost FROM dbo.OverallRemovedDamage WHERE OccurredAtUtc<@End
-        ) SELECT *,LAG(MovementType) OVER(PARTITION BY InventoryUnitId ORDER BY OccurredAtUtc,Id) PriorKind,
-             LAG(UnitCost) OVER(PARTITION BY InventoryUnitId ORDER BY OccurredAtUtc,Id) PriorCost INTO #Damage FROM stock;
-        CREATE INDEX DmgUnit ON #Damage(InventoryUnitId,OccurredAtUtc,Id);
-        INSERT #Fact SELECT OccurredAtUtc,CASE WHEN MovementType=N''Damage'' THEN 50 ELSE 51 END,
-            CASE WHEN MovementType=N''Damage'' AND QuantityDelta<0 AND (InventoryUnitId IS NULL OR (QuantityDelta=-1 AND ISNULL(PriorKind,N'''')<>N''Damage'')) THEN -CONVERT(bigint,QuantityDelta)*UnitCost
-                 WHEN MovementType=N''DamageRestore'' AND InventoryUnitId IS NOT NULL AND QuantityDelta=1 AND PriorKind=N''Damage'' AND PriorCost=UnitCost THEN UnitCost END
-        FROM #Damage WHERE OccurredAtUtc>=@Start AND OccurredAtUtc<@End;
+        -- A quantity-based damaged sale return has no unit header. Check its line''s saved damage
+        -- quantity as well: a missing legacy write-off must not leave a spurious inventory gain.
+        ;WITH affected AS (
+            SELECT DISTINCT l.SalesInvoiceLineId FROM dbo.ReturnExchanges r JOIN dbo.ReturnExchangeLines l ON l.ReturnExchangeId=r.Id
+            WHERE r.CreatedAtUtc>=@Start AND r.CreatedAtUtc<@End AND l.LineKind=1 AND l.UnitCondition=1
+        ), lost AS (
+            SELECT a.SalesInvoiceLineId FROM affected a OUTER APPLY(SELECT SUM(CONVERT(bigint,l.Quantity)) Qty FROM dbo.ReturnExchangeLines l
+                WHERE l.SalesInvoiceLineId=a.SalesInvoiceLineId AND l.LineKind=1 AND l.UnitCondition=1) doc
+            OUTER APPLY(SELECT -SUM(CONVERT(bigint,m.QuantityDelta)) Qty FROM dbo.vwOverallDamageHistory m
+                WHERE m.SalesInvoiceLineId=a.SalesInvoiceLineId AND m.MovementType=N''Damage'') stock
+            WHERE a.SalesInvoiceLineId IS NULL OR doc.Qty<>ISNULL(stock.Qty,0)
+        ) INSERT #Fact SELECT r.CreatedAtUtc,50,NULL FROM dbo.ReturnExchanges r JOIN dbo.ReturnExchangeLines l ON l.ReturnExchangeId=r.Id
+            WHERE r.CreatedAtUtc>=@Start AND r.CreatedAtUtc<@End AND l.LineKind=1 AND l.UnitCondition=1
+                AND (l.SalesInvoiceLineId IS NULL OR EXISTS(SELECT 1 FROM lost a WHERE a.SalesInvoiceLineId=l.SalesInvoiceLineId));
+        INSERT #Fact SELECT m.OccurredAtUtc,CASE WHEN m.MovementType=N''Damage'' THEN 50 ELSE 51 END,
+            CASE WHEN m.MovementType=N''Damage'' AND m.QuantityDelta<0 AND (m.InventoryUnitId IS NULL OR (m.QuantityDelta=-1 AND ISNULL(prior.MovementType,N'''')<>N''Damage'')) THEN -CONVERT(bigint,m.QuantityDelta)*m.UnitCost
+                 WHEN m.MovementType=N''DamageRestore'' AND m.InventoryUnitId IS NOT NULL AND m.QuantityDelta=1 AND prior.MovementType=N''Damage'' AND prior.QuantityDelta=-1 AND prior.UnitCost=m.UnitCost THEN m.UnitCost END
+        FROM dbo.vwOverallDamageHistory m OUTER APPLY(SELECT TOP(1) p.MovementType,p.UnitCost,p.QuantityDelta FROM dbo.vwOverallDamageHistory p WHERE p.InventoryUnitId=m.InventoryUnitId
+            AND (p.OccurredAtUtc<m.OccurredAtUtc OR (p.OccurredAtUtc=m.OccurredAtUtc AND p.Id<m.Id)) ORDER BY p.OccurredAtUtc DESC,p.Id DESC) prior
+        WHERE m.OccurredAtUtc>=@Start AND m.OccurredAtUtc<@End;
         INSERT #Fact SELECT u.DamagedAtUtc,50,NULL FROM dbo.InventoryUnits u WHERE u.UnitStatus=2 AND u.DamagedAtUtc>=@Start AND u.DamagedAtUtc<@End
-            AND NOT EXISTS(SELECT 1 FROM #Damage m WHERE m.InventoryUnitId=u.Id AND m.MovementType=N''Damage'');
+            AND ISNULL((SELECT TOP(1) m.MovementType FROM dbo.vwOverallDamageHistory m WHERE m.InventoryUnitId=u.Id ORDER BY m.OccurredAtUtc DESC,m.Id DESC),N'''')<>N''Damage'';
+        -- WasDamaged proves condition, not the original date/cost. A proven compensation can survive a missing
+        -- loss valuation. For that gap flag only days that could contain the loss, not a fictitious amount on the return.
+        ;WITH unknownLoss AS (
+            SELECT COALESCE(prev.OccurredAtUtc,u.RegisteredAtUtc) Earliest,r.ReturnedAtUtc Latest
+            FROM dbo.PurchaseReturns r JOIN dbo.PurchaseReturnLines l ON l.PurchaseReturnId=r.Id
+            JOIN dbo.PurchaseReturnUnits ru ON ru.PurchaseReturnLineId=l.Id AND ru.WasDamaged=1 JOIN dbo.InventoryUnits u ON u.Id=ru.InventoryUnitId
+            OUTER APPLY(SELECT TOP(1) m.MovementType,m.OccurredAtUtc FROM dbo.vwOverallDamageHistory m WHERE m.InventoryUnitId=u.Id
+                AND m.OccurredAtUtc<=r.ReturnedAtUtc ORDER BY m.OccurredAtUtc DESC,m.Id DESC) prev
+            WHERE r.ReturnedAtUtc>=@Start AND u.RegisteredAtUtc<@End AND ISNULL(prev.MovementType,N'''')<>N''Damage''
+        ) INSERT #Fact SELECT d.StartUtc,50,NULL FROM #Days d WHERE EXISTS(SELECT 1 FROM unknownLoss u WHERE u.Latest>=d.StartUtc AND u.Earliest<d.UntilUtc);
         -- A pre-archive hard deletion erased the DATE as well as the cost. Do not move the loss to
         -- deletion day. Historical days that could contain the erased movement cannot be certified.
         DECLARE @Unlocated datetime2(7)=(SELECT MAX(a.OccurredAtUtc) FROM dbo.AuditLog a WHERE a.Module=N''Inventory'' AND a.ActionName=N''DeleteDamagedUnit'' AND a.EntityType=N''InventoryUnit''
@@ -195,14 +238,13 @@ BEGIN
         -- the full signed reduction. Mixed: only a separately provable share (including 0).
         -- Later collections/applications of the same credit must never enter this measure again.
         ;WITH lines AS (
-            SELECT r.Id,l.Quantity,l.UnitPurchaseCost,n.Linked,n.Damaged,n.Proven
+            SELECT r.Id,l.Quantity,l.UnitPurchaseCost,n.Linked,n.Damaged
             FROM #Return r JOIN dbo.PurchaseReturnLines l ON l.PurchaseReturnId=r.Id
-            CROSS APPLY(SELECT COUNT_BIG(*) Linked,COUNT_BIG(CASE WHEN u.WasDamaged=1 THEN 1 END) Damaged,
-                  COUNT_BIG(CASE WHEN u.WasDamaged=1 AND lastMove.MovementType=N''Damage'' AND lastMove.QuantityDelta=-1 THEN 1 END) Proven
-                FROM dbo.PurchaseReturnUnits u OUTER APPLY(SELECT TOP(1) m.MovementType,m.QuantityDelta FROM #Damage m WHERE m.InventoryUnitId=u.InventoryUnitId AND m.OccurredAtUtc<=r.ReturnedAtUtc ORDER BY m.OccurredAtUtc DESC,m.Id DESC) lastMove
+            CROSS APPLY(SELECT COUNT_BIG(*) Linked,COUNT_BIG(CASE WHEN u.WasDamaged=1 THEN 1 END) Damaged
+                FROM dbo.PurchaseReturnUnits u
                 WHERE u.PurchaseReturnLineId=l.Id) n
-        ), totals AS (SELECT Id,SUM(CONVERT(bigint,Quantity)) Qty,SUM(Linked) Linked,SUM(Damaged) Damaged,SUM(Proven) Proven,SUM(Quantity*UnitPurchaseCost) Gross,SUM(Damaged*UnitPurchaseCost) DamagedGross FROM lines GROUP BY Id)
-        INSERT #Fact SELECT r.ReturnedAtUtc,52,CASE WHEN t.Linked=t.Qty AND t.Proven=t.Damaged AND r.NetReduction=r.DebtReduction+ISNULL(r.CreditAmount,0) AND (r.CreditAmount IS NULL OR r.CreditSupplier=r.SupplierId)
+        ), totals AS (SELECT Id,SUM(CONVERT(bigint,Quantity)) Qty,SUM(Linked) Linked,SUM(Damaged) Damaged,SUM(Quantity*UnitPurchaseCost) Gross,SUM(Damaged*UnitPurchaseCost) DamagedGross FROM lines GROUP BY Id)
+        INSERT #Fact SELECT r.ReturnedAtUtc,52,CASE WHEN t.Linked=t.Qty AND r.NetReduction=r.DebtReduction+ISNULL(r.CreditAmount,0) AND (r.CreditAmount IS NULL OR r.CreditSupplier=r.SupplierId)
                 THEN CASE WHEN t.Damaged=t.Qty OR r.NetReduction=0 THEN r.NetReduction WHEN r.NetReduction=t.Gross THEN t.DamagedGross END END
         FROM #Return r LEFT JOIN totals t ON t.Id=r.Id WHERE t.Qty IS NULL OR t.Linked<>t.Qty OR t.Damaged>0;
 

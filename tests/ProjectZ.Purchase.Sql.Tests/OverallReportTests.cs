@@ -5,7 +5,7 @@ using ProjectZ.Services;
 using static SqlTest;
 using static ProjectZ.Models.OverallMeasure;
 
-internal static class OverallReportTests
+internal static partial class OverallReportTests
 {
     internal static void Run(SqlConnection db, ConnectionSettingsProvider settings,int actor,int cash)
     {
@@ -26,6 +26,10 @@ internal static class OverallReportTests
             && Current(Read(new(feeDay.AddDays(2),feeDay.AddDays(2)))).Profit==null,"Only matched commissions earn profit, +10 then -8; an orphan leaves result incomplete");
         var expenseDay=new DateTime(2037,3,1);var expense=Current(Read(new(expenseDay,expenseDay)));
         Check(expense[ExpenseWritten]==310.55m && expense[ExpenseDebit]==10.55m,"Backdated split expenses are charged once to the written date, not the account debit date");
+        Check(d.ExpenseGroups.Sum(g=>g.Current)==s[ExpenseWritten] && Current(Read(new(feeDay,feeDay))).CashChange==10,
+            "Expense categories reconcile to the header once, portfolio transfer legs net separately to 10");
+        SalesAndDamage(db,settings,actor,cash);
+        DeliveriesAndReopens(db,settings,actor);
         using var till=new SqlConnection(settings.GetConnectionString()); till.Open();
         Check(Scalar<int>(till,"SELECT HAS_PERMS_BY_NAME('dbo.ReadOverallReport','OBJECT','EXECUTE');")==1
             && Scalar<int>(till,"SELECT ISNULL(HAS_PERMS_BY_NAME('dbo.OverallRemovedDamage','OBJECT','INSERT'),0);")==0,"Till can read aggregates but cannot manufacture archived damage");
