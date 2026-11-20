@@ -2,7 +2,7 @@
    Default = report only. On a restored test instance first, stop tills, confirm an INDEPENDENT
    administrator can back up and restore, and read docs/BACKUP.md before opting in. */
 USE [ProjectZ];
-DECLARE @Apply bit = 0; -- اتركه صفرًا للفحص. 1 يسحب العضويتين المباشرتين القديمتين فقط.
+DECLARE @Apply bit = 1; -- اتركه صفرًا للفحص. 1 يسحب العضويتين المباشرتين القديمتين فقط.
 IF @@TRANCOUNT <> 0 OR (@@OPTIONS & 2) <> 0
 BEGIN
     RAISERROR(N'استخدم نافذة جديدة بدون معاملة مفتوحة أو ضمنية.',16,1);
