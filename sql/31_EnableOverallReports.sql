@@ -81,7 +81,12 @@ BEGIN
         WHERE r.ReturnedAtUtc>=@Start AND r.ReturnedAtUtc<@End;
         INSERT #Fact SELECT r.ReturnedAtUtc,x.Measure,x.Amount FROM #Return r CROSS APPLY(VALUES(12,r.NetReduction),(15,r.DebtReduction),(16,ISNULL(r.CreditAmount,0))) x(Measure,Amount);
         INSERT #Fact SELECT AppliedAtUtc,17,Amount FROM dbo.SupplierCreditApplications WHERE AppliedAtUtc>=@Start AND AppliedAtUtc<@End;
-        INSERT #Fact SELECT PaidAtUtc,CASE PaymentKind WHEN 1 THEN 13 ELSE 14 END,Amount FROM dbo.PurchasePayments WHERE PaidAtUtc>=@Start AND PaidAtUtc<@End;
+        INSERT #Fact SELECT p.PaidAtUtc,CASE WHEN p.PaymentKind=1 THEN 13 WHEN x.SupplierId=c.SupplierId AND r.PurchaseInvoiceId=p.PurchaseInvoiceId
+                AND t.IsIncoming=1 AND t.Amount=p.Amount AND t.FinancialAccountId=p.FinancialAccountId AND t.OccurredAtUtc=p.PaidAtUtc
+                AND t.SourceEntityType=N''PurchaseInvoice'' AND t.SourceEntityId=p.PurchaseInvoiceId THEN 14 ELSE 18 END,p.Amount
+        FROM dbo.PurchasePayments p LEFT JOIN dbo.SupplierCreditReceipts x ON x.PaymentId=p.Id LEFT JOIN dbo.FinancialTransactions t ON t.Id=x.LedgerId
+        LEFT JOIN dbo.SupplierCreditNotes c ON c.Id=x.CreditId LEFT JOIN dbo.PurchaseReturns r ON r.Id=c.SourceReturnId
+        WHERE p.PaidAtUtc>=@Start AND p.PaidAtUtc<@End;
 
         -- SERVICE: anchors are a delivery locked in the current header, a 24 delivery event, or
         -- the PRE-reopen closing snapshot. Never back-project today''s part list onto an earlier close.
@@ -135,7 +140,11 @@ BEGIN
         INTO #Book FROM dbo.FinancialTransactions t JOIN dbo.FinancialAccounts a ON a.Id=t.FinancialAccountId WHERE t.OccurredAtUtc>=@Start AND t.OccurredAtUtc<@End;
         INSERT #Fact SELECT OccurredAtUtc,30+2*AccountKind+CASE WHEN IsIncoming=1 THEN 0 ELSE 1 END,Amount FROM #Book;
         INSERT #Fact SELECT OccurredAtUtc,CASE WHEN IsIncoming=1 THEN 42 ELSE 41 END,Amount FROM #Book WHERE SourceEntityType=N''Expense'';
-        INSERT #Fact SELECT d.StartUtc,40,e.Amount FROM #Days d JOIN dbo.Expenses e ON e.ExpenseDate=d.Day;
+        SELECT d.Day,d.StartUtc,e.Amount,e.ExpenseCategoryId INTO #Spend FROM #Days d JOIN dbo.Expenses e ON e.ExpenseDate=d.Day;
+        INSERT #Fact SELECT StartUtc,40,Amount FROM #Spend;
+        SELECT CASE WHEN c.Name COLLATE Latin1_General_100_BIN2 LIKE N''%[0-9٠-٩۰-۹@+]%'' THEN CONCAT(N''تصنيف '',c.Id) ELSE c.Name END AS Category,
+            SUM(CASE WHEN s.Day>=@FromDate THEN s.Amount ELSE 0 END) AS CurrentExpense,SUM(CASE WHEN s.Day<@FromDate THEN s.Amount ELSE 0 END) AS PreviousExpense
+        INTO #Categories FROM #Spend s JOIN dbo.ExpenseCategories c ON c.Id=s.ExpenseCategoryId GROUP BY c.Id,c.Name;
         -- Same signed stage proof as 29 (cash may have zero effect). Corrections have a new header.
         ;WITH ids AS (SELECT Id FROM dbo.CustomerTransfers WHERE OccurredAtUtc>=@Start AND OccurredAtUtc<@End
             UNION SELECT Id FROM dbo.CustomerTransfers WHERE ReversedAtUtc>=@Start AND ReversedAtUtc<@End
@@ -206,9 +215,10 @@ BEGIN
     BEGIN CATCH
         IF XACT_STATE()<>0 ROLLBACK; THROW;
     END CATCH;
-    -- Numeric aggregates only. No invoice/operation/order/account IDs or free-text columns.
+    -- Aggregates only. The ONLY label from the database is a redacted expense category; no entity rows or notes.
     SELECT Day,Measure,KnownAmount,Missing,FactCount FROM #Daily ORDER BY Day,Measure;
     SELECT AccountKind,Accounts,Amount FROM #Balances ORDER BY AccountKind;
+    SELECT Category,CurrentExpense,PreviousExpense FROM #Categories ORDER BY Category;
     SELECT @ReadAt AS ReadAtUtc;
 END;';
     EXEC(N'GRANT EXECUTE ON OBJECT::dbo.ReadOverallReport TO [ProjectZClient];');

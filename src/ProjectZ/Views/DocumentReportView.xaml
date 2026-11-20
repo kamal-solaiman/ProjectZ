@@ -18,7 +18,7 @@
             <StackPanel><TextBlock Text="مركز التقارير" Style="{StaticResource Caption}" Foreground="{DynamicResource Theme.Brush.AccentInk}"/><TextBlock Text="{Binding SectionTitle}" FontWeight="Bold" FontSize="23" Foreground="{DynamicResource Theme.Brush.Heading}"/></StackPanel>
         </DockPanel>
         <Border Grid.Row="1" Style="{StaticResource Panel}"><StackPanel>
-            <WrapPanel><StackPanel Orientation="Horizontal"><StackPanel.Style><Style TargetType="StackPanel"><Style.Triggers><DataTrigger Binding="{Binding HasExtendedModes}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+            <WrapPanel><StackPanel Orientation="Horizontal" Visibility="{Binding ShowModeButtons, Converter={StaticResource BoolToVis}}">
                 <RadioButton Content="{Binding CohortModeLabel}" Margin="0,0,0,4" FontWeight="Bold" IsChecked="{Binding IsCohort, Mode=TwoWay}"/>
                 <RadioButton Content="{Binding MovementModeLabel}" Margin="18,0,0,4" FontWeight="Bold" IsChecked="{Binding IsMovement, Mode=TwoWay}"/></StackPanel>
                 <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" DisplayMemberPath="Label" MinWidth="170" AutomationProperties.Name="عرض التقرير" Visibility="{Binding HasExtendedModes, Converter={StaticResource BoolToVis}}"/>
@@ -32,13 +32,13 @@
                 <Button Content="آخر ٧ أيام" VerticalAlignment="Bottom" Tag="7" Margin="3,0,0,3" Click="Preset_Click" Style="{StaticResource PosSecondaryButtonStyle}"/>
                 <Button Content="هذا الشهر" VerticalAlignment="Bottom" Tag="0" Margin="3,0,0,3" Click="Preset_Click" Style="{StaticResource PosSecondaryButtonStyle}"/>
             </WrapPanel>
-            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="1.3*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid Visibility="{Binding ShowDocumentTools, Converter={StaticResource BoolToVis}}" Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="1.3*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel><TextBlock Text="{Binding SearchLabel}" Style="{StaticResource Caption}"/><TextBox x:Name="DocumentSearch" MaxLength="120" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
                 <StackPanel Grid.Column="1" Margin="6,0"><TextBlock Text="{Binding DetailLabel}" Style="{StaticResource Caption}"/><TextBox x:Name="DetailSearch" MaxLength="200" Text="{Binding Detail, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
                 <StackPanel Grid.Column="2" Visibility="{Binding ShowIssuerFilter, Converter={StaticResource BoolToVis}}"><TextBlock Text="{Binding IssuerLabel}" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Issuers}" SelectedItem="{Binding Issuer}" DisplayMemberPath="Label"/></StackPanel>
                 <Button Grid.Column="3" Margin="6,0,0,0" VerticalAlignment="Bottom" Content="مسح الفلاتر" Command="{Binding ClearCommand}" Style="{StaticResource PosSecondaryButtonStyle}"/>
             </Grid>
-            <Expander Header="فلاتر إضافية" Foreground="{DynamicResource Theme.Brush.Text}" Margin="0,4,0,0"><StackPanel><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Expander Header="فلاتر إضافية" Visibility="{Binding ShowDocumentTools, Converter={StaticResource BoolToVis}}" Foreground="{DynamicResource Theme.Brush.Text}" Margin="0,4,0,0"><StackPanel><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel><TextBlock Text="{Binding KindLabel}" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding KindOptions}" SelectedItem="{Binding SelectedKind}" DisplayMemberPath="Label"/></StackPanel>
                 <StackPanel Grid.Column="1" Margin="6,0,0,0" Visibility="{Binding ShowOrderFilters, Converter={StaticResource BoolToVis}}"><TextBlock Text="{Binding AccountLabel}" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding AccountChoices}" SelectedItem="{Binding SelectedAccount}" DisplayMemberPath="Label"/></StackPanel>
                 <StackPanel Grid.Column="2" Width="170" Margin="6,0,0,0" Visibility="{Binding HasSupplierTools, Converter={StaticResource BoolToVis}}"><TextBlock Text="المورد" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding Supplier}" DisplayMemberPath="Label"/></StackPanel>
@@ -56,7 +56,7 @@
         <ItemsControl Grid.Row="2" Margin="0,5" ItemsSource="{Binding Page.Metrics}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
             <Border Style="{StaticResource Panel}" Padding="8,6" Margin="2,0"><StackPanel><TextBlock Text="{Binding Label}" ToolTip="{Binding Label}" TextTrimming="CharacterEllipsis" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Display}" ToolTip="{Binding Display}" TextTrimming="CharacterEllipsis" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource Theme.Brush.AccentInk}"/></StackPanel></Border>
         </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-        <DockPanel Grid.Row="3" Margin="0,2,0,6"><Button DockPanel.Dock="Left" Content="فتح تفاصيل الصف ←" Style="{StaticResource PosOutlineTealButtonStyle}" Command="{Binding DrillCommand}"/>
+        <DockPanel Grid.Row="3" Margin="0,2,0,6"><Button DockPanel.Dock="Left" Content="فتح تفاصيل الصف ←" Visibility="{Binding ShowDocumentTools, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosOutlineTealButtonStyle}" Command="{Binding DrillCommand}"/>
             <ContentControl DockPanel.Dock="Left" Content="{Binding ExtraTools}"><ContentControl.Resources><DataTemplate DataType="{x:Type vm:MaintenanceReportsViewModel}">
                 <StackPanel Orientation="Horizontal"><Button Content="ملف العميل" Command="{Binding OpenCustomerCommand}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0" Visibility="{Binding CanOpenCustomer, Converter={StaticResource BoolToVis}}"/>
                     <Button Content="قطعة الغيار" Command="{Binding OpenPartCommand}" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenPart, Converter={StaticResource BoolToVis}}"/></StackPanel>

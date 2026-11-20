@@ -50,7 +50,9 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     protected int ModeId => modeId;
     public virtual IReadOnlyList<ReportChoice> Modes { get; } = [new(0,"فواتير الفترة"),new(1,"حركة الفترة")];
     public string CohortModeLabel => Modes.First(m => m.Id == 0).Label;
-    public string MovementModeLabel => Modes.First(m => m.Id == 1).Label;
+    public string MovementModeLabel => Modes.FirstOrDefault(m => m.Id == 1)?.Label ?? "";
+    public bool ShowModeButtons => Modes.Count==2;
+    public virtual bool ShowDocumentTools => true;
     public bool HasExtendedModes => Modes.Count>2;
     public virtual string ExportMode => IsMovement ? "Activity" : "Invoices";
     public virtual bool ShowOrderFilters => true;
@@ -136,7 +138,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
             if(ClearOnModeChange)ClearFilters(); else ResetDrill();
         }
     }
-    public bool IsMovement { get => modeId==1; set { if(value!=IsMovement) Mode=Modes.First(m=>m.Id==(value?1:0)); } }
+    public bool IsMovement { get => modeId==1; set { if(value!=IsMovement && Modes.FirstOrDefault(m=>m.Id==(value?1:0)) is {} choice) Mode=choice; } }
     public bool IsCohort { get => !IsMovement; set { if(value) IsMovement=false; } }
     public virtual string DetailLabel => IsMovement ? "نوع الحركة، المنفذ، الحساب أو البيان" : "فواتير تتضمن صنفًا، تصنيفًا أو باركودًا";
     public string SourceLabel => source is null ? "معاينة • غير متصل" : "المصدر • SQL Server";

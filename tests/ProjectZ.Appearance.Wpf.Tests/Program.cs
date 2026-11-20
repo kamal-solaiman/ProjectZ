@@ -106,8 +106,11 @@ internal static class Program
         var expensesHost = (DocumentReportView)main.FindName("ExpenseReportWorkspace");
         Check(mainVm.IsExpenseReportsSelected && mainVm.IsImplementedScreenSelected && expensesHost.DataContext == mainVm.ExpenseReports
             && ((Grid)expensesHost.Parent).Visibility == Visibility.Visible && mainVm.ExpenseReports.Page is null,"Expenses have a real report host; offline is not zero spending");
-        mainVm.SelectItem(reportsMenu.Items[5]);
-        Check(!mainVm.IsImplementedScreenSelected, "Unimplemented report categories still show the placeholder");
+        mainVm.SelectItem(reportsMenu.Items[5]); PumpDispatcher();
+        var overallHost = (DocumentReportView)main.FindName("OverallReportWorkspace");
+        Check(mainVm.IsOverallReportsSelected && mainVm.IsImplementedScreenSelected && overallHost.DataContext==mainVm.OverallReports
+            && ((Grid)overallHost.Parent).Visibility==Visibility.Visible && mainVm.OverallReports.Page==null && !mainVm.OverallReports.CanExport,
+            "Overall summary has its own host, with no invented offline profit");
         // «فواتير المصروفات» lists the stored expenses with their split payments. In the design
         // preview it must show the five sample rows, keep them reachable through the filters and
         // hand a details view model to the window.

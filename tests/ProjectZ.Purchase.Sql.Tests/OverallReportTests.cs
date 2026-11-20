@@ -32,9 +32,9 @@ internal static class OverallReportTests
         using var cmd=new SqlCommand("dbo.ReadOverallReport",till){CommandType=System.Data.CommandType.StoredProcedure};
         cmd.Parameters.AddWithValue("@FromDate",now.From);cmd.Parameters.AddWithValue("@ThroughDate",now.Through);
         using var reader=cmd.ExecuteReader(); int sets=0;
-        string[][] expected=[["Day","Measure","KnownAmount","Missing","FactCount"],["AccountKind","Accounts","Amount"],["ReadAtUtc"]];
+        string[][] expected=[["Day","Measure","KnownAmount","Missing","FactCount"],["AccountKind","Accounts","Amount"],["Category","CurrentExpense","PreviousExpense"],["ReadAtUtc"]];
         do { Check(sets<expected.Length && Enumerable.Range(0,reader.FieldCount).Select(reader.GetName).SequenceEqual(expected[sets++]),"Overall SQL contract consists only of aggregate columns");
-            while(reader.Read()) for(int n=0;n<reader.FieldCount;n++)if(reader.GetFieldType(n)==typeof(string))throw new Exception("Unexpected private text in overall report"); }while(reader.NextResult());
-        Check(sets==3,"No detailed documents or additional result sets reach the cashier");
+            while(reader.Read()) for(int n=0;n<reader.FieldCount;n++)if(reader.GetFieldType(n)==typeof(string) && (reader.GetName(n)!="Category" || reader.GetString(n).Contains("PRIVATE",StringComparison.OrdinalIgnoreCase)))throw new Exception("Unexpected private text in overall report"); }while(reader.NextResult());
+        Check(sets==4,"No detailed documents or additional result sets reach the cashier");
     }
 }

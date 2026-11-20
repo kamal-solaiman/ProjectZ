@@ -27,8 +27,11 @@ public sealed class OverallReportRepository(ConnectionSettingsProvider settings)
             }
             if(!await r.NextResultAsync(token).ConfigureAwait(false))throw Contract();
             while(await r.ReadAsync(token).ConfigureAwait(false)) channels.Add(new(r.GetByte(0),r.GetInt64(1),r.GetDecimal(2)));
+            if(!await r.NextResultAsync(token).ConfigureAwait(false))throw Contract();
+            var groups=new List<ExpenseGroup>();
+            while(await r.ReadAsync(token).ConfigureAwait(false)) groups.Add(new(r.GetString(0),r.GetDecimal(1),r.GetDecimal(2)));
             if(!await r.NextResultAsync(token).ConfigureAwait(false) || !await r.ReadAsync(token).ConfigureAwait(false))throw Contract();
-            return new(period,DateTime.SpecifyKind(r.GetDateTime(0),DateTimeKind.Utc),figures,channels);
+            return new(period,DateTime.SpecifyKind(r.GetDateTime(0),DateTimeKind.Utc),figures,channels,groups);
         }
         catch(SqlException ex) when(!token.IsCancellationRequested)
         {
