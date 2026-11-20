@@ -192,6 +192,7 @@ internal static class MaintenanceSettlementTests
             VALUES({legacy.Id},{b},1,2,5,SYSUTCDATETIME(),{actor});
             """);
         Refused(() => first.Cancel(Key(legacy),45,true,"قديم"),50244,"Legacy payment/ledger mismatch");
+        MaintenanceReportTests.CheckUnmatchedRefund(settings,legacy.Id);
         Execute(db,$"""
             UPDATE dbo.FinancialAccounts SET CurrentBalance=CurrentBalance-5 WHERE Id={b};
             INSERT dbo.FinancialTransactions(FinancialAccountId,IsIncoming,Category,Amount,BalanceAfter,ActorUserId,SourceEntityType,SourceEntityId)

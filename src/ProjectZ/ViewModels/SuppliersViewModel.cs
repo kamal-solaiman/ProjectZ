@@ -336,13 +336,29 @@ public sealed class SuppliersViewModel : ObservableObject
         Changed(nameof(HasNoSelectedSupplierSpareParts));
     }
 
+    private enum SupplierLink { SpareParts, PurchaseReport, WorkshopReport }
+
+    public void OpenWorkshopFromReport(int supplierId, bool partsLoaded)
+    {
+        if (!partsLoaded)
+        {
+            SelectedSupplierEntry = null;
+            SetStatus("تعذر تحديث مخزون الورشة، لم يتم فتح تبويب قطع الغيار ببيانات قديمة.", true);
+            return;
+        }
+        OpenSupplier(supplierId, SupplierLink.WorkshopReport);
+    }
+
     /// <summary>
     /// Opens the supplier selected on another screen (for example a spare-part movement) and
     /// clears the directory filters so the row is visible.
     /// </summary>
-    public bool SelectSupplierFromExternal(int supplierId, bool fromReport = false, bool fromWorkshopReport = false)
+    public bool SelectSupplierFromExternal(int supplierId, bool fromReport = false) =>
+        OpenSupplier(supplierId, fromReport ? SupplierLink.PurchaseReport : SupplierLink.SpareParts);
+
+    private bool OpenSupplier(int supplierId, SupplierLink origin)
     {
-        if ((fromReport || fromWorkshopReport) && repository is not null && IsErrorStatus) { SelectedSupplierEntry = null; return false; }
+        if (origin != SupplierLink.SpareParts && repository is not null && IsErrorStatus) { SelectedSupplierEntry = null; return false; }
         searchText = "";
         selectedSpecializationFilter = "كل التخصصات";
         selectedBalanceFilter = "جميع الموردين";
@@ -355,8 +371,13 @@ public sealed class SuppliersViewModel : ObservableObject
         var found = SelectedSupplierEntry?.Supplier.Id == supplierId;
         if (found)
         {
-            ActiveDetailTabIndex = fromReport ? 0 : 2;
-            SetStatus(fromReport ? "تم فتح ملف المورد من تقرير المشتريات." : fromWorkshopReport ? "تم فتح ملف المورد من تقرير مخزون الورشة." : "تم فتح ملف المورد من شاشة قطع الغيار.", false);
+            ActiveDetailTabIndex = origin == SupplierLink.PurchaseReport ? 0 : 2;
+            SetStatus(origin switch
+            {
+                SupplierLink.PurchaseReport => "تم فتح ملف المورد من تقرير المشتريات.",
+                SupplierLink.WorkshopReport => "تم فتح ملف المورد من تقرير مخزون الورشة.",
+                _ => "تم فتح ملف المورد من شاشة قطع الغيار."
+            }, false);
         }
         else
         {

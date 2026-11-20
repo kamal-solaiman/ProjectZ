@@ -474,8 +474,10 @@ public sealed class MainViewModel : ObservableObject
             MaintenanceSpareParts.SelectPartFromExternal(id, fromReport:true);
         }, id =>
         {
+            // The workshop tab in the supplier profile uses the shared active parts catalog.
+            MaintenanceSpareParts.NotifyExternalDataChanged();
             SelectItem(customersCategory.Items[1]);
-            Suppliers.SelectSupplierFromExternal(id, fromWorkshopReport:true);
+            Suppliers.OpenWorkshopFromReport(id, !MaintenanceSpareParts.LastLoadFailed);
         });
 
         // Cross-screen links for spare parts: the supplier profile and the customer profile can open

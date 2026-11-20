@@ -132,7 +132,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
             if(ClearOnModeChange)ClearFilters(); else ResetDrill();
         }
     }
-    public bool IsMovement { get => modeId==1; set => Mode=Modes.First(m=>m.Id==(value?1:0)); }
+    public bool IsMovement { get => modeId==1; set { if(value!=IsMovement) Mode=Modes.First(m=>m.Id==(value?1:0)); } }
     public bool IsCohort { get => !IsMovement; set { if(value) IsMovement=false; } }
     public virtual string DetailLabel => IsMovement ? "نوع الحركة، المنفذ، الحساب أو البيان" : "فواتير تتضمن صنفًا، تصنيفًا أو باركودًا";
     public string SourceLabel => source is null ? "معاينة • غير متصل" : "المصدر • SQL Server";
@@ -217,7 +217,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         try
         {
             var period = new ReportPeriod(From, Through);
-            Status = "جارٍ قراءة الفواتير والحركات من قاعدة البيانات…";
+            Status = "جارٍ تحميل بيانات التقرير من قاعدة البيانات…";
             var result = await source.LoadAsync(period, request.Token);
             if (request.IsCancellationRequested) return;
             SetChoices(result);

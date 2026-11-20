@@ -81,5 +81,18 @@ internal static class MaintenanceReportUiTests
         main.SelectItem(menu);main.MaintenanceReports.SelectedRow=main.MaintenanceReports.SelectedTable!.Rows.Single();main.MaintenanceReports.OpenCustomerCommand.Execute(null);
         check(main.IsCustomersSelected && main.Customers.IsMaintenanceTabSelected && main.Customers.SelectedCustomerEntry?.Customer.Id==target.CustomerId,"Report opens that customer's maintenance tab, not its sales or parts tab");
         details=0;main.MaintenanceInvoices.OpenFromReport(int.MaxValue);check(details==0 && main.MaintenanceInvoices.IsErrorStatus && main.MaintenanceInvoices.SelectedOrder==null,"Missing ticket is not replaced with the first ticket");
+        var item=main.MaintenanceSpareParts.FilteredSpareParts.First(p=>p.SupplierId!=null && main.Suppliers.FilteredSuppliers.Any(s=>s.Supplier.Id==p.SupplierId));
+        var owner=main.Suppliers.FilteredSuppliers.Single(s=>s.Supplier.Id==item.SupplierId).Supplier;
+        source.Read=(p,_)=>{var d=Sample(p);var stock=d.Parts[71] with {Id=item.Id,Name=item.Name,SupplierId=owner.Id,Supplier=owner.Name};
+            return Task.FromResult(d with {Parts=new Dictionary<int,WorkshopPart>{{stock.Id,stock}},Moves=[],Lines=[],Activities=[],Payments=[],Orders=new Dictionary<int,ServiceTicket>()});};
+        main.MaintenanceSpareParts.SearchText="غير موجود";main.Suppliers.SearchText="غير موجود";
+        main.SelectItem(menu);main.MaintenanceReports.Mode=main.MaintenanceReports.Modes.Single(m=>m.Id==(int)ServiceReportMode.Stock);
+        main.MaintenanceReports.SelectedRow=main.MaintenanceReports.SelectedTable!.Rows.Single();main.MaintenanceReports.OpenPartCommand.Execute(null);
+        check(main.IsMaintenanceSparePartsSelected && main.MaintenanceSpareParts.IsEditMode && main.MaintenanceSpareParts.FilteredSpareParts.Single(p=>p.IsSelected).Id==item.Id,
+            "Report clears conflicting workshop filters and opens the exact part without recording an inventory movement");
+        main.SelectItem(menu);main.MaintenanceReports.SelectedRow=main.MaintenanceReports.SelectedTable!.Rows.Single();main.MaintenanceReports.OpenSupplierCommand.Execute(null);
+        check(main.IsSuppliersSelected && main.Suppliers.IsSparePartsTabSelected && main.Suppliers.SelectedSupplierEntry?.Supplier.Id==owner.Id && main.Suppliers.SelectedSupplierSpareParts.Contains(item),
+            "Workshop report opens the correct supplier's parts tab, not its purchasing tab");
+        main.Suppliers.OpenWorkshopFromReport(owner.Id,false);check(main.Suppliers.SelectedSupplierEntry==null && main.Suppliers.IsErrorStatus,"A failed stock refresh never opens a stale supplier profile");
     }
 }

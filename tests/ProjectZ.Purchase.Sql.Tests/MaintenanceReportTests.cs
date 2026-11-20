@@ -7,6 +7,16 @@ using static SqlTest;
 
 internal static class MaintenanceReportTests
 {
+    internal static void CheckUnmatchedRefund(ConnectionSettingsProvider settings,int orderId)
+    {
+        var period=new ReportPeriod(ReportPeriod.Today.AddDays(-1),ReportPeriod.Today.AddDays(1));
+        var d=new MaintenanceReportRepository(settings).LoadAsync(period,CancellationToken.None).GetAwaiter().GetResult();
+        var page=MaintenanceReportProjection.Build(d,Movement,new(InvoiceIds:new HashSet<int>{orderId}),"ج.م");
+        Check(d.Payments.Single(p=>p.OrderId==orderId && p.Kind==2) is {Amount:5m,LedgerNeedsReview:true,RefundNeedsReview:true}
+            && page.Metrics.Single(m=>m.Label=="صافي المقبوض").Value==45 && page.Warning.Length>0,
+            "A missing ledger leg is flagged, not counted as a different amount or used to discard the actual refund");
+    }
+
     internal static void Run(SqlConnection db,ConnectionSettingsProvider settings,int actor,int cancelled,int depositOnly,int delivered,int legacy,int stockOrder,int stoppedPart)
     {
         var repo=new MaintenanceReportRepository(settings);
