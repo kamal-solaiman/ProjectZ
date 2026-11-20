@@ -531,7 +531,15 @@ public sealed class MainViewModel : ObservableObject
             ExpenseInvoices.NotifyExternalDataChanged();
             MyAccounts.NotifyExternalDataChanged();
         };
-        // «فواتير المصروفات» is read-only; its only navigation goes back to the entry screen.
+        void AnalyzeCategory(int id, DateTime day, bool monthToDate)
+        {
+            var first = new DateTime(day.Year,day.Month,1);
+            var last = monthToDate ? day.Date : new DateTime(day.Year,day.Month,DateTime.DaysInMonth(day.Year,day.Month));
+            ExpenseReports.PrepareCategory(id,first,last);
+            SelectItem(reportsCategory.Items[4]);
+        }
+        ExpenseCategories.AnalyzeCategoryRequested = id => AnalyzeCategory(id,ReportPeriod.Today,true);
+        ExpenseInvoices.AnalyzeCategoryRequested = (id,day) => AnalyzeCategory(id,day,false);
         ExpenseInvoices.OpenAddExpenseRequested = () => SelectItem(expensesCategory.Items[0]);
         ExpenseCategories.CategoriesChanged = () =>
         {

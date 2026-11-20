@@ -150,7 +150,7 @@ public sealed class ExpenseInvoicesViewModel : ObservableObject
     public const string LowestAmountSort = "الأقل مبلغًا";
     public const string NumberSort = "رقم المصروف";
 
-    private readonly ExpenseRepository? repository;
+    private readonly IExpenseInvoiceReader? repository;
     private readonly List<ExpenseInvoiceListItemViewModel> loadedInvoices = [];
 
     private string searchText = "";
@@ -169,13 +169,17 @@ public sealed class ExpenseInvoicesViewModel : ObservableObject
     private bool isErrorStatus;
     private bool isBusy;
 
-    public ExpenseInvoicesViewModel(ExpenseRepository? repository = null)
+    public ExpenseInvoicesViewModel(IExpenseInvoiceReader? repository = null)
     {
         this.repository = repository;
 
         RefreshCommand = new ActionCommand(() => RefreshFromDatabase());
         ClearFiltersCommand = new ActionCommand(ClearFilters);
         SelectDatePresetCommand = new RelayCommand<string>(preset => ApplyDatePreset(preset));
+        AnalyzeCategoryCommand = new RelayCommand<ExpenseInvoiceListItemViewModel>(i =>
+        {
+            if (i is { Id: > 0, ExpenseCategoryId: > 0 }) AnalyzeCategoryRequested?.Invoke(i.ExpenseCategoryId,i.ExpenseDate);
+        }, i => i is { Id: > 0, ExpenseCategoryId: > 0 });
         OpenDetailsCommand = new RelayCommand<ExpenseInvoiceListItemViewModel>(OpenDetails);
         OpenAddExpenseCommand = new ActionCommand(() => OpenAddExpenseRequested?.Invoke());
 
@@ -210,6 +214,8 @@ public sealed class ExpenseInvoicesViewModel : ObservableObject
 
     /// <summary>Raised by «تسجيل مصروف جديد»; the shell navigates to «اضافة مصروف».</summary>
     public Action? OpenAddExpenseRequested { get; set; }
+
+    public Action<int,DateTime>? AnalyzeCategoryRequested { get; set; }
 
     public string SearchText
     {
@@ -499,6 +505,7 @@ public sealed class ExpenseInvoicesViewModel : ObservableObject
     public ActionCommand ClearFiltersCommand { get; }
     public ActionCommand OpenAddExpenseCommand { get; }
     public RelayCommand<string> SelectDatePresetCommand { get; }
+    public RelayCommand<ExpenseInvoiceListItemViewModel> AnalyzeCategoryCommand { get; }
     public RelayCommand<ExpenseInvoiceListItemViewModel> OpenDetailsCommand { get; }
 
     // ------------------------------------------------------------ data loading

@@ -477,6 +477,7 @@ internal static class Program
         PurchaseReportUiTests.Run(Check, PumpDispatcher);
         MaintenanceReportUiTests.Run(Check, PumpDispatcher);
         FinanceReportUiTests.Run(Check, PumpDispatcher);
+        ExpenseReportUiTests.Run(Check, PumpDispatcher);
         ProjectZ.Tests.TextColorTests.Run(Check);
         Console.WriteLine("All WPF appearance smoke tests passed.");
     }

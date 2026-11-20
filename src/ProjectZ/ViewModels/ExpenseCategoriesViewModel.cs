@@ -153,6 +153,9 @@ public sealed class ExpenseCategoriesViewModel : ObservableObject
     public Action<ConfirmActionViewModel, Action>? OpenConfirmDialogRequested { get; set; }
 
     /// <summary>Raised after a successful write so the future expense screens can refresh their pickers.</summary>
+    public Action<int>? AnalyzeCategoryRequested { get; set; }
+    public RelayCommand<ExpenseCategoryListItemViewModel> AnalyzeCategoryCommand { get; }
+
     public Action? CategoriesChanged { get; set; }
 
     public string NewCategoryName
@@ -238,6 +241,10 @@ public sealed class ExpenseCategoriesViewModel : ObservableObject
     {
         this.repository = repository;
 
+        AnalyzeCategoryCommand = new RelayCommand<ExpenseCategoryListItemViewModel>(row =>
+        {
+            if (row is { Id: > 0 }) AnalyzeCategoryRequested?.Invoke(row.Id);
+        }, row => row is { Id: > 0 });
         AddCategoryCommand = new ActionCommand(AddCategory);
         ClearSearchCommand = new ActionCommand(() => SearchText = "");
         RefreshCategoriesCommand = new ActionCommand(() => RefreshFromDatabase());

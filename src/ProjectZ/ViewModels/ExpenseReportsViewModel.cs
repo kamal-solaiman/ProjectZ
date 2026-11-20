@@ -36,6 +36,14 @@ public sealed class ExpenseReportsViewModel : ReportWorkspaceViewModel<ExpenseRe
     public IReadOnlyList<ReportChoice> VerificationChoices { get; } = [All,new(1,"مطابق"),new(0,"تحتاج مراجعة")];
     public ReportChoice Category { get => category; set { if (value == null || category == value) return; category = value; Changed(); ResetDrill(); } }
     public ReportChoice Verification { get => verification; set { if (value == null || verification == value) return; verification = value; Changed(); ResetDrill(); } }
+    // Called before shell navigation so the new host starts just ONE read. Transfer only the
+    // category key and calendar days, never the register's free-text search or original description.
+    internal void PrepareCategory(int id, DateTime from, DateTime through)
+    {
+        Leave(); Mode = Modes[0]; ClearCommand.Execute(null);
+        From = from; Through = through;
+        Category = new(id,$"تصنيف #{id}");
+    }
     protected override void ClearExtraFilters() { category = verification = All; Changed(nameof(Category)); Changed(nameof(Verification)); }
     protected override void SetExtraChoices(ExpenseReportData d)
     {

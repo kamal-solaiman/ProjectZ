@@ -61,6 +61,9 @@ internal static class ExpenseReportTests
         Check(one.Proofs[split.ExpenseId].OK && Metric(docs,"إجمالي المستندات")==310.55m && Metric(docs,"مستندات")==2
             && Metric(dated,"صافي الخصم")==10.55m && Metric(later,"صافي الخصم")==302,
             "Written date and Egypt posting instant select different facts: split expense counted once, not on yesterday's cash ledger");
+        var evidence = Table(docs,"قيود إثبات المستند").Rows.Where(r => r.FinancialSource?.Id==split.ExpenseId).ToArray();
+        Check(evidence.Length==2 && evidence.All(r => r.Display.Contains("خارج الفترة")) && evidence.Sum(r => (decimal)r.Cells[7]!)==300,
+            "Both next-day leg IDs are available as lifetime invoice evidence without moving their amounts onto the written day");
         var cashDocs = Page(one,f:new(AccountId:cash)); var cashLegs = Page(two,true,new(AccountId:cash));
         Check(Metric(cashDocs,"إجمالي المستندات")==300 && Metric(cashDocs,"حصص الحسابات المعروضة")==120 && Table(cashDocs,"توزيع الدفع").Rows.Count==1
             && Metric(cashLegs,"منصرف المصروفات")==120 && cashLegs.Tables[0].Rows.Single().FinancialSource == new FinanceLink(FinanceDestination.Expense,split.ExpenseId)
@@ -71,9 +74,10 @@ internal static class ExpenseReportTests
             "A posted expense can come from outside BOTH document ranges, including an inactive account");
         var cmp = Table(docs,ExpenseReportProjection.CompareCategory).Rows;
         var growing = cmp.Single(r => r.Display[0]==one.CategoryName(category1));
+        var fresh = cmp.Single(r => r.Display[0]==one.CategoryName(category3));
         Check(Equals(growing.Cells[2],300m) && Equals(growing.Cells[4],100m) && Equals(growing.Cells[5],200m) && Equals(growing.Cells[6],200m)
             && cmp.Single(r => r.Display[0]==one.CategoryName(category2)).Display.Contains("لا نشاط حالي")
-            && cmp.Single(r => r.Display[0]==one.CategoryName(category3)) is var fresh && fresh.Cells[6]==null && fresh.Display.Contains("جديد"),
+            && fresh.Cells[6]==null && fresh.Display.Contains("جديد"),
             "Equal period comparison uses the union of category IDs including prior-only and never divides new spending by zero");
         var oldId = Scalar<int>(db,"SELECT Id FROM dbo.Expenses WHERE ExpenseNumber=N'EXP-OLD-0001';");
         var oldDate = Scalar<DateTime>(db,"SELECT ExpenseDate FROM dbo.Expenses WHERE Id=@id",("@id",oldId));

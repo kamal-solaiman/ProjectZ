@@ -100,9 +100,16 @@ public static class ExpenseReportProjection
                 var p = d.Proofs[i.SourceId];
                 return Row(d,i,[i.Reference,i.Day,ReportPeriod.Local(i.Doc!.RegisteredUtc),d.CategoryName(i.Doc.CategoryId),d.ActorName(i.ActorId),i.Cost,p.Shares.Count,p.Allocated,p.BookCost,p.Status]);
             })));
-            tables.Add(Table("توزيع الدفع", "رقم المصروف|تاريخ المستند|سطر التوزيع|التصنيف|الحساب الموزّع عليه|الحصة المكتوبة|مطابقة الحساب", currentAccounts.Select(i =>
-                Row(d,i,[i.Reference,i.Day,i.Key.SourceId,d.CategoryName(i.Doc!.CategoryId),d.AccountName(i.AccountId!.Value),i.Cost,
-                    d.Proofs[i.SourceId].Accounts.Single(a => a.AccountId == i.AccountId).Result]))));
+            tables.Add(Table("توزيع الدفع", "رقم المصروف|تاريخ المستند|سطر التوزيع|التصنيف|الحساب الموزّع عليه|الحصة المكتوبة|صافي القيد لكل التواريخ|عدد القيود|مطابقة الحساب", currentAccounts.Select(i => {
+                var proof = d.Proofs[i.SourceId].Accounts.Single(a => a.AccountId == i.AccountId);
+                return Row(d,i,[i.Reference,i.Day,i.Key.SourceId,d.CategoryName(i.Doc!.CategoryId),d.AccountName(i.AccountId!.Value),i.Cost,proof.BookCost,proof.Legs.Count,proof.Result]);
+            })));
+            // Documentary evidence, not an extra posting total. A backdated invoice can have proof
+            // outside BOTH displayed periods; show its timing and ledger key instead of guessing.
+            tables.Add(Table("قيود إثبات المستند", "رقم المصروف|تاريخ المستند|رقم القيد|وقت القيد بمصر|موقع القيد من الفترة|الحساب الفعلي|المنفّذ|منصرف|وارد|مطابقة الحساب",
+                from i in current from a in d.Proofs[i.SourceId].Accounts where f.AccountId == null || a.AccountId == f.AccountId
+                from l in a.Legs select Row(d,i,[i.Reference,i.Day,l.Id,ReportPeriod.Local(l.AtUtc),d.Period.Contains(l.AtUtc) ? "داخل الفترة" : "خارج الفترة",
+                    d.AccountName(a.AccountId),d.ActorName(l.ActorId),l.Incoming ? 0m : l.Amount,l.Incoming ? l.Amount : 0m,a.Result],a.AccountId)));
             tables.Add(Table("فروق المطابقة", "رقم المصروف|تاريخ المستند|سبب المراجعة|الحساب|المتوقّع|المسجّل|المسجّل ناقص المتوقع|عدد القيود", Differences(d,current.Where(Review))));
         }
         else
@@ -134,7 +141,7 @@ public static class ExpenseReportProjection
         if (i.Doc == null) return "قيد بلا مستند";
         var proof = d.Proofs[i.SourceId];
         if (i.AccountId is int id && proof.Accounts.FirstOrDefault(a => a.AccountId == id) is { } match && match.Result != ExpenseProof.Matched) return match.Result;
-        return proof.OK ? ExpenseProof.Matched : proof.AllocationOK ? "فرق في حساب آخر للمستند" : "توزيع المستند غير مكتمل";
+        return proof.OK ? ExpenseProof.Matched : !proof.AllocationOK ? "توزيع المستند لا يطابق مبلغه" : i.AccountId == null ? "فرق بين الحسابات الموزّعة والقيود" : "فرق في حساب آخر للمستند";
     }
 
     private static IEnumerable<ReportRow> Differences(ExpenseReportData d, IEnumerable<Fact> facts)
