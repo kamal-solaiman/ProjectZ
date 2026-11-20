@@ -498,6 +498,10 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     RunScript(admin,expenseReportInstaller);
     RunScript(admin,expenseReportInstaller);
     ExpenseReportTests.Run(admin,settings,userId,cashRowId,expenseReportInstaller);
+    var overallInstaller = Path.Combine(sqlDirectory,"31_EnableOverallReports.sql");
+    RunScript(admin,overallInstaller);
+    RunScript(admin,overallInstaller);
+    OverallReportTests.Run(admin,settings,userId,cashRowId);
     var purchaseFootprint = PurchaseSettlementTests.Footprint(admin);
     foreach (var script in new[] { "07_CreateReportingViews.sql", "12_EnablePurchasing.sql", "25_EnablePurchaseSettlement.sql" })
         RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
