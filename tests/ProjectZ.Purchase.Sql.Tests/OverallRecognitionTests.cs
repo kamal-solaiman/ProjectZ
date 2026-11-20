@@ -51,7 +51,7 @@ internal static partial class OverallReportTests
         Execute(db,"UPDATE dbo.StockMovements SET MovementType=N'LegacyUnclassified' WHERE ProductId=@p AND MovementType=N'Damage';",("@p",product));
         Check(t.Read(1).Profit==null && t.Read(0).Profit==300,"Missing return write-off blocks a definite result only on its affected date");
 
-        var purchases=new PurchaseRepository(settings,actor); var supplier=purchases.CreateSupplier("مورد إثبات 31","","","","","","","");
+        var purchases=new PurchaseRepository(settings,actor); var supplier=purchases.CreateSupplier("مورد إثبات 31", "", "", "", "", "", "", "", "");
         int item=Product(db,100,130);
         PurchaseInvoiceDesignItem Buy(int qty, decimal discount,decimal paid=0)
         {

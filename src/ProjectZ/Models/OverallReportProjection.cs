@@ -39,7 +39,7 @@ public static class OverallReportProjection
                 Calc("أثر المصروفات (−)",s=>-s[ExpenseWritten]), Calc("أثر الهالك بعد الاسترداد (−)",s=>-s.NetDamage),
                 Calc("النتيجة التشغيلية",s=>s.Profit)),
             Table("المبيعات",
-                Calc("فواتير صدرت (عدد)",s=>s[SalesIssued]), Measure("قيمة البيع عند الإصدار بعد الخصم",SaleIssue),
+                Measure("فواتير صدرت (عدد)",SalesIssued), Measure("قيمة البيع عند الإصدار بعد الخصم",SaleIssue),
                 Measure("بضاعة بديلة صادرة",SaleReplacement), Measure("مبيعات مرتجعة ومستبدلة",SaleReturn), Measure("قيمة المبيعات الملغاة",SaleCancel),
                 Calc("صافي المبيعات المؤرّخة",s=>s.NetSales), Measure("صافي تكلفة البضاعة المباعة",SalesCost), Calc("هامش المبيعات",s=>s.GrossProfit),
                 Measure("تحصيل مبيعات مسجّل",SaleReceipts), Measure("رد نقدي لعملاء البيع",SaleRefunds)),
@@ -85,7 +85,17 @@ public static class OverallReportProjection
         var gaps = data.Figures.Where(f=>f.Missing>0).GroupBy(f=>f.Measure).OrderBy(g=>g.Key).Select(g=>Row(
             measures[g.Key],g.Count(f=>f.Day>=from),g.Count(f=>f.Day<from))).ToArray();
         tables.Add(new(Review,["بند غير مكتمل","أيام متأثرة حاليًا","أيام متأثرة سابقًا"],gaps));
-        var context=$"الفترة: {period.Label} • المقارنة: {priorStart:yyyy-MM-dd} — {from.AddDays(-1):yyyy-MM-dd} ({days} يوم) • المبالغ: {currency} • قراءة {ReportPeriod.Local(data.ReadAtUtc):yyyy-MM-dd HH:mm} بتوقيت مصر.";
+        // Explain the change using only the five signed components, never intermediate subtotals or cash turnover.
+        string drivers="";
+        if(current.Profit.HasValue && prior.Profit.HasValue)
+        {
+            var changes=tables[0].Rows.SkipLast(1).Select(r=>(Label:r.Display[0],Delta:(decimal)r.Cells[3]!)).ToArray();
+            string Driver(string name,decimal amount) => $" {name}: {string.Join("، ",changes.Where(c=>c.Delta==amount).Select(c=>c.Label))} ({ReportRow.Format(amount)}).";
+            var best=changes.Max(c=>c.Delta); var worst=changes.Min(c=>c.Delta);
+            if(best>0) drivers+=Driver("أكبر أثر موجب مقارنة بالسابقة",best);
+            if(worst<0) drivers+=Driver("أكبر أثر سالب",worst);
+        }
+        var context=$"نتيجة تشغيلية إدارية، وليست صافي دخل ضريبي. الفترة: {period.Label} • المقارنة: {priorStart:yyyy-MM-dd} — {from.AddDays(-1):yyyy-MM-dd} ({days} يوم) • المبالغ: {currency} • قراءة {ReportPeriod.Local(data.ReadAtUtc):yyyy-MM-dd HH:mm} بتوقيت مصر.{drivers}";
         var warning=gaps.Length>0?"توجد قيم غير مكتملة؛ راجع «نواقص الإثبات». لا تمثل الخانة الفارغة صفرًا ولا يُعرض مجموع جزئي بوصفه نتيجة مؤكدة.":"";
         return new("نتيجة المحل • "+current.Verdict,context,
             [new(current.Verdict,current.Profit,currency),new("نتيجة الفترة السابقة",prior.Profit,currency),new("فرق النتيجة",current.Profit-prior.Profit,currency),new("صافي حركة الحسابات",current.CashChange,currency)],
