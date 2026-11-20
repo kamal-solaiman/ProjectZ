@@ -42,6 +42,13 @@ internal static class SalesReportTests
         Check(all.Events.Single(e=>e.Doc.Id==cancel && e.Kind==SalesEventKind.Cancel).SalesDelta==-500
             && all.Invoices.Single(i=>i.Doc.Id==cancel).Net==0 && all.Events.Any(e=>e.Doc.Id==cancel && e.Refunded==425),
             "Cancellation reads its dated audit net, not the 425 paid out or the current zero invoice net");
+        // Fixtures in the disposable DB only: pre-22 CancelSale saved a typed audit time but not $.net.
+        var cancelled = all.Events.Single(e=>e.Doc.Id==cancel && e.Kind==SalesEventKind.Cancel);
+        Execute(db,"UPDATE dbo.AuditLog SET OldValuesJson=NULL,NewValuesJson=N'{\"details\":\"إلغاء فاتورة\"}' WHERE Id=@id;", ("@id",cancelled.SourceId));
+        var legacyCancel=Read(all.Period).Events.Where(e=>e.Doc.Id==cancel).ToArray();
+        Check(legacyCancel.Single(e=>e.Kind==SalesEventKind.Cancel) is {NeedsReview:true, SalesDelta:null} unknown
+            && unknown.AtUtc==cancelled.AtUtc && legacyCancel.Sum(e=>e.Refunded)==425,
+            "Legacy typed cancellation retains its date and actual refund, without manufacturing the missing goods amount");
         var old=SalesReportProjection.Build(all,true,new(InvoiceIds:new HashSet<int>{legacy}),"ج.م");
         Check(old.Metrics[0].Value is null && old.Warning.Length>0 && old.Metrics[3].Value==180,"A legacy return without stored value flags the goods total; actual receipts remain exact");
         var original=all.Lines.First(l=>l.InvoiceId==exchange); var gross=original.Net;

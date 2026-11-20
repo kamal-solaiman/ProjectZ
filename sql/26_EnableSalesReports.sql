@@ -9,7 +9,8 @@ BEGIN
 END;
 SET XACT_ABORT ON;
 IF DATABASE_PRINCIPAL_ID(N'ProjectZClient') IS NULL OR OBJECT_ID(N'dbo.vwSalesLineValuation',N'V') IS NULL
-    OR OBJECT_ID(N'dbo.vwSalesInvoiceSummary',N'V') IS NULL OR COL_LENGTH(N'dbo.ReturnExchangeLines',N'NetAmount') IS NULL
+    OR OBJECT_ID(N'dbo.vwSalesInvoiceSummary',N'V') IS NULL OR OBJECT_ID(N'dbo.AdjustSale',N'P') IS NULL
+    OR COL_LENGTH(N'dbo.ReturnExchangeLines',N'NetAmount') IS NULL
     THROW 50260,N'أكمل مخطط المبيعات وحساب الاتصال والنسختين المحدثتين من 07 و22 أولًا.',1;
 BEGIN TRY
     BEGIN TRANSACTION;
@@ -52,11 +53,24 @@ BEGIN
             CONVERT(decimal(19,2),CASE WHEN d.InvoiceStatus IN (3,4) THEN 0 ELSE v.NetLineAmount-v.ReturnedNetAmount END) AS NetSales,
             CONVERT(decimal(19,2),CASE WHEN d.InvoiceStatus IN (3,4) THEN 0 ELSE v.RemainingCost END) AS NetCost
         INTO #Lines FROM #Docs d JOIN dbo.SalesInvoiceLines l ON l.SalesInvoiceId=d.Id
-        JOIN dbo.vwSalesLineValuation v ON v.Id=l.Id;
+        JOIN dbo.vwSalesLineValuation v ON v.SalesInvoiceId=d.Id AND v.Id=l.Id;
 
         -- Keep both axes: all events of the issued cohort AND events in range on older invoices.
         -- Collect facts before joining the header: never join payments to item quantities or serials.
-        ;WITH facts(InvoiceId,Kind,SourceId,Position,AtUtc,ActorId,Reference,Detail,Quantity,SalesDelta,CostDelta,AccountId,Received,Refunded) AS (
+        -- UNION only the narrow primary keys; each half can use its date or document index,
+        -- including when a short period is requested on a database with years of history.
+        ;WITH ops AS (
+            SELECT o.Id FROM dbo.ReturnExchanges o WHERE o.CreatedAtUtc>=@FromUtc AND o.CreatedAtUtc<@UntilUtc
+            UNION SELECT o.Id FROM #Docs d JOIN dbo.ReturnExchanges o ON o.SalesInvoiceId=d.Id
+        ), money AS (
+            SELECT p.Id FROM dbo.SalesPayments p WHERE p.PaidAtUtc>=@FromUtc AND p.PaidAtUtc<@UntilUtc
+            UNION SELECT p.Id FROM #Docs d JOIN dbo.SalesPayments p ON p.SalesInvoiceId=d.Id
+        ), cancels AS (
+            SELECT a.Id FROM dbo.AuditLog a WHERE a.Module=N''Sales'' AND a.ActionName=N''CancelSale'' AND a.EntityType=N''SalesInvoice''
+                AND a.OccurredAtUtc>=@FromUtc AND a.OccurredAtUtc<@UntilUtc
+            UNION SELECT a.Id FROM #Docs d JOIN dbo.AuditLog a ON a.EntityType=N''SalesInvoice'' AND a.EntityId=CONVERT(nvarchar(100),d.Id)
+                WHERE a.Module=N''Sales'' AND a.ActionName=N''CancelSale''
+        ), facts(InvoiceId,Kind,SourceId,Position,AtUtc,ActorId,Reference,Detail,Quantity,SalesDelta,CostDelta,AccountId,Received,Refunded) AS (
             SELECT d.Id,0,d.Id,l.LineNumber,d.IssuedAtUtc,d.CashierUserId,d.InvoiceNumber,l.ProductNameSnapshot,l.Quantity,
                 l.NetLineAmount,l.Quantity*l.UnitCost,NULL,CONVERT(decimal(19,2),0),CONVERT(decimal(19,2),0)
             FROM #Docs d LEFT JOIN #Lines l ON l.SalesInvoiceId=d.Id AND l.IsExchangeReplacement=0
@@ -66,23 +80,21 @@ BEGIN
                 CASE WHEN l.LineKind=2 THEN l.Quantity ELSE -l.Quantity END,
                 CASE WHEN l.LineKind=2 THEN l.NetAmount ELSE -l.NetAmount END,
                 CASE WHEN l.LineKind=2 THEN l.Quantity*l.UnitCost ELSE -l.Quantity*l.UnitCost END,NULL,0,0
-            FROM dbo.ReturnExchanges o LEFT JOIN dbo.ReturnExchangeLines l ON l.ReturnExchangeId=o.Id
-            WHERE (o.CreatedAtUtc>=@FromUtc AND o.CreatedAtUtc<@UntilUtc) OR EXISTS(SELECT 1 FROM #Docs d WHERE d.Id=o.SalesInvoiceId)
+            FROM ops JOIN dbo.ReturnExchanges o ON o.Id=ops.Id LEFT JOIN dbo.ReturnExchangeLines l ON l.ReturnExchangeId=o.Id
             UNION ALL
             -- Cancellation has no ReturnExchanges header. Use its typed audit event, not UpdatedAtUtc,
             -- refund amount or localized activity text. A legacy audit without a saved net stays NULL.
             SELECT k.InvoiceId,4,a.Id,0,a.OccurredAtUtc,a.ActorUserId,CONVERT(nvarchar(50),a.Id),N''إلغاء فاتورة البيع'',
                 -c.Qty,-k.OldNet,CASE WHEN k.OldNet IS NOT NULL THEN -c.Cost END,NULL,0,0
-            FROM dbo.AuditLog a CROSS APPLY (SELECT TRY_CONVERT(int,a.EntityId),TRY_CONVERT(decimal(19,2),JSON_VALUE(a.OldValuesJson,''$.net''))) k(InvoiceId,OldNet)
+            FROM cancels JOIN dbo.AuditLog a ON a.Id=cancels.Id
+            CROSS APPLY (SELECT TRY_CONVERT(int,a.EntityId),TRY_CONVERT(decimal(19,2),JSON_VALUE(a.OldValuesJson,''$.net''))) k(InvoiceId,OldNet)
             OUTER APPLY (SELECT SUM(CONVERT(bigint,l.Quantity)) AS Qty,SUM(l.Quantity*l.UnitCost) AS Cost FROM dbo.SalesInvoiceLines l
                          WHERE l.SalesInvoiceId=k.InvoiceId AND NOT EXISTS(SELECT 1 FROM dbo.ReturnExchanges r WHERE r.SalesInvoiceId=k.InvoiceId)) c
-            WHERE a.Module=N''Sales'' AND a.ActionName=N''CancelSale'' AND a.EntityType=N''SalesInvoice''
-              AND ((a.OccurredAtUtc>=@FromUtc AND a.OccurredAtUtc<@UntilUtc) OR EXISTS(SELECT 1 FROM #Docs d WHERE d.Id=k.InvoiceId))
             UNION ALL
             SELECT p.SalesInvoiceId,CASE WHEN p.PaymentKind=1 THEN 5 ELSE 6 END,p.Id,0,p.PaidAtUtc,p.ActorUserId,
                 CONVERT(nvarchar(50),p.Id),p.Note,NULL,NULL,NULL,p.FinancialAccountId,
                 CASE WHEN p.PaymentKind=1 THEN p.Amount ELSE 0 END,CASE WHEN p.PaymentKind=2 THEN p.Amount ELSE 0 END
-            FROM dbo.SalesPayments p WHERE (p.PaidAtUtc>=@FromUtc AND p.PaidAtUtc<@UntilUtc) OR EXISTS(SELECT 1 FROM #Docs d WHERE d.Id=p.SalesInvoiceId)
+            FROM money JOIN dbo.SalesPayments p ON p.Id=money.Id
         )
         SELECT i.Id,i.InvoiceNumber,i.CustomerId,i.CustomerNameSnapshot AS Customer,i.CashierUserId,u.DisplayName AS Cashier,
             f.Kind,f.SourceId,f.Position,f.AtUtc,f.ActorId,COALESCE(actor.DisplayName,N''غير مسجل'') AS Actor,f.Reference,f.Detail,

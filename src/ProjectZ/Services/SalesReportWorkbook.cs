@@ -42,6 +42,7 @@ public static class SalesReportWorkbook
             case decimal n: cell.Value=(double)n; cell.Style.NumberFormat.Format="#,##0.00;[Red]-#,##0.00;0.00"; break;
             case int n: cell.Value=n; break;
             case long n: cell.Value=(double)n; break;
+            case DateOnly day: cell.Value=day.ToDateTime(TimeOnly.MinValue); cell.Style.DateFormat.Format="yyyy-mm-dd"; break;
             case DateTime dt: cell.Value=dt; cell.Style.DateFormat.Format="yyyy-mm-dd hh:mm"; break;
             default: cell.Value=value.ToString() ?? ""; break; // text, never FormulaA1 (including leading =, + and barcodes)
         }

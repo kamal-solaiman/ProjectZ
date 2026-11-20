@@ -3,19 +3,22 @@ using System.Globalization;
 namespace ProjectZ.Models;
 
 // A single typed projection feeds the grid, A4 and Excel. Never recalculate financial figures in a printer/exporter.
-public sealed record SalesReportRow(int[] InvoiceIds, object?[] Cells)
+public sealed class SalesReportRow(int[] invoiceIds, object?[] cells)
 {
+    public int[] InvoiceIds { get; } = invoiceIds;
+    public object?[] Cells { get; } = cells;
     public SalesEventKey[]? EventKeys { get; init; }
     private string[]? display;
     public string[] Display => display ??= Array.ConvertAll(Cells, Format);
     public static string Format(object? value) => value switch {
         null => "—", decimal n => n.ToString("N2", CultureInfo.InvariantCulture),
+        DateOnly day => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         DateTime dt => dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture), _ => value.ToString() ?? "" };
 }
 public sealed record SalesReportTable(string Title, string[] Columns, IReadOnlyList<SalesReportRow> Rows, bool Grouped = false);
-public sealed record SalesReportMetric(string Label, decimal? Value, string Unit)
+public sealed record SalesReportMetric(string Label, decimal? Value, string Unit, string Missing = "غير مكتمل")
 {
-    public string Display => Value is null ? "غير مكتمل" : $"{SalesReportRow.Format(Value)} {Unit}";
+    public string Display => Value is null ? Missing : $"{SalesReportRow.Format(Value)} {Unit}";
 }
 public sealed record SalesReportPage(string Title, string Context, IReadOnlyList<SalesReportMetric> Metrics,
     IReadOnlyList<SalesReportTable> Tables, string Warning);
@@ -31,8 +34,10 @@ public static class SalesReportProjection
     private static SalesReportTable Table(string title, string headers, IEnumerable<SalesReportRow> rows, bool grouped = false) =>
         new(title, headers.Split('|'), rows.ToList(), grouped);
     private static decimal? Margin(decimal net, decimal profit) => net == 0 ? null : decimal.Round(100 * profit / net, 2);
+    private static SalesReportMetric MarginMetric(string label, decimal? net, decimal? profit) =>
+        new(label, net.HasValue && profit.HasValue ? Margin(net.Value, profit.Value) : null, "%", net == 0m ? "—" : "غير مكتمل");
     private static bool Has(string text, string search) => text.Contains(search, StringComparison.OrdinalIgnoreCase);
-    private static string Customer(ReportDocument d) => d.CustomerId is null ? $"{d.Customer} (نقدي عام)" : $"{d.Customer} (#{d.CustomerId})";
+    private static string Customer(ReportDocument d) => d.CustomerId is null ? d.Customer : $"{d.Customer} (#{d.CustomerId})";
 
     public static SalesReportPage Build(SalesReportData data, bool movement, SalesReportFilter filter, string currency)
     {
@@ -79,9 +84,9 @@ public static class SalesReportProjection
             Table("الفواتير", "الفاتورة|الإصدار (مصر)|العميل|الكاشير|الحالة|إجمالي البنود|الخصم|صافي البيع|تكلفة المباع|مجمل الربح|الهامش %|محصل|مردود مالي|صافي المحصل|المتبقي",
                 docs.Select(i => Row(i.Doc.Id, i.Doc.Number,SalesReportPeriod.Local(i.IssuedUtc),Customer(i.Doc),i.Doc.Cashier,i.StatusLabel,i.Gross,i.Discount,i.Net,i.Cost,
                     i.Net-i.Cost,Margin(i.Net,i.Net-i.Cost),i.Received,i.Refunded,i.Received-i.Refunded,i.Due))),
-            Table("بنود الفواتير", "الفاتورة|الصنف|التصنيف|الباركود|الوحدة|نوع البند|الكمية|مسحوب أو ملغى|الباقي|سعر الوحدة|تكلفة الوحدة|الإجمالي|خصم موزع|صافي قبل السحب|قيمة مسحوبة|صافي البيع|تكلفة المباع|مجمل الربح",
+            Table("بنود الفواتير", "الفاتورة|الصنف|التصنيف|الباركود|الوحدة|نوع البند|الكمية|مسحوب أو ملغى|الباقي|سعر الوحدة|تكلفة الوحدة|الإجمالي|خصم موزع|صافي قبل السحب|قيمة مسحوبة|صافي البيع|تكلفة المباع|مجمل الربح|الهامش %",
                 lines.Select(l => Row(l.InvoiceId,byId[l.InvoiceId].Doc.Number,l.Product,l.Category,l.Barcode,l.Unit,l.Replacement?"بديل":"أصلي",l.Quantity,l.Returned,Kept(l),l.UnitPrice,l.UnitCost,
-                    l.Gross,l.Gross-l.BeforeReturn,l.BeforeReturn,l.ReturnedValue,l.Net,l.Cost,l.Net-l.Cost))),
+                    l.Gross,l.Gross-l.BeforeReturn,l.BeforeReturn,l.ReturnedValue,l.Net,l.Cost,l.Net-l.Cost,Margin(l.Net,l.Net-l.Cost)))),
             Items("أداء الأصناف", l => l.ProductId, l => $"{l.Product} (#{l.ProductId})"),
             Items("أداء التصنيفات", l => l.Category, l => l.Category),
             People("العملاء", i => i.Doc.CustomerId, i => Customer(i.Doc)),
@@ -91,7 +96,7 @@ public static class SalesReportProjection
         };
         return new("فواتير الفترة • الحالة الحالية", context,
             [new("عدد الفواتير",docs.Length,"فاتورة"),new("صافي المبيعات",net,currency),new("تكلفة المباع",cost,currency),new("مجمل الربح",net-cost,currency),
-             new("صافي المحصل",received-refunded,currency),new("المتبقي",docs.Sum(i=>i.Due),currency)], tables, Warning(history));
+             new("صافي المحصل",received-refunded,currency),new("المتبقي",docs.Sum(i=>i.Due),currency), MarginMetric("هامش مجمل الربح",net,net-cost)], tables, Warning(history));
     }
 
     private static SalesReportTable Accounts(IEnumerable<SalesReportEvent> events) => Table("حسابات السداد", "الحساب الفعلي|القناة|دفعات وردود|تحصيل|رد مالي|صافي الحركة",
@@ -118,14 +123,15 @@ public static class SalesReportProjection
     private static SalesReportPage Activity(SalesReportEvent[] events,string context,string currency)
     {
         var sum=EventTotals.For(events);
-        SalesReportTable By<TKey>(string title,Func<SalesReportEvent,TKey> key,Func<SalesReportEvent,string> label) => Table(title,
+        SalesReportTable By<TKey>(string title,Func<SalesReportEvent,TKey> key,Func<SalesReportEvent,object> label) => Table(title,
             "البيان|فواتير متأثرة|أسطر حركة|أثر البيع ±|أثر التكلفة ±|أثر الربح ±|تحصيل فعلي|رد مالي|صافي حركة المال",
             events.GroupBy(key).Select(g=>{ var ids=g.Select(e=>e.Doc.Id).Distinct().ToArray(); var s=EventTotals.For(g);
                 return EventGroup(g,label(g.First()),ids.Length,g.Count(),s.Net,s.Cost,s.Net-s.Cost,s.Received,s.Refunded,s.Received-s.Refunded); }),true);
         return new("حركة الفترة • بحسب تاريخ الحركة",context,
             [new("صافي حركة البيع",sum.Net,currency),new("حركة التكلفة",sum.Cost,currency),new("حركة مجمل الربح",sum.Net-sum.Cost,currency),
-             new("تحصيل فعلي",sum.Received,currency),new("رد مالي فعلي",sum.Refunded,currency),new("صافي حركة المال",sum.Received-sum.Refunded,currency)],
-            [EventTable("دفتر الحركات",events),By("حركة يومية",e=>SalesReportPeriod.Local(e.AtUtc).Date,e=>SalesReportPeriod.Local(e.AtUtc).ToString("yyyy-MM-dd")),
+             new("تحصيل فعلي",sum.Received,currency),new("رد مالي فعلي",sum.Refunded,currency),new("صافي حركة المال",sum.Received-sum.Refunded,currency),
+             MarginMetric("هامش حركة البيع",sum.Net,sum.Net-sum.Cost)],
+            [EventTable("دفتر الحركات",events),By("حركة يومية",e=>SalesReportPeriod.Local(e.AtUtc).Date,e=>DateOnly.FromDateTime(SalesReportPeriod.Local(e.AtUtc))),
              By("أنواع الحركات",e=>e.Kind,e=>e.KindLabel),By("منفذو الحركات",e=>e.ActorId,e=>$"{e.Actor} (#{e.ActorId})"),
              By("حركة العملاء",e=>e.Doc.CustomerId,e=>Customer(e.Doc)),Accounts(events)], Warning(events));
     }

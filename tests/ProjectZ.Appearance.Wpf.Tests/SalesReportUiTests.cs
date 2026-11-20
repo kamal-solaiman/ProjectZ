@@ -36,11 +36,15 @@ internal static class SalesReportUiTests
         var vm=new SalesReportsViewModel(source,id=>opened=id);
         var view=new SalesReportsView { DataContext=vm };
         vm.RefreshAsync().GetAwaiter().GetResult(); pump();
+        view.Measure(new Size(960,620)); view.Arrange(new Rect(0,0,960,620)); view.UpdateLayout(); pump();
         var grid=(DataGrid)view.FindName("Results");
+        check(grid.ActualHeight>80 && grid.Items.Count==2,"Filtered report grid has a usable viewport and receives the actual rows");
         check(vm.CanExport && vm.Page!.Tables.Count==9 && vm.Page.Metrics[1].Value==120 && grid.Columns.Count==vm.SelectedTable!.Columns.Length,
             "Visible report uses the shared projection and exposes all cost/profit columns");
         check(vm.Page!.Tables.Single(t=>t.Title=="العملاء").Rows.Count==2 && vm.Page.Tables.Single(t=>t.Title=="الكاشير").Rows.Count==2,
             "Equal display names never merge different customer or cashier IDs");
+        check(vm.Page.Metrics.Single(m=>m.Unit=="%").Value==41.67m,
+            "Overall gross margin divides total gross profit (50) by net sales (120); it is not an average of row percentages");
         vm.Detail="000123";
         check(vm.SelectedTable!.Rows.Single().InvoiceIds[0]==31 && vm.Page.Metrics[4].Value==90,"Barcode filter selects the full issued invoice including later refund");
         vm.SelectedTable=vm.Page.Tables.Single(t=>t.Title=="أداء الأصناف"); vm.SelectedRow=vm.SelectedTable.Rows.Single(); vm.DrillCommand.Execute(null);
@@ -68,6 +72,8 @@ internal static class SalesReportUiTests
         check(paper.Pages.Count>3 && Math.Abs(lastPage.Width-SalesReportPaper.Width)<.1 && body.Children.OfType<Grid>().Last().Children.OfType<Border>().Any(b=>(b.Child as TextBlock)?.Text=="INV-PAPER-75"),
             "A4 preview paginates rows AND columns, repeats the invoice key and includes the final off-screen row");
         var window=new SalesReportPrintWindow(paper); window.Close();
+        vm.BackToResultsCommand.Execute(null);
+        check(!vm.HasDrill && vm.Detail=="000123" && vm.SelectedTable?.Title=="أداء الأصناف", "Return from a group restores the analysis table without discarding active filters");
         vm.ClearCommand.Execute(null); vm.SelectedAccount=vm.Accounts.Single(a=>a.Id==88);
         check(vm.Page!.Metrics[1].Value==90 && vm.Page.Metrics[4].Value==90,"Invoice account filter selects the whole invoice, not a pro-rata assignment to a wallet");
         vm.IsMovement=true;

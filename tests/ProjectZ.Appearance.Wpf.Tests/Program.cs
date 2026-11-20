@@ -58,8 +58,8 @@ internal static class Program
         main.DataContext = mainVm;
         PumpDispatcher(); // let DataContext inheritance and style-trigger bindings attach
         // New sidebar menus: «التقارير» sits under «العملاء والموردين» and above «المستخدمين», and
-        // «المصروفات» sits under «التقارير» and above «المستخدمين». They are navigation only in
-        // this stage: selecting an item keeps the placeholder workspace instead of an empty panel.
+        // «المصروفات» sits under «التقارير» and above «المستخدمين». Only implemented
+        // items get a live screen; the other report items must retain the placeholder.
         Check(mainVm.Categories.Select(category => category.Title).SequenceEqual(new[]
             {
                 "المبيعات", "المشتريات", "الصيانة", "المالية", "العملاء والموردين",

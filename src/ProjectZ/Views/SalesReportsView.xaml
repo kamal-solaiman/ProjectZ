@@ -2,7 +2,7 @@
     <UserControl.Resources>
         <Style x:Key="Panel" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource Theme.Brush.Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource Theme.Brush.Border}"/>
-            <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{DynamicResource Theme.SmallCornerRadius}"/><Setter Property="Padding" Value="12,8"/>
         </Style>
         <Style x:Key="Caption" TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource Theme.Brush.Muted}"/><Setter Property="FontSize" Value="11"/><Setter Property="Margin" Value="0,0,0,3"/></Style>
         <Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="{DynamicResource Theme.Brush.Navigation}"/><Setter Property="Foreground" Value="{DynamicResource Theme.Brush.OnNavigation}"/><Setter Property="Padding" Value="10,7"/><Setter Property="BorderThickness" Value="0"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
@@ -42,13 +42,14 @@
             </Grid></Expander>
         </StackPanel></Border>
         <ItemsControl Grid.Row="2" Margin="0,5" ItemsSource="{Binding Page.Metrics}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
-            <Border Style="{StaticResource Panel}" Padding="8,6" Margin="2,0"><StackPanel><TextBlock Text="{Binding Label}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Display}" ToolTip="{Binding Display}" TextTrimming="CharacterEllipsis" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource Theme.Brush.AccentInk}"/></StackPanel></Border>
+            <Border Style="{StaticResource Panel}" Padding="8,6" Margin="2,0"><StackPanel><TextBlock Text="{Binding Label}" ToolTip="{Binding Label}" TextTrimming="CharacterEllipsis" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Display}" ToolTip="{Binding Display}" TextTrimming="CharacterEllipsis" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource Theme.Brush.AccentInk}"/></StackPanel></Border>
         </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
         <DockPanel Grid.Row="3" Margin="0,2,0,6"><Button DockPanel.Dock="Left" Content="فتح تفاصيل الصف ←" Style="{StaticResource PosOutlineTealButtonStyle}" Command="{Binding DrillCommand}"/>
+            <Button DockPanel.Dock="Left" Content="الرجوع للنتائج" ToolTip="إنهاء عرض المجموعة دون مسح الفلاتر" Margin="5,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding HasDrill, Converter={StaticResource BoolToVis}}" Command="{Binding BackToResultsCommand}"/>
             <ComboBox DockPanel.Dock="Right" Width="172" ItemsSource="{Binding Page.Tables}" SelectedItem="{Binding SelectedTable}" DisplayMemberPath="Title" AutomationProperties.Name="قسم التقرير"/>
-            <TextBlock Text="{Binding TableCaption}" Margin="10,0" VerticalAlignment="Center" Style="{StaticResource Caption}"/></DockPanel>
+            <TextBlock Text="{Binding TableCaption}" TextTrimming="CharacterEllipsis" ToolTip="{Binding TableCaption}" Margin="10,0" VerticalAlignment="Center" Style="{StaticResource Caption}"/></DockPanel>
         <Grid Grid.Row="4"><DataGrid x:Name="Results" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False" CanUserReorderColumns="False" CanUserSortColumns="False"
-            EnableRowVirtualization="True" EnableColumnVirtualization="True" SelectionUnit="FullRow" SelectionMode="Single" RowHeight="30" ColumnWidth="SizeToCells" MaxColumnWidth="330" MinColumnWidth="90"
+            EnableRowVirtualization="True" EnableColumnVirtualization="True" SelectionUnit="FullRow" SelectionMode="Single" RowHeight="30" ColumnWidth="Auto" MaxColumnWidth="330" MinColumnWidth="90"
             ItemsSource="{Binding SelectedTable.Rows}" SelectedItem="{Binding SelectedRow}" MouseDoubleClick="Results_DoubleClick" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource Theme.Brush.Border}"
             BorderBrush="{DynamicResource Theme.Brush.Border}" RowBackground="{DynamicResource Theme.Brush.Surface}" AlternatingRowBackground="{DynamicResource Theme.Brush.SurfaceRaised}" Background="{DynamicResource Theme.Brush.Surface}" Foreground="{DynamicResource Theme.Brush.Text}"/>
             <TextBlock Text="لا توجد صفوف مطابقة" IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource Theme.Brush.Muted}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SelectedTable.Rows.Count}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
