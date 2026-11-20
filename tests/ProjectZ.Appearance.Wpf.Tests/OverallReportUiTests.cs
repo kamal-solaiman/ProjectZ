@@ -41,10 +41,10 @@ internal static class OverallReportUiTests
         check(bridge.Title==OverallReportProjection.Bridge && grid.Items.Count==6 && grid.ActualHeight>80 && view.FlowDirection==FlowDirection.RightToLeft
             && !vm.ShowDocumentTools && !vm.ShowModeButtons && ((Grid)((StackPanel)((TextBox)view.FindName("DocumentSearch")).Parent).Parent).Visibility==Visibility.Collapsed,
             "Default table explains the result; no invoice modes, document searches or identifiers");
-        check(page.Metrics.Select(m=>m.Value).SequenceEqual([250m,-50m,300m,-145m]) && page.Metrics[0].Label=="ربح تشغيلي"
+        check(page.Metrics.Select(m=>m.Value).SequenceEqual([270m,-50m,320m,-145m]) && page.Metrics[0].Label=="ربح تشغيلي"
             && page.Context.Contains("2026-02-22") && page.Context.Contains("2026-02-28"),
-            "300 margin + 70 service + 10 fees - 90 written expense - 20 net damage = 250 profit, not the -145 cash change");
-        var result=bridge.Rows.Last();check(Equals(result.Cells[1],250m) && Equals(result.Cells[2],-50m) && Equals(result.Cells[3],300m)
+            "300 margin + 70 service + 10 fees - 90 written expense - 20 net damage = 270 profit, not the -145 cash change");
+        var result=bridge.Rows.Last();check(Equals(result.Cells[1],270m) && Equals(result.Cells[2],-50m) && Equals(result.Cells[3],320m)
             && bridge.Rows.First().Display.Contains("جديد") && bridge.Rows.First().Cells[4]==null,"Comparison shows signed differences, no percentage on a zero base");
         foreach(var table in page.Tables)
         {
@@ -76,7 +76,7 @@ internal static class OverallReportUiTests
                 && book.Worksheet("الملخص").Cell(3,1).GetString()==unknown.Context,"Reopened XLSX contains only aggregate sheets, typed amounts/days, actual prior, and blank unknowns");
             var doc=ReportPaper.Build("متجر",page,bridge);
             var paper=doc.Pages.SelectMany(pg=>PaperText(pg.GetPageRoot(false)!)).ToList();
-            check(doc.Pages.Count>=1 && paper.Contains(page.Context) && paper.Contains("250.00") && paper.Contains("-20.00") && !paper.Contains("3,000.00"),
+            check(doc.Pages.Count>=1 && paper.Contains(page.Context) && paper.Contains("270.00") && paper.Contains("-20.00") && !paper.Contains("3,000.00"),
                 "A4 prints the chosen profit bridge with the same signed values, not raw rows or other departments");
         }
         finally { if(File.Exists(path)) File.Delete(path); }

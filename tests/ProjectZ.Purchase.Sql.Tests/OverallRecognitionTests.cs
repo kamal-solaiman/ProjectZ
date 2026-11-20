@@ -109,6 +109,14 @@ internal static partial class OverallReportTests
             """,("@at",t.At(15)),("@id",unit),("@actor",actor));
         Check(t.Read(11).Profit==-100 && t.Read(13).Profit==100 && t.Read(14).Profit==-100 && t.Read(15).Profit==0,
             "Deletion preserves original dated issues and genuine restoration; no loss or recovery on destruction itself");
+        // Simulate pre-31, when the only surviving evidence was a typed unit mark and the later deletion audit.
+        Execute(db,"""
+            DELETE dbo.OverallRemovedDamage WHERE UnitId=@id;
+            INSERT dbo.AuditLog(OccurredAtUtc,ActorUserId,Module,ActionName,EntityType,EntityId)
+                SELECT at,@actor,N'Inventory',kind,N'InventoryUnit',CONVERT(nvarchar(100),@id) FROM (VALUES (@one,N'MarkUnitDamaged'),(@two,N'RestoreDamaged'),(@three,N'MarkUnitDamaged')) x(at,kind);
+            """,("@id",unit),("@actor",actor),("@one",t.At(11)),("@two",t.At(13)),("@three",t.At(14)));
+        Check(t.Read(11).Profit==null && t.Read(13)[Restored]==null && t.Read(14).Profit==null && t.Read(12).Profit==0 && t.Read(15).Profit==0,
+            "Unvalued legacy unit marks retain their own dates; no invented charge on the deletion or intervening days");
     }
 
     private static void DeliveriesAndReopens(SqlConnection db,ConnectionSettingsProvider settings,int actor)

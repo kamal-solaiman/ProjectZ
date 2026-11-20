@@ -96,19 +96,22 @@ BEGIN
 
         -- SERVICE: anchors are a delivery locked in the current header, a 24 delivery event, or
         -- the PRE-reopen closing snapshot. Never back-project today''s part list onto an earlier close.
-        SELECT TRY_CONVERT(int,a.EntityId) Id,TRY_CONVERT(datetime2(7),JSON_VALUE(a.OldValuesJson,''$.DeliveredAtUtc'')) ClosedAt,
-            a.Id AS AuditId INTO #OldClose FROM dbo.AuditLog a
-        WHERE a.Module=N''Maintenance'' AND a.EntityType=N''MaintenanceOrder'' AND a.ActionName=N''Reopen'' AND TRY_CONVERT(int,JSON_VALUE(a.OldValuesJson,''$.OrderStatus''))=5;
         SELECT p.MaintenanceOrderId Id INTO #Tickets FROM dbo.MaintenancePayments p WHERE p.PaidAtUtc>=@Start AND p.PaidAtUtc<@End
         UNION SELECT SourceEntityId FROM dbo.FinancialTransactions WHERE SourceEntityType=N''MaintenanceOrder'' AND OccurredAtUtc>=@Start AND OccurredAtUtc<@End
         UNION SELECT Id FROM dbo.MaintenanceOrders WHERE OrderStatus=5 AND DeliveredAtUtc>=@Start AND DeliveredAtUtc<@End
-        UNION SELECT Id FROM #OldClose WHERE ClosedAt>=@Start AND ClosedAt<@End AND Id IS NOT NULL
+        UNION SELECT Id FROM dbo.MaintenanceOrders WHERE OrderStatus=5 AND DeliveredAtUtc IS NULL AND ReceivedAtUtc<@End AND UpdatedAtUtc>=@Start
+        UNION SELECT TRY_CONVERT(int,a.EntityId) FROM dbo.AuditLog a CROSS APPLY(VALUES(TRY_CONVERT(datetime2(7),JSON_VALUE(a.OldValuesJson,''$.DeliveredAtUtc'')))) x(ClosedAt)
+            WHERE a.Module=N''Maintenance'' AND a.EntityType=N''MaintenanceOrder'' AND a.ActionName=N''Reopen'' AND a.OccurredAtUtc>=@Start AND x.ClosedAt>=@Start AND x.ClosedAt<@End
         UNION SELECT MaintenanceOrderId FROM dbo.MaintenanceActivities WHERE ActionTitle=N''تسليم الجهاز وإغلاق أمر الصيانة'' AND OccurredAtUtc>=@Start AND OccurredAtUtc<@End
         UNION SELECT TRY_CONVERT(int,EntityId) FROM dbo.AuditLog WHERE Module=N''Maintenance'' AND EntityType=N''MaintenanceOrder'' AND ActionName=N''Deliver'' AND OccurredAtUtc>=@Start AND OccurredAtUtc<@End;
         CREATE UNIQUE CLUSTERED INDEX TicketsId ON #Tickets(Id);
+        SELECT t.Id,TRY_CONVERT(datetime2(7),JSON_VALUE(a.OldValuesJson,''$.DeliveredAtUtc'')) ClosedAt,a.Id AuditId INTO #OldClose
+        FROM #Tickets t JOIN dbo.AuditLog a ON a.EntityId=CONVERT(nvarchar(100),t.Id) AND a.Module=N''Maintenance'' AND a.EntityType=N''MaintenanceOrder''
+            AND a.ActionName=N''Reopen'' AND TRY_CONVERT(int,JSON_VALUE(a.OldValuesJson,''$.OrderStatus''))=5;
+        CREATE INDEX OldCloseTime ON #OldClose(Id,ClosedAt);
         ;WITH anchors AS (
             SELECT o.Id,o.DeliveredAtUtc AS AtUtc FROM #Tickets t JOIN dbo.MaintenanceOrders o ON o.Id=t.Id WHERE o.OrderStatus=5 AND o.DeliveredAtUtc IS NOT NULL
-            UNION SELECT c.Id,c.ClosedAt FROM #OldClose c JOIN #Tickets t ON t.Id=c.Id WHERE c.ClosedAt IS NOT NULL
+            UNION SELECT c.Id,c.ClosedAt FROM #OldClose c WHERE c.ClosedAt IS NOT NULL
         ), events AS (
             SELECT t.Id,COALESCE(TRY_CONVERT(datetime2(7),JSON_VALUE(a.NewValuesJson,''$.DeliveredAtUtc'')),a.OccurredAtUtc) AtUtc FROM #Tickets t JOIN dbo.AuditLog a
                 ON a.Module=N''Maintenance'' AND a.EntityType=N''MaintenanceOrder'' AND a.EntityId=CONVERT(nvarchar(100),t.Id) AND a.ActionName=N''Deliver''
@@ -156,11 +159,16 @@ BEGIN
         INSERT #Fact SELECT p.PaidAtUtc,25,NULL FROM dbo.MaintenancePayments p WHERE p.PaymentStage=2 AND p.PaidAtUtc>=@Start AND p.PaidAtUtc<@End
             AND NOT EXISTS(SELECT 1 FROM #Closes c WHERE c.Id=p.MaintenanceOrderId);
 
+        INSERT #Fact SELECT d.StartUtc,x.Measure,NULL FROM #Days d CROSS JOIN(VALUES(25),(26)) x(Measure) WHERE EXISTS(
+            SELECT 1 FROM #Tickets t JOIN dbo.MaintenanceOrders o ON o.Id=t.Id WHERE o.OrderStatus=5 AND o.DeliveredAtUtc IS NULL
+                AND o.ReceivedAtUtc<d.UntilUtc AND o.UpdatedAtUtc>=d.StartUtc AND NOT EXISTS(SELECT 1 FROM #Closes c WHERE c.Id=t.Id));
+
         -- FINANCE: actual account legs by channel, never added to revenue; EXPENSES by written
         -- date for operating result, with ledger payments/credits independently dated for liquidity.
         SELECT t.Id,t.SourceEntityId,t.SourceEntityType,t.IsIncoming,t.Amount,t.FinancialAccountId,t.OccurredAtUtc,a.AccountKind,
             CASE WHEN t.Category IN(N''عكس تحويل'',N''عكس تعديل'') THEN 1 ELSE 0 END UndoStage
         INTO #Book FROM dbo.FinancialTransactions t JOIN dbo.FinancialAccounts a ON a.Id=t.FinancialAccountId WHERE t.OccurredAtUtc>=@Start AND t.OccurredAtUtc<@End;
+        INSERT #Fact SELECT b.OccurredAtUtc,25,NULL FROM #Book b WHERE b.SourceEntityType=N''MaintenanceOrder'' AND NOT EXISTS(SELECT 1 FROM dbo.MaintenanceOrders o WHERE o.Id=b.SourceEntityId);
         INSERT #Fact SELECT OccurredAtUtc,30+2*AccountKind+CASE WHEN IsIncoming=1 THEN 0 ELSE 1 END,Amount FROM #Book;
         INSERT #Fact SELECT OccurredAtUtc,CASE WHEN IsIncoming=1 THEN 42 ELSE 41 END,Amount FROM #Book WHERE SourceEntityType=N''Expense'';
         SELECT d.Day,d.StartUtc,e.Amount,e.ExpenseCategoryId INTO #Spend FROM #Days d JOIN dbo.Expenses e ON e.ExpenseDate=d.Day;
@@ -229,11 +237,23 @@ BEGIN
                 AND m.OccurredAtUtc<=r.ReturnedAtUtc ORDER BY m.OccurredAtUtc DESC,m.Id DESC) prev
             WHERE r.ReturnedAtUtc>=@Start AND u.RegisteredAtUtc<@End AND ISNULL(prev.MovementType,N'''')<>N''Damage''
         ) INSERT #Fact SELECT d.StartUtc,50,NULL FROM #Days d WHERE EXISTS(SELECT 1 FROM unknownLoss u WHERE u.Latest>=d.StartUtc AND u.Earliest<d.UntilUtc);
-        -- A pre-archive hard deletion erased the DATE as well as the cost. Do not move the loss to
-        -- deletion day. Historical days that could contain the erased movement cannot be certified.
-        DECLARE @Unlocated datetime2(7)=(SELECT MAX(a.OccurredAtUtc) FROM dbo.AuditLog a WHERE a.Module=N''Inventory'' AND a.ActionName=N''DeleteDamagedUnit'' AND a.EntityType=N''InventoryUnit''
-            AND a.OccurredAtUtc>=@Start AND NOT EXISTS(SELECT 1 FROM dbo.OverallRemovedDamage h WHERE h.UnitId=TRY_CONVERT(int,a.EntityId) AND h.MovementType=N''Damage''));
-        INSERT #Fact SELECT StartUtc,50,NULL FROM #Days WHERE StartUtc<=@Unlocated;
+        -- Old hard deletions: use typed UNIT-level mark/restore dates if they survive. Bulk marks had only
+        -- a product audit, so an unmatched restore/destruction bounds a missing write-off but cannot date it.
+        -- Do not shift that loss to disposal day or invalidate unrelated days after a proven dated mark.
+        ;WITH erased AS (
+            SELECT a.EntityId,MIN(a.OccurredAtUtc) DeletedAt FROM dbo.AuditLog a WHERE a.Module=N''Inventory'' AND a.EntityType=N''InventoryUnit''
+                AND a.ActionName=N''DeleteDamagedUnit'' AND NOT EXISTS(SELECT 1 FROM dbo.OverallRemovedDamage m WHERE m.UnitId=TRY_CONVERT(int,a.EntityId) AND m.MovementType=N''Damage'')
+            GROUP BY a.EntityId HAVING MIN(a.OccurredAtUtc)>=@Start
+        ), trail AS (
+            SELECT e.EntityId,a.Id,a.OccurredAtUtc AtUtc,CASE a.ActionName WHEN N''MarkUnitDamaged'' THEN 50 ELSE 51 END Kind FROM erased e
+            JOIN dbo.AuditLog a ON a.Module=N''Inventory'' AND a.EntityType=N''InventoryUnit'' AND a.EntityId=e.EntityId AND a.OccurredAtUtc<=e.DeletedAt
+                AND a.ActionName IN(N''MarkUnitDamaged'',N''RestoreDamaged'')
+            UNION ALL SELECT EntityId,2147483647,DeletedAt,0 FROM erased
+        ) SELECT *,LAG(AtUtc) OVER(PARTITION BY EntityId ORDER BY AtUtc,Id) PrevAt,LAG(Kind) OVER(PARTITION BY EntityId ORDER BY AtUtc,Id) PrevKind INTO #Erased FROM trail;
+        INSERT #Fact SELECT AtUtc,Kind,NULL FROM #Erased WHERE Kind<>0 AND AtUtc>=@Start AND AtUtc<@End;
+        INSERT #Fact SELECT d.StartUtc,x.Kind,NULL FROM #Days d CROSS JOIN(VALUES(50),(51)) x(Kind) WHERE EXISTS(
+            SELECT 1 FROM #Erased e WHERE e.AtUtc>=d.StartUtc AND (e.PrevAt IS NULL OR e.PrevAt<d.UntilUtc)
+                AND (CASE WHEN e.Kind IN(0,51) AND ISNULL(e.PrevKind,0)<>50 THEN 50 WHEN e.Kind=50 AND e.PrevKind=50 THEN 51 END)=x.Kind);
         -- Actual supplier settlement, not a ''returned to supplier'' status string. All-damaged:
         -- the full signed reduction. Mixed: only a separately provable share (including 0).
         -- Later collections/applications of the same credit must never enter this measure again.
