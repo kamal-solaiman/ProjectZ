@@ -107,9 +107,9 @@ public static class ExpenseReportProjection
             // Documentary evidence, not an extra posting total. A backdated invoice can have proof
             // outside BOTH displayed periods; show its timing and ledger key instead of guessing.
             tables.Add(Table("قيود إثبات المستند", "رقم المصروف|تاريخ المستند|رقم القيد|وقت القيد بمصر|موقع القيد من الفترة|الحساب الفعلي|المنفّذ|منصرف|وارد|مطابقة الحساب",
-                from i in current from a in d.Proofs[i.SourceId].Accounts where f.AccountId == null || a.AccountId == f.AccountId
-                from l in a.Legs select Row(d,i,[i.Reference,i.Day,l.Id,ReportPeriod.Local(l.AtUtc),d.Period.Contains(l.AtUtc) ? "داخل الفترة" : "خارج الفترة",
-                    d.AccountName(a.AccountId),d.ActorName(l.ActorId),l.Incoming ? 0m : l.Amount,l.Incoming ? l.Amount : 0m,a.Result],a.AccountId)));
+                from i in current from evidence in d.Proofs[i.SourceId].Accounts where f.AccountId == null || evidence.AccountId == f.AccountId
+                from l in evidence.Legs select Row(d,i,[i.Reference,i.Day,l.Id,ReportPeriod.Local(l.AtUtc),d.Period.Contains(l.AtUtc) ? "داخل الفترة" : "خارج الفترة",
+                    d.AccountName(evidence.AccountId),d.ActorName(l.ActorId),l.Incoming ? 0m : l.Amount,l.Incoming ? l.Amount : 0m,evidence.Result],evidence.AccountId)));
             tables.Add(Table("فروق المطابقة", "رقم المصروف|تاريخ المستند|سبب المراجعة|الحساب|المتوقّع|المسجّل|المسجّل ناقص المتوقع|عدد القيود", Differences(d,current.Where(Review))));
         }
         else
