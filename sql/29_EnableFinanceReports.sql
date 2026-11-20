@@ -87,9 +87,10 @@ BEGIN
             FROM stages s LEFT JOIN dbo.FinancialTransactions t ON t.SourceEntityType=N''CustomerTransfer'' AND t.SourceEntityId=s.Id AND CASE WHEN t.Category=N''عكس تحويل'' THEN 1 ELSE 0 END=s.Undo
             CROSS APPLY (VALUES(CASE WHEN t.IsIncoming=1 THEN t.Amount ELSE -t.Amount END)) sg(Delta)
             GROUP BY s.Id,s.Undo
-        ) SELECT h.Id,x.Undo,CONVERT(bit,CASE WHEN h.CashAccountId IS NOT NULL AND h.CashDelta=CASE WHEN h.OperationKind=1 THEN h.Amount+h.Commission ELSE h.Commission-h.Amount END
+        ) SELECT h.Id,x.Undo,CONVERT(bit,CASE WHEN wallet.AccountKind IN (1,2) AND cash.AccountKind=0 AND h.CashDelta=CASE WHEN h.OperationKind=1 THEN h.Amount+h.Commission ELSE h.Commission-h.Amount END
              AND x.AllLegs=CASE WHEN h.CashDelta=0 THEN 1 ELSE 2 END AND x.WalletLegs=1 AND x.CashLegs=CASE WHEN h.CashDelta=0 THEN 0 ELSE 1 END THEN 1 ELSE 0 END) AS Confirmed
-        INTO #Evidence FROM #Headers h JOIN checks x ON x.Id=h.Id;
+        INTO #Evidence FROM #Headers h JOIN checks x ON x.Id=h.Id
+        JOIN #Accounts wallet ON wallet.Id=h.FinancialAccountId LEFT JOIN #Accounts cash ON cash.Id=h.CashAccountId;
         ;WITH actors AS (SELECT ActorUserId AS Id FROM #Book UNION SELECT ActorUserId FROM #Headers UNION SELECT ReversedByUserId FROM #Headers WHERE ReversedByUserId IS NOT NULL)
         SELECT u.Id,CASE WHEN u.DisplayName COLLATE Latin1_General_100_BIN2 LIKE N''%[0-9٠-٩۰-۹@+]%'' THEN N''مستخدم'' ELSE u.DisplayName END AS SafeName INTO #Actors FROM actors JOIN dbo.Users u ON u.Id=actors.Id;
         -- Current limit settings are not a history of limits. Measure today''s and this month''s usage on Egypt business boundaries (independent of the report range).

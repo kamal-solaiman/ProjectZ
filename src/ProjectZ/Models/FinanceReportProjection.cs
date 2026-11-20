@@ -103,8 +103,12 @@ public static class FinanceReportProjection
             var table=Table("تحويلات تاريخ الإصدار","التحويل|تاريخ التسجيل|المحفظة|العميل المحجوب|الاتجاه|أصل المبلغ المسجّل|العمولة المسجلة|الحالة الآن|تاريخ العكس|العمولة السارية المثبتة|المسجل|عكسه|تصحيح للتحويل|استبدله التحويل|المطابقة",items.Select(t=>
                 Detail([t.Id,Local(t.IssuedUtc),d.Accounts[t.WalletId].Label,t.MaskedCustomer,t.Direction,t.Principal,t.Commission,t.Reversed?"معكوسة":"سارية",t.ReversedUtc is DateTime r?Local(r):null,t.CurrentFee,
                     d.Actor(t.ActorId),t.ReverserId is int u?d.Actor(u):null,t.Predecessor,t.Replacement,t.CurrentFee.HasValue?"مطابق":"تحتاج مراجعة"],d.Accounts[t.WalletId].Link,d.TransferLink(t))));
+            ReportTable ByCohort<T>(string title,Func<FeeTransfer,T> key,Func<FeeTransfer,string> label)=>Table(title,
+                "البيان|عمليات صدرت|معكوسة الآن|أصل التحويلات السارية المثبتة|العمولة السارية المثبتة",items.GroupBy(key).Select(g=>Group(g.Select(t=>t.Id),
+                    [label(g.First()),g.Count(),g.Count(t=>t.Reversed),SumKnown(g.Where(t=>!t.Reversed).Select(t=>t.ApplicationConfirmed?(decimal?)t.Principal:null)),SumKnown(g.Select(t=>t.CurrentFee))],
+                    g.Select(t=>t.WalletId).Distinct().Count()==1?d.Accounts[g.First().WalletId].Link:null)),true);
             return new("تحويلات الفترة • حالتها وقت القراءة",context,[new("تحويلات صدرت",items.Length,"عملية"),new("معكوسة الآن",items.Count(t=>t.Reversed),"عملية"),new("العمولة السارية المثبتة",SumKnown(items.Select(t=>t.CurrentFee)),currency)],
-                [table,Table("التحويلات حسب المحفظة","المحفظة|عمليات صدرت|معكوسة الآن|العمولة السارية",items.GroupBy(t=>t.WalletId).Select(g=>Group(g.Select(t=>t.Id),[d.Accounts[g.Key].Label,g.Count(),g.Count(t=>t.Reversed),SumKnown(g.Select(t=>t.CurrentFee))],d.Accounts[g.Key].Link)),true)],FeeWarning(items.Count(t=>!t.CurrentFee.HasValue)),Section);
+                [table,ByCohort("التحويلات حسب المحفظة",t=>t.WalletId,t=>d.Accounts[t.WalletId].Label),ByCohort("أنواع الخدمة",t=>t.Kind,t=>t.Direction),ByCohort("مسجلو التحويلات",t=>t.ActorId,t=>d.Actor(t.ActorId))],FeeWarning(items.Count(t=>!t.CurrentFee.HasValue)),Section);
         }
         IEnumerable<Fee> Events(FeeTransfer t)
         {
@@ -113,15 +117,30 @@ public static class FinanceReportProjection
         }
         var events=transfers.SelectMany(Events).Where(e=>d.Period.Contains(e.AtUtc) && (f.InvoiceIds is null || f.InvoiceIds.Contains(e.Key)) && (f.StatusOrKind is null || f.StatusOrKind==(e.Undo?1:0))
             && (f.IssuerId is null || f.IssuerId==e.ActorId) && Extra(e.Transfer,e.ActorId)).OrderByDescending(e=>e.AtUtc).ThenByDescending(e=>e.Transfer.Id).ToArray();
+        // A transfer leg in the selected dates need not have a usable dated header (e.g. a pre-23 in-place edit).
+        // Surface the ledger evidence separately. Do not turn each wallet/cash leg into a second fee event.
+        var unassigned=d.Legs.Where(l=>l.Source==FinanceSource.CustomerTransfer && d.Period.Contains(l.AtUtc) && f.InvoiceIds==null
+            && (f.IssuerId is null || f.IssuerId==l.ActorId)).Where(l=>{
+                var a=d.Accounts[l.AccountId];var h=l.SourceId is int id?d.Transfers.GetValueOrDefault(id):null;
+                bool undo=l.Purpose is "عكس تحويل" or "عكس تعديل";
+                if(h!=null && (undo?h.UndoConfirmed:h.ApplicationConfirmed))return false;
+                if(f.StatusOrKind is int k && k!=(undo?1:0))return false;
+                if(f.AccountId is int acc && acc!=l.AccountId && !(a.Provider==0 && h?.WalletId==acc))return false;
+                return Match(f.Search.Trim(),l.Reference,a.Label,a.MaskedIdentifier,h?.MaskedCustomer??"",h!=null?d.Accounts[h.WalletId].Label:"")
+                    && Match(f.Detail.Trim(),d.Actor(l.ActorId),l.Purpose,h?.Direction??"",h?.Predecessor!=null?"تصحيح":"أصل");
+            }).ToArray();
+        var review=Table("قيود عمولة تحتاج مطابقة","القيد|التوقيت|الحساب الفعلي|مرجع التحويل|أثر القيد وليس العمولة|الموظف",unassigned.Select(l=>Detail(
+            [l.Id,Local(l.AtUtc),d.Accounts[l.AccountId].Label,l.SourceId,l.Delta,d.Actor(l.ActorId)],d.Accounts[l.AccountId].Link,d.SourceLink(l))));
         decimal? Applied(IEnumerable<Fee> list)=>SumKnown(list.Where(e=>!e.Undo).Select(e=>e.Signed));
         decimal? Undone(IEnumerable<Fee> list)=>-SumKnown(list.Where(e=>e.Undo).Select(e=>e.Signed));
         ReportTable By<T>(string title,Func<Fee,T> key,Func<Fee,object> label)=>Table(title,"البيان|حركات عمولة|عمولة مسجلة|عمولة معكوسة|صافي العمولات",events.GroupBy(key).Select(g=>Group(g.Select(e=>e.Key),
             [label(g.First()),g.Count(),Applied(g),Undone(g),SumKnown(g.Select(e=>e.Signed))])),true);
-        return new("عمولات التحويل • بتاريخ التسجيل والعكس",context,[new("عمولات التسجيل",Applied(events),currency),new("عمولات عُكست",Undone(events),currency),new("صافي عمولة الفترة",SumKnown(events.Select(e=>e.Signed)),currency),new("أسطر العمولة",events.Length,"حركة")],
+        return new("عمولات التحويل • بتاريخ التسجيل والعكس",context,[new("عمولات التسجيل",unassigned.Any(l=>l.Purpose is not ("عكس تحويل" or "عكس تعديل"))?null:Applied(events),currency),new("عمولات عُكست",unassigned.Any(l=>l.Purpose is "عكس تحويل" or "عكس تعديل")?null:Undone(events),currency),new("صافي عمولة الفترة",unassigned.Length>0?null:SumKnown(events.Select(e=>e.Signed)),currency),new("أسطر العمولة",events.Length,"حركة")],
             [Table("دفتر العمولات","التحويل|وقت العملية|الحدث|المحفظة|العميل المحجوب|أصل التحويل المثبت|أثر المحفظة|أثر الخزنة|أثر العمولة|الموظف|تصحيح للتحويل|المطابقة",events.Select(e=>{var t=e.Transfer;int sign=e.Undo?-1:1;
                 return Detail([t.Id,Local(e.AtUtc),e.Undo?"عكس":t.Predecessor.HasValue?"تسجيل تصحيح":"تسجيل",d.Accounts[t.WalletId].Label,t.MaskedCustomer,e.Signed.HasValue?t.Principal:null,
                     e.Signed.HasValue?sign*(t.Kind==1?-t.Principal:t.Principal):null,e.Signed.HasValue?sign*t.CashDelta:null,e.Signed,d.Actor(e.ActorId),t.Predecessor,e.Signed.HasValue?"مطابق":"تفاصيل تاريخية غير مؤكدة"],d.Accounts[t.WalletId].Link,d.TransferLink(t));})),
-             By("العمولات اليومية",e=>Day(e.AtUtc),e=>Day(e.AtUtc)),By("عمولات المحافظ",e=>e.Transfer.WalletId,e=>d.Accounts[e.Transfer.WalletId].Label),By("منفذو العمليات",e=>e.ActorId,e=>d.Actor(e.ActorId))],FeeWarning(events.Count(e=>!e.Signed.HasValue)),Section);
+             By("العمولات اليومية",e=>Day(e.AtUtc),e=>Day(e.AtUtc)),By("عمولات المحافظ",e=>e.Transfer.WalletId,e=>d.Accounts[e.Transfer.WalletId].Label),By("منفذو العمليات",e=>e.ActorId,e=>d.Actor(e.ActorId)),review],
+             FeeWarning(events.Count(e=>!e.Signed.HasValue))+(unassigned.Length>0?$" يوجد {unassigned.Length} قيد تحويل يحتاج مطابقة. جداول التجميع تخص الأحداث المؤرخة فقط.":""),Section);
     }
     private static string FeeWarning(int count)=>count>0?$"توجد {count} عملية غير مكتملة الإثبات (تاريخ قديم أو قيود غير مطابقة). لا تُستنتج عمولة من النص أو الرصيد الحالي.":"";
 

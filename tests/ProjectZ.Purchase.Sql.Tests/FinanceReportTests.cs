@@ -14,7 +14,13 @@ internal static class FinanceReportTests
         ReportPage Page(FinanceReportData d, FinanceReportMode mode,ReportFilter? f=null)=>FinanceReportProjection.Build(d,mode,f??new(),"ج.م");
         decimal? Metric(ReportPage page,string name)=>page.Metrics.Single(m=>m.Label==name).Value;
         var near=new ReportPeriod(ReportPeriod.Today.AddDays(-1),ReportPeriod.Today.AddDays(1));
+        // The migration fixture deliberately removes its original expense ledger. Post a new real expense here;
+        // the migrated header/payment without ledger evidence must not create another money row.
+        var expenses=new ExpenseRepository(settings,actor);
+        var expense=expenses.Save(new(expenses.LoadCategories().First().Id,DateTime.Today.AddDays(-12),3.50m,"اختبار التقرير",[new(cash,3.50m)]));
         var actual=Read(near);
+        Check(actual.Legs.Single(l=>l.Source==FinanceSource.Expense && l.SourceId==expense.ExpenseId).Delta==-3.50m,
+            "An expense posts by ledger date, not the backdated date on its document");
         Check(actual.Legs.Count==Scalar<int>(db,"SELECT COUNT(*) FROM dbo.FinancialTransactions WHERE OccurredAtUtc>=@from AND OccurredAtUtc<@until",("@from",near.StartUtc),("@until",near.EndUtc))
             && actual.Legs.Select(l=>l.Id).Distinct().Count()==actual.Legs.Count,"One reported leg per posting, not multiplied by document lines, receipts or refunds");
         Check(actual.Transfers[legacyId].CurrentFee is null && Page(actual,IssuedTransfers,new(InvoiceIds:new HashSet<int>{legacyId})).Warning.Length>0,
