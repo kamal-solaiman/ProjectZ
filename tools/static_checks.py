@@ -258,7 +258,7 @@ assert customers_pos < menu_titles.index('التقارير') < menu_titles.index
     'التقارير and المصروفات belong between العملاء والموردين and المستخدمين'
 assert 'IsReportsSelected' not in main_viewmodel, \
     'the reports category is still navigation-only and must not claim a screen yet'
-assert 'ReportsView' not in main_xaml, 'the reports category must not host a view yet'
+assert 'views:SalesReportsView' in main_xaml and 'IsSalesReportsSelected' in main_viewmodel, 'sales reports must have their own host'
 assert 'IsExpenseCategoriesSelected' in main_viewmodel and 'views:ExpenseCategoriesView' in main_xaml, \
     'the expense categories item is implemented and must host its real screen'
 assert 'IsExpenseInvoicesSelected' in main_viewmodel and 'views:ExpenseInvoicesView' in main_xaml, \

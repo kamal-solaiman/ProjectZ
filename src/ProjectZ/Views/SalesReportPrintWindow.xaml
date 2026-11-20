@@ -1,0 +1,6 @@
+<Window x:Class="ProjectZ.Views.SalesReportPrintWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Name, Source={StaticResource StoreIdentity}, StringFormat='{}{0} | معاينة تقرير المبيعات'}" Language="ar-EG" FlowDirection="LeftToRight" WindowStartupLocation="CenterOwner" Width="1050" Height="720">
+    <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="pack://application:,,,/ProjectZ;component/Resources/PrintIsolation.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
+    <DockPanel><StackPanel DockPanel.Dock="Top" Orientation="Horizontal" FlowDirection="RightToLeft" Margin="8"><Button Content="طباعة A4 أفقي" Click="Print_Click"/><Button Margin="8,0" Content="إغلاق" IsCancel="True"/></StackPanel>
+        <DocumentViewer x:Name="Viewer"/></DockPanel>
+</Window>

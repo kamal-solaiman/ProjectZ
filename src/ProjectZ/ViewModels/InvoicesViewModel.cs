@@ -532,6 +532,16 @@ public sealed class InvoicesViewModel : ObservableObject
         }
     }
 
+    public void SelectFromReport(int invoiceId)
+    {
+        if (repository is not null && IsErrorStatus) { SelectedInvoice = null; return; }
+        var invoice = sharedInvoices.FirstOrDefault(i => i.Id == invoiceId);
+        ClearFiltersCommand.Execute(null);
+        if (invoice is not null) SearchText = invoice.InvoiceNumber;
+        SelectedInvoice = invoice;
+        if (invoice is null) SetStatus("لم تعد الفاتورة موجودة بعد تحديث السجل.", true);
+    }
+
     public void SetReturnExchangeNotifier(Action? notifier)
     {
         notifyReturnExchangeChanged = notifier;

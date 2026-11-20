@@ -477,6 +477,9 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     var saleMigration = Path.Combine(FindRepositoryRoot(), "sql", "22_EnableSaleSettlement.sql");
     RunScript(admin, saleMigration);
     RunScript(admin, saleMigration); // Repeat as on an upgraded installation; no business rows may be posted.
+    var reportInstaller = Path.Combine(FindRepositoryRoot(), "sql", "26_EnableSalesReports.sql");
+    RunScript(admin, reportInstaller);
+    RunScript(admin, reportInstaller);
     SaleSettlementTests.Run(admin, settings, userId, categoryId, firstVodafoneId, cashRowId);
     MaintenanceSettlementTests.Run(admin, settings, userId, cashRowId);
     PurchaseSettlementTests.Run(admin, settings, userId, ordinaryProductId, serialProductId);

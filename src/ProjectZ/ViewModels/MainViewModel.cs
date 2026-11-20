@@ -25,6 +25,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly NavigationMenuCategoryViewModel maintenanceCategory;
     private readonly NavigationMenuCategoryViewModel financeCategory;
     private readonly NavigationMenuCategoryViewModel customersCategory;
+    private readonly NavigationMenuCategoryViewModel reportsCategory;
     private readonly NavigationMenuCategoryViewModel expensesCategory;
     private readonly NavigationMenuCategoryViewModel usersCategory;
     private readonly NavigationMenuCategoryViewModel settingsCategory;
@@ -35,6 +36,7 @@ public sealed class MainViewModel : ObservableObject
     private string egyptClockTime = "";
 
     public IReadOnlyList<NavigationMenuCategoryViewModel> Categories { get; }
+    public SalesReportsViewModel SalesReports { get; }
     public PosViewModel Pos { get; }
     public AddProductViewModel AddProduct { get; }
     public InventoryViewModel Inventory { get; }
@@ -68,6 +70,7 @@ public sealed class MainViewModel : ObservableObject
     public string HeaderDate => egyptClockDate;
     /// <summary>Current time in Egypt, refreshed every second in the header bar.</summary>
     public string HeaderTime => egyptClockTime;
+    public bool IsSalesReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[0]);
     public bool IsPosSelected => ReferenceEquals(selectedItem, salesCategory.Items[0]);
     public bool IsAddProductSelected => ReferenceEquals(selectedItem, salesCategory.Items[1]);
     public bool IsInventorySelected => ReferenceEquals(selectedItem, salesCategory.Items[2]);
@@ -95,7 +98,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsInstapayRecordsSelected => ReferenceEquals(selectedItem, financeCategory.Items[4]);
     public bool IsBackupSelected => ReferenceEquals(selectedItem, settingsCategory.Items[2]);
     public bool IsImplementedScreenSelected =>
-        IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
+        IsSalesReportsSelected || IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
@@ -192,7 +195,8 @@ public sealed class MainViewModel : ObservableObject
         BackupRepository? backupRepository = null,
         AppearanceViewModel? appearance = null,
         ExpenseCategoryRepository? expenseCategoryRepository = null,
-        ExpenseRepository? expenseRepository = null)
+        ExpenseRepository? expenseRepository = null,
+        ISalesReportSource? salesReportSource = null)
     {
         this.user = user;
         StartEgyptClock();
@@ -218,7 +222,7 @@ public sealed class MainViewModel : ObservableObject
             "حساباتي", "تحويل فودافون كاش", "تحويل انستاباي", "سجلات فودافون كاش", "سجلات انستاباي");
         customersCategory = new NavigationMenuCategoryViewModel("العملاء والموردين", "\U0001F465",
             "العملاء", "الموردين");
-        var reportsCategory = new NavigationMenuCategoryViewModel("التقارير", "\U0001F4CA",
+        reportsCategory = new NavigationMenuCategoryViewModel("التقارير", "\U0001F4CA",
             "تقارير المبيعات", "تقارير المشتريات", "تقارير الصيانة", "تقارير المالية", "تقارير المصروفات", "اجمالي التقارير");
         expensesCategory = new NavigationMenuCategoryViewModel("المصروفات", "\U0001F4B8",
             "اضافة مصروف", "فواتير المصروفات", "تصنيفات المصروفات");
@@ -293,6 +297,11 @@ public sealed class MainViewModel : ObservableObject
             salesRepository is null ? Inventory.NotifyExternalInventoryChanged : ReloadInventoryOnly,
             Invoices.NotifyExternalInvoicesChanged,
             salesRepository);
+        SalesReports = new SalesReportsViewModel(salesReportSource, invoiceId =>
+        {
+            SelectItem(salesCategory.Items[4]); // Reload, then select by durable SQL ID, never by grid position.
+            Invoices.SelectFromReport(invoiceId);
+        });
         Invoices.SetReturnExchangeNotifier(ReturnExchange.NotifyExternalDataChanged);
         // Invoice writes (sale / return / cancel) move stock in SQL; the catalog and units are re-read from the same rows.
         Invoices.StockReloadRequested = ReloadInventoryOnly;
@@ -589,6 +598,7 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     private void OnStoreIdentityDisconnected()
     {
+        SalesReports.Leave();
         StoreIdentity.Disconnect(OnStoreIdentityChanged);
         // The window is going away; detach the close handler too so the VM is not retained.
         StoreIdentity.Current.Disconnected -= OnStoreIdentityDisconnected;
@@ -772,10 +782,13 @@ public sealed class MainViewModel : ObservableObject
                 categoryItem.SetSelected(ReferenceEquals(categoryItem, item));
         }
 
+        if (IsSalesReportsSelected) SalesReports.Leave();
         selectedItem = item;
         // Any sale, purchase, maintenance collection or expense changes dbo.FinancialAccounts, so
         // «حساباتي» re-reads the balances (and therefore the cash card) every time it is opened.
-        if (ReferenceEquals(item, financeCategory.Items[0]))
+        if (IsSalesReportsSelected)
+            _ = SalesReports.RefreshAsync();
+        else if (ReferenceEquals(item, financeCategory.Items[0]))
             MyAccounts.NotifyExternalDataChanged();
         else if (ReferenceEquals(item, financeCategory.Items[1]))
             VodafoneTransfer.NotifyExternalDataChanged();
@@ -839,6 +852,7 @@ public sealed class MainViewModel : ObservableObject
         else if (ReferenceEquals(item, settingsCategory.Items[2]))
             Backup.RefreshFromDatabase();
 
+        Changed(nameof(IsSalesReportsSelected));
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
         Changed(nameof(IsInventorySelected));

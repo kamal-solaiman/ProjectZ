@@ -208,5 +208,10 @@ internal static class SaleSettlementTests
         limited.Open();
         Check(Scalar<int>(limited, "SELECT HAS_PERMS_BY_NAME('dbo.SalesPayments','OBJECT','INSERT') + HAS_PERMS_BY_NAME('dbo.SalesInvoices','OBJECT','UPDATE') + COALESCE(HAS_PERMS_BY_NAME('dbo.PostSaleMoney','OBJECT','EXECUTE'),0);") == 0,
             "The till can execute guarded posting but cannot insert payments, reset status, or execute the private helper directly");
+        var dated = Sell([Qty(10)], 0, 100, 0);
+        repo.CollectPayment(dated, 0, 200, 0, "تحصيل مؤجل");
+        dated=Read(dated.Id);
+        Return(dated, Back(dated,1,3));
+        SalesReportTests.Run(db,settings,dated.Id,split.Id,discounted.Id,cancel.Id,late.Id,cash,walletA);
     }
 }

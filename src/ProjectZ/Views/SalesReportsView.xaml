@@ -1,0 +1,57 @@
+<UserControl x:Class="ProjectZ.Views.SalesReportsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Language="ar-EG" FlowDirection="RightToLeft">
+    <UserControl.Resources>
+        <Style x:Key="Panel" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Theme.Brush.Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource Theme.Brush.Border}"/>
+            <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="12,8"/>
+        </Style>
+        <Style x:Key="Caption" TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource Theme.Brush.Muted}"/><Setter Property="FontSize" Value="11"/><Setter Property="Margin" Value="0,0,0,3"/></Style>
+        <Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="{DynamicResource Theme.Brush.Navigation}"/><Setter Property="Foreground" Value="{DynamicResource Theme.Brush.OnNavigation}"/><Setter Property="Padding" Value="10,7"/><Setter Property="BorderThickness" Value="0"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+        <Style TargetType="DataGridCell"><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="5,3"/><Style.Triggers><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource Theme.Brush.Selection}"/><Setter Property="Foreground" Value="{DynamicResource Theme.Brush.Text}"/></Trigger></Style.Triggers></Style>
+    </UserControl.Resources>
+    <Grid Margin="14,10" Background="{DynamicResource Theme.Brush.Background}">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <DockPanel LastChildFill="True" Margin="0,0,0,6">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="معاينة A4" AutomationProperties.Name="معاينة وطباعة الجدول المحدد" Style="{StaticResource PosSecondaryButtonStyle}" Click="Preview_Click" IsEnabled="{Binding CanPrint}"/>
+                <Button Content="تصدير Excel" Margin="5,0" Style="{StaticResource PosOutlineTealButtonStyle}" Click="Export_Click" IsEnabled="{Binding CanExport}"/>
+            </StackPanel>
+            <StackPanel><TextBlock Text="مركز التقارير  /  المبيعات" Style="{StaticResource Caption}" Foreground="{DynamicResource Theme.Brush.AccentInk}"/><TextBlock Text="تقارير المبيعات" FontWeight="Bold" FontSize="23" Foreground="{DynamicResource Theme.Brush.Heading}"/></StackPanel>
+        </DockPanel>
+        <Border Grid.Row="1" Style="{StaticResource Panel}"><StackPanel>
+            <WrapPanel><RadioButton Content="فواتير الفترة" Margin="0,0,0,4" FontWeight="Bold" IsChecked="{Binding IsCohort, Mode=TwoWay}"/>
+                <RadioButton Content="حركة الفترة" Margin="18,0,0,4" FontWeight="Bold" IsChecked="{Binding IsMovement, Mode=TwoWay}"/>
+                <TextBlock Text="{Binding SourceLabel}" Foreground="{DynamicResource Theme.Brush.AccentInk}" Margin="18,0,0,0" FontSize="11"/></WrapPanel>
+            <TextBlock Text="{Binding Explanation}" Foreground="{DynamicResource Theme.Brush.Muted}" TextWrapping="Wrap"/>
+            <WrapPanel Margin="0,6,0,0" VerticalAlignment="Center">
+                <StackPanel Width="136" Margin="0,0,0,3"><TextBlock Text="من تاريخ" Style="{StaticResource Caption}"/><DatePicker SelectedDate="{Binding From, Mode=TwoWay}"/></StackPanel>
+                <StackPanel Width="136" Margin="6,0,0,3"><TextBlock Text="حتى تاريخ (شامل)" Style="{StaticResource Caption}"/><DatePicker SelectedDate="{Binding Through, Mode=TwoWay}"/></StackPanel>
+                <Button Content="تحميل الفترة" VerticalAlignment="Bottom" Margin="6,0,0,3" Command="{Binding ApplyCommand}" Style="{StaticResource PosPrimaryCompactButtonStyle}"/>
+                <Button Content="اليوم" VerticalAlignment="Bottom" Tag="1" Margin="8,0,0,3" Click="Preset_Click" Style="{StaticResource PosSecondaryButtonStyle}"/>
+                <Button Content="آخر ٧ أيام" VerticalAlignment="Bottom" Tag="7" Margin="3,0,0,3" Click="Preset_Click" Style="{StaticResource PosSecondaryButtonStyle}"/>
+                <Button Content="هذا الشهر" VerticalAlignment="Bottom" Tag="0" Margin="3,0,0,3" Click="Preset_Click" Style="{StaticResource PosSecondaryButtonStyle}"/>
+            </WrapPanel>
+            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="1.3*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel><TextBlock Text="رقم الفاتورة أو اسم العميل" Style="{StaticResource Caption}"/><TextBox Text="{Binding Search, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
+                <StackPanel Grid.Column="1" Margin="6,0"><TextBlock Text="{Binding DetailLabel}" Style="{StaticResource Caption}"/><TextBox Text="{Binding Detail, UpdateSourceTrigger=PropertyChanged, Delay=250}"/></StackPanel>
+                <StackPanel Grid.Column="2"><TextBlock Text="كاشير إصدار الفاتورة" Style="{StaticResource Caption}"/><ComboBox ItemsSource="{Binding Cashiers}" SelectedItem="{Binding Cashier}" DisplayMemberPath="Label"/></StackPanel>
+                <Button Grid.Column="3" Margin="6,0,0,0" VerticalAlignment="Bottom" Content="مسح الفلاتر" Command="{Binding ClearCommand}" Style="{StaticResource PosSecondaryButtonStyle}"/>
+            </Grid>
+        </StackPanel></Border>
+        <ItemsControl Grid.Row="2" Margin="0,5" ItemsSource="{Binding Page.Metrics}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
+            <Border Style="{StaticResource Panel}" Padding="8,6" Margin="2,0"><StackPanel><TextBlock Text="{Binding Label}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Display}" ToolTip="{Binding Display}" TextTrimming="CharacterEllipsis" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource Theme.Brush.AccentInk}"/></StackPanel></Border>
+        </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        <DockPanel Grid.Row="3" Margin="0,2,0,6"><Button DockPanel.Dock="Left" Content="فتح تفاصيل الصف ←" Style="{StaticResource PosOutlineTealButtonStyle}" Command="{Binding DrillCommand}"/>
+            <ComboBox DockPanel.Dock="Right" Width="172" ItemsSource="{Binding Page.Tables}" SelectedItem="{Binding SelectedTable}" DisplayMemberPath="Title" AutomationProperties.Name="قسم التقرير"/>
+            <TextBlock Text="{Binding TableCaption}" Margin="10,0" VerticalAlignment="Center" Style="{StaticResource Caption}"/></DockPanel>
+        <Grid Grid.Row="4"><DataGrid x:Name="Results" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False" CanUserReorderColumns="False" CanUserSortColumns="False"
+            EnableRowVirtualization="True" EnableColumnVirtualization="True" SelectionUnit="FullRow" SelectionMode="Single" RowHeight="30" ColumnWidth="SizeToCells" MaxColumnWidth="330" MinColumnWidth="90"
+            ItemsSource="{Binding SelectedTable.Rows}" SelectedItem="{Binding SelectedRow}" MouseDoubleClick="Results_DoubleClick" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource Theme.Brush.Border}"
+            BorderBrush="{DynamicResource Theme.Brush.Border}" RowBackground="{DynamicResource Theme.Brush.Surface}" AlternatingRowBackground="{DynamicResource Theme.Brush.SurfaceRaised}" Background="{DynamicResource Theme.Brush.Surface}" Foreground="{DynamicResource Theme.Brush.Text}"/>
+            <TextBlock Text="لا توجد صفوف مطابقة" IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource Theme.Brush.Muted}"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding SelectedTable.Rows.Count}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+        </Grid>
+        <StackPanel Grid.Row="5" Margin="0,5,0,0"><ProgressBar IsIndeterminate="True" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+            <TextBlock Text="{Binding Page.Warning}" Foreground="{DynamicResource Theme.Brush.WarningInk}" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding Page.Context}" Foreground="{DynamicResource Theme.Brush.Muted}" TextWrapping="Wrap" FontSize="11"/>
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Foreground="{DynamicResource Theme.Brush.Text}" FontSize="12"/></StackPanel>
+    </Grid>
+</UserControl>

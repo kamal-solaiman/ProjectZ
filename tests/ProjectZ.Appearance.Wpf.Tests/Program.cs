@@ -82,10 +82,13 @@ internal static class Program
         var salesReportsItem = mainVm.Categories.Single(category => category.Title == "التقارير")
             .Items.Single(item => item.Title == "تقارير المبيعات");
         mainVm.SelectItem(salesReportsItem);
-        Check(!mainVm.IsImplementedScreenSelected
-            && mainVm.SelectedCategoryTitle == "التقارير"
-            && mainVm.SelectedPageTitle == "تقارير المبيعات",
-            "Menus-only items keep the placeholder workspace and never claim an implemented screen");
+        PumpDispatcher();
+        var hostedReport = FindLogicalDescendant<SalesReportsView>(main);
+        Check(mainVm.IsImplementedScreenSelected && mainVm.IsSalesReportsSelected && mainVm.SelectedPageTitle == "تقارير المبيعات"
+            && hostedReport?.DataContext == mainVm.SalesReports && ((Grid)hostedReport.Parent).Visibility == Visibility.Visible,
+            "Sales reports have a real, visible host; offline preview does not invent balances");
+        mainVm.SelectItem(reportsMenu.Items[1]);
+        Check(!mainVm.IsImplementedScreenSelected, "Unimplemented report categories still show the placeholder");
         // «فواتير المصروفات» lists the stored expenses with their split payments. In the design
         // preview it must show the five sample rows, keep them reachable through the filters and
         // hand a details view model to the window.
