@@ -94,6 +94,11 @@ internal static class Program
             && ((Grid)hostedPurchaseReport.Parent).Visibility == Visibility.Visible && mainVm.PurchaseReports.Page is null,
             "Purchase reports have a real host; offline preview never invents invoices");
         mainVm.SelectItem(reportsMenu.Items[2]);
+        PumpDispatcher();
+        var hostedService=(DocumentReportView)main.FindName("MaintenanceReportWorkspace");
+        Check(mainVm.IsMaintenanceReportsSelected && mainVm.IsImplementedScreenSelected && hostedService.DataContext==mainVm.MaintenanceReports
+            && ((Grid)hostedService.Parent).Visibility==Visibility.Visible && mainVm.MaintenanceReports.Page is null,"Maintenance reports are hosted and offline mode never invents receipts");
+        mainVm.SelectItem(reportsMenu.Items[3]);
         Check(!mainVm.IsImplementedScreenSelected, "Unimplemented report categories still show the placeholder");
         // «فواتير المصروفات» lists the stored expenses with their split payments. In the design
         // preview it must show the five sample rows, keep them reachable through the filters and

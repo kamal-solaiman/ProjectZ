@@ -47,7 +47,7 @@ public partial class DocumentReportView : UserControl
     {
         FlushFilters();
         if(Vm?.Page is not {} page || !Vm.CanExport)return;
-        var dialog=new SaveFileDialog { Filter="Excel Workbook (*.xlsx)|*.xlsx",FileName=$"{Vm.ExportPrefix}-{(Vm.IsMovement?"Activity":"Invoices")}-{Vm.From:yyyyMMdd}-{Vm.Through:yyyyMMdd}.xlsx",DefaultExt=".xlsx",AddExtension=true };
+        var dialog=new SaveFileDialog { Filter="Excel Workbook (*.xlsx)|*.xlsx",FileName=$"{Vm.ExportPrefix}-{Vm.ExportMode}-{Vm.From:yyyyMMdd}-{Vm.Through:yyyyMMdd}.xlsx",DefaultExt=".xlsx",AddExtension=true };
         if(dialog.ShowDialog(Window.GetWindow(this))!=true)return;
         var store=StoreIdentity.Current.Name; var path=dialog.FileName;
         try { await Task.Run(()=>ReportWorkbook.Save(path,store,page)); MessageBox.Show("تم حفظ الملخص وكل جداول العرض المفلتر في ملف Excel."); }

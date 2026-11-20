@@ -481,6 +481,9 @@ WHERE e.ExpenseNumber = N'EXP-OLD-0001' AND p.FinancialAccountId = {expenseAccou
     RunScript(admin, reportInstaller);
     RunScript(admin, reportInstaller);
     SaleSettlementTests.Run(admin, settings, userId, categoryId, firstVodafoneId, cashRowId);
+    var serviceReportInstaller=Path.Combine(sqlDirectory,"28_EnableMaintenanceReports.sql");
+    RunScript(admin,serviceReportInstaller);
+    RunScript(admin,serviceReportInstaller);
     MaintenanceSettlementTests.Run(admin, settings, userId, cashRowId);
     var purchaseReportInstaller = Path.Combine(sqlDirectory, "27_EnablePurchaseReports.sql");
     RunScript(admin, purchaseReportInstaller);

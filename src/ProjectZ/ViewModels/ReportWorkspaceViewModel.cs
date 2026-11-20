@@ -12,7 +12,7 @@ public interface IReportWorkspace : System.ComponentModel.INotifyPropertyChanged
     DateTime? Through { get; }
     bool CanExport { get; }
     bool CanPrint { get; }
-    bool IsMovement { get; }
+    string ExportMode { get; }
     string ExportPrefix { get; }
     ActionCommand DrillCommand { get; }
     Task PresetAsync(int days);
@@ -20,7 +20,7 @@ public interface IReportWorkspace : System.ComponentModel.INotifyPropertyChanged
 
 public sealed record ReportChoice(int? Id, string Label);
 
-/// <summary>Common snapshot lifecycle, filters and navigation for the two document reports.</summary>
+/// <summary>Common snapshot lifecycle, filters and navigation for document reports.</summary>
 public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWorkspace where T : class
 {
     protected static readonly ReportChoice All = new(null, "الكل");
@@ -46,7 +46,18 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     private ReportTable? table;
     private ReportRow? row;
     private DateTime? from = ReportPeriod.Today, through = ReportPeriod.Today;
-    private bool movement;
+    private int modeId;
+    protected int ModeId => modeId;
+    public virtual IReadOnlyList<ReportChoice> Modes { get; } = [new(0,"فواتير الفترة"),new(1,"حركة الفترة")];
+    public virtual string ExportMode => IsMovement ? "Activity" : "Invoices";
+    public virtual bool ShowOrderFilters => true;
+    public virtual object? ExtraTools => null;
+    protected virtual bool ClearOnModeChange => false;
+    protected virtual void ClearExtraFilters() { }
+    protected virtual void SetExtraChoices(T result) { }
+    protected virtual void NotifyRowActions() { }
+    protected virtual bool CanOpenDetail(ReportRow r) => r.CanOpenInvoice && r.InvoiceIds.Length==1;
+    protected virtual void OpenDetail(ReportRow r) { if(r.CanOpenInvoice && r.InvoiceIds.Length==1)openInvoice(r.InvoiceIds[0]); }
     private string search = "", detail = "", status = "";
     private ReportChoice issuer = All, selectedKind = All, selectedAccount = EveryAccount, supplier = EverySupplier;
     private HashSet<int>? drill;
@@ -54,20 +65,21 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     private string drillLabel = "";
     private string? drillTable;
 
-    protected ReportWorkspaceViewModel(IReportSource<T>? source, Action<int> openInvoice, Action<int>? openSupplier = null)
+    protected ReportWorkspaceViewModel(IReportSource<T>? source, Action<int> openInvoice, Action<int>? openSupplier = null, int initialMode = 0)
     {
+        modeId = initialMode;
         this.source = source;
         this.openInvoice = openInvoice;
         this.openSupplier = openSupplier;
         ApplyCommand = new AsyncCommand(RefreshAsync);
-        DrillCommand = new ActionCommand(OpenRow, () => row is not null && (table?.Grouped == true || row.CanOpenInvoice));
+        DrillCommand = new ActionCommand(OpenRow, () => row is not null && (table?.Grouped == true || CanOpenDetail(row)));
         OpenSupplierCommand = new ActionCommand(() => openSupplier?.Invoke(row!.SupplierId!.Value), () => HasSupplierTools && row?.SupplierId is not null);
         OpenRelatedCommand = new ActionCommand(() => openInvoice(row!.RelatedInvoiceId!.Value), () => HasRelated);
         BackToResultsCommand = new ActionCommand(() => ResetDrill(drillTable), () => HasDrill);
         ClearCommand = new RelayCommand(ClearFilters);
     }
 
-    public bool HasSupplierTools => openSupplier is not null;
+    public virtual bool HasSupplierTools => openSupplier is not null;
     public bool HasRelated => row?.RelatedInvoiceId is not null;
     public ActionCommand OpenSupplierCommand { get; }
     public ActionCommand OpenRelatedCommand { get; }
@@ -79,12 +91,12 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     public RelayCommand ClearCommand { get; }
     public IReadOnlyList<ReportChoice> Issuers { get; private set; } = [All];
     public IReadOnlyList<ReportChoice> Accounts { get; private set; } = [EveryAccount];
-    public IReadOnlyList<ReportChoice> KindOptions => movement ? EventChoices : StatusChoices;
+    public virtual IReadOnlyList<ReportChoice> KindOptions => IsMovement ? EventChoices : StatusChoices;
     public ReportChoice SelectedKind { get => selectedKind; set => ChangeChoice(ref selectedKind, value, nameof(SelectedKind)); }
     public ReportChoice SelectedAccount { get => selectedAccount; set => ChangeChoice(ref selectedAccount, value, nameof(SelectedAccount)); }
     public ReportChoice Issuer { get => issuer; set => ChangeChoice(ref issuer, value, nameof(Issuer)); }
-    public string KindLabel => movement ? "نوع الحركة" : "حالة الفاتورة";
-    public string AccountLabel => movement ? "حركات الحساب الفعلي فقط" : "فواتير تعاملت مع الحساب (الفاتورة كاملة)";
+    public virtual string KindLabel => IsMovement ? "نوع الحركة" : "حالة الفاتورة";
+    public virtual string AccountLabel => IsMovement ? "حركات الحساب الفعلي فقط" : "فواتير تعاملت مع الحساب (الفاتورة كاملة)";
 
     public string Search
     {
@@ -106,23 +118,22 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         get => through;
         set { if (through != value) { through = value; Changed(); InvalidateDates(); } }
     }
-    public bool IsMovement
+    public ReportChoice Mode
     {
-        get => movement;
+        get => Modes.First(m=>m.Id==modeId);
         set
         {
-            if (movement == value) return;
-            movement = value;
-            detail = "";
-            selectedKind = All;
-            Changed(); Changed(nameof(IsCohort)); Changed(nameof(KindOptions)); Changed(nameof(SelectedKind));
-            Changed(nameof(KindLabel)); Changed(nameof(AccountLabel)); Changed(nameof(DetailLabel));
-            Changed(nameof(Explanation)); Changed(nameof(Detail));
-            ResetDrill();
+            if(value?.Id is not int id || id==modeId || !Modes.Any(m=>m.Id==id))return;
+            modeId=id; detail=""; selectedKind=All;
+            Changed(); Changed(nameof(IsMovement)); Changed(nameof(IsCohort)); Changed(nameof(KindOptions)); Changed(nameof(SelectedKind));
+            Changed(nameof(KindLabel)); Changed(nameof(AccountLabel)); Changed(nameof(DetailLabel)); Changed(nameof(SearchLabel));
+            Changed(nameof(Explanation)); Changed(nameof(Detail)); Changed(nameof(ShowOrderFilters)); Changed(nameof(HasSupplierTools));
+            if(ClearOnModeChange)ClearFilters(); else ResetDrill();
         }
     }
-    public bool IsCohort { get => !movement; set { if (value) IsMovement = false; } }
-    public string DetailLabel => movement ? "نوع الحركة، المنفذ، الحساب أو البيان" : "فواتير تتضمن صنفًا، تصنيفًا أو باركودًا";
+    public bool IsMovement { get => modeId==1; set => Mode=Modes.First(m=>m.Id==(value?1:0)); }
+    public bool IsCohort { get => !IsMovement; set { if(value) IsMovement=false; } }
+    public virtual string DetailLabel => IsMovement ? "نوع الحركة، المنفذ، الحساب أو البيان" : "فواتير تتضمن صنفًا، تصنيفًا أو باركودًا";
     public string SourceLabel => source is null ? "معاينة • غير متصل" : "المصدر • SQL Server";
     public string Status { get => status; private set { status = value; Changed(); } }
     public bool IsBusy => loading is not null;
@@ -135,14 +146,14 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         get => table;
         set { table = value; SelectedRow = null; Changed(); Changed(nameof(CanPrint)); Changed(nameof(TableCaption)); }
     }
-    public string TableCaption => table is null ? "" : $"{table.Rows.Count:N0} صف • " + (table.Grouped
-        ? (movement ? "افتح المجموعة لعرض حركاتها" : "افتح المجموعة لعرض فواتيرها") : row is { CanOpenInvoice: false } ? "مستند محذوف • سجل تدقيق فقط" : "افتح الصف للانتقال إلى الفاتورة");
+    public virtual string TableCaption => table is null ? "" : $"{table.Rows.Count:N0} صف • " + (table.Grouped
+        ? (IsMovement ? "افتح المجموعة لعرض حركاتها" : "افتح المجموعة لعرض فواتيرها") : row is { CanOpenInvoice: false } ? "مستند محذوف • سجل تدقيق فقط" : "افتح الصف للانتقال إلى الفاتورة");
     public ReportRow? SelectedRow
     {
         get => row;
         set
         {
-            row = value; Changed(); Changed(nameof(HasRelated)); Changed(nameof(TableCaption));
+            row = value; NotifyRowActions(); Changed(); Changed(nameof(HasRelated)); Changed(nameof(TableCaption));
             DrillCommand.NotifyCanExecuteChanged(); OpenSupplierCommand.NotifyCanExecuteChanged(); OpenRelatedCommand.NotifyCanExecuteChanged();
         }
     }
@@ -157,6 +168,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     }
     private void ClearFilters()
     {
+        ClearExtraFilters();
         search = detail = "";
         supplier = EverySupplier; Changed(nameof(Supplier));
         issuer = All;
@@ -166,7 +178,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         Changed(nameof(SelectedKind)); Changed(nameof(SelectedAccount));
         ResetDrill();
     }
-    private void ResetDrill(string? preferredTable = null)
+    protected void ResetDrill(string? preferredTable = null)
     {
         drill = null;
         eventDrill = null;
@@ -229,6 +241,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         // Preserve explicit filters even if a refreshed period no longer contains a match.
         static ReportChoice[] Options(IEnumerable<ReportChoice> choices, ReportChoice first, ReportChoice selected) =>
             choices.DistinctBy(c => c.Id).OrderBy(c => c.Label).Prepend(first).Append(selected).DistinctBy(c => c.Id).ToArray();
+        SetExtraChoices(result);
         Issuers = Options(GetIssuers(result), All, issuer);
         Accounts = Options(GetAccounts(result), EveryAccount, selectedAccount);
         Suppliers = Options(GetSuppliers(result), EverySupplier, supplier);
@@ -248,7 +261,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     private void Rebuild(string? preferredTable = null)
     {
         var title = preferredTable ?? table?.Title;
-        page = data is null ? null : Project(data, movement,
+        page = data is null ? null : Project(data, IsMovement,
             new(search, issuer.Id, detail, drill, drillLabel, selectedKind.Id, selectedAccount.Id, eventDrill, supplier.Id),
             StoreIdentity.Current.CurrencyLabel);
         Changed(nameof(Page));
@@ -261,13 +274,13 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         if (table.Grouped)
         {
             drill = row.InvoiceIds.ToHashSet();
-            eventDrill = movement ? row.EventKeys?.ToHashSet() : null;
+            eventDrill = IsMovement ? row.EventKeys?.ToHashSet() : null;
             drillLabel = row.Display[0];
             drillTable = table.Title;
             Changed(nameof(HasDrill));
             BackToResultsCommand.NotifyCanExecuteChanged();
             Rebuild(page?.Tables[0].Title);
         }
-        else if (row.CanOpenInvoice && row.InvoiceIds.Length == 1) openInvoice(row.InvoiceIds[0]);
+        else if (CanOpenDetail(row)) OpenDetail(row);
     }
 }

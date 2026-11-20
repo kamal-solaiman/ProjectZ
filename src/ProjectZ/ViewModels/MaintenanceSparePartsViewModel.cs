@@ -1243,8 +1243,9 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
     /// Opens a part that was selected on another screen (for example the supplier profile) and
     /// switches back to the inventory tab so the form is visible immediately.
     /// </summary>
-    public void SelectPartFromExternal(int partId)
+    public void SelectPartFromExternal(int partId, bool fromReport=false)
     {
+        if(fromReport && lastLoadFailed) { ClearFormFields(); SetStatus("تعذّر تحديث مخزون الورشة، لم تُفتح قطعة قديمة.",true); return; }
         searchText = "";
         selectedCategoryFilter = "كل الفئات";
         selectedSupplierFilter = "كل الموردين";
@@ -1259,6 +1260,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         var part = sharedSpareParts.FirstOrDefault(p => p.Id == partId);
         if (part is null)
         {
+            ClearFormFields();
             SetStatus($"لم يتم العثور على قطعة الغيار رقم {partId} في المخزون النشط.", true);
             return;
         }

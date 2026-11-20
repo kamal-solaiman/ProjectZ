@@ -201,5 +201,6 @@ internal static class MaintenanceSettlementTests
         var noVersion=Footprint(db);
         try { Execute(till,$"EXEC dbo.SettleMaintenanceTicket {credit.Id},NULL,{actor},1,@Cash=1;"); throw new InvalidOperationException("Missing version accepted"); }
         catch (SqlException ex) when (ex.Number==50241) { Check(Footprint(db)==noVersion,"SQL itself refuses a missing version"); }
+        MaintenanceReportTests.Run(db,settings,actor,order.Id,credit.Id,pending.Id,legacy.Id,stock.Id,spare);
     }
 }

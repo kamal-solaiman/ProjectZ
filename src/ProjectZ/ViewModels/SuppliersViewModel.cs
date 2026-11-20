@@ -340,9 +340,9 @@ public sealed class SuppliersViewModel : ObservableObject
     /// Opens the supplier selected on another screen (for example a spare-part movement) and
     /// clears the directory filters so the row is visible.
     /// </summary>
-    public bool SelectSupplierFromExternal(int supplierId, bool fromReport = false)
+    public bool SelectSupplierFromExternal(int supplierId, bool fromReport = false, bool fromWorkshopReport = false)
     {
-        if (fromReport && repository is not null && IsErrorStatus) { SelectedSupplierEntry = null; return false; }
+        if ((fromReport || fromWorkshopReport) && repository is not null && IsErrorStatus) { SelectedSupplierEntry = null; return false; }
         searchText = "";
         selectedSpecializationFilter = "كل التخصصات";
         selectedBalanceFilter = "جميع الموردين";
@@ -356,7 +356,7 @@ public sealed class SuppliersViewModel : ObservableObject
         if (found)
         {
             ActiveDetailTabIndex = fromReport ? 0 : 2;
-            SetStatus(fromReport ? "تم فتح ملف المورد من تقرير المشتريات." : "تم فتح ملف المورد من شاشة قطع الغيار.", false);
+            SetStatus(fromReport ? "تم فتح ملف المورد من تقرير المشتريات." : fromWorkshopReport ? "تم فتح ملف المورد من تقرير مخزون الورشة." : "تم فتح ملف المورد من شاشة قطع الغيار.", false);
         }
         else
         {

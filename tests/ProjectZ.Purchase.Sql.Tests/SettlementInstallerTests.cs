@@ -43,6 +43,7 @@ internal static class SettlementInstallerTests
         var preReport = Catalog(db); // 22 has not installed the saved return values yet.
         OnlyError(db, Read("26_EnableSalesReports.sql"), 50260);
         OnlyError(db, Read("27_EnablePurchaseReports.sql"), 50262);
+        OnlyError(db, Read("28_EnableMaintenanceReports.sql"), 50264);
         Check(Catalog(db) == preReport, "An out-of-order report install leaves schema and permissions intact");
         var report = Read("admin/SeparateLegacyBackupRoles.sql");
         var demote = report.Replace("DECLARE @Apply bit = 0;", "DECLARE @Apply bit = 1;", StringComparison.Ordinal);
