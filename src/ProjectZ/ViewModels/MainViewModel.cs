@@ -38,6 +38,7 @@ public sealed class MainViewModel : ObservableObject
     public IReadOnlyList<NavigationMenuCategoryViewModel> Categories { get; }
     public SalesReportsViewModel SalesReports { get; }
     public FinanceReportsViewModel FinanceReports { get; }
+    public OverallReportsViewModel OverallReports { get; }
     public ExpenseReportsViewModel ExpenseReports { get; }
     public MaintenanceReportsViewModel MaintenanceReports { get; }
     public PurchaseReportsViewModel PurchaseReports { get; }
@@ -74,6 +75,7 @@ public sealed class MainViewModel : ObservableObject
     public string HeaderDate => egyptClockDate;
     /// <summary>Current time in Egypt, refreshed every second in the header bar.</summary>
     public string HeaderTime => egyptClockTime;
+    public bool IsOverallReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[5]);
     public bool IsExpenseReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[4]);
     public bool IsFinanceReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[3]);
     public bool IsMaintenanceReportsSelected => ReferenceEquals(selectedItem, reportsCategory.Items[2]);
@@ -106,7 +108,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsInstapayRecordsSelected => ReferenceEquals(selectedItem, financeCategory.Items[4]);
     public bool IsBackupSelected => ReferenceEquals(selectedItem, settingsCategory.Items[2]);
     public bool IsImplementedScreenSelected =>
-        IsSalesReportsSelected || IsPurchaseReportsSelected || IsMaintenanceReportsSelected || IsFinanceReportsSelected || IsExpenseReportsSelected || IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
+        IsSalesReportsSelected || IsPurchaseReportsSelected || IsMaintenanceReportsSelected || IsFinanceReportsSelected || IsExpenseReportsSelected || IsOverallReportsSelected || IsPosSelected || IsAddProductSelected || IsInventorySelected || IsCategoriesSelected
         || IsInvoicesSelected || IsReturnExchangeSelected || IsPurchaseEntrySelected || IsPurchaseInvoicesSelected
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
@@ -208,7 +210,8 @@ public sealed class MainViewModel : ObservableObject
         IPurchaseReportSource? purchaseReportSource = null,
         IMaintenanceReportSource? maintenanceReportSource = null,
         IFinanceReportSource? financeReportSource = null,
-        IExpenseReportSource? expenseReportSource = null)
+        IExpenseReportSource? expenseReportSource = null,
+        IOverallReportSource? overallReportSource = null)
     {
         this.user = user;
         StartEgyptClock();
@@ -465,6 +468,7 @@ public sealed class MainViewModel : ObservableObject
             },
             salesRepository, maintenanceRepository, ReloadMaintenanceData);
 
+        OverallReports = new OverallReportsViewModel(overallReportSource);
         ExpenseReports = new ExpenseReportsViewModel(expenseReportSource, OpenFinancialSource);
         FinanceReports = new FinanceReportsViewModel(financeReportSource, OpenFinancialSource);
         MaintenanceReports = new MaintenanceReportsViewModel(maintenanceReportSource, id =>
@@ -655,6 +659,7 @@ public sealed class MainViewModel : ObservableObject
         MaintenanceReports.Leave();
         FinanceReports.Leave();
         ExpenseReports.Leave();
+        OverallReports.Leave();
         StoreIdentity.Disconnect(OnStoreIdentityChanged);
         // The window is going away; detach the close handler too so the VM is not retained.
         StoreIdentity.Current.Disconnected -= OnStoreIdentityDisconnected;
@@ -858,6 +863,7 @@ public sealed class MainViewModel : ObservableObject
         if (IsPurchaseReportsSelected) PurchaseReports.Leave();
         if (IsMaintenanceReportsSelected) MaintenanceReports.Leave();
         if (IsFinanceReportsSelected) FinanceReports.Leave();
+        if (IsOverallReportsSelected) OverallReports.Leave();
         if (IsExpenseReportsSelected) ExpenseReports.Leave();
         selectedItem = item;
         // Any sale, purchase, maintenance collection or expense changes dbo.FinancialAccounts, so
@@ -870,6 +876,8 @@ public sealed class MainViewModel : ObservableObject
             _ = MaintenanceReports.RefreshAsync();
         else if (IsFinanceReportsSelected)
             _ = FinanceReports.RefreshAsync();
+        else if (IsOverallReportsSelected)
+            _ = OverallReports.RefreshAsync();
         else if (IsExpenseReportsSelected)
             _ = ExpenseReports.RefreshAsync();
         else if (ReferenceEquals(item, financeCategory.Items[0]))
@@ -940,6 +948,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsPurchaseReportsSelected));
         Changed(nameof(IsMaintenanceReportsSelected));
         Changed(nameof(IsFinanceReportsSelected));
+        Changed(nameof(IsOverallReportsSelected));
         Changed(nameof(IsExpenseReportsSelected));
         Changed(nameof(IsPosSelected));
         Changed(nameof(IsAddProductSelected));
