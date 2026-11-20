@@ -38,7 +38,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     protected virtual IEnumerable<ReportChoice> GetSuppliers(T data) => [];
     protected abstract ReportPage Project(T data, bool movement, ReportFilter filter, string currency);
     private readonly IReportSource<T>? source;
-    private readonly Action<int> openInvoice;
+    private readonly Action<int>? openInvoice;
     private readonly Action<int>? openSupplier;
     private CancellationTokenSource? loading;
     private T? data;
@@ -52,13 +52,15 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     public bool HasExtendedModes => Modes.Count>2;
     public virtual string ExportMode => IsMovement ? "Activity" : "Invoices";
     public virtual bool ShowOrderFilters => true;
+    public virtual bool ShowIssuerFilter => ShowOrderFilters;
+    public virtual IReadOnlyList<ReportChoice> AccountChoices => Accounts;
     public virtual object? ExtraTools => null;
     protected virtual bool ClearOnModeChange => false;
     protected virtual void ClearExtraFilters() { }
     protected virtual void SetExtraChoices(T result) { }
     protected virtual void NotifyRowActions() { }
-    protected virtual bool CanOpenDetail(ReportRow r) => r.CanOpenInvoice && r.InvoiceIds.Length==1;
-    protected virtual void OpenDetail(ReportRow r) { if(r.CanOpenInvoice && r.InvoiceIds.Length==1)openInvoice(r.InvoiceIds[0]); }
+    protected virtual bool CanOpenDetail(ReportRow r) => openInvoice is not null && r.CanOpenInvoice && r.InvoiceIds.Length==1;
+    protected virtual void OpenDetail(ReportRow r) { if(r.CanOpenInvoice && r.InvoiceIds.Length==1)openInvoice?.Invoke(r.InvoiceIds[0]); }
     private string search = "", detail = "", status = "";
     private ReportChoice issuer = All, selectedKind = All, selectedAccount = EveryAccount, supplier = EverySupplier;
     private HashSet<int>? drill;
@@ -66,7 +68,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     private string drillLabel = "";
     private string? drillTable;
 
-    protected ReportWorkspaceViewModel(IReportSource<T>? source, Action<int> openInvoice, Action<int>? openSupplier = null, int initialMode = 0)
+    protected ReportWorkspaceViewModel(IReportSource<T>? source, Action<int>? openInvoice, Action<int>? openSupplier = null, int initialMode = 0)
     {
         modeId = initialMode;
         this.source = source;
@@ -75,7 +77,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         ApplyCommand = new AsyncCommand(RefreshAsync);
         DrillCommand = new ActionCommand(OpenRow, () => row is not null && (table?.Grouped == true || CanOpenDetail(row)));
         OpenSupplierCommand = new ActionCommand(() => openSupplier?.Invoke(row!.SupplierId!.Value), () => HasSupplierTools && row?.SupplierId is not null);
-        OpenRelatedCommand = new ActionCommand(() => openInvoice(row!.RelatedInvoiceId!.Value), () => HasRelated);
+        OpenRelatedCommand = new ActionCommand(() => openInvoice?.Invoke(row!.RelatedInvoiceId!.Value), () => HasRelated);
         BackToResultsCommand = new ActionCommand(() => ResetDrill(drillTable), () => HasDrill);
         ClearCommand = new RelayCommand(ClearFilters);
     }
@@ -128,7 +130,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
             modeId=id; detail=""; selectedKind=All;
             Changed(); Changed(nameof(IsMovement)); Changed(nameof(IsCohort)); Changed(nameof(KindOptions)); Changed(nameof(SelectedKind));
             Changed(nameof(KindLabel)); Changed(nameof(AccountLabel)); Changed(nameof(DetailLabel)); Changed(nameof(SearchLabel));
-            Changed(nameof(Explanation)); Changed(nameof(Detail)); Changed(nameof(ShowOrderFilters)); Changed(nameof(HasSupplierTools));
+            Changed(nameof(AccountChoices)); Changed(nameof(ShowIssuerFilter)); Changed(nameof(Explanation)); Changed(nameof(Detail)); Changed(nameof(ShowOrderFilters)); Changed(nameof(HasSupplierTools));
             if(ClearOnModeChange)ClearFilters(); else ResetDrill();
         }
     }
@@ -249,7 +251,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         issuer = Issuers.First(c => c.Id == issuer.Id);
         selectedAccount = Accounts.First(c => c.Id == selectedAccount.Id);
         supplier = Suppliers.First(c => c.Id == supplier.Id);
-        Changed(nameof(Issuers)); Changed(nameof(Issuer)); Changed(nameof(Accounts)); Changed(nameof(SelectedAccount));
+        Changed(nameof(Issuers)); Changed(nameof(Issuer)); Changed(nameof(Accounts)); Changed(nameof(AccountChoices)); Changed(nameof(SelectedAccount));
         Changed(nameof(Suppliers)); Changed(nameof(Supplier));
     }
     public async Task PresetAsync(int days)

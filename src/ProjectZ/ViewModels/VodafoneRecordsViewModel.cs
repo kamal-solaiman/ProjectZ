@@ -222,6 +222,16 @@ public sealed class VodafoneRecordsViewModel : ObservableObject
         return true;
     }
 
+    public void OpenFromReport(int id)
+    {
+        // A non-transfer ledger row can have the same numeric key. Never open it instead of the saved transfer.
+        var operation = allOperations.FirstOrDefault(o => o.IsCustomerTransfer && o.Id == id);
+        if (operation is null) { SelectedOperation = null; SetStatus("لم يتم العثور على التحويل في السجل المحدّث.", true); return; }
+        ClearFilters();
+        SelectedOperation = operation;
+        DetailsRequested?.Invoke(operation);
+    }
+
     private void ClearFilters()
     {
         fromDate = null; toDate = null; selectedWalletId = 0; selectedKind = "كل العمليات"; selectedStatus = "كل الحالات";

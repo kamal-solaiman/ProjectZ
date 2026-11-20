@@ -756,6 +756,16 @@ public sealed class ExpenseInvoicesViewModel : ObservableObject
         SetStatus("تم إلغاء كل الفلاتر وعرض كل فواتير المصروفات.", false);
     }
 
+    public void OpenFromReport(int id)
+    {
+        if (repository is not null && IsErrorStatus) { SelectedInvoice = null; return; }
+        ClearFilters();
+        var invoice = loadedInvoices.FirstOrDefault(i => i.Id == id && id > 0);
+        if (invoice is null) { SelectedInvoice = null; SetStatus("لم يعد مستند المصروف متاحًا.", true); return; }
+        SearchText = invoice.ExpenseNumber;
+        OpenDetails(invoice);
+    }
+
     private void OpenDetails(ExpenseInvoiceListItemViewModel? invoice)
     {
         if (invoice is null) return;
