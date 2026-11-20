@@ -36,6 +36,10 @@ internal static class ExpenseReportTests
         var day = new DateTime(2037,3,1); var period = new ReportPeriod(day,day); var next = new ReportPeriod(day.AddDays(1),day.AddDays(1));
         var previous = ExpenseReportData.PreviousOf(period);
         var finance = new FinancialRepository(settings,actor);
+        // Earlier correction/settlement fixtures deliberately spend down the single cash box.
+        // Fund the disposable till with an actual independent deposit, not an expense posting.
+        decimal balance = Scalar<decimal>(db,"SELECT CurrentBalance FROM dbo.FinancialAccounts WHERE Id=@id;",("@id",cash));
+        if (balance < 500m) finance.SaveTransaction(cash,FinancialMovementKind.Deposit,500m-balance,"","تمويل خزنة الاختبار",false);
         int wallet = finance.SaveAccount(null,FinancialAccountKind.InstaPay,address,address,1900,0,0,0,0,secret,false).AccountId;
         int category1 = writer.LoadCategories().First().Id;
         int category2 = Scalar<int>(db,"INSERT dbo.ExpenseCategories(Name,Description) OUTPUT inserted.Id VALUES(N'رسوم سابقة',@secret);",("@secret",secret));
