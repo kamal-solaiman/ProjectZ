@@ -47,14 +47,40 @@ public sealed class UserRepository(ConnectionSettingsProvider settings, int acto
             "SELECT Id, Username, DisplayName, PasswordHash, IsActive FROM dbo.Users WHERE Username = @Username;", connection)
             { CommandTimeout = 15 };
         command.Parameters.Add(new SqlParameter("@Username", SqlDbType.NVarChar, 100) { Value = username });
-        await using SqlDataReader reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
-        var dbUsername = reader.GetString(1);
-        var displayName = reader.IsDBNull(2) || string.IsNullOrWhiteSpace(reader.GetString(2))
-            ? dbUsername
-            : reader.GetString(2);
-        return new UserCredentials(new UserSession(reader.GetInt32(0), dbUsername, displayName),
-            reader.GetString(3), reader.GetBoolean(4));
+        int userId;
+        string dbUsername;
+        string displayName;
+        string passwordHash;
+        bool isActive;
+        await using (SqlDataReader reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken))
+        {
+            if (!await reader.ReadAsync(cancellationToken)) return null;
+            userId = reader.GetInt32(0);
+            dbUsername = reader.GetString(1);
+            displayName = reader.IsDBNull(2) || string.IsNullOrWhiteSpace(reader.GetString(2))
+                ? dbUsername
+                : reader.GetString(2);
+            passwordHash = reader.GetString(3);
+            isActive = reader.GetBoolean(4);
+        }
+
+        var permissionCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.Equals(dbUsername, "admin", StringComparison.OrdinalIgnoreCase))
+        {
+            await using var permissionsCommand = new SqlCommand(@"
+SELECT p.Code
+FROM dbo.UserRoles ur
+JOIN dbo.RolePermissions rp ON rp.RoleId=ur.RoleId
+JOIN dbo.Permissions p ON p.Id=rp.PermissionId
+WHERE ur.UserId=@UserId;", connection) { CommandTimeout = 15 };
+            permissionsCommand.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            await using var permissionsReader = await permissionsCommand.ExecuteReaderAsync(cancellationToken);
+            while (await permissionsReader.ReadAsync(cancellationToken))
+                permissionCodes.Add(permissionsReader.GetString(0));
+        }
+
+        return new UserCredentials(
+            new UserSession(userId, dbUsername, displayName, permissionCodes), passwordHash, isActive);
     }
 
     // -------------------------------------------------------------- read side
@@ -108,6 +134,7 @@ ORDER BY u.Username;";
     /// <summary>Creates a login account. The password is hashed here before the INSERT.</summary>
     public UserRecord Create(string username, string displayName, string password, bool isActive)
     {
+        PermissionContext.Demand("USERS.CREATE");
         var login = NormalizeUsername(username);
         var name = NormalizeDisplayName(displayName, login);
         var secret = NormalizePassword(password);
@@ -167,6 +194,15 @@ VALUES(@Username,@PasswordHash,@DisplayName,@IsActive);"))
             try
             {
                 var current = LoadOne(connection, transaction, id);
+                var identityChanged = !current.Username.Equals(login, StringComparison.Ordinal)
+                    || !current.DisplayName.Equals(name, StringComparison.Ordinal);
+                if (identityChanged || current.IsActive == isActive)
+                    PermissionContext.Demand("USERS.EDIT");
+                if (current.IsActive != isActive)
+                    PermissionContext.Demand("USERS.ACTIVATE");
+                if (current.Username.Equals("admin", StringComparison.OrdinalIgnoreCase)
+                    && (!isActive || !login.Equals("admin", StringComparison.OrdinalIgnoreCase)))
+                    throw new UserDataException("حساب admin محمي ولا يمكن تعطيله أو تغيير اسم دخوله؛ صلاحياته الكاملة ثابتة.");
                 EnsureUsernameIsFree(connection, transaction, login, exceptId: id);
 
                 if (current.IsActive && !isActive)
@@ -220,6 +256,7 @@ WHERE Id=@Id;"))
     /// <summary>Stores a new password hash for an account. The password itself is never written.</summary>
     public void ResetPassword(int id, string password)
     {
+        PermissionContext.Demand("USERS.PASSWORD");
         var secret = NormalizePassword(password);
         var hash = PasswordHasher.Hash(secret);
         secret = "";
@@ -262,6 +299,7 @@ WHERE Id=@Id;"))
     /// </summary>
     public void Delete(int id)
     {
+        PermissionContext.Demand("USERS.DELETE");
         try
         {
             using var connection = OpenConnection();
@@ -269,6 +307,8 @@ WHERE Id=@Id;"))
             try
             {
                 var current = LoadOne(connection, transaction, id);
+                if (current.Username.Equals("admin", StringComparison.OrdinalIgnoreCase))
+                    throw new UserDataException("لا يمكن حذف حساب admin؛ فهو حساب النظام ذو الصلاحيات الكاملة.");
 
                 if (id == actorUserId)
                     throw new UserDataException("لا يمكنك حذف الحساب الذي تستخدمه الآن. سجّل الدخول بحساب آخر لحذفه.");

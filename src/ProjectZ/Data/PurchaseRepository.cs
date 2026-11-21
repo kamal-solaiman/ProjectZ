@@ -114,6 +114,7 @@ ORDER BY s.Name;";
         string name, string phone, string secondaryPhone, string companyName,
         string specialization, string address, string vodafoneCashNumber, string instaPayAddress, string notes)
     {
+        PermissionContext.Demand("SUPPLIERS.CREATE");
         name = (name ?? "").Trim();
         if (string.IsNullOrWhiteSpace(name)) throw new PurchaseDataException("يرجى إدخال اسم المورد.");
         if (name.Length > 200) throw new PurchaseDataException("اسم المورد يجب ألا يتجاوز 200 حرف.");
@@ -182,6 +183,7 @@ VALUES(@Name,@Phone,@Secondary,@Company,@Specialization,@Address,@Vodafone,@Inst
     /// <summary>Updates the supplier row and re-stamps the invoice snapshots that belong to it.</summary>
     public void UpdateSupplier(SupplierDesignItem supplier)
     {
+        PermissionContext.Demand("SUPPLIERS.EDIT");
         if (supplier.Id <= 0) throw new PurchaseDataException("لا يمكن تعديل مورد غير محفوظ في قاعدة البيانات.");
 
         try
@@ -230,6 +232,7 @@ WHERE Id=@Id;"))
     /// <returns>True when the row was deleted; false when history required archiving instead.</returns>
     public bool DeleteSupplier(int supplierId)
     {
+        PermissionContext.Demand("SUPPLIERS.DELETE");
         try
         {
             using var connection = OpenConnection();
@@ -506,8 +509,16 @@ SELECT a.InvoiceId,a.AppliedAtUtc,c.ReturnNumber,a.Amount,c.Id FROM dbo.Supplier
         Text(c, "@Notes", 1000, r.Notes);
     }, c => c.ExecuteNonQuery());
 
-    public PurchaseReturnResult ReturnToSupplier(PurchaseReturnRequest r) => PostReturn(r, false);
-    public PurchaseReturnResult CancelInvoice(int id, byte[] version) => PostReturn(new(id, version, [], "إلغاء فاتورة الشراء", false), true);
+    public PurchaseReturnResult ReturnToSupplier(PurchaseReturnRequest r)
+    {
+        PermissionContext.Demand("PURCHASE.RETURN");
+        return PostReturn(r, false);
+    }
+    public PurchaseReturnResult CancelInvoice(int id, byte[] version)
+    {
+        PermissionContext.Demand("PURCHASE.CANCEL");
+        return PostReturn(new(id, version, [], "إلغاء فاتورة الشراء", false), true);
+    }
 
     private PurchaseReturnResult PostReturn(PurchaseReturnRequest r, bool cancel) => Post("ReturnPurchaseDocument", c =>
     {
@@ -555,6 +566,15 @@ SELECT a.InvoiceId,a.AppliedAtUtc,c.ReturnNumber,a.Amount,c.Id FROM dbo.Supplier
 
     private T Post<T>(string name, Action<SqlCommand> bind, Func<SqlCommand, T> execute)
     {
+        var permission = name switch
+        {
+            "CreatePurchaseDocument" => "PURCHASE.CREATE",
+            "EditPurchaseDocument" => "PURCHASE.EDIT",
+            "PayPurchaseDocument" or "ApplySupplierCredit" or "ReceiveSupplierCredit" => "PURCHASE.PAY",
+            "DeleteUnsettledPurchase" => "PURCHASE.DELETE",
+            _ => null
+        };
+        if (permission is not null) PermissionContext.Demand(permission);
         try
         {
             using var connection = OpenConnection();

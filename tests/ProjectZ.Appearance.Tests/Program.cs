@@ -2,6 +2,9 @@ using ProjectZ.Models;
 using ProjectZ.Services;
 using ProjectZ.ViewModels;
 
+PermissionContext.Establish(new UserSession(99, "appearance-test", "اختبار المظهر",
+    new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "APPEARANCE.EDIT" }));
+
 static void Check(bool condition, string name)
 {
     if (!condition) throw new Exception("FAIL: " + name);

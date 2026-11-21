@@ -80,6 +80,7 @@ ORDER BY c.Name;";
 
     public CategoryRecord Create(string name, string description)
     {
+        PermissionContext.Demand("CATEGORIES.CREATE");
         var trimmedName = NormalizeName(name);
         var trimmedDescription = NormalizeDescription(description);
 
@@ -121,6 +122,7 @@ VALUES(@Name,@Description,1);"))
     /// <summary>Renames a category in place; products follow automatically because they point at the row id.</summary>
     public CategoryRecord Rename(int id, string name, string description)
     {
+        PermissionContext.Demand("CATEGORIES.EDIT");
         var trimmedName = NormalizeName(name);
         var trimmedDescription = NormalizeDescription(description);
 
@@ -174,6 +176,7 @@ WHERE Id=@Id;"))
     /// </summary>
     public void Delete(int id)
     {
+        PermissionContext.Demand("CATEGORIES.DELETE");
         try
         {
             using var connection = OpenConnection();

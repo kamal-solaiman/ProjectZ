@@ -167,6 +167,7 @@ public sealed class AppearanceViewModel : ObservableObject
         }
         try
         {
+            PermissionContext.Demand("APPEARANCE.EDIT");
             runtime.Preview(draft);
             runtime.Save();
             RefreshAll();

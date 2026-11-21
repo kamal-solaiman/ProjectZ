@@ -1,6 +1,6 @@
 <Window x:Class="ProjectZ.Views.PurchaseInvoicePrintPreviewWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:security="clr-namespace:ProjectZ.Helpers"
         Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | معاينة وطباعة فاتورة الشراء'}"
         Width="740"
         Height="730"
@@ -512,7 +512,7 @@
                     MinWidth="180"
                     Padding="18,9"
                     IsDefault="True"
-                    Command="{Binding PrintCommand}" />
+                    Command="{Binding PrintCommand}"  security:PermissionVisibility.Code="PURCHASE.PRINT" />
         </Grid>
     </Grid>
 </Window>

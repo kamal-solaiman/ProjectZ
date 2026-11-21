@@ -1,6 +1,7 @@
 <UserControl x:Class="ProjectZ.Views.UsersView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:security="clr-namespace:ProjectZ.Helpers"
              FlowDirection="LeftToRight"
              Language="ar-EG">
 
@@ -226,7 +227,7 @@
                                 Style="{StaticResource PosPrimaryCompactButtonStyle}"
                                 Padding="18,8"
                                 MinHeight="36"
-                                Command="{Binding AddUserCommand}" />
+                                Command="{Binding AddUserCommand}" security:PermissionVisibility.Code="USERS.CREATE" />
                         <Button Content="الكل"
                                 Style="{StaticResource UserActionBtnBaseStyle}"
                                 Background="{DynamicResource Theme.Legacy.F8FAFC.Surface}"
@@ -465,15 +466,15 @@
                                                         Foreground="{DynamicResource Theme.Legacy.1D4ED8.InfoInk}"
                                                         BorderBrush="{DynamicResource Theme.Legacy.BFDBFE.InfoBorder}"
                                                         ToolTip="تعديل اسم الدخول والاسم الظاهر وحالة الحساب"
-                                                        Command="{Binding EditCommand}" />
+                                                        Command="{Binding EditCommand}" security:PermissionVisibility.Code="USERS.EDIT" />
                                                 <Button Content="كلمة المرور"
                                                         Style="{StaticResource UserActionBtnBaseStyle}"
                                                         Background="{DynamicResource Theme.Legacy.F5F3FF.InfoSoft}"
                                                         Foreground="{DynamicResource Theme.Legacy.6D28D9.VioletInk}"
                                                         BorderBrush="{DynamicResource Theme.Legacy.DDD6FE.InfoBorder}"
                                                         ToolTip="تعيين كلمة مرور جديدة للحساب دون عرض الكلمة القديمة"
-                                                        Command="{Binding ChangePasswordCommand}" />
-                                                <Button Command="{Binding ToggleActiveCommand}">
+                                                        Command="{Binding ChangePasswordCommand}" security:PermissionVisibility.Code="USERS.PASSWORD" />
+                                                <Button Command="{Binding ToggleActiveCommand}" IsEnabled="{Binding CanToggleActive}" security:PermissionVisibility.Code="USERS.ACTIVATE">
                                                     <Button.Style>
                                                         <Style TargetType="Button" BasedOn="{StaticResource UserActionBtnBaseStyle}">
                                                             <Setter Property="Content" Value="تعطيل" />
@@ -500,7 +501,7 @@
                                                         BorderBrush="{DynamicResource Theme.Legacy.FECACA.DangerBorder}"
                                                         IsEnabled="{Binding CanDelete}"
                                                         ToolTip="{Binding DeleteToolTip}"
-                                                        Command="{Binding DeleteCommand}" />
+                                                        Command="{Binding DeleteCommand}" security:PermissionVisibility.Code="USERS.DELETE" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>

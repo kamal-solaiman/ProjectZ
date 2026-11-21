@@ -1922,7 +1922,7 @@ assert 'InitializeComponent();' in (root / 'src/ProjectZ/Views/AddExpenseView.xa
 assert 'AddExpense = new AddExpenseViewModel(expenseRepository, financialRepository);' in main_viewmodel
 assert 'public AddExpenseViewModel AddExpense { get; }' in main_viewmodel
 assert 'IsAddExpenseSelected => ReferenceEquals(selectedItem, expensesCategory.Items[0])' in main_viewmodel
-assert '|| IsUsersSelected || IsAddExpenseSelected || IsExpenseInvoicesSelected || IsExpenseCategoriesSelected' in main_viewmodel
+assert '|| IsUsersSelected || IsPermissionsSelected || IsAddExpenseSelected || IsExpenseInvoicesSelected || IsExpenseCategoriesSelected' in main_viewmodel
 assert 'Changed(nameof(IsAddExpenseSelected));' in main_viewmodel
 assert 'ReferenceEquals(item, expensesCategory.Items[0])' in main_viewmodel, \
     'opening the add-expense screen must reload the sections and the balances'
@@ -2149,6 +2149,7 @@ for receipt in ('InvoicePrintPreviewWindow.xaml', 'PurchaseInvoicePrintPreviewWi
     assert 'StaticResource StoreIdentity' in receipt_text, f'{receipt}: receipt header must follow the store name'
     receipt_without_types = re.sub(r'x:Class="[^"]*"', '', receipt_text)
     receipt_without_types = receipt_without_types.replace('pack://application:,,,/ProjectZ;component', '')
+    receipt_without_types = receipt_without_types.replace('clr-namespace:ProjectZ.Helpers', '')
     assert 'ProjectZ' not in receipt_without_types, f'{receipt}: hard-coded brand text remains'
 
 # Startup and the screen wiring.
@@ -2408,4 +2409,71 @@ for token in ('LoadWalletMovementsInto', 'ReadOnlyMovementMessage', 'LoadInstapa
 assert '| 45 |' in (root / 'docs/ACCEPTANCE.md').read_text(encoding='utf-8'), \
     'ACCEPTANCE must gain the row for the five edits'
 print('PASS: records screens list every wallet movement, accounts split by provider, one save button and an Egypt header clock')
+
+permissions_sql = (root / 'sql/32_EnablePermissions.sql').read_text(encoding='utf-8')
+permissions_vm = (root / 'src/ProjectZ/ViewModels/PermissionsViewModel.cs').read_text(encoding='utf-8')
+permissions_repo = (root / 'src/ProjectZ/Data/PermissionsRepository.cs').read_text(encoding='utf-8')
+permission_context = (root / 'src/ProjectZ/Services/PermissionContext.cs').read_text(encoding='utf-8')
+permission_view = (root / 'src/ProjectZ/Views/PermissionsView.xaml').read_text(encoding='utf-8')
+permission_docs = (root / 'docs/PERMISSIONS.md').read_text(encoding='utf-8')
+assert 'UX_UserRoles_OneRolePerUser' in permissions_sql and 'HAVING COUNT(*) > 1' in permissions_sql
+assert "WHERE Username=N'admin'" in permissions_sql and 'Existing non-admin users intentionally receive no role' in permissions_sql
+catalog_codes = re.findall(r"\(N'([^']+)',N'[^']*',N'[^']*'\)", permissions_sql)
+assert catalog_codes and len(catalog_codes) == len(set(catalog_codes)), 'permission catalog codes must be populated and unique'
+permission_source_text = '\n'.join(
+    path.read_text(encoding='utf-8') for path in (root / 'src/ProjectZ').rglob('*')
+    if path.is_file() and path.suffix in {'.cs', '.xaml'}
+)
+unused_permission_codes = [code for code in catalog_codes if not code.startswith('SCREEN.') and code != 'SECURITY.MANAGE' and code not in permission_source_text]
+assert not unused_permission_codes, f'permission catalog contains unused action codes: {unused_permission_codes}'
+screen_codes = {code for code in catalog_codes if code.startswith('SCREEN.')}
+navigation_codes = set(re.findall(r'=> "(SCREEN\.[A-Z0-9_]+|SECURITY\.MANAGE)"', main_vm_text))
+assert screen_codes <= navigation_codes, f'screen permissions are not mapped into navigation: {sorted(screen_codes-navigation_codes)}'
+assert 'SCREEN.POS' in permissions_sql and 'PURCHASE.DELETE' in permissions_sql and 'SECURITY.MANAGE' in permissions_sql
+assert 'CreateRole' in permissions_repo and 'SaveRole' in permissions_repo and 'AssignRole' in permissions_repo and 'DeleteRole' in permissions_repo
+assert 'InsertRolePermissions' in permissions_repo and 'Audit(connection, transaction' in permissions_repo
+assert 'DemandAny' in permission_context and 'GrantedPermissions' in (root / 'src/ProjectZ/Models/UserSession.cs').read_text(encoding='utf-8')
+assert 'PermissionContext.Demand("POS.COMPLETE")' in (root / 'src/ProjectZ/Data/SalesRepository.cs').read_text(encoding='utf-8')
+assert '"CreatePurchaseDocument" => "PURCHASE.CREATE"' in (root / 'src/ProjectZ/Data/PurchaseRepository.cs').read_text(encoding='utf-8')
+assert 'PermissionContext.Demand("MAINTENANCE.CREATE")' in (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
+assert 'PermissionContext.Demand("USERS.CREATE")' in (root / 'src/ProjectZ/Data/UserRepository.cs').read_text(encoding='utf-8')
+assert 'PermissionVisibility.Code' in (root / 'src/ProjectZ/Views/PosView.xaml').read_text(encoding='utf-8')
+assert 'PermissionVisibility.Code' in (root / 'src/ProjectZ/Views/BackupView.xaml').read_text(encoding='utf-8')
+users_vm = (root / 'src/ProjectZ/ViewModels/UsersViewModel.cs').read_text(encoding='utf-8')
+users_view = (root / 'src/ProjectZ/Views/UsersView.xaml').read_text(encoding='utf-8')
+assert 'CanToggleActive => !IsCurrentUser && !IsSystemAdministrator' in users_vm
+assert 'IsEnabled="{Binding CanToggleActive}"' in users_view
+assert 'username.Equals("admin", StringComparison.OrdinalIgnoreCase)' in permissions_repo
+assert 'requestedAsDelete ? "DELETE" : "REVERSE"' in (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+assert 'PermissionContext.Demand("APPEARANCE.EDIT")' in (root / 'src/ProjectZ/ViewModels/AppearanceViewModel.cs').read_text(encoding='utf-8')
+financial_repository = (root / 'src/ProjectZ/Data/FinancialRepository.cs').read_text(encoding='utf-8')
+assert 'existingAccountId is null ? "FINANCE.ACCOUNTS_CREATE" : "FINANCE.ACCOUNTS_EDIT"' in financial_repository
+assert 'PermissionContext.Demand("FINANCE.ACCOUNTS_DEFAULT")' in financial_repository
+assert 'PermissionContext.Demand("FINANCE.ACCOUNTS_ACTIVATE")' in financial_repository
+maintenance_repository = (root / 'src/ProjectZ/Data/MaintenanceRepository.cs').read_text(encoding='utf-8')
+assert 'existingPartId is null ? "MAINTENANCE_PARTS.CREATE" : "MAINTENANCE_PARTS.EDIT"' in maintenance_repository
+inventory_repository = (root / 'src/ProjectZ/Data/InventoryRepository.cs').read_text(encoding='utf-8')
+assert 'PermissionContext.Demand("INVENTORY.DAMAGE_EDIT")' in inventory_repository
+assert 'PermissionContext.Demand("INVENTORY.DAMAGE_DELETE")' in inventory_repository
+user_repository = (root / 'src/ProjectZ/Data/UserRepository.cs').read_text(encoding='utf-8')
+assert 'PermissionContext.Demand("USERS.EDIT")' in user_repository and 'PermissionContext.Demand("USERS.ACTIVATE")' in user_repository
+assert 'SCREEN.VODAFONE_TRANSFER' in main_vm_text and 'SCREEN.VODAFONE_RECORDS' in main_vm_text
+assert 'SCREEN.INSTAPAY_TRANSFER' in main_vm_text and 'SCREEN.INSTAPAY_RECORDS' in main_vm_text
+assert 'security:PermissionVisibility.Code="USERS.ACTIVATE"' in (root / 'src/ProjectZ/Views/UserEditorWindow.xaml').read_text(encoding='utf-8')
+assert 'security:PermissionVisibility.Code="PRODUCTS.DELETE"' in (root / 'src/ProjectZ/Views/AddProductView.xaml').read_text(encoding='utf-8')
+assert 'security:PermissionVisibility.Code="SALES_INVOICES.PRINT"' in (root / 'src/ProjectZ/Views/ReturnExchangeView.xaml').read_text(encoding='utf-8')
+for filename, code in {
+    'InstapayOperationWindow.xaml': 'FINANCE.INSTAPAY_OPERATION',
+    'InstapayRecordEditWindow.xaml': 'FINANCE.INSTAPAY_EDIT',
+    'VodafoneOperationWindow.xaml': 'FINANCE.VODAFONE_OPERATION',
+    'VodafoneRecordEditWindow.xaml': 'FINANCE.VODAFONE_EDIT',
+    'MaintenanceInvoiceDetailsWindow.xaml': 'MAINTENANCE.COLLECT',
+}.items():
+    assert f'PermissionVisibility.Code="{code}"' in (root / 'src/ProjectZ/Views' / filename).read_text(encoding='utf-8')
+assert 'IsPermissionsSelected' in main_vm_text and 'views:PermissionsView' in main_window_text
+assert 'firstPermittedItem' in main_vm_text and 'item.IsVisible' in main_vm_text
+assert 'admin دائم الصلاحيات' in permission_view and 'الأدوار' in permission_docs
+assert 'SECURITY.MANAGE' in permissions_vm and 'RoleOptions' in permissions_vm
+assert 'sql/32_EnablePermissions.sql' in (root / 'README.md').read_text(encoding='utf-8')
+print(f'PASS: permission matrix with {len(catalog_codes)} stable codes, single role assignment, deny-by-default users, admin bypass, action guards and audit trail')
 print('NOT RUN locally: .NET build, C# tests, WPF execution, SQL Server 2016 SP1, LAN acceptance, EXE publish (Windows CI covers .NET build/tests, publish and isolated LocalDB integration)')

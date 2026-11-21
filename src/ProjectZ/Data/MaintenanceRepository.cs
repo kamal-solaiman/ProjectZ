@@ -172,6 +172,7 @@ ORDER BY s.Name;";
         string storageLocation = "",
         string notes = "")
     {
+        PermissionContext.Demand(existingPartId is null ? "MAINTENANCE_PARTS.CREATE" : "MAINTENANCE_PARTS.EDIT");
         name = Trim(name, 250, "");
         category = Trim(category, 100, "شاشات");
         quantity = Math.Max(0, quantity);
@@ -291,6 +292,7 @@ WHERE Id = @Id AND IsActive = 1;"))
     /// </summary>
     public (bool Deleted, string Message) DeleteSparePart(int partId, string name)
     {
+        PermissionContext.Demand("MAINTENANCE_PARTS.DELETE");
         try
         {
             using var connection = OpenConnection();
@@ -355,6 +357,7 @@ WHERE Id = @Id AND IsActive = 1;"))
         string reference,
         string note)
     {
+        PermissionContext.Demand("MAINTENANCE_PARTS.RESTOCK");
         quantity = Math.Max(1, quantity);
         unitCost = Math.Max(0m, unitCost);
         reference = Trim(reference, 100, "");
@@ -545,6 +548,7 @@ WHERE sp.Id = @Part;");
     /// </summary>
     public SavedMaintenanceOrder CreateMaintenanceOrder(MaintenanceOrderDesignItem order)
     {
+        PermissionContext.Demand("MAINTENANCE.CREATE");
         try
         {
             using var connection = OpenConnection();
@@ -640,12 +644,18 @@ SELECT CASE WHEN EXISTS (
     /// Inserts a single activity row (a print preview, for example) without touching the order
     /// columns and without re-syncing its part lines, or changing its version.
     /// </summary>
-    public DateTime AppendMaintenanceActivity(MaintenanceTicketKey key, byte mode) =>
-        PostScalar<DateTime>("dbo.AppendMaintenancePrint", key, cmd => cmd.Parameters.Add("@Mode", SqlDbType.TinyInt).Value = mode).ToLocalTime();
+    public DateTime AppendMaintenanceActivity(MaintenanceTicketKey key, byte mode)
+    {
+        PermissionContext.Demand("MAINTENANCE.PRINT");
+        return PostScalar<DateTime>("dbo.AppendMaintenancePrint", key,
+            cmd => cmd.Parameters.Add("@Mode", SqlDbType.TinyInt).Value = mode).ToLocalTime();
+    }
 
-    public byte[] SaveWorkshop(MaintenanceOrderDesignItem order, MaintenanceOrderStatus status, MaintenancePriority priority, string technician,
-        DateTime? expected, string expectedLabel, string diagnosis, decimal labor, decimal discount) =>
-        Post("dbo.SaveMaintenanceWorkshop", MaintenanceTicketKey.Open(order), cmd =>
+    public byte[] SaveWorkshop(MaintenanceOrderDesignItem order, MaintenanceOrderStatus status, MaintenancePriority priority,
+        string technician, DateTime? expected, string expectedLabel, string diagnosis, decimal labor, decimal discount)
+    {
+        PermissionContext.Demand("MAINTENANCE.WORKSHOP");
+        return Post("dbo.SaveMaintenanceWorkshop", MaintenanceTicketKey.Open(order), cmd =>
         {
             cmd.Parameters.Add("@Status", SqlDbType.TinyInt).Value = (byte)status;
             cmd.Parameters.Add("@Priority", SqlDbType.TinyInt).Value = (byte)priority;
@@ -655,53 +665,87 @@ SELECT CASE WHEN EXISTS (
             cmd.Parameters.Add("@Diagnosis", SqlDbType.NVarChar, 2000).Value = diagnosis;
             AddMoney(cmd, "@Labor", labor); AddMoney(cmd, "@Discount", discount);
         });
+    }
 
-    public byte[] IssuePart(MaintenanceTicketKey key, int spare, int qty, decimal labor, decimal discount) =>
-        ChangePart(key, 1, labor, discount, cmd => {
-            cmd.Parameters.Add("@Spare", SqlDbType.Int).Value = spare; cmd.Parameters.Add("@Qty", SqlDbType.Int).Value = qty;
+    public byte[] IssuePart(MaintenanceTicketKey key, int spare, int qty, decimal labor, decimal discount)
+    {
+        PermissionContext.Demand("MAINTENANCE.PARTS_ISSUE");
+        return ChangePart(key, 1, labor, discount, cmd =>
+        {
+            cmd.Parameters.Add("@Spare", SqlDbType.Int).Value = spare;
+            cmd.Parameters.Add("@Qty", SqlDbType.Int).Value = qty;
         });
+    }
 
-    public byte[] AddManualPart(MaintenanceTicketKey key, string name, int qty, decimal cost, decimal price, decimal labor, decimal discount) =>
-        ChangePart(key, 2, labor, discount, cmd => {
-            cmd.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = name; cmd.Parameters.Add("@Qty", SqlDbType.Int).Value = qty;
+    public byte[] AddManualPart(MaintenanceTicketKey key, string name, int qty, decimal cost, decimal price, decimal labor, decimal discount)
+    {
+        PermissionContext.Demand("MAINTENANCE.PARTS_ISSUE");
+        return ChangePart(key, 2, labor, discount, cmd =>
+        {
+            cmd.Parameters.Add("@Name", SqlDbType.NVarChar, 250).Value = name;
+            cmd.Parameters.Add("@Qty", SqlDbType.Int).Value = qty;
             AddMoney(cmd, "@Cost", cost); AddMoney(cmd, "@Price", price);
         });
+    }
 
-    public byte[] RemovePart(MaintenanceTicketKey key, int lineId, decimal labor, decimal discount) =>
-        ChangePart(key, 3, labor, discount, cmd => cmd.Parameters.Add("@Line", SqlDbType.Int).Value = lineId);
+    public byte[] RemovePart(MaintenanceTicketKey key, int lineId, decimal labor, decimal discount)
+    {
+        PermissionContext.Demand("MAINTENANCE.PARTS_ISSUE");
+        return ChangePart(key, 3, labor, discount, cmd => cmd.Parameters.Add("@Line", SqlDbType.Int).Value = lineId);
+    }
 
     private byte[] ChangePart(MaintenanceTicketKey key, byte action, decimal labor, decimal discount, Action<SqlCommand> bind) =>
-        Post("dbo.ChangeMaintenancePart", key, cmd => {
+        Post("dbo.ChangeMaintenancePart", key, cmd =>
+        {
             cmd.Parameters.Add("@Action", SqlDbType.TinyInt).Value = action;
             AddMoney(cmd, "@Labor", labor); AddMoney(cmd, "@Discount", discount); bind(cmd);
         });
 
-    public byte[] CollectDeposit(MaintenanceTicketKey key, FinancialAccountKind account, decimal amount) =>
-        Post("dbo.SettleMaintenanceTicket", key, cmd => {
+    public byte[] CollectDeposit(MaintenanceTicketKey key, FinancialAccountKind account, decimal amount)
+    {
+        PermissionContext.Demand("MAINTENANCE.COLLECT");
+        return Post("dbo.SettleMaintenanceTicket", key, cmd =>
+        {
             cmd.Parameters.Add("@Action", SqlDbType.TinyInt).Value = (byte)1;
-            AddTenders(cmd, account == FinancialAccountKind.Cash ? amount : 0, account == FinancialAccountKind.VodafoneCash ? amount : 0,
+            AddTenders(cmd, account == FinancialAccountKind.Cash ? amount : 0,
+                account == FinancialAccountKind.VodafoneCash ? amount : 0,
                 account == FinancialAccountKind.InstaPay ? amount : 0);
         });
+    }
 
-    public byte[] Deliver(MaintenanceDelivery request) => Post("dbo.SettleMaintenanceTicket", request.Ticket, cmd => {
-        cmd.Parameters.Add("@Action", SqlDbType.TinyInt).Value = (byte)2;
-        AddTenders(cmd, request.Cash, request.Vodafone, request.InstaPay);
-        AddMoney(cmd, "@Labor", request.Labor); AddMoney(cmd, "@Discount", request.Discount); AddMoney(cmd, "@ExpectedTotal", request.ExpectedTotal);
-        cmd.Parameters.Add("@RefundExcess", SqlDbType.Bit).Value = request.RefundExcess;
-        cmd.Parameters.Add("@Warranty", SqlDbType.Int).Value = request.WarrantyDays;
-        cmd.Parameters.Add("@Notes", SqlDbType.NVarChar, 1500).Value = request.Notes;
-    });
+    public byte[] Deliver(MaintenanceDelivery request)
+    {
+        PermissionContext.Demand("MAINTENANCE.DELIVER");
+        return Post("dbo.SettleMaintenanceTicket", request.Ticket, cmd =>
+        {
+            cmd.Parameters.Add("@Action", SqlDbType.TinyInt).Value = (byte)2;
+            AddTenders(cmd, request.Cash, request.Vodafone, request.InstaPay);
+            AddMoney(cmd, "@Labor", request.Labor); AddMoney(cmd, "@Discount", request.Discount);
+            AddMoney(cmd, "@ExpectedTotal", request.ExpectedTotal);
+            cmd.Parameters.Add("@RefundExcess", SqlDbType.Bit).Value = request.RefundExcess;
+            cmd.Parameters.Add("@Warranty", SqlDbType.Int).Value = request.WarrantyDays;
+            cmd.Parameters.Add("@Notes", SqlDbType.NVarChar, 1500).Value = request.Notes;
+        });
+    }
 
-    public byte[] Cancel(MaintenanceTicketKey key, decimal refund, bool returnParts, string reason) =>
-        Post("dbo.SettleMaintenanceTicket", key, cmd => {
+    public byte[] Cancel(MaintenanceTicketKey key, decimal refund, bool returnParts, string reason)
+    {
+        PermissionContext.Demand("MAINTENANCE.CANCEL");
+        return Post("dbo.SettleMaintenanceTicket", key, cmd =>
+        {
             cmd.Parameters.Add("@Action", SqlDbType.TinyInt).Value = (byte)3;
             AddMoney(cmd, "@CancelRefund", refund);
             cmd.Parameters.Add("@ReturnParts", SqlDbType.Bit).Value = returnParts;
             cmd.Parameters.Add("@Notes", SqlDbType.NVarChar, 1500).Value = reason;
         });
+    }
 
-    public byte[] Reopen(MaintenanceTicketKey key, string reason) => Post("dbo.ReopenMaintenanceTicket", key,
-        cmd => cmd.Parameters.Add("@Reason", SqlDbType.NVarChar, 1500).Value = reason);
+    public byte[] Reopen(MaintenanceTicketKey key, string reason)
+    {
+        PermissionContext.Demand("MAINTENANCE.REOPEN");
+        return Post("dbo.ReopenMaintenanceTicket", key,
+            cmd => cmd.Parameters.Add("@Reason", SqlDbType.NVarChar, 1500).Value = reason);
+    }
 
     private byte[] Post(string procedure, MaintenanceTicketKey key, Action<SqlCommand> bind) => PostScalar<byte[]>(procedure, key, bind);
 

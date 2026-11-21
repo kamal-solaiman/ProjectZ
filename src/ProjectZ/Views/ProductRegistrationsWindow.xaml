@@ -1,6 +1,6 @@
 <Window x:Class="ProjectZ.Views.ProductRegistrationsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:security="clr-namespace:ProjectZ.Helpers"
         Title="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay, StringFormat='{} | قائمة تسجيلات المنتج والموردين'}"
         Width="960"
         Height="650"
@@ -304,7 +304,7 @@
                                                             Style="{StaticResource PosOutlineTealButtonStyle}"
                                                             IsEnabled="{Binding IsAvailable}"
                                                             Command="{Binding DataContext.SaveSerialCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}" />
+                                                            CommandParameter="{Binding}"  security:PermissionVisibility.Code="PRODUCTS.EDIT" />
                                                 </StackPanel>
                                             </StackPanel>
 
@@ -408,7 +408,7 @@
                                                         Background="{DynamicResource Theme.Legacy.FEF2F2.DangerSoft}"
                                                         Visibility="{Binding IsAvailable, Converter={StaticResource BoolToVis}}"
                                                         Command="{Binding DataContext.MarkUnitDamagedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}" />
+                                                        CommandParameter="{Binding}"  security:PermissionVisibility.Code="INVENTORY.DAMAGE" />
 
                                                 <Button Content="استرجاع للمتاح"
                                                         Padding="6,4"
@@ -416,7 +416,7 @@
                                                         Style="{StaticResource PosOutlineTealButtonStyle}"
                                                         Visibility="{Binding IsDamaged, Converter={StaticResource BoolToVis}}"
                                                         Command="{Binding DataContext.RestoreUnitCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}" />
+                                                        CommandParameter="{Binding}"  security:PermissionVisibility.Code="INVENTORY.RESTORE" />
 
                                                 <TextBlock Text="—"
                                                            Style="{StaticResource PosCenterTextStyle}"

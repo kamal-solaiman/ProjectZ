@@ -151,6 +151,7 @@ ORDER BY OccurredAtUtc DESC, Id DESC;";
         string notes,
         bool makeDefault)
     {
+        PermissionContext.Demand(existingAccountId is null ? "FINANCE.ACCOUNTS_CREATE" : "FINANCE.ACCOUNTS_EDIT");
         alias = Trim(alias, 200, "");
         identifier = kind == FinancialAccountKind.Cash ? "" : Trim(identifier, 200, "");
         notes = Trim(notes, 1000, "");
@@ -189,6 +190,7 @@ ORDER BY OccurredAtUtc DESC, Id DESC;";
     /// </summary>
     public void SetDefaultAccount(int accountId, FinancialAccountKind kind)
     {
+        PermissionContext.Demand("FINANCE.ACCOUNTS_DEFAULT");
         try
         {
             using var connection = OpenConnection();
@@ -232,6 +234,7 @@ WHERE Id = @Id AND AccountKind = @Kind;"))
     /// </summary>
     public void SetAccountActive(int accountId, bool isActive)
     {
+        PermissionContext.Demand("FINANCE.ACCOUNTS_ACTIVATE");
         try
         {
             using var connection = OpenConnection();
@@ -275,6 +278,7 @@ UPDATE dbo.FinancialAccounts SET IsActive = 0, IsDefault = 0, UpdatedAtUtc = SYS
     /// </summary>
     public (bool Deleted, string Message) DeleteAccount(int accountId, string alias)
     {
+        PermissionContext.Demand("FINANCE.ACCOUNTS_DELETE");
         try
         {
             using var connection = OpenConnection();
@@ -331,6 +335,7 @@ UPDATE dbo.FinancialAccounts SET IsActive = 0, IsDefault = CASE WHEN IsDefault =
         string note,
         bool countsTowardLimits)
     {
+        PermissionContext.Demand("FINANCE.TRANSACTIONS");
         amount = Math.Round(amount, 2, MidpointRounding.AwayFromZero);
         if (amount <= 0m)
             throw new FinancialDataException("المبلغ يجب أن يكون أكبر من الصفر.");
@@ -405,9 +410,21 @@ VALUES(@Account,SYSUTCDATETIME(),@Incoming,@Category,@Amount,@Balance,@Counterpa
     public void ReverseCustomerTransfer(int transferId, byte[] expectedVersion, FinancialAccountKind provider, string note) =>
         PostCustomerTransfer(TransferAction.Reverse, provider, transferId, expectedVersion, null, note);
 
+    /// <summary>Retires a transfer through its audited reversal while requiring the distinct delete permission.</summary>
+    public void DeleteCustomerTransfer(int transferId, byte[] expectedVersion, FinancialAccountKind provider, string note) =>
+        PostCustomerTransfer(TransferAction.Reverse, provider, transferId, expectedVersion, null, note, requestedAsDelete: true);
+
     private SavedCustomerTransfer PostCustomerTransfer(TransferAction action, FinancialAccountKind provider, int? id,
-        byte[]? expectedVersion, CustomerTransferTerms? terms, string note)
+        byte[]? expectedVersion, CustomerTransferTerms? terms, string note, bool requestedAsDelete = false)
     {
+        var service = provider == FinancialAccountKind.VodafoneCash ? "VODAFONE" : "INSTAPAY";
+        PermissionContext.Demand($"FINANCE.{service}_" + (action switch
+        {
+            TransferAction.Issue => "OPERATION",
+            TransferAction.Correct => "EDIT",
+            TransferAction.Reverse => requestedAsDelete ? "DELETE" : "REVERSE",
+            _ => throw new ArgumentOutOfRangeException(nameof(action))
+        }));
         if (action != TransferAction.Issue && expectedVersion is not { Length: 8 })
             throw new FinancialDataException("نسخة التحويل غير متاحة. حدّث السجلات وافتح العملية من جديد.");
         try

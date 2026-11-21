@@ -181,6 +181,7 @@ ORDER BY e.ExpenseDate DESC, e.Id DESC, p.Id;";
     /// </summary>
     public SavedExpense Save(SaveExpenseRequest request)
     {
+        PermissionContext.Demand("EXPENSES.CREATE");
         var amount = Math.Round(request.Amount, 2, MidpointRounding.AwayFromZero);
         if (amount <= 0m)
             throw new ExpenseDataException("المبلغ يجب أن يكون أكبر من الصفر.");

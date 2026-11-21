@@ -6,6 +6,10 @@ using ProjectZ.Models;
 using ProjectZ.Services;
 using static SqlTest;
 
+// Repository integration tests execute as the privileged application account so authorization checks
+// do not accidentally test the caller's SQL login instead of the permission behavior.
+PermissionContext.Establish(new UserSession(1, "admin", "SQL Test Administrator", new HashSet<string>()));
+
 // This harness is deliberately unable to use the application's LAN settings. Run.ps1 creates
 // a disposable LocalDB instance; both the instance name and Windows authentication are checked.
 var adminConnectionString = Environment.GetEnvironmentVariable("PROJECTZ_TEST_ADMIN_CONNECTION")
@@ -31,8 +35,8 @@ try
     foreach (var script in new[]
              {
                  "09_EnablePosSales.sql", "11_EnableReturnExchange.sql", "12_EnablePurchasing.sql",
-                 "13_EnableMaintenanceInvoices.sql", "14_EnableMaintenanceIntake.sql", "15_EnableMaintenanceActions.sql", "16_EnableMaintenanceSpareParts.sql",
-                 "19_EnableExpenseCategories.sql", "20_EnableExpenses.sql", "21_EnableExpenseSplitPayments.sql"
+                 "13_EnableMaintenanceInvoices.sql", "14_EnableMaintenanceIntake.sql", "14_EnableUserAdmin.sql", "15_EnableMaintenanceActions.sql", "16_EnableMaintenanceSpareParts.sql",
+                 "19_EnableExpenseCategories.sql", "20_EnableExpenses.sql", "21_EnableExpenseSplitPayments.sql", "32_EnablePermissions.sql"
              })
         RunScript(admin, Path.Combine(FindRepositoryRoot(), "sql", script));
 

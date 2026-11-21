@@ -18,6 +18,9 @@ internal static class Program
         app.InitializeComponent();
         var runtime = ThemeManager.Instance;
         runtime.Initialize();
+        // WPF integration windows use the intentional in-memory design session; production login
+        // establishes a database-backed permission snapshot before creating MainWindow.
+        PermissionContext.Establish(new UserSession(0, "design", "اختبار الواجهة"));
 
         static void Check(bool condition, string name)
         {

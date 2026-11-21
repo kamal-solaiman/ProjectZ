@@ -136,6 +136,7 @@ ORDER BY m.OccurredAtUtc DESC, m.Id DESC;";
 
     public string AddCategory(string name)
     {
+        PermissionContext.Demand("CATEGORIES.CREATE");
         name = name.Trim();
         if (string.IsNullOrWhiteSpace(name)) throw new InventoryDataException("أدخل اسم التصنيف الجديد أولًا.");
         if (name.Length > 150) throw new InventoryDataException("اسم التصنيف يجب ألا يتجاوز 150 حرفًا.");
@@ -153,6 +154,7 @@ ORDER BY m.OccurredAtUtc DESC, m.Id DESC;";
 
     public void SaveNewProduct(PosProductDesignItem product, string supplierName, string invoiceNumber)
     {
+        PermissionContext.Demand("PRODUCTS.CREATE");
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
@@ -179,6 +181,7 @@ VALUES(@CategoryId,NULLIF(@Barcode,N''),NULL,@Name,@Unit,@Cost,@Retail,@Special,
 
     public void UpdateProduct(PosProductDesignItem product)
     {
+        PermissionContext.Demand("PRODUCTS.EDIT");
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
@@ -205,6 +208,7 @@ WHERE Id=@Id AND (@RowVersion IS NULL OR RowVersion=@RowVersion);");
 
     public void Supply(PosProductDesignItem product, int quantity, string supplierName, decimal purchasePrice, string invoiceNumber)
     {
+        PermissionContext.Demand("INVENTORY.SUPPLY");
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
@@ -244,6 +248,7 @@ OUTPUT inserted.Id VALUES(@ProductId,@SupplierId,@Invoice,@Cost,0);"))
 
     public void MarkDamaged(PosProductDesignItem product, int quantity, string? supplier, int? specificUnitId, string reason)
     {
+        PermissionContext.Demand("INVENTORY.DAMAGE");
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
@@ -272,6 +277,7 @@ ORDER BY iu.RegisteredAtUtc,iu.Id;"))
 
     public void MarkSingleDamaged(InventoryUnitRegistrationItem unit, string reason)
     {
+        PermissionContext.Demand("INVENTORY.DAMAGE");
         using var connection = OpenConnection(); using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
         {
@@ -301,6 +307,7 @@ WHERE Id=@Id AND UnitStatus=0;"))
     /// <summary>Saves the serial of one unit and records the change in the audit trail.</summary>
     public void RegisterSerial(InventoryUnitRegistrationItem unit, string serial)
     {
+        PermissionContext.Demand("PRODUCTS.EDIT");
         serial = serial.Trim();
         if (string.IsNullOrWhiteSpace(serial)) throw new InventoryDataException("أدخل رقم سيريال صحيحًا.");
         using var connection = OpenConnection();
@@ -317,6 +324,7 @@ WHERE Id=@Id AND UnitStatus=0 AND (@RowVersion IS NULL OR RowVersion=@RowVersion
 
     public void RestoreDamaged(InventoryUnitRegistrationItem unit)
     {
+        PermissionContext.Demand("INVENTORY.RESTORE");
         using var connection = OpenConnection(); using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
         {
@@ -338,6 +346,7 @@ OUTPUT inserted.ProductId,inserted.PurchaseCost WHERE Id=@Id AND UnitStatus=2;")
 
     public void MarkReturnedToSupplier(InventoryUnitRegistrationItem unit)
     {
+        PermissionContext.Demand("INVENTORY.RETURN");
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
@@ -359,6 +368,7 @@ OUTPUT inserted.ProductId,inserted.PurchaseCost WHERE Id=@Id AND UnitStatus=2;")
     /// <summary>Updates the settlement note of a damaged unit (for example a supplier claim number).</summary>
     public void UpdateDamageSettlement(InventoryUnitRegistrationItem unit, string settlement)
     {
+        PermissionContext.Demand("INVENTORY.DAMAGE_EDIT");
         settlement = (settlement ?? "").Trim();
         if (settlement.Length > 50) throw new InventoryDataException("حالة التسوية يجب ألا تتجاوز 50 حرفًا.");
 
@@ -384,6 +394,7 @@ OUTPUT inserted.ProductId,inserted.PurchaseCost WHERE Id=@Id AND UnitStatus=2;")
     /// <summary>Updates the damage reason of a damaged unit without touching its status.</summary>
     public void UpdateDamageReason(InventoryUnitRegistrationItem unit, string reason)
     {
+        PermissionContext.Demand("INVENTORY.DAMAGE_EDIT");
         reason = (reason ?? "").Trim();
         if (string.IsNullOrWhiteSpace(reason)) throw new InventoryDataException("أدخل سبب الهالك أولًا.");
         if (reason.Length > 1000) throw new InventoryDataException("سبب الهالك يجب ألا يتجاوز 1000 حرف.");
@@ -409,6 +420,7 @@ OUTPUT inserted.ProductId,inserted.PurchaseCost WHERE Id=@Id AND UnitStatus=2;")
 
     public void DeleteDamaged(InventoryUnitRegistrationItem unit)
     {
+        PermissionContext.Demand("INVENTORY.DAMAGE_DELETE");
         using var connection = OpenConnection(); using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
         {
@@ -432,6 +444,7 @@ IF EXISTS(SELECT 1 FROM dbo.InventoryUnits WHERE Id=@Id)
     /// <returns>True for a hard delete; false when history required archival.</returns>
     public bool DeleteOrArchiveProduct(PosProductDesignItem product)
     {
+        PermissionContext.Demand("PRODUCTS.DELETE");
         using var connection = OpenConnection(); using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         try
         {

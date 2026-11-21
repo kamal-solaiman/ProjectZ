@@ -58,6 +58,7 @@ public sealed class MainViewModel : ObservableObject
     public CustomersViewModel Customers { get; }
     public SuppliersViewModel Suppliers { get; }
     public UsersViewModel Users { get; }
+    public PermissionsViewModel? Permissions { get; }
     public ExpenseCategoriesViewModel ExpenseCategories { get; }
     public AddExpenseViewModel AddExpense { get; }
     public ExpenseInvoicesViewModel ExpenseInvoices { get; }
@@ -96,6 +97,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsCustomersSelected => ReferenceEquals(selectedItem, customersCategory.Items[0]);
     public bool IsSuppliersSelected => ReferenceEquals(selectedItem, customersCategory.Items[1]);
     public bool IsUsersSelected => ReferenceEquals(selectedItem, usersCategory.Items[0]);
+    public bool IsPermissionsSelected => ReferenceEquals(selectedItem, usersCategory.Items[1]);
     public bool IsAddExpenseSelected => ReferenceEquals(selectedItem, expensesCategory.Items[0]);
     public bool IsExpenseCategoriesSelected => ReferenceEquals(selectedItem, expensesCategory.Items[2]);
     public bool IsExpenseInvoicesSelected => ReferenceEquals(selectedItem, expensesCategory.Items[1]);
@@ -113,7 +115,7 @@ public sealed class MainViewModel : ObservableObject
         || IsMaintenanceIntakeSelected || IsMaintenanceInvoicesSelected || IsMaintenanceActionsSelected
         || IsMaintenanceSparePartsSelected || IsCustomersSelected || IsSuppliersSelected || IsMyAccountsSelected
         || IsVodafoneTransferSelected || IsInstapayTransferSelected || IsVodafoneRecordsSelected || IsInstapayRecordsSelected
-        || IsUsersSelected || IsAddExpenseSelected || IsExpenseInvoicesSelected || IsExpenseCategoriesSelected
+        || IsUsersSelected || IsPermissionsSelected || IsAddExpenseSelected || IsExpenseInvoicesSelected || IsExpenseCategoriesSelected
         || IsGeneralSettingsSelected || IsAppearanceSelected
         || IsBackupSelected;
     public string SelectedCategoryTitle => selectedItem?.Category.Title ?? "مساحة العمل";
@@ -211,7 +213,8 @@ public sealed class MainViewModel : ObservableObject
         IMaintenanceReportSource? maintenanceReportSource = null,
         IFinanceReportSource? financeReportSource = null,
         IExpenseReportSource? expenseReportSource = null,
-        IOverallReportSource? overallReportSource = null)
+        IOverallReportSource? overallReportSource = null,
+        PermissionsRepository? permissionsRepository = null)
     {
         this.user = user;
         StartEgyptClock();
@@ -250,6 +253,7 @@ public sealed class MainViewModel : ObservableObject
             salesCategory, purchasesCategory, maintenanceCategory, financeCategory, customersCategory,
             reportsCategory, expensesCategory, usersCategory, settingsCategory
         };
+        ApplyPermissionVisibility(user);
 
         var sharedCatalog = inventoryRepository is null
             ? PosDesignSeedData.CreateSharedSampleCatalog()
@@ -525,6 +529,7 @@ public sealed class MainViewModel : ObservableObject
         };
 
         Users = new UsersViewModel(user.DisplayName, userRepository, user.Id, user.Username);
+        Permissions = permissionsRepository is null ? null : new PermissionsViewModel(permissionsRepository, user);
         ExpenseCategories = new ExpenseCategoriesViewModel(expenseCategoryRepository);
         AddExpense = new AddExpenseViewModel(expenseRepository, financialRepository);
         ExpenseInvoices = new ExpenseInvoicesViewModel(expenseRepository);
@@ -627,8 +632,9 @@ public sealed class MainViewModel : ObservableObject
             Customers.RefreshFromDatabase();
         }
 
-        // Start at the first available destination; all other categories stay closed.
-        SelectItem(salesCategory.Items[0]);
+        // Start only at an authorized destination; a limited user need not have POS permission.
+        var firstPermittedItem = Categories.SelectMany(category => category.Items).FirstOrDefault(item => item.IsVisible);
+        if (firstPermittedItem is not null) SelectItem(firstPermittedItem);
     }
 
     /// <summary>
@@ -647,6 +653,57 @@ public sealed class MainViewModel : ObservableObject
         Invoices.NotifyExternalInvoicesChanged();
         Suppliers.NotifyExternalDataChanged();
     }
+
+    private void ApplyPermissionVisibility(UserSession session)
+    {
+        foreach (var category in Categories)
+        {
+            foreach (var item in category.Items)
+            {
+                var code = NavigationPermissionCode(category.Title, item.Title);
+                item.SetVisible(code is not null && session.HasPermission(code));
+            }
+            category.SetVisible(category.Items.Any(item => item.IsVisible));
+        }
+    }
+
+    private static string? NavigationPermissionCode(string category, string title) => (category, title) switch
+    {
+        ("المبيعات", "نقطة البيع") => "SCREEN.POS",
+        ("المبيعات", "اضافة منتج") => "SCREEN.PRODUCTS",
+        ("المبيعات", "المخزون") => "SCREEN.INVENTORY",
+        ("المبيعات", "التصنيفات") => "SCREEN.CATEGORIES",
+        ("المبيعات", "الفواتير") => "SCREEN.SALES_INVOICES",
+        ("المبيعات", "المرتجع والاستبدال") => "SCREEN.RETURN_EXCHANGE",
+        ("المشتريات", "شراء فاتورة") => "SCREEN.PURCHASE_ENTRY",
+        ("المشتريات", "فواتير المشتريات") => "SCREEN.PURCHASE_INVOICES",
+        ("الصيانة", "امر صيانة") => "SCREEN.MAINTENANCE_INTAKE",
+        ("الصيانة", "فواتير الصيانة") => "SCREEN.MAINTENANCE_INVOICES",
+        ("الصيانة", "اجراءات الصيانة") => "SCREEN.MAINTENANCE_ACTIONS",
+        ("الصيانة", "قطع الغيار") => "SCREEN.MAINTENANCE_PARTS",
+        ("المالية", "حساباتي") => "SCREEN.FINANCIAL_ACCOUNTS",
+        ("المالية", "تحويل فودافون كاش") => "SCREEN.VODAFONE_TRANSFER",
+        ("المالية", "سجلات فودافون كاش") => "SCREEN.VODAFONE_RECORDS",
+        ("المالية", "تحويل انستاباي") => "SCREEN.INSTAPAY_TRANSFER",
+        ("المالية", "سجلات انستاباي") => "SCREEN.INSTAPAY_RECORDS",
+        ("العملاء والموردين", "العملاء") => "SCREEN.CUSTOMERS",
+        ("العملاء والموردين", "الموردين") => "SCREEN.SUPPLIERS",
+        ("التقارير", "تقارير المبيعات") => "SCREEN.REPORTS_SALES",
+        ("التقارير", "تقارير المشتريات") => "SCREEN.REPORTS_PURCHASE",
+        ("التقارير", "تقارير الصيانة") => "SCREEN.REPORTS_MAINTENANCE",
+        ("التقارير", "تقارير المالية") => "SCREEN.REPORTS_FINANCE",
+        ("التقارير", "تقارير المصروفات") => "SCREEN.REPORTS_EXPENSES",
+        ("التقارير", "اجمالي التقارير") => "SCREEN.REPORTS_OVERALL",
+        ("المصروفات", "اضافة مصروف") => "SCREEN.EXPENSES",
+        ("المصروفات", "فواتير المصروفات") => "SCREEN.EXPENSE_INVOICES",
+        ("المصروفات", "تصنيفات المصروفات") => "SCREEN.EXPENSE_CATEGORIES",
+        ("المستخدمين", "المستخدمين") => "SCREEN.USERS",
+        ("المستخدمين", "الصلاحيات") => "SECURITY.MANAGE",
+        ("الاعدادات", "اعدادات عامة") => "SCREEN.GENERAL_SETTINGS",
+        ("الاعدادات", "المظهر") => "SCREEN.APPEARANCE",
+        ("الاعدادات", "النسخ الاحتياطي") => "SCREEN.BACKUP",
+        _ => null
+    };
 
     /// <summary>
     /// The store name changed in the general settings. Titles and receipt headers bind to StoreIdentity
@@ -850,7 +907,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void SelectItem(NavigationMenuItemViewModel item)
     {
-        if (!Categories.Contains(item.Category) || !item.Category.Items.Contains(item)) return;
+        if (!Categories.Contains(item.Category) || !item.Category.Items.Contains(item) || !item.IsVisible) return;
 
         foreach (var category in Categories)
         {
@@ -965,6 +1022,7 @@ public sealed class MainViewModel : ObservableObject
         Changed(nameof(IsCustomersSelected));
         Changed(nameof(IsSuppliersSelected));
         Changed(nameof(IsUsersSelected));
+        Changed(nameof(IsPermissionsSelected));
         Changed(nameof(IsAddExpenseSelected));
         Changed(nameof(IsExpenseInvoicesSelected));
         Changed(nameof(IsExpenseCategoriesSelected));
@@ -988,11 +1046,13 @@ public sealed class MainViewModel : ObservableObject
 public sealed class NavigationMenuCategoryViewModel : ObservableObject
 {
     private bool isExpanded;
+    private bool isVisible = true;
 
     public string Title { get; }
     public string Icon { get; }
     public IReadOnlyList<NavigationMenuItemViewModel> Items { get; }
     public bool IsExpanded => isExpanded;
+    public bool IsVisible => isVisible;
     // Physical glyphs (the chevron TextBlock is LTR): closed arrow points left, toward the RTL content.
     public string Chevron => IsExpanded ? "⌄" : "‹";
 
@@ -1001,6 +1061,13 @@ public sealed class NavigationMenuCategoryViewModel : ObservableObject
         Title = title;
         Icon = icon;
         Items = itemTitles.Select(itemTitle => new NavigationMenuItemViewModel(this, itemTitle)).ToArray();
+    }
+
+    internal void SetVisible(bool value)
+    {
+        if (isVisible == value) return;
+        isVisible = value;
+        Changed(nameof(IsVisible));
     }
 
     internal void SetExpanded(bool value)
@@ -1016,15 +1083,24 @@ public sealed class NavigationMenuCategoryViewModel : ObservableObject
 public sealed class NavigationMenuItemViewModel : ObservableObject
 {
     private bool isSelected;
+    private bool isVisible = true;
 
     public NavigationMenuCategoryViewModel Category { get; }
     public string Title { get; }
     public bool IsSelected => isSelected;
+    public bool IsVisible => isVisible;
 
     internal NavigationMenuItemViewModel(NavigationMenuCategoryViewModel category, string title)
     {
         Category = category;
         Title = title;
+    }
+
+    internal void SetVisible(bool value)
+    {
+        if (isVisible == value) return;
+        isVisible = value;
+        Changed(nameof(IsVisible));
     }
 
     internal void SetSelected(bool value)

@@ -1,6 +1,7 @@
 <UserControl x:Class="ProjectZ.Views.CategoriesView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:security="clr-namespace:ProjectZ.Helpers"
              FlowDirection="LeftToRight"
              Language="ar-EG">
 
@@ -58,7 +59,7 @@
                     Padding="12,7"
                     FontSize="12.5"
                     VerticalAlignment="Center"
-                    Command="{Binding GoToAddProductCommand}" />
+                    Command="{Binding GoToAddProductCommand}"  security:PermissionVisibility.Code="SCREEN.PRODUCTS" />
 
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
@@ -213,7 +214,7 @@
                                 Style="{StaticResource PosPrimaryCompactButtonStyle}"
                                 Padding="18,8"
                                 MinHeight="36"
-                                Command="{Binding AddCategoryCommand}" />
+                                Command="{Binding AddCategoryCommand}" security:PermissionVisibility.Code="CATEGORIES.CREATE" />
 
                         <Grid Grid.Column="2">
                             <TextBox x:Name="NewCategoryInput"
@@ -424,7 +425,7 @@
                                                             BorderBrush="{DynamicResource Theme.Legacy.FECACA.DangerBorder}"
                                                             IsEnabled="{Binding CanDelete}"
                                                             ToolTip="الحذف متاح فقط لتصنيف غير مستخدم في أي صنف"
-                                                            Command="{Binding DeleteCommand}" />
+                                                            Command="{Binding DeleteCommand}" security:PermissionVisibility.Code="CATEGORIES.DELETE" />
                                                 </StackPanel>
 
                                                 <!-- Edit Mode: Save + Cancel -->
@@ -436,7 +437,7 @@
                                                             Background="{DynamicResource Theme.Legacy.0F766E.Success}"
                                                             Foreground="{DynamicResource Theme.Legacy.FFFFFF.OnSuccess}"
                                                             BorderBrush="{DynamicResource Theme.Legacy.0F766E.SuccessBorder}"
-                                                            Command="{Binding SaveEditCommand}" />
+                                                            Command="{Binding SaveEditCommand}" security:PermissionVisibility.Code="CATEGORIES.EDIT" />
                                                     <Button Content="إلغاء"
                                                             Style="{StaticResource CatActionBtnBaseStyle}"
                                                             Background="{DynamicResource Theme.Legacy.F1F5F9.Surface}"

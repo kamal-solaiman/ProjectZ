@@ -65,6 +65,12 @@ public sealed class UserEditorViewModel : ObservableObject
     public bool IsCreateMode => mode == "add";
     public bool IsEditMode => mode == "edit";
     public bool IsPasswordMode => mode == "password";
+    public string SavePermissionCode => mode switch
+    {
+        "add" => "USERS.CREATE",
+        "password" => "USERS.PASSWORD",
+        _ => "USERS.EDIT"
+    };
 
     /// <summary>The username is never edited in password mode; it is shown read-only as context.</summary>
     public bool ShowIdentityFields => !IsPasswordMode;

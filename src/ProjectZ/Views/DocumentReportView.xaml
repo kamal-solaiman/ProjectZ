@@ -1,4 +1,4 @@
-<UserControl x:Class="ProjectZ.Views.DocumentReportView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="clr-namespace:ProjectZ.ViewModels" Language="ar-EG" FlowDirection="RightToLeft">
+<UserControl x:Class="ProjectZ.Views.DocumentReportView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:security="clr-namespace:ProjectZ.Helpers" xmlns:vm="clr-namespace:ProjectZ.ViewModels" Language="ar-EG" FlowDirection="RightToLeft">
     <UserControl.Resources>
         <Style x:Key="Panel" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource Theme.Brush.Surface}"/><Setter Property="BorderBrush" Value="{DynamicResource Theme.Brush.Border}"/>
@@ -12,8 +12,8 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <DockPanel LastChildFill="True" Margin="0,0,0,6">
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="معاينة A4" AutomationProperties.Name="معاينة وطباعة الجدول المحدد" Style="{StaticResource PosSecondaryButtonStyle}" Click="Preview_Click" IsEnabled="{Binding CanPrint}"/>
-                <Button Content="تصدير Excel" Margin="5,0" Style="{StaticResource PosOutlineTealButtonStyle}" Click="Export_Click" IsEnabled="{Binding CanExport}"/>
+                <Button Content="معاينة A4" AutomationProperties.Name="معاينة وطباعة الجدول المحدد" Style="{StaticResource PosSecondaryButtonStyle}" Click="Preview_Click" IsEnabled="{Binding CanPrint}" security:PermissionVisibility.Code="REPORTS.EXPORT" />
+                <Button Content="تصدير Excel" Margin="5,0" Style="{StaticResource PosOutlineTealButtonStyle}" Click="Export_Click" IsEnabled="{Binding CanExport}" security:PermissionVisibility.Code="REPORTS.EXPORT" />
             </StackPanel>
             <StackPanel><TextBlock Text="مركز التقارير" Style="{StaticResource Caption}" Foreground="{DynamicResource Theme.Brush.AccentInk}"/><TextBlock Text="{Binding SectionTitle}" FontWeight="Bold" FontSize="23" Foreground="{DynamicResource Theme.Brush.Heading}"/></StackPanel>
         </DockPanel>
@@ -56,17 +56,17 @@
         <ItemsControl Grid.Row="2" Margin="0,5" ItemsSource="{Binding Page.Metrics}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
             <Border Style="{StaticResource Panel}" Padding="8,6" Margin="2,0"><StackPanel><TextBlock Text="{Binding Label}" ToolTip="{Binding Label}" TextTrimming="CharacterEllipsis" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Display}" ToolTip="{Binding Display}" TextTrimming="CharacterEllipsis" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource Theme.Brush.AccentInk}"/></StackPanel></Border>
         </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-        <DockPanel Grid.Row="3" Margin="0,2,0,6"><Button DockPanel.Dock="Left" Content="فتح تفاصيل الصف ←" Visibility="{Binding ShowDocumentTools, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosOutlineTealButtonStyle}" Command="{Binding DrillCommand}"/>
+        <DockPanel Grid.Row="3" Margin="0,2,0,6"><Button DockPanel.Dock="Left" Content="فتح تفاصيل الصف ←" Visibility="{Binding ShowDocumentTools, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosOutlineTealButtonStyle}" Command="{Binding DrillCommand}" security:PermissionVisibility.Code="{Binding DrillPermissionCode}"/>
             <ContentControl DockPanel.Dock="Left" Content="{Binding ExtraTools}"><ContentControl.Resources><DataTemplate DataType="{x:Type vm:MaintenanceReportsViewModel}">
-                <StackPanel Orientation="Horizontal"><Button Content="ملف العميل" Command="{Binding OpenCustomerCommand}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0" Visibility="{Binding CanOpenCustomer, Converter={StaticResource BoolToVis}}"/>
-                    <Button Content="قطعة الغيار" Command="{Binding OpenPartCommand}" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenPart, Converter={StaticResource BoolToVis}}"/></StackPanel>
+                <StackPanel Orientation="Horizontal"><Button Content="ملف العميل" Command="{Binding OpenCustomerCommand}" security:PermissionVisibility.Code="SCREEN.CUSTOMERS" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0" Visibility="{Binding CanOpenCustomer, Converter={StaticResource BoolToVis}}"/>
+                    <Button Content="قطعة الغيار" Command="{Binding OpenPartCommand}" security:PermissionVisibility.Code="SCREEN.MAINTENANCE_PARTS" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenPart, Converter={StaticResource BoolToVis}}"/></StackPanel>
             </DataTemplate><DataTemplate DataType="{x:Type vm:FinanceReportsViewModel}">
-                <Button Content="فتح الحساب" Command="{Binding OpenAccountCommand}" Margin="4,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenAccount, Converter={StaticResource BoolToVis}}"/>
+                <Button Content="فتح الحساب" Command="{Binding OpenAccountCommand}" security:PermissionVisibility.Code="SCREEN.FINANCIAL_ACCOUNTS" Margin="4,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenAccount, Converter={StaticResource BoolToVis}}"/>
             </DataTemplate><DataTemplate DataType="{x:Type vm:ExpenseReportsViewModel}">
-                <Button Content="فتح الحساب" Command="{Binding OpenAccountCommand}" Margin="4,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenAccount, Converter={StaticResource BoolToVis}}"/>
+                <Button Content="فتح الحساب" Command="{Binding OpenAccountCommand}" security:PermissionVisibility.Code="SCREEN.FINANCIAL_ACCOUNTS" Margin="4,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding CanOpenAccount, Converter={StaticResource BoolToVis}}"/>
             </DataTemplate></ContentControl.Resources></ContentControl>
-            <Button DockPanel.Dock="Left" Content="ملف المورد" Command="{Binding OpenSupplierCommand}" Visibility="{Binding HasSupplierTools, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0"/>
-            <Button DockPanel.Dock="Left" Content="فاتورة مصدر الإشعار" Command="{Binding OpenRelatedCommand}" Visibility="{Binding HasRelated, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0"/>
+            <Button DockPanel.Dock="Left" Content="ملف المورد" Command="{Binding OpenSupplierCommand}" security:PermissionVisibility.Code="SCREEN.SUPPLIERS" Visibility="{Binding HasSupplierTools, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0"/>
+            <Button DockPanel.Dock="Left" Content="فاتورة مصدر الإشعار" Command="{Binding OpenRelatedCommand}" security:PermissionVisibility.Code="SCREEN.PURCHASE_INVOICES" Visibility="{Binding HasRelated, Converter={StaticResource BoolToVis}}" Style="{StaticResource PosSecondaryButtonStyle}" Margin="4,0"/>
             <Button DockPanel.Dock="Left" Content="الرجوع للنتائج" ToolTip="إنهاء عرض المجموعة دون مسح الفلاتر" Margin="5,0" Style="{StaticResource PosSecondaryButtonStyle}" Visibility="{Binding HasDrill, Converter={StaticResource BoolToVis}}" Command="{Binding BackToResultsCommand}"/>
             <ComboBox DockPanel.Dock="Right" Width="172" ItemsSource="{Binding Page.Tables}" SelectedItem="{Binding SelectedTable}" DisplayMemberPath="Title" AutomationProperties.Name="قسم التقرير"/>
             <TextBlock Text="{Binding TableCaption}" TextTrimming="CharacterEllipsis" ToolTip="{Binding TableCaption}" Margin="10,0" VerticalAlignment="Center" Style="{StaticResource Caption}"/></DockPanel>

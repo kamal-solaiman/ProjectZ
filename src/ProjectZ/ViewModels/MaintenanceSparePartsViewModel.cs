@@ -110,6 +110,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         ? $"تعديل قطعة الغيار ({editingPart!.CodeDisplay})"
         : "تسجيل قطعة غيار جديدة للصيانة";
     public string SaveButtonText => IsEditMode ? "حفظ التعديلات" : "+ تسجيل قطعة الغيار";
+    public string SavePermissionCode => IsEditMode ? "MAINTENANCE_PARTS.EDIT" : "MAINTENANCE_PARTS.CREATE";
 
     public int ActiveWorkspaceTabIndex
     {
@@ -948,6 +949,7 @@ public sealed class MaintenanceSparePartsViewModel : ObservableObject
         Changed(nameof(IsAddMode));
         Changed(nameof(FormHeaderTitle));
         Changed(nameof(SaveButtonText));
+        Changed(nameof(SavePermissionCode));
         Changed(nameof(PartName));
         Changed(nameof(SelectedCategory));
         Changed(nameof(IsCustomCategorySelected));

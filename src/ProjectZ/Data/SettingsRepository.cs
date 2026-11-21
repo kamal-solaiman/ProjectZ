@@ -96,6 +96,7 @@ public sealed class SettingsRepository(ConnectionSettingsProvider settings, int 
     /// </summary>
     public StoreProfile Save(StoreProfile profile)
     {
+        PermissionContext.Demand("GENERAL_SETTINGS.EDIT");
         var clean = Validate(profile);
         var changes = new List<string>();
 

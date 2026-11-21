@@ -22,6 +22,7 @@ public sealed class PurchaseReportsViewModel(IPurchaseReportSource? source, Acti
         .DistinctBy(i=>i.SupplierId).Select(i=>new ReportChoice(i.SupplierId,i.SupplierLabel));
     protected override IEnumerable<ReportChoice> GetAccounts(PurchaseReportData d) => d.Events.Where(e=>e.AccountId.HasValue)
         .DistinctBy(e=>e.AccountId).Select(e=>new ReportChoice(e.AccountId,e.AccountLabel));
+    protected override string? GetDrillPermissionCode(ReportRow row) => "SCREEN.PURCHASE_INVOICES";
     protected override ReportPage Project(PurchaseReportData d, bool movement, ReportFilter filter, string currency) =>
         PurchaseReportProjection.Build(d, movement, filter, currency);
 }

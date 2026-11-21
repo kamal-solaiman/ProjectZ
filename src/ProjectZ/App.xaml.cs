@@ -89,6 +89,7 @@ public partial class App : Application
 
         Views.MainWindow main;
         var stage = "تحميل مكونات MainWindow / XAML";
+        PermissionContext.Establish(user);
         try
         {
             main = new Views.MainWindow();
@@ -113,7 +114,8 @@ public partial class App : Application
                 new MaintenanceReportRepository(connectionSettings),
                 new FinanceReportRepository(connectionSettings),
                 new ExpenseReportRepository(connectionSettings),
-                new OverallReportRepository(connectionSettings));
+                new OverallReportRepository(connectionSettings),
+                new PermissionsRepository(connectionSettings, user));
             MainWindow = main;
             TrackWindow(main);
 
@@ -126,6 +128,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
+            PermissionContext.Clear();
             throw new MainWindowInitializationException(stage, ex);
         }
     }
@@ -134,6 +137,7 @@ public partial class App : Application
     {
         if (isShuttingDown) return;
 
+        PermissionContext.Clear();
         main.DataContext = null;
         ShowLogin();
         main.Close();

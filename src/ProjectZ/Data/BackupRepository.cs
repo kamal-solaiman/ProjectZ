@@ -165,6 +165,7 @@ ORDER BY backup_start_date DESC;";
     /// </summary>
     public async Task BackupDatabaseAsync(string backupFilePath, CancellationToken cancellationToken = default)
     {
+        PermissionContext.Demand("BACKUP.CREATE");
         var path = NormalizeBackupPath(backupFilePath, requireExistingDirectory: true);
 
         try
@@ -195,6 +196,7 @@ WITH INIT, FORMAT, CHECKSUM;";
     /// </summary>
     public async Task RestoreDatabaseAsync(string backupFilePath, CancellationToken cancellationToken = default)
     {
+        PermissionContext.Demand("BACKUP.RESTORE");
         var path = NormalizeBackupPath(backupFilePath, requireExistingDirectory: false);
 
         try

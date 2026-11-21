@@ -64,6 +64,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     protected virtual void SetExtraChoices(T result) { }
     protected virtual void NotifyRowActions() { }
     protected virtual bool CanOpenDetail(ReportRow r) => openInvoice is not null && r.CanOpenInvoice && r.InvoiceIds.Length==1;
+    protected virtual string? GetDrillPermissionCode(ReportRow r) => null;
     protected virtual void OpenDetail(ReportRow r) { if(r.CanOpenInvoice && r.InvoiceIds.Length==1)openInvoice?.Invoke(r.InvoiceIds[0]); }
     private string search = "", detail = "", status = "";
     private ReportChoice issuer = All, selectedKind = All, selectedAccount = EveryAccount, supplier = EverySupplier;
@@ -148,10 +149,13 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
     public ReportPage? Page => page;
     public bool CanExport => page?.Tables.Any(t => t.Rows.Count > 0) == true;
     public bool CanPrint => table?.Rows.Count > 0;
+    // Grouped-row drilling stays within this report. A direct row link is hidden unless its target screen is allowed.
+    public string? DrillPermissionCode => row is not null && table?.Grouped != true && CanOpenDetail(row)
+        ? GetDrillPermissionCode(row) : null;
     public ReportTable? SelectedTable
     {
         get => table;
-        set { table = value; SelectedRow = null; Changed(); Changed(nameof(CanPrint)); Changed(nameof(TableCaption)); }
+        set { table = value; SelectedRow = null; Changed(); Changed(nameof(CanPrint)); Changed(nameof(TableCaption)); Changed(nameof(DrillPermissionCode)); }
     }
     public virtual string TableCaption => table is null ? "" : $"{table.Rows.Count:N0} صف • " + (table.Grouped
         ? (IsMovement ? "افتح المجموعة لعرض حركاتها" : "افتح المجموعة لعرض فواتيرها") : row is { CanOpenInvoice: false } ? "مستند محذوف • سجل تدقيق فقط" : "افتح الصف للانتقال إلى الفاتورة");
@@ -160,7 +164,7 @@ public abstract class ReportWorkspaceViewModel<T> : ObservableObject, IReportWor
         get => row;
         set
         {
-            row = value; NotifyRowActions(); Changed(); Changed(nameof(HasRelated)); Changed(nameof(TableCaption));
+            row = value; NotifyRowActions(); Changed(); Changed(nameof(HasRelated)); Changed(nameof(TableCaption)); Changed(nameof(DrillPermissionCode));
             DrillCommand.NotifyCanExecuteChanged(); OpenSupplierCommand.NotifyCanExecuteChanged(); OpenRelatedCommand.NotifyCanExecuteChanged();
         }
     }

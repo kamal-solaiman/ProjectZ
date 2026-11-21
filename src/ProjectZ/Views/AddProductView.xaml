@@ -1,6 +1,7 @@
 <UserControl x:Class="ProjectZ.Views.AddProductView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:security="clr-namespace:ProjectZ.Helpers"
              FlowDirection="LeftToRight"
              Language="ar-EG">
 
@@ -26,7 +27,7 @@
                         Style="{StaticResource PosOutlineTealButtonStyle}"
                         Padding="12,7"
                         FontSize="12.5"
-                        Command="{Binding GoToPosCommand}" />
+                        Command="{Binding GoToPosCommand}"  security:PermissionVisibility.Code="SCREEN.POS" />
                 <Button Content="تحديث الأصناف"
                         Margin="8,0,0,0"
                         Style="{StaticResource PosSecondaryButtonStyle}"
@@ -265,7 +266,7 @@
                                                                             Style="{StaticResource PosDangerIconButtonStyle}"
                                                                             ToolTip="حذف الصنف أو أرشفته مع حفظ تاريخه"
                                                                             Visibility="{Binding CanDeleteFromCatalog, Converter={StaticResource BoolToVis}}"
-                                                                            Command="{Binding DataContext.RemoveProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            Command="{Binding DataContext.RemoveProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" security:PermissionVisibility.Code="PRODUCTS.DELETE"
                                                                             CommandParameter="{Binding}" />
                                                                 </StackPanel>
 
@@ -458,7 +459,7 @@
                                                         Style="{StaticResource PosPrimaryCompactButtonStyle}"
                                                         Padding="10,5"
                                                         FontSize="11.5"
-                                                        Command="{Binding ConfirmNewCategoryCommand}" />
+                                                        Command="{Binding ConfirmNewCategoryCommand}" security:PermissionVisibility.Code="CATEGORIES.CREATE" />
                                                 <Grid Grid.Column="2">
                                                     <TextBox Style="{StaticResource PosCompactTextBoxStyle}"
                                                              MinHeight="30"
@@ -841,7 +842,7 @@
                             MinWidth="195"
                             Padding="22,10"
                             FontSize="14.5"
-                            Command="{Binding SaveProductCommand}" />
+                            Command="{Binding SaveProductCommand}" security:PermissionVisibility.Code="PRODUCTS.CREATE" />
                 </Grid>
 
                 <!-- Status Feedback Strip -->
