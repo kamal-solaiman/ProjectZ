@@ -1,6 +1,7 @@
 <UserControl x:Class="ProjectZ.Views.MaintenanceSparePartsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:security="clr-namespace:ProjectZ.Helpers"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:ProjectZ.ViewModels"
@@ -67,7 +68,7 @@
                 <Button Content="إجراءات الصيانة"
                         Style="{StaticResource PosOutlineTealButtonStyle}"
                         Command="{Binding GoToActionsCommand}"
-                        Margin="0,0,7,0" />
+                        Margin="0,0,7,0"  security:PermissionVisibility.Code="SCREEN.MAINTENANCE_ACTIONS" />
                 <Button Content="تحديث من SQL"
                         Style="{StaticResource PosSecondaryButtonStyle}"
                         Command="{Binding RefreshDataCommand}"
@@ -487,7 +488,7 @@
                                                                 FontSize="8.5"
                                                                 Margin="0,0,2,0"
                                                                 Command="{Binding DataContext.BeginEditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                CommandParameter="{Binding}" />
+                                                                CommandParameter="{Binding}"  security:PermissionVisibility.Code="MAINTENANCE_PARTS.EDIT" />
                                                         <Button Content="توريد"
                                                                 Style="{StaticResource PosPrimaryCompactButtonStyle}"
                                                                 Padding="3,3"
@@ -495,13 +496,13 @@
                                                                 Margin="0,0,2,0"
                                                                 ToolTip="إضافة رصيد من مورد وتسجيل حركة توريد"
                                                                 Command="{Binding DataContext.RestockPartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                CommandParameter="{Binding}" />
+                                                                CommandParameter="{Binding}"  security:PermissionVisibility.Code="MAINTENANCE_PARTS.RESTOCK" />
                                                         <Button Content="حذف"
                                                                 Style="{StaticResource PosDangerButtonStyle}"
                                                                 Padding="3,3"
                                                                 FontSize="8.5"
                                                                 Command="{Binding DataContext.DeletePartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                CommandParameter="{Binding}" />
+                                                                CommandParameter="{Binding}" security:PermissionVisibility.Code="MAINTENANCE_PARTS.DELETE" />
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
@@ -771,7 +772,7 @@
                                                                     FontSize="8"
                                                                     Margin="3,0,0,0"
                                                                     Visibility="{Binding HasSupplier, Converter={StaticResource BoolToVis}}"
-                                                                    Command="{Binding DataContext.OpenSupplierCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    Command="{Binding DataContext.OpenSupplierCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" security:PermissionVisibility.Code="SCREEN.SUPPLIERS"
                                                                     CommandParameter="{Binding}" />
                                                         </Grid>
                                                         <Grid Margin="0,1,0,0" Visibility="{Binding HasOrder, Converter={StaticResource BoolToVis}}">
@@ -794,7 +795,7 @@
                                                                     Margin="3,0,0,0"
                                                                     ToolTip="فتح أمر الصيانة في شاشة إجراءات الصيانة"
                                                                     Visibility="{Binding HasOrder, Converter={StaticResource BoolToVis}}"
-                                                                    Command="{Binding DataContext.OpenOrderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    Command="{Binding DataContext.OpenOrderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" security:PermissionVisibility.Code="SCREEN.MAINTENANCE_ACTIONS"
                                                                     CommandParameter="{Binding}" />
                                                         </Grid>
                                                         <Grid Margin="0,1,0,0" Visibility="{Binding HasCustomer, Converter={StaticResource BoolToVis}}">
@@ -816,7 +817,7 @@
                                                                     FontSize="8"
                                                                     Margin="3,0,0,0"
                                                                     Visibility="{Binding HasCustomer, Converter={StaticResource BoolToVis}}"
-                                                                    Command="{Binding DataContext.OpenCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    Command="{Binding DataContext.OpenCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" security:PermissionVisibility.Code="SCREEN.CUSTOMERS"
                                                                     CommandParameter="{Binding}" />
                                                         </Grid>
                                                         <TextBlock Text="{Binding NoteWithReferenceDisplay}"
@@ -1107,7 +1108,7 @@
                                 Style="{StaticResource PosPrimaryCompactButtonStyle}"
                                 MinHeight="40"
                                 FontSize="13.5"
-                                Command="{Binding SavePartCommand}" />
+                                Command="{Binding SavePartCommand}" security:PermissionVisibility.Code="{Binding SavePermissionCode}" />
 
                         <Button Content="إلغاء التعديل"
                                 Style="{StaticResource PosSecondaryButtonStyle}"

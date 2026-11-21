@@ -64,6 +64,7 @@ ORDER BY Name;";
 
     public ExpenseCategoryRecord Create(string name, string description)
     {
+        PermissionContext.Demand("EXPENSE_CATEGORIES.CREATE");
         var trimmedName = NormalizeName(name);
         var trimmedDescription = NormalizeDescription(description);
 
@@ -105,6 +106,7 @@ VALUES(@Name,@Description);"))
     /// <summary>Renames a section and edits its description in place.</summary>
     public ExpenseCategoryRecord Rename(int id, string name, string description)
     {
+        PermissionContext.Demand("EXPENSE_CATEGORIES.EDIT");
         var trimmedName = NormalizeName(name);
         var trimmedDescription = NormalizeDescription(description);
 
@@ -152,6 +154,7 @@ WHERE Id=@Id;"))
     /// </summary>
     public void Delete(int id)
     {
+        PermissionContext.Demand("EXPENSE_CATEGORIES.DELETE");
         try
         {
             using var connection = OpenConnection();

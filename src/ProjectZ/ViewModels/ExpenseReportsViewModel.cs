@@ -52,6 +52,7 @@ public sealed class ExpenseReportsViewModel : ReportWorkspaceViewModel<ExpenseRe
     }
     protected override void NotifyRowActions() { Changed(nameof(CanOpenAccount)); OpenAccountCommand.NotifyCanExecuteChanged(); }
     protected override bool CanOpenDetail(ReportRow row) => row.FinancialSource != null;
+    protected override string? GetDrillPermissionCode(ReportRow row) => "SCREEN.EXPENSE_INVOICES";
     protected override void OpenDetail(ReportRow row) { if (row.FinancialSource is {} source) navigate(source); }
     protected override IEnumerable<ReportChoice> GetIssuers(ExpenseReportData d) => d.Actors.Keys.Select(id => new ReportChoice(id,d.ActorName(id)));
     protected override IEnumerable<ReportChoice> GetAccounts(ExpenseReportData d) => d.Accounts.Values.Select(a => new ReportChoice(a.Id,a.Label));

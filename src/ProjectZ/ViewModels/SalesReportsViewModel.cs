@@ -20,6 +20,7 @@ public sealed class SalesReportsViewModel(ISalesReportSource? source, Action<int
         .DistinctBy(x => x.CashierId).Select(x => new ReportChoice(x.CashierId, $"{x.Cashier} (#{x.CashierId})"));
     protected override IEnumerable<ReportChoice> GetAccounts(SalesReportData d) => d.Events.Where(e => e.AccountId.HasValue)
         .DistinctBy(e => e.AccountId).Select(e => new ReportChoice(e.AccountId, e.AccountLabel));
+    protected override string? GetDrillPermissionCode(ReportRow row) => "SCREEN.SALES_INVOICES";
     protected override ReportPage Project(SalesReportData d, bool movement, ReportFilter filter, string currency) =>
         SalesReportProjection.Build(d, movement, filter, currency);
 }

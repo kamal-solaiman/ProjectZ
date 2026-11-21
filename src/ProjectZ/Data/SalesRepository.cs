@@ -95,6 +95,7 @@ SELECT CASE WHEN EXISTS (
     public PosCustomerDesignItem CreateCustomer(
         string name, string phone, string secondaryPhone, string address, string notes, PriceTier defaultPriceTier)
     {
+        PermissionContext.Demand("CUSTOMERS.CREATE");
         name = name.Trim();
         phone = phone.Trim();
         if (string.IsNullOrWhiteSpace(name)) throw new SalesDataException("يرجى إدخال اسم العميل.");
@@ -145,6 +146,7 @@ VALUES(@Name,@Phone,@Secondary,@Address,@Notes,@Tier,0);";
 
     public void UpdateCustomer(PosCustomerDesignItem customer)
     {
+        PermissionContext.Demand("CUSTOMERS.EDIT");
         if (customer.Id <= 0) throw new SalesDataException("لا يمكن تعديل عميل غير محفوظ في قاعدة البيانات.");
         if (customer.IsWalkIn) throw new SalesDataException("العميل النقدي (العام) هو حساب افتراضي ثابت ولا يمكن تعديله.");
 
@@ -205,6 +207,7 @@ WHERE Id=@Id;"))
     /// <summary>Deletes a customer with no history; archives (IsActive=0) one that has invoices or orders.</summary>
     public bool DeleteCustomer(int customerId)
     {
+        PermissionContext.Demand("CUSTOMERS.DELETE");
         if (customerId <= 0) throw new SalesDataException("لا يمكن حذف العميل النقدي (العام).");
 
         try
@@ -259,7 +262,12 @@ SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.SalesInvoices WHERE CustomerId=@Id)
 
     // ------------------------------------------------------------------- sales
 
-    public SavedSale CompleteSale(PosSaleRequest request) => Post("dbo.IssueSale", command =>
+    public SavedSale CompleteSale(PosSaleRequest request)
+    {
+        PermissionContext.Demand("POS.COMPLETE");
+        if (request.DiscountAmount > 0 || request.PriceTier != PriceTier.Retail)
+            PermissionContext.Demand("POS.DISCOUNT");
+        return Post("dbo.IssueSale", command =>
     {
         command.Parameters.Add("@Customer", SqlDbType.Int).Value = (object?)request.CustomerId ?? DBNull.Value;
         command.Parameters.Add("@WalkIn", SqlDbType.Bit).Value = request.IsWalkIn;
@@ -273,9 +281,12 @@ SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.SalesInvoices WHERE CustomerId=@Id)
         var net = reader.GetDecimal(2);
         var paid = reader.GetDecimal(3);
         return new SavedSale(reader.GetInt32(0), reader.GetString(1), net, paid, paid < net);
-    });
+        });
+    }
 
-    public void CollectPayment(SalesInvoiceDesignItem invoice, decimal cash, decimal vodafone, decimal instaPay, string note) =>
+    public void CollectPayment(SalesInvoiceDesignItem invoice, decimal cash, decimal vodafone, decimal instaPay, string note)
+    {
+        PermissionContext.Demand("SALES_INVOICES.COLLECT");
         Post("dbo.CollectSalePayment", command =>
         {
             AddInvoiceVersion(command, invoice);
@@ -283,6 +294,7 @@ SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.SalesInvoices WHERE CustomerId=@Id)
             command.Parameters.Add("@Note", SqlDbType.NVarChar, 1000).Value = Trim(note, 1000, "تحصيل دفعة متبقية");
             return command.ExecuteNonQuery();
         });
+    }
 
     // ----------------------------------------------------------------- invoices
 
@@ -431,12 +443,16 @@ ORDER BY a.Id;";
             invoices.Add(invoice);
     }
 
-    public void UpdateNotes(SalesInvoiceDesignItem invoice, string notes) => Post("dbo.UpdateSaleNotes", command =>
+    public void UpdateNotes(SalesInvoiceDesignItem invoice, string notes)
     {
-        AddInvoiceVersion(command, invoice);
-        command.Parameters.Add("@Notes", SqlDbType.NVarChar, 1000).Value = Trim(notes, 1000, "");
-        return command.ExecuteNonQuery();
-    });
+        PermissionContext.Demand("SALES_INVOICES.NOTES");
+        Post("dbo.UpdateSaleNotes", command =>
+        {
+            AddInvoiceVersion(command, invoice);
+            command.Parameters.Add("@Notes", SqlDbType.NVarChar, 1000).Value = Trim(notes, 1000, "");
+            return command.ExecuteNonQuery();
+        });
+    }
 
     public sealed record ReturnLineRequest(int SalesInvoiceLineId, int GoodQuantity, int DamagedQuantity);
     public sealed record ReturnRequest(SalesInvoiceDesignItem Invoice, string Reason, IReadOnlyList<ReturnLineRequest> Lines);
@@ -447,12 +463,23 @@ ORDER BY a.Id;";
 
     private enum Adjustment : byte { Return, Exchange, Cancel }
 
-    public AdjustmentReceipt CreateReturn(ReturnRequest request) =>
-        Adjust(Adjustment.Return, request.Invoice, request.Reason, request.Lines, [], new(0, 0, 0));
-    public AdjustmentReceipt CreateExchange(ExchangeRequest request, ExchangePayment payment) =>
-        Adjust(Adjustment.Exchange, request.Invoice, request.Reason, request.Lines, request.Replacements, payment);
-    public AdjustmentReceipt CancelSale(SalesInvoiceDesignItem invoice) =>
-        Adjust(Adjustment.Cancel, invoice, "إلغاء فاتورة بيع", [], [], new(0, 0, 0));
+    public AdjustmentReceipt CreateReturn(ReturnRequest request)
+    {
+        PermissionContext.Demand("SALES_INVOICES.RETURN");
+        return Adjust(Adjustment.Return, request.Invoice, request.Reason, request.Lines, [], new(0, 0, 0));
+    }
+
+    public AdjustmentReceipt CreateExchange(ExchangeRequest request, ExchangePayment payment)
+    {
+        PermissionContext.Demand("SALES_INVOICES.RETURN");
+        return Adjust(Adjustment.Exchange, request.Invoice, request.Reason, request.Lines, request.Replacements, payment);
+    }
+
+    public AdjustmentReceipt CancelSale(SalesInvoiceDesignItem invoice)
+    {
+        PermissionContext.Demand("SALES_INVOICES.CANCEL");
+        return Adjust(Adjustment.Cancel, invoice, "إلغاء فاتورة بيع", [], [], new(0, 0, 0));
+    }
 
     private AdjustmentReceipt Adjust(Adjustment mode, SalesInvoiceDesignItem invoice, string reason,
         IReadOnlyList<ReturnLineRequest> lines, IReadOnlyList<SaleItemRequest> items, ExchangePayment payment) =>

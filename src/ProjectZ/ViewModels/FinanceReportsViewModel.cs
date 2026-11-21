@@ -41,6 +41,22 @@ public sealed class FinanceReportsViewModel : ReportWorkspaceViewModel<FinanceRe
     protected override void ClearExtraFilters(){direction=All;Changed(nameof(Direction));}
     protected override void NotifyRowActions(){Changed(nameof(CanOpenAccount));OpenAccountCommand.NotifyCanExecuteChanged();}
     protected override bool CanOpenDetail(ReportRow r)=>r.FinancialSource!=null || r.FinancialAccount!=null || r.StatementAccountId.HasValue;
+    protected override string? GetDrillPermissionCode(ReportRow r)
+    {
+        if (r.StatementAccountId.HasValue) return null; // Opening the statement is internal to this report screen.
+        return (r.FinancialSource ?? r.FinancialAccount)?.Destination switch
+        {
+            FinanceDestination.Account => "SCREEN.FINANCIAL_ACCOUNTS",
+            FinanceDestination.Sale => "SCREEN.SALES_INVOICES",
+            FinanceDestination.ReturnExchange => "SCREEN.RETURN_EXCHANGE",
+            FinanceDestination.Purchase => "SCREEN.PURCHASE_INVOICES",
+            FinanceDestination.Service => "SCREEN.MAINTENANCE_INVOICES",
+            FinanceDestination.Expense => "SCREEN.EXPENSE_INVOICES",
+            FinanceDestination.VodafoneRecord => "SCREEN.VODAFONE_RECORDS",
+            FinanceDestination.InstaPayRecord => "SCREEN.INSTAPAY_RECORDS",
+            _ => null
+        };
+    }
     protected override void OpenDetail(ReportRow r)
     {
         if(r.StatementAccountId is int id)

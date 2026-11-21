@@ -37,6 +37,7 @@ public sealed class AccountEditorViewModel : ObservableObject
     public string HeaderTitle => IsEditMode ? "تعديل المحفظة وحدود التشغيل" : "إضافة محفظة إلكترونية";
     public string HeaderSubtitle => IsEditMode ? "تعديل الاسم وبيانات الحساب وحدود الإيداع والسحب دون تغيير الرصيد الحالي." : "أضف رقم فودافون كاش أو عنوان إنستاباي مع رصيد افتتاحي وحدود مستقلة.";
     public string SaveButtonText => IsEditMode ? "حفظ التعديلات" : "إضافة المحفظة";
+    public string SavePermissionCode => IsEditMode ? "FINANCE.ACCOUNTS_EDIT" : "FINANCE.ACCOUNTS_CREATE";
     public IReadOnlyList<string> ProviderOptions { get; } = ["فودافون كاش", "إنستاباي"];
     public string SelectedProvider { get => selectedProvider; set { if (selectedProvider == value) return; selectedProvider = value; Changed(); ClearError(); } }
     public string Alias { get => alias; set { if (alias == value) return; alias = value; Changed(); ClearError(); } }

@@ -40,6 +40,8 @@ public sealed class UserListItemViewModel : ObservableObject
             if (username == value) return;
             username = value;
             Changed();
+            Changed(nameof(CanDelete));
+            Changed(nameof(CanToggleActive));
         }
     }
 
@@ -93,13 +95,17 @@ public sealed class UserListItemViewModel : ObservableObject
         : LinkedRecordsCount == 1 ? "سجل واحد" : $"{LinkedRecordsCount} سجل";
 
     /// <summary>The database refuses the delete too; disabling the button only explains it earlier.</summary>
-    public bool CanDelete => LinkedRecordsCount == 0 && !IsCurrentUser;
+    public bool IsSystemAdministrator => Username.Equals("admin", StringComparison.OrdinalIgnoreCase);
+    public bool CanToggleActive => !IsCurrentUser && !IsSystemAdministrator;
+    public bool CanDelete => LinkedRecordsCount == 0 && !IsCurrentUser && !IsSystemAdministrator;
 
     public string DeleteToolTip => IsCurrentUser
         ? "لا يمكن حذف الحساب المستخدم في الجلسة الحالية"
-        : HasLinkedRecords
-            ? "مرتبط بسجلات نظام؛ استخدم «تعطيل» بدلًا من الحذف"
-            : "حذف الحساب نهائيًا من قاعدة البيانات";
+        : IsSystemAdministrator
+            ? "حساب admin محمي ولا يمكن حذفه"
+            : HasLinkedRecords
+                ? "مرتبط بسجلات نظام؛ استخدم «تعطيل» بدلًا من الحذف"
+                : "حذف الحساب نهائيًا من قاعدة البيانات";
 
     public DateTime UpdatedAtUtc
     {

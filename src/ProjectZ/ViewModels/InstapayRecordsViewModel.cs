@@ -344,7 +344,10 @@ public sealed class InstapayRecordsViewModel : ObservableObject
             {
                 try
                 {
-                    accounts.Repository.ReverseCustomerTransfer(operation.Id, version, FinancialAccountKind.InstaPay, reason);
+                    if (fromDelete)
+                        accounts.Repository.DeleteCustomerTransfer(operation.Id, version, FinancialAccountKind.InstaPay, reason);
+                    else
+                        accounts.Repository.ReverseCustomerTransfer(operation.Id, version, FinancialAccountKind.InstaPay, reason);
                     RefreshAfterPost($"تم عكس التحويل رقم {operation.Id} والاحتفاظ بسجله.");
                 }
                 catch (Exception ex) { SetStatus($"تعذّر عكس العملية: {ex.Message}", true); }

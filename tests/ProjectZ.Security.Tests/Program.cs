@@ -7,6 +7,33 @@ Check(PasswordHasher.Verify("Admin@123", seeded), "SQL seed matches default pass
 Check(PasswordHasher.Verify("Admin@123", legacySeeded), "Legacy 100k SQL seed matches default password");
 Check(!PasswordHasher.Verify("wrong", seeded), "Wrong password rejected");
 Check(!PasswordHasher.Verify("wrong", legacySeeded), "Wrong password rejected (legacy seed)");
+var noPermissions = new UserSession(10, "cashier", "كاشير", new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+var rolePermissions = new UserSession(11, "technician", "فني", new HashSet<string>(new[] { "SCREEN.MAINTENANCE_ACTIONS" }, StringComparer.OrdinalIgnoreCase));
+var administrator = new UserSession(1, "admin", "مدير", new HashSet<string>());
+Check(!noPermissions.HasPermission("SCREEN.POS"), "Unassigned user denied by default");
+Check(rolePermissions.HasPermission("SCREEN.MAINTENANCE_ACTIONS") && !rolePermissions.HasPermission("SCREEN.POS"),
+    "Role snapshot grants only its selected permission codes");
+Check(administrator.HasPermission("BACKUP.RESTORE"), "admin always bypasses role permissions");
+var deniedByDemand = false;
+try { noPermissions.Demand("SCREEN.POS"); }
+catch (UnauthorizedAccessException) { deniedByDemand = true; }
+Check(deniedByDemand, "Demand blocks a protected operation for an unassigned user");
+var contextDenied = false;
+PermissionContext.Clear();
+try { PermissionContext.Demand("SCREEN.POS"); }
+catch (UnauthorizedAccessException) { contextDenied = true; }
+Check(contextDenied, "The repository permission context denies when no session is established");
+PermissionContext.Establish(noPermissions);
+var contextRoleDenied = false;
+try { PermissionContext.Demand("SCREEN.POS"); }
+catch (UnauthorizedAccessException) { contextRoleDenied = true; }
+Check(contextRoleDenied, "The repository permission context enforces the current user's role snapshot");
+PermissionContext.Establish(administrator);
+PermissionContext.Demand("BACKUP.RESTORE");
+Check(true, "Demand permits admin for every protected operation");
+PermissionContext.Clear();
+var designSession = new UserSession(0, "design", "اختبار");
+Check(designSession.HasPermission("SCREEN.POS"), "Permissionless in-memory design sessions remain usable in UI tests");
 var first = PasswordHasher.Hash("اختبار قوي");
 Check(PasswordHasher.Verify("اختبار قوي", first), "Unicode round trip");
 Check(first != PasswordHasher.Hash("اختبار قوي"), "Independent salts");

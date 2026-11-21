@@ -1,6 +1,7 @@
 <UserControl x:Class="ProjectZ.Views.PurchaseEntryView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:security="clr-namespace:ProjectZ.Helpers"
              FlowDirection="LeftToRight"
              Language="ar-EG">
 
@@ -332,7 +333,7 @@
                                         Style="{StaticResource PosOutlineTealButtonStyle}"
                                         Padding="10,5"
                                         FontSize="12"
-                                        Command="{Binding OpenAddSupplierWindowCommand}" />
+                                        Command="{Binding OpenAddSupplierWindowCommand}" security:PermissionVisibility.Code="SUPPLIERS.CREATE" />
 
                                 <TextBlock Grid.Column="1"
                                            Text="المورد وربط الفاتورة *"
@@ -470,7 +471,7 @@
                                             Style="{StaticResource PosPrimaryCompactButtonStyle}"
                                             Padding="10,6"
                                             FontSize="12"
-                                            Command="{Binding OpenAddSupplierWindowCommand}" />
+                                            Command="{Binding OpenAddSupplierWindowCommand}" security:PermissionVisibility.Code="SUPPLIERS.CREATE" />
                                 </StackPanel>
                             </Border>
 
@@ -935,7 +936,7 @@
                                     Padding="14,11"
                                     FontSize="13.5"
                                     FontWeight="Bold"
-                                    Command="{Binding CompletePurchaseInvoiceCommand}" />
+                                    Command="{Binding CompletePurchaseInvoiceCommand}" security:PermissionVisibility.Code="PURCHASE.CREATE" />
 
                             <Button Margin="0,7,0,0"
                                     Content="حفظ ومعاينة طباعة الفاتورة"
@@ -943,7 +944,7 @@
                                     Padding="12,9"
                                     FontSize="12.5"
                                     FontWeight="Bold"
-                                    Command="{Binding CompleteAndPrintPurchaseInvoiceCommand}" />
+                                    Command="{Binding CompleteAndPrintPurchaseInvoiceCommand}" security:PermissionVisibility.Code="PURCHASE.CREATE" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -980,7 +981,7 @@
                                         FontSize="12"
                                         Margin="0,0,6,0"
                                         ToolTip="الانتقال لشاشة إضافة منتج جديد غير مسجل"
-                                        Command="{Binding GoToAddProductCommand}" />
+                                        Command="{Binding GoToAddProductCommand}"  security:PermissionVisibility.Code="SCREEN.PRODUCTS" />
 
                                 <Button Style="{StaticResource PosPrimaryCompactButtonStyle}"
                                         Padding="12,7"

@@ -1,6 +1,6 @@
 <Window x:Class="ProjectZ.Views.UserEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:security="clr-namespace:ProjectZ.Helpers"
         
         Width="540"
         Height="620"
@@ -163,7 +163,8 @@
                             BorderBrush="{DynamicResource Theme.Legacy.E2E8F0.Border}"
                             BorderThickness="1"
                             FlowDirection="LeftToRight"
-                            Visibility="{Binding ShowActiveField, Converter={StaticResource BoolToVis}}">
+                            Visibility="{Binding ShowActiveField, Converter={StaticResource BoolToVis}}"
+                            security:PermissionVisibility.Code="USERS.ACTIVATE">
                         <Grid FlowDirection="RightToLeft">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -232,7 +233,7 @@
                     MinWidth="180"
                     Padding="18,10"
                     IsDefault="True"
-                    Command="{Binding SaveCommand}" />
+                    Command="{Binding SaveCommand}"  security:PermissionVisibility.Code="{Binding SavePermissionCode}" />
         </Grid>
     </Grid>
     </Grid>

@@ -42,6 +42,8 @@ public sealed class MaintenanceReportsViewModel : ReportWorkspaceViewModel<Maint
     public bool CanOpenPart=>SelectedRow?.PartId is not null;
     protected override void NotifyRowActions() {Changed(nameof(CanOpenCustomer));Changed(nameof(CanOpenPart));OpenCustomerCommand.NotifyCanExecuteChanged();OpenPartCommand.NotifyCanExecuteChanged();}
     protected override bool CanOpenDetail(ReportRow row)=>base.CanOpenDetail(row) || row.PartId.HasValue;
+    protected override string? GetDrillPermissionCode(ReportRow row)=>base.CanOpenDetail(row)
+        ? "SCREEN.MAINTENANCE_INVOICES" : row.PartId.HasValue ? "SCREEN.MAINTENANCE_PARTS" : null;
     protected override void OpenDetail(ReportRow row) { if(base.CanOpenDetail(row))base.OpenDetail(row);else if(row.PartId is int id)openPart(id); }
     protected override IReadOnlyList<ReportChoice> StatusChoices {get;}=Enumerable.Range(0,7).Select(i=>new ReportChoice(i,ServiceTicket.StatusText(i))).Prepend(All).ToArray();
     protected override IReadOnlyList<ReportChoice> EventChoices {get;}=MaintenanceReportProjection.EventNames.Select((name,i)=>new ReportChoice(i,name)).Prepend(All).ToArray();

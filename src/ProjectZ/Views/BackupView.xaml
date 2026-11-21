@@ -1,6 +1,7 @@
 <UserControl x:Class="ProjectZ.Views.BackupView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:security="clr-namespace:ProjectZ.Helpers"
              FlowDirection="LeftToRight"
              Language="ar-EG">
 
@@ -218,7 +219,7 @@
                                     Padding="18,9"
                                     MinHeight="38"
                                     Command="{Binding BackupCommand}"
-                                    IsEnabled="{Binding IsIdle}" />
+                                    IsEnabled="{Binding IsIdle}" security:PermissionVisibility.Code="BACKUP.CREATE" />
                             <TextBlock Text="يُستبدل أي ملف موجود بنفس الاسم (WITH INIT, FORMAT)."
                                        Style="{StaticResource BackupHint}"
                                        VerticalAlignment="Center"
@@ -280,7 +281,7 @@
                                 MinHeight="38"
                                 HorizontalAlignment="Right"
                                 Command="{Binding RestoreCommand}"
-                                IsEnabled="{Binding IsIdle}" />
+                                IsEnabled="{Binding IsIdle}" security:PermissionVisibility.Code="BACKUP.RESTORE" />
                     </StackPanel>
                 </Border>
 
