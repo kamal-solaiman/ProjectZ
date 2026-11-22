@@ -3,6 +3,8 @@ using System.Collections.Specialized;
 using System.Globalization;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
+using ProjectZ.Data;
+using ProjectZ.Services;
 
 namespace ProjectZ.ViewModels;
 
@@ -10,7 +12,11 @@ public sealed class AddProductViewModel : ObservableObject
 {
     private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
     private readonly Action? navigateToPos;
-    private readonly Action<PosProductDesignItem>? onProductCreated;
+    private readonly Func<PosProductDesignItem, bool>? onProductCreated;
+    private readonly Func<string>? persistenceError;
+    private readonly InventoryRepository? repository;
+    private readonly Func<string, string>? createCategory;
+    private readonly Func<bool>? reloadInventory;
     private int nextProductId = 100;
 
     private string productName = "";
@@ -26,13 +32,13 @@ public sealed class AddProductViewModel : ObservableObject
     private string wholesalePriceText = "";
 
     private string initialStockText = "10";
-    private string minStockAlertText = "5";
+    private string minStockAlertText = StoreIdentity.Current.DefaultLowStockAlert.ToString(System.Globalization.CultureInfo.InvariantCulture);
     private bool isActiveForSale = true;
     private bool trackSerialNumber = true;
     private string notes = "";
 
     private string catalogSearchText = "";
-    private string statusMessage = "مرحلة التصميم (بدون Backend): سجّل صنفًا جديدًا مع أسعار القطاعي والجملة والمميز وسيظهر فورًا في المعاينة ونقطة البيع.";
+    private string statusMessage = "سجّل صنفًا جديدًا مع أسعار القطاعي والجملة والمميز وسيظهر في المعاينة ونقطة البيع بعد نجاح الحفظ.";
     private bool isErrorStatus;
 
     public ObservableCollection<string> Categories { get; }
@@ -40,6 +46,7 @@ public sealed class AddProductViewModel : ObservableObject
     public ObservableCollection<PosProductDesignItem> FilteredProducts { get; } = [];
 
     public Action? FocusProductNameRequested { get; set; }
+    public Action<ConfirmActionViewModel, Action>? OpenConfirmDialogRequested { get; set; }
 
     public string ProductName
     {
@@ -290,10 +297,10 @@ public sealed class AddProductViewModel : ObservableObject
     public ActionCommand CancelNewCategoryCommand { get; }
     public ActionCommand EstimatePricesFromRetailCommand { get; }
     public ActionCommand SaveProductCommand { get; }
-    public ActionCommand SaveAndKeepCategoryCommand { get; }
     public ActionCommand ResetFormCommand { get; }
     public ActionCommand GoToPosCommand { get; }
     public ActionCommand ClearCatalogSearchCommand { get; }
+    public ActionCommand RefreshCatalogCommand { get; }
     public RelayCommand<PosProductDesignItem> CloneProductCommand { get; }
     public RelayCommand<PosProductDesignItem> RemoveProductCommand { get; }
 
@@ -305,12 +312,20 @@ public sealed class AddProductViewModel : ObservableObject
     public AddProductViewModel(
         ObservableCollection<PosProductDesignItem> sharedCatalog,
         Action? navigateToPos = null,
-        Action<PosProductDesignItem>? onProductCreated = null,
-        ObservableCollection<string>? sharedCategories = null)
+        Func<PosProductDesignItem, bool>? onProductCreated = null,
+        ObservableCollection<string>? sharedCategories = null,
+        Func<string>? persistenceError = null,
+        InventoryRepository? repository = null,
+        Func<bool>? reloadInventory = null,
+        Func<string, string>? createCategory = null)
     {
         this.sharedCatalog = sharedCatalog;
         this.navigateToPos = navigateToPos;
         this.onProductCreated = onProductCreated;
+        this.persistenceError = persistenceError;
+        this.repository = repository;
+        this.reloadInventory = reloadInventory;
+        this.createCategory = createCategory;
 
         Categories = sharedCategories ?? PosDesignSeedData.CreateSharedCategories();
         if (sharedCategories is null)
@@ -346,11 +361,13 @@ public sealed class AddProductViewModel : ObservableObject
             IsAddingCustomCategory = false;
         });
         EstimatePricesFromRetailCommand = new ActionCommand(EstimateWholesaleAndSpecialFromRetail);
-        SaveProductCommand = new ActionCommand(() => SaveProduct(keepCategoryAndUnit: false));
-        SaveAndKeepCategoryCommand = new ActionCommand(() => SaveProduct(keepCategoryAndUnit: true));
+        // One save button only: it records the product, then clears the form while keeping the
+        // category and unit so the next صنف can be typed straight away.
+        SaveProductCommand = new ActionCommand(() => SaveProduct(keepCategoryAndUnit: true));
         ResetFormCommand = new ActionCommand(() => ResetForm(keepCategoryAndUnit: false));
         GoToPosCommand = new ActionCommand(() => this.navigateToPos?.Invoke());
         ClearCatalogSearchCommand = new ActionCommand(() => CatalogSearchText = "");
+        RefreshCatalogCommand = new ActionCommand(RefreshFromDatabase);
         CloneProductCommand = new RelayCommand<PosProductDesignItem>(CloneProductIntoForm);
         RemoveProductCommand = new RelayCommand<PosProductDesignItem>(RemoveProduct);
 
@@ -373,8 +390,28 @@ public sealed class AddProductViewModel : ObservableObject
         }
         else
         {
-            Categories.Add(trimmed);
-            SelectedCategory = trimmed;
+            if (createCategory is not null || repository is not null)
+            {
+                try
+                {
+                    // The category screen and this combo box share dbo.Categories, so both go through the same write.
+                    var savedName = createCategory is not null
+                        ? createCategory(trimmed)
+                        : repository!.AddCategory(trimmed);
+                    if (!Categories.Contains(savedName)) Categories.Add(savedName);
+                    SelectedCategory = savedName;
+                }
+                catch (Exception ex)
+                {
+                    SetStatus(DatabaseError(ex, "تعذر حفظ التصنيف في قاعدة البيانات."), true);
+                    return;
+                }
+            }
+            else
+            {
+                Categories.Add(trimmed);
+                SelectedCategory = trimmed;
+            }
         }
 
         NewCategoryName = "";
@@ -484,12 +521,35 @@ public sealed class AddProductViewModel : ObservableObject
             IsNewlyAdded = true
         };
 
-        sharedCatalog.Add(created);
-        onProductCreated?.Invoke(created);
+        var reloadWarning = false;
+        if (repository is not null)
+        {
+            try
+            {
+                repository.SaveNewProduct(created, "رصيد افتتاحي", $"OPEN-{Guid.NewGuid():N}");
+            }
+            catch (Exception ex)
+            {
+                SetStatus(DatabaseError(ex, "تعذر حفظ الصنف في قاعدة البيانات."), true);
+                return;
+            }
+            reloadWarning = reloadInventory is null || !reloadInventory();
+            if (reloadWarning && created.IsActiveForSale && !sharedCatalog.Contains(created)) sharedCatalog.Add(created);
+        }
+        else if (onProductCreated is not null && !onProductCreated(created))
+        {
+            SetStatus(persistenceError?.Invoke() is { Length: > 0 } error
+                ? error
+                : "لم يُحفظ الصنف. راجع اتصال قاعدة البيانات ثم أعد المحاولة.", true);
+            return;
+        }
+        if (created.DatabaseRowVersion is null && !sharedCatalog.Contains(created)) sharedCatalog.Add(created);
         ResetForm(keepCategoryAndUnit, clearStatus: false);
         SetStatus(
-            $"وضع التصميم (بدون Backend): تم تسجيل «{created.Name}» ({created.Barcode}) — قطاعي {created.RetailPriceDisplay} | جملة {created.WholesalePriceDisplay} | مميز {created.SpecialPriceDisplay} وإضافته لنقطة البيع.",
-            false);
+            reloadWarning
+                ? $"تم حفظ «{created.Name}» في القاعدة، لكن تعذر تحديث كل بيانات الشاشة. استخدم زر تحديث الأصناف."
+                : $"تم تسجيل «{created.Name}» ({created.Barcode}) — قطاعي {created.RetailPriceDisplay} | جملة {created.WholesalePriceDisplay} | مميز {created.SpecialPriceDisplay} وإضافته لنقطة البيع.",
+            reloadWarning);
         FocusProductNameRequested?.Invoke();
     }
 
@@ -521,9 +581,69 @@ public sealed class AddProductViewModel : ObservableObject
     private void RemoveProduct(PosProductDesignItem? item)
     {
         if (item is null || !sharedCatalog.Contains(item)) return;
+        if (repository is null)
+        {
+            sharedCatalog.Remove(item);
+            SetStatus($"تمت إزالة الصنف «{item.Name}» من دليل التصميم المؤقت.", false);
+            return;
+        }
 
-        sharedCatalog.Remove(item);
-        SetStatus($"تمت إزالة الصنف «{item.Name}» من دليل التصميم المؤقت.", false);
+        var confirm = new ConfirmActionViewModel(
+            "تأكيد حذف الصنف",
+            item.Name,
+            $"هل تريد حذف «{item.Name}» ({item.Barcode})؟\nإذا كان له رصيد أو فواتير أو حركات فستتم أرشفته للحفاظ على التاريخ.",
+            "نعم، حذف الصنف");
+        void Delete()
+        {
+            try
+            {
+                var deleted = repository.DeleteOrArchiveProduct(item);
+                var reloaded = reloadInventory is not null && reloadInventory();
+                if (!reloaded) sharedCatalog.Remove(item);
+                SetStatus(deleted
+                    ? $"تم حذف الصنف «{item.Name}» من قاعدة البيانات."
+                    : $"تمت أرشفة الصنف «{item.Name}» للحفاظ على تاريخه.", false);
+            }
+            catch (Exception ex) { SetStatus(DatabaseError(ex, "تعذر حذف أو أرشفة الصنف."), true); }
+        }
+        if (OpenConfirmDialogRequested is not null) OpenConfirmDialogRequested(confirm, Delete);
+        else Delete();
+    }
+
+    public void RefreshFromDatabase()
+    {
+        if (repository is null)
+        {
+            RefreshFilteredProducts();
+            SetStatus("تم تحديث قائمة الأصناف المحلية.", false);
+            return;
+        }
+        if (reloadInventory is not null && reloadInventory())
+        {
+            NotifyInventoryLoaded();
+            SetStatus("تم تحديث الأصناف والتصنيفات من قاعدة البيانات.", false);
+        }
+        else
+        {
+            SetStatus(persistenceError?.Invoke() is { Length: > 0 } error
+                ? error
+                : "تعذر تحديث الأصناف من قاعدة البيانات.", true);
+        }
+    }
+
+    private static string DatabaseError(Exception exception, string fallback)
+    {
+        if (exception is InventoryDataException) return exception.Message;
+        if (exception is Microsoft.Data.SqlClient.SqlException sql)
+            return sql.Number switch
+            {
+                2601 or 2627 => "الباركود مستخدم بالفعل أو التصنيف مكرر. أدخل قيمة مختلفة.",
+                547 => "الصنف مرتبط بفاتورة أو حركة أخرى ولا يمكن حذفه.",
+                1205 => "تعارضت العملية مع تحديث آخر. حدّث الأصناف ثم أعد المحاولة.",
+                >= 50000 => sql.Message,
+                _ => fallback
+            };
+        return fallback;
     }
 
     private void ResetForm(bool keepCategoryAndUnit, bool clearStatus = true)
@@ -532,7 +652,7 @@ public sealed class AddProductViewModel : ObservableObject
         Barcode = GenerateNextAvailableBarcode();
         if (!keepCategoryAndUnit)
         {
-            SelectedCategory = Categories.FirstOrDefault() ?? "هواتف";
+            SelectedCategory = Categories.FirstOrDefault() ?? "";
             SelectedUnit = Units.FirstOrDefault() ?? "قطعة";
         }
         IsAddingCustomCategory = false;
@@ -542,7 +662,7 @@ public sealed class AddProductViewModel : ObservableObject
         WholesalePriceText = "";
         SpecialPriceText = "";
         InitialStockText = "10";
-        MinStockAlertText = "5";
+        MinStockAlertText = StoreIdentity.Current.DefaultLowStockAlert.ToString(System.Globalization.CultureInfo.InvariantCulture);
         IsActiveForSale = true;
         TrackSerialNumber = true;
         Notes = "";
@@ -584,8 +704,40 @@ public sealed class AddProductViewModel : ObservableObject
         return $"{sign}{PosFormatting.FormatPlainNumber(diff)} ج.م ({sign}{pct.ToString("0.#", CultureInfo.InvariantCulture)}%)";
     }
 
+    public void NotifyInventoryLoaded()
+    {
+        if (string.IsNullOrWhiteSpace(ProductName)) Barcode = GenerateNextAvailableBarcode();
+        if (string.IsNullOrWhiteSpace(SelectedCategory) || !Categories.Contains(SelectedCategory))
+            SelectedCategory = Categories.FirstOrDefault() ?? "";
+        RefreshFilteredProducts();
+        NotifyCategoriesStateChanged();
+    }
+
+    /// <summary>True when the category list is empty; saving a product then requires creating a category first.</summary>
+    public bool HasNoCategories => Categories.Count == 0;
+
+    public string CategoriesCountDisplay => $"{Categories.Count} تصنيف متاح";
+
+    private void NotifyCategoriesStateChanged()
+    {
+        Changed(nameof(HasNoCategories));
+        Changed(nameof(CategoriesCountDisplay));
+    }
+
+    /// <summary>
+    /// Called when the screen becomes visible: keeps the combo box in step with dbo.Categories after the
+    /// categories screen added, renamed or deleted rows.
+    /// </summary>
+    public void RefreshCategoriesFromSharedList()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedCategory) || !Categories.Contains(SelectedCategory))
+            SelectedCategory = Categories.FirstOrDefault() ?? "";
+        NotifyCategoriesStateChanged();
+    }
+
     private void OnSharedCategoriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        NotifyCategoriesStateChanged();
         if (e.Action == NotifyCollectionChangedAction.Replace
             && e.OldItems is { Count: > 0 }
             && e.NewItems is { Count: > 0 }

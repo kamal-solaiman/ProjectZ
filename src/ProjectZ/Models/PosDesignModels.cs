@@ -38,7 +38,9 @@ public sealed class PosProductDesignItem : ObservableObject
     private string notes = "";
     private bool isNewlyAdded;
 
-    public int Id { get; init; }
+    public int Id { get; set; }
+    public byte[]? DatabaseRowVersion { get; set; }
+    public bool CanDeleteFromCatalog => IsNewlyAdded || DatabaseRowVersion is not null;
 
     public string Barcode
     {
@@ -242,19 +244,106 @@ public sealed class PosProductDesignItem : ObservableObject
     public string UnitDisplay => string.IsNullOrWhiteSpace(Unit) ? "قطعة" : Unit;
 }
 
-public sealed class PosCustomerDesignItem
+public sealed class PosCustomerDesignItem : ObservableObject
 {
+    private string name = "";
+    private string phone = "";
+    private string secondaryPhone = "";
+    private string address = "";
+    private string notes = "";
+    private PriceTier defaultPriceTier = PriceTier.Retail;
+
     public int Id { get; init; }
-    public string Name { get; init; } = "";
-    public string Phone { get; init; } = "";
-    public string SecondaryPhone { get; init; } = "";
-    public string Address { get; init; } = "";
-    public string Notes { get; init; } = "";
-    public PriceTier DefaultPriceTier { get; init; } = PriceTier.Retail;
     public bool IsWalkIn { get; init; }
 
+    public string Name
+    {
+        get => name;
+        set
+        {
+            if (name == value) return;
+            name = value;
+            Changed();
+            Changed(nameof(InitialBadgeText));
+        }
+    }
+
+    public string Phone
+    {
+        get => phone;
+        set
+        {
+            if (phone == value) return;
+            phone = value;
+            Changed();
+            Changed(nameof(DisplayPhone));
+        }
+    }
+
+    public string SecondaryPhone
+    {
+        get => secondaryPhone;
+        set
+        {
+            if (secondaryPhone == value) return;
+            secondaryPhone = value;
+            Changed();
+            Changed(nameof(HasSecondaryPhone));
+            Changed(nameof(SecondaryPhoneDisplay));
+        }
+    }
+
+    public string Address
+    {
+        get => address;
+        set
+        {
+            if (address == value) return;
+            address = value;
+            Changed();
+            Changed(nameof(HasAddress));
+            Changed(nameof(AddressDisplay));
+        }
+    }
+
+    public string Notes
+    {
+        get => notes;
+        set
+        {
+            if (notes == value) return;
+            notes = value;
+            Changed();
+            Changed(nameof(HasNotes));
+            Changed(nameof(NotesDisplay));
+        }
+    }
+
+    public PriceTier DefaultPriceTier
+    {
+        get => defaultPriceTier;
+        set
+        {
+            if (defaultPriceTier == value) return;
+            defaultPriceTier = value;
+            Changed();
+            Changed(nameof(DefaultPriceTierTitle));
+            Changed(nameof(DefaultPriceTierShortTitle));
+        }
+    }
+
+    public string CustomerCodeDisplay => IsWalkIn ? "WALK-IN" : $"CUS-{Id:000}";
     public string DefaultPriceTierTitle => PosFormatting.GetPriceTierTitle(DefaultPriceTier);
+    public string DefaultPriceTierShortTitle => PosFormatting.GetPriceTierShortTitle(DefaultPriceTier);
     public string DisplayPhone => string.IsNullOrWhiteSpace(Phone) ? "بدون رقم هاتف" : Phone;
+    public string SecondaryPhoneDisplay => string.IsNullOrWhiteSpace(SecondaryPhone) ? "غير مسجل" : SecondaryPhone;
+    public string AddressDisplay => string.IsNullOrWhiteSpace(Address) ? "غير مسجل" : Address;
+    public string NotesDisplay => string.IsNullOrWhiteSpace(Notes) ? "لا توجد ملاحظات مسجلة." : Notes;
+    public bool HasSecondaryPhone => !string.IsNullOrWhiteSpace(SecondaryPhone);
+    public bool HasAddress => !string.IsNullOrWhiteSpace(Address);
+    public bool HasNotes => !string.IsNullOrWhiteSpace(Notes);
+    public bool CanEditOrDelete => !IsWalkIn;
+    public string InitialBadgeText => string.IsNullOrWhiteSpace(Name) ? "ع" : Name.Trim()[0].ToString();
 }
 
 public static class PosFormatting
@@ -280,8 +369,11 @@ public static class PosFormatting
         _ => "قطاعي"
     };
 
+    /// <summary>Work-currency label from the general settings (dbo.SystemSettings.CurrencyNameAr).</summary>
+    public static string CurrencyLabel { get; set; } = "ج.م";
+
     public static string FormatCurrency(decimal amount)
-        => $"{amount.ToString("#,##0.00", CultureInfo.InvariantCulture)} ج.م";
+        => $"{amount.ToString("#,##0.00", CultureInfo.InvariantCulture)} {CurrencyLabel}";
 
     public static string FormatNumber(decimal amount)
         => amount.ToString("#,##0.00", CultureInfo.InvariantCulture);
@@ -304,6 +396,9 @@ public static class PosFormatting
                    CultureInfo.InvariantCulture, out value)
                || decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.CurrentCulture, out value);
     }
+
+    public static bool IsValidTender(string? text) => TryParseAmount(text, out var amount)
+        && amount is >= 0m and <= 99999999999999999.99m && decimal.Round(amount, 2) == amount;
 
     public static bool TryParseNonNegativeInt(string? text, out int value)
     {

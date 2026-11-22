@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+    <Compile Include="../../src/ProjectZ/Data/MaintenanceRepository.cs" Link="Data/MaintenanceRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/MaintenanceDesignModels.cs" Link="Models/MaintenanceDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Services/PasscodeProtection.cs" Link="Services/PasscodeProtection.cs" />
+    <Compile Include="../../src/ProjectZ/Data/OverallReportRepository.cs" Link="Data/OverallReportRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/OverallReportData.cs" Link="Models/OverallReportData.cs" />
+    <Compile Include="../../src/ProjectZ/Data/ExpenseReportRepository.cs" Link="Data/ExpenseReportRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/ExpenseReportData.cs" Link="Models/ExpenseReportData.cs" />
+    <Compile Include="../../src/ProjectZ/Models/ExpenseReportProjection.cs" Link="Models/ExpenseReportProjection.cs" />
+    <Compile Include="../../src/ProjectZ/Data/FinanceReportRepository.cs" Link="Data/FinanceReportRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/FinanceReportData.cs" Link="Models/FinanceReportData.cs" />
+    <Compile Include="../../src/ProjectZ/Models/FinanceReportProjection.cs" Link="Models/FinanceReportProjection.cs" />
+    <Compile Include="../../src/ProjectZ/Data/MaintenanceReportRepository.cs" Link="Data/MaintenanceReportRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/MaintenanceReportData.cs" Link="Models/MaintenanceReportData.cs" />
+    <Compile Include="../../src/ProjectZ/Models/MaintenanceReportProjection.cs" Link="Models/MaintenanceReportProjection.cs" />
+    <Compile Include="../../src/ProjectZ/Data/PurchaseReportRepository.cs" Link="Data/PurchaseReportRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/PurchaseReportData.cs" Link="Models/PurchaseReportData.cs" />
+    <Compile Include="../../src/ProjectZ/Models/PurchaseReportProjection.cs" Link="Models/PurchaseReportProjection.cs" />
+    <Compile Include="../../src/ProjectZ/Data/SalesReportRepository.cs" Link="Data/SalesReportRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/DocumentReport.cs" Link="Models/DocumentReport.cs" />
+    <Compile Include="../../src/ProjectZ/Models/SalesReportData.cs" Link="Models/SalesReportData.cs" />
+    <Compile Include="../../src/ProjectZ/Models/SalesReportProjection.cs" Link="Models/SalesReportProjection.cs" />
+    <Compile Include="../../src/ProjectZ/Data/SalesRepository.cs" Link="Data/SalesRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Models/InvoiceDesignModels.cs" Link="Models/InvoiceDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Data/PurchaseRepository.cs" Link="Data/PurchaseRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Data/ExpenseCategoryRepository.cs" Link="Data/ExpenseCategoryRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Data/ExpenseRepository.cs" Link="Data/ExpenseRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Data/FinancialRepository.cs" Link="Data/FinancialRepository.cs" />
+    <Compile Include="../../src/ProjectZ/Services/ConnectionSettingsProvider.cs" Link="Services/ConnectionSettingsProvider.cs" />
+    <Compile Include="../../src/ProjectZ/Services/StoreIdentity.cs" Link="Services/StoreIdentity.cs" />
+    <Compile Include="../../src/ProjectZ/Models/ConnectionSettings.cs" Link="Models/ConnectionSettings.cs" />
+    <Compile Include="../../src/ProjectZ/Models/StoreProfile.cs" Link="Models/StoreProfile.cs" />
+    <Compile Include="../../src/ProjectZ/Models/PosDesignModels.cs" Link="Models/PosDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/InventoryDesignModels.cs" Link="Models/InventoryDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/FinanceDesignModels.cs" Link="Models/FinanceDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/VodafoneTransferDesignModels.cs" Link="Models/VodafoneTransferDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/InstapayTransferDesignModels.cs" Link="Models/InstapayTransferDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Models/PurchaseDesignModels.cs" Link="Models/PurchaseDesignModels.cs" />
+    <Compile Include="../../src/ProjectZ/Helpers/ObservableObject.cs" Link="Helpers/ObservableObject.cs" />
+  </ItemGroup>
+</Project>

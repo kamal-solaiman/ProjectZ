@@ -1,0 +1,128 @@
+<UserControl x:Class="ProjectZ.Views.PermissionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FlowDirection="RightToLeft">
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,14" LastChildFill="True">
+            <Button DockPanel.Dock="Left" Content="تحديث" Command="{Binding RefreshCommand}" Padding="18,8" />
+            <StackPanel>
+                <TextBlock Text="إدارة الصلاحيات" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource Theme.Brush.Heading}" />
+                <TextBlock Margin="0,4,0,0" Text="أنشئ الأدوار، حدد صلاحيات كل دور، ثم أسند دورًا واحدًا لكل مستخدم." Foreground="{DynamicResource Theme.Brush.Muted}" />
+            </StackPanel>
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="14" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Padding="12" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" Background="{DynamicResource Theme.Brush.Surface}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Bottom" Margin="0,10,0,0" Content="＋ دور جديد" Command="{Binding NewRoleCommand}" Padding="10,8" />
+                    <ListBox ItemsSource="{Binding Roles}" SelectedItem="{Binding SelectedRole}" BorderThickness="0" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="9" Margin="0,2" CornerRadius="8" Background="{DynamicResource Theme.Brush.Subtle}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Badge}" DockPanel.Dock="Left" FontSize="11" Foreground="{DynamicResource Theme.Brush.Accent}" />
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Description}" Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource Theme.Brush.Muted}" />
+                                        <TextBlock Text="{Binding AssignedUsersDisplay}" Margin="0,4,0,0" FontSize="10" Foreground="{DynamicResource Theme.Brush.Muted}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Padding="12" Margin="0,0,0,10" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" Background="{DynamicResource Theme.Brush.Surface}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="2*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{Binding RoleModeTitle}" FontWeight="Bold" FontSize="15" Margin="0,0,0,7" />
+                            <TextBlock Text="اسم الدور" FontSize="12" />
+                            <TextBox Text="{Binding RoleName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8" MaxLength="100" IsReadOnly="{Binding IsEditingSystemRole}" />
+                            <TextBlock Text="الوصف" FontSize="12" />
+                            <TextBox Text="{Binding RoleDescription, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" MaxLength="500" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="إسناد دور لمستخدم" FontWeight="Bold" FontSize="15" Margin="0,0,0,7" />
+                            <ComboBox ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}" DisplayMemberPath="Display" Margin="0,4,0,8" />
+                            <ComboBox ItemsSource="{Binding RoleOptions}" SelectedItem="{Binding SelectedUserRole}" DisplayMemberPath="Name" IsEnabled="{Binding CanAssignSelectedUser}" Margin="0,4,0,8" />
+                            <DockPanel>
+                                <Button DockPanel.Dock="Left" Content="حفظ الإسناد" Command="{Binding SaveAssignmentCommand}" Padding="14,7" IsEnabled="{Binding CanAssignSelectedUser}" />
+                                <TextBlock Text="حساب admin دائم الصلاحيات ولا يحتاج دورًا." Margin="10,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource Theme.Brush.Muted}" />
+                            </DockPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Padding="10" CornerRadius="12" BorderThickness="1" BorderBrush="{DynamicResource Theme.Brush.PanelBorder}" Background="{DynamicResource Theme.Brush.Surface}">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                <Button Content="تحديد الكل" Command="{Binding SelectAllCommand}" Margin="4,0" Padding="12,5" />
+                                <Button Content="مسح التحديد" Command="{Binding ClearAllCommand}" Margin="4,0" Padding="12,5" />
+                            </StackPanel>
+                            <TextBlock Text="صلاحيات الإجراءات — أدوات البحث والتصفية والتنقل داخل الشاشة تتبع صلاحية فتح الشاشة." VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" />
+                        </DockPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding PermissionGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Expander Header="{Binding Name}" IsExpanded="True" Margin="0,2">
+                                            <ItemsControl ItemsSource="{Binding Permissions}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox IsChecked="{Binding IsGranted, UpdateSourceTrigger=PropertyChanged}" Margin="8,5" MinWidth="220" ToolTip="{Binding Code}">
+                                                            <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                                                        </CheckBox>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Expander>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <DockPanel Grid.Row="2" Margin="0,10,0,0">
+                    <Button DockPanel.Dock="Left" Content="حذف الدور" Command="{Binding DeleteRoleCommand}" IsEnabled="{Binding CanDeleteRole}" Padding="14,8" />
+                    <Button DockPanel.Dock="Right" Content="حفظ الدور والصلاحيات" Command="{Binding SaveRoleCommand}" Padding="18,8" />
+                    <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,0" Foreground="{DynamicResource Theme.Brush.Muted}" />
+                </DockPanel>
+            </Grid>
+        </Grid>
+
+        <Border Grid.Row="2" Margin="0,10,0,0" Padding="10" CornerRadius="8" Background="{DynamicResource Theme.Brush.Subtle}">
+            <TextBlock Text="الصلاحيات الفعلية للمستخدم تُحدّث عند تسجيل الدخول التالي. لا يُسند دور تلقائيًا للمستخدمين الحاليين. admin لديه صلاحيات كاملة ثابتة." TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Theme.Brush.Muted}" />
+        </Border>
+    </Grid>
+</UserControl>

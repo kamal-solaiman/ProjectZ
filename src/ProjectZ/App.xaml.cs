@@ -15,6 +15,8 @@ public partial class App : Application
     private readonly List<Window> liveWindows = new();
     private readonly List<CancellationTokenSource> loginLifetimes = new();
     private AuthenticationService service = null!;
+    private readonly ConnectionSettingsProvider connectionSettings = new();
+    private ThemeManager themeManager = null!;
     private bool isShuttingDown;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -26,7 +28,36 @@ public partial class App : Application
         Thread.CurrentThread.CurrentUICulture = arabicCulture;
 
         base.OnStartup(e);
-        service = new AuthenticationService(new UserRepository(new ConnectionSettingsProvider()));
+
+        // Appearance is local to this Windows user/device and must not depend on SQL connectivity.
+        // Apply it before creating LoginWindow so there is no default-theme flash at startup.
+        themeManager = ThemeManager.Instance;
+        themeManager.Initialize();
+        EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent,
+            new RoutedEventHandler((sender, _) =>
+            {
+                if (sender is Window window) NativeTitleBar.Apply(window, themeManager.Active);
+            }));
+        themeManager.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(ThemeManager.Active)) return;
+            foreach (Window window in Application.Current.Windows)
+                NativeTitleBar.Apply(window, themeManager.Active);
+        };
+
+        // Load the store identity before the first window so the login screen already carries the store
+        // name. A missing database or missing grant must never block sign-in, so failures fall back to the
+        // ProjectZ defaults and the settings screen reports the real error later.
+        try
+        {
+            StoreIdentity.Apply(new SettingsRepository(connectionSettings).Load());
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Record(ex);
+        }
+
+        service = new AuthenticationService(new UserRepository(connectionSettings));
         ShowLogin();
     }
 
@@ -56,22 +87,57 @@ public partial class App : Application
         // that late result recreate a window or keep an invisible process alive.
         if (isShuttingDown || !liveWindows.Contains(login)) return;
 
-        var main = new Views.MainWindow();
-        main.DataContext = new MainViewModel(user, () => Logout(main));
-        MainWindow = main;
-        TrackWindow(main);
+        Views.MainWindow main;
+        var stage = "تحميل مكونات MainWindow / XAML";
+        PermissionContext.Establish(user);
+        try
+        {
+            main = new Views.MainWindow();
+            stage = "إنشاء MainViewModel والشاشات المشتركة";
+            main.DataContext = new MainViewModel(
+                user,
+                () => Logout(main),
+                new InventoryRepository(connectionSettings, user.Id),
+                new SalesRepository(connectionSettings, user.Id),
+                new CategoryRepository(connectionSettings, user.Id),
+                new PurchaseRepository(connectionSettings, user.Id),
+                new FinancialRepository(connectionSettings, user.Id),
+                new MaintenanceRepository(connectionSettings, user.Id),
+                new UserRepository(connectionSettings, user.Id),
+                new SettingsRepository(connectionSettings, user.Id),
+                new BackupRepository(connectionSettings),
+                new AppearanceViewModel(themeManager),
+                new ExpenseCategoryRepository(connectionSettings, user.Id),
+                new ExpenseRepository(connectionSettings, user.Id),
+                new SalesReportRepository(connectionSettings),
+                new PurchaseReportRepository(connectionSettings),
+                new MaintenanceReportRepository(connectionSettings),
+                new FinanceReportRepository(connectionSettings),
+                new ExpenseReportRepository(connectionSettings),
+                new OverallReportRepository(connectionSettings),
+                new PermissionsRepository(connectionSettings, user));
+            MainWindow = main;
+            TrackWindow(main);
 
-        // Show the replacement first: closing the old window must not briefly
-        // make the application windowless during a successful login.
-        main.Show();
-        login.ClearPassword();
-        login.Close();
+            // Show the replacement first: closing the old window must not briefly
+            // make the application windowless during a successful login.
+            stage = "عرض MainWindow وإغلاق نافذة تسجيل الدخول";
+            main.Show();
+            login.ClearPassword();
+            login.Close();
+        }
+        catch (Exception ex)
+        {
+            PermissionContext.Clear();
+            throw new MainWindowInitializationException(stage, ex);
+        }
     }
 
     private void Logout(Window main)
     {
         if (isShuttingDown) return;
 
+        PermissionContext.Clear();
         main.DataContext = null;
         ShowLogin();
         main.Close();

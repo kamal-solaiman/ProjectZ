@@ -8,8 +8,11 @@ namespace ProjectZ.ViewModels;
 public sealed class ProductRegistrationsViewModel : ObservableObject
 {
     private readonly ObservableCollection<InventoryUnitRegistrationItem> allRegistrations;
-    private readonly Action<InventoryUnitRegistrationItem, string> markUnitDamaged;
-    private readonly Action<InventoryUnitRegistrationItem> restoreUnitToAvailable;
+    private readonly Func<InventoryUnitRegistrationItem, string, bool> markUnitDamaged;
+    private readonly Func<InventoryUnitRegistrationItem, bool> restoreUnitToAvailable;
+    private readonly Func<InventoryUnitRegistrationItem, string, bool>? saveSerialNumber;
+    private readonly Func<string>? persistenceError;
+    private readonly Func<InventoryUnitRegistrationItem, IReadOnlyList<StockMovementRow>>? loadUnitMovements;
 
     private InventoryUnitStatus? statusFilter;
     private string searchText = "";
@@ -19,6 +22,7 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
     public PosProductDesignItem Product { get; }
     public ObservableCollection<InventoryUnitRegistrationItem> FilteredRegistrations { get; } = [];
     public ObservableCollection<InventorySupplierSummary> SupplierSummaries { get; } = [];
+    public ObservableCollection<StockMovementRow> UnitMovements { get; } = [];
     public IReadOnlyList<string> QuickDamageReasons => InventoryDesignSeedData.DamageReasons;
 
     public InventoryUnitStatus? StatusFilter
@@ -99,18 +103,28 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
     public RelayCommand<string> PickDamageReasonCommand { get; }
     public RelayCommand<InventoryUnitRegistrationItem> MarkUnitDamagedCommand { get; }
     public RelayCommand<InventoryUnitRegistrationItem> RestoreUnitCommand { get; }
+    public RelayCommand<InventoryUnitRegistrationItem> SaveSerialCommand { get; }
+    public RelayCommand<InventoryUnitRegistrationItem> ShowUnitMovementsCommand { get; }
+    public bool HasUnitMovements => UnitMovements.Count > 0;
+    public string UnitMovementsHeader { get; private set; } = "سجل حركات الوحدة";
     public ActionCommand CloseCommand { get; }
 
     public ProductRegistrationsViewModel(
         PosProductDesignItem product,
         ObservableCollection<InventoryUnitRegistrationItem> allRegistrations,
-        Action<InventoryUnitRegistrationItem, string> markUnitDamaged,
-        Action<InventoryUnitRegistrationItem> restoreUnitToAvailable)
+        Func<InventoryUnitRegistrationItem, string, bool> markUnitDamaged,
+        Func<InventoryUnitRegistrationItem, bool> restoreUnitToAvailable,
+        Func<InventoryUnitRegistrationItem, string, bool>? saveSerialNumber = null,
+        Func<string>? persistenceError = null,
+        Func<InventoryUnitRegistrationItem, IReadOnlyList<StockMovementRow>>? loadUnitMovements = null)
     {
         Product = product;
         this.allRegistrations = allRegistrations;
         this.markUnitDamaged = markUnitDamaged;
         this.restoreUnitToAvailable = restoreUnitToAvailable;
+        this.saveSerialNumber = saveSerialNumber;
+        this.persistenceError = persistenceError;
+        this.loadUnitMovements = loadUnitMovements;
 
         SelectAllFilterCommand = new ActionCommand(() => StatusFilter = null);
         SelectAvailableFilterCommand = new ActionCommand(() => StatusFilter = InventoryUnitStatus.Available);
@@ -126,21 +140,60 @@ public sealed class ProductRegistrationsViewModel : ObservableObject
         {
             if (unit is null || !unit.IsAvailable) return;
             var reason = string.IsNullOrWhiteSpace(QuickDamageReason) ? "تالف عند الفحص" : QuickDamageReason.Trim();
-            this.markUnitDamaged(unit, reason);
-            StatusMessage = $"تم تحويل التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى مخزون الهالك.";
+            StatusMessage = this.markUnitDamaged(unit, reason)
+                ? $"تم تحويل التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى مخزون الهالك."
+                : PersistenceError("لم يُحفظ الهالك. حدّث البيانات وأعد المحاولة.");
             Refresh();
         });
         RestoreUnitCommand = new RelayCommand<InventoryUnitRegistrationItem>(unit =>
         {
             if (unit is null || !unit.IsDamaged) return;
-            this.restoreUnitToAvailable(unit);
-            StatusMessage = $"تم استرجاع التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى المخزون المتاح.";
+            StatusMessage = this.restoreUnitToAvailable(unit)
+                ? $"تم استرجاع التسجيل {unit.IdDisplay} (المورد: {unit.SupplierName}) إلى المخزون المتاح."
+                : PersistenceError("لم يُحفظ الاسترجاع. حدّث البيانات وأعد المحاولة.");
+            Refresh();
+        });
+        ShowUnitMovementsCommand = new RelayCommand<InventoryUnitRegistrationItem>(unit =>
+        {
+            if (unit is null) return;
+            if (loadUnitMovements is null)
+            {
+                StatusMessage = "سجل الحركات يتطلب الاتصال بقاعدة البيانات.";
+                return;
+            }
+
+            try
+            {
+                UnitMovements.Clear();
+                foreach (var row in loadUnitMovements(unit)) UnitMovements.Add(row);
+                UnitMovementsHeader = $"سجل حركات الوحدة {unit.IdDisplay}";
+                StatusMessage = UnitMovements.Count == 0
+                    ? "لا توجد حركات مسجلة لهذه الوحدة."
+                    : $"تم تحميل {UnitMovements.Count} حركة للوحدة {unit.IdDisplay}.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"تعذر قراءة حركات الوحدة: {ex.Message}";
+            }
+
+            Changed(nameof(UnitMovementsHeader));
+            Changed(nameof(HasUnitMovements));
+        });
+        SaveSerialCommand = new RelayCommand<InventoryUnitRegistrationItem>(unit =>
+        {
+            if (unit is null || !unit.IsAvailable || saveSerialNumber is null) return;
+            StatusMessage = saveSerialNumber(unit, unit.SerialNumber)
+                ? $"تم حفظ سيريال التسجيل {unit.IdDisplay}."
+                : PersistenceError("لم يُحفظ السيريال. تأكد من عدم تكراره وراجع اتصال قاعدة البيانات.");
             Refresh();
         });
         CloseCommand = new ActionCommand(() => RequestClose?.Invoke());
 
         Refresh();
     }
+
+    private string PersistenceError(string fallback) =>
+        persistenceError?.Invoke() is { Length: > 0 } error ? error : fallback;
 
     public void Refresh()
     {
@@ -287,7 +340,8 @@ public sealed class SupplyStockViewModel : ObservableObject
         PosProductDesignItem product,
         IReadOnlyList<string> knownSuppliers,
         string suggestedInvoiceId,
-        Action<SupplyStockSubmission> onConfirm)
+        Func<SupplyStockSubmission, bool> onConfirm,
+        Func<string>? persistenceError = null)
     {
         Product = product;
         SuggestedSuppliers = knownSuppliers;
@@ -323,8 +377,10 @@ public sealed class SupplyStockViewModel : ObservableObject
             }
 
             var trimmedInvoice = string.IsNullOrWhiteSpace(InvoiceId) ? suggestedInvoiceId : InvoiceId.Trim();
-            onConfirm(new SupplyStockSubmission(qty, trimmedSupplier, price, trimmedInvoice));
-            RequestCloseWithResult?.Invoke(true);
+            if (onConfirm(new SupplyStockSubmission(qty, trimmedSupplier, price, trimmedInvoice)))
+                RequestCloseWithResult?.Invoke(true);
+            else
+                Error = persistenceError?.Invoke() is { Length: > 0 } error ? error : "تعذر حفظ التوريد.";
         });
 
         CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));
@@ -481,7 +537,8 @@ public sealed class EditProductViewModel : ObservableObject
         PosProductDesignItem product,
         IReadOnlyCollection<PosProductDesignItem> allProducts,
         IReadOnlyList<string> categories,
-        Action<EditProductSubmission> onSave)
+        Func<EditProductSubmission, bool> onSave,
+        Func<string>? persistenceError = null)
     {
         this.product = product;
         this.allProducts = allProducts;
@@ -578,7 +635,7 @@ public sealed class EditProductViewModel : ObservableObject
                 return;
             }
 
-            onSave(new EditProductSubmission(
+            if (onSave(new EditProductSubmission(
                 trimmedName,
                 trimmedBarcode,
                 string.IsNullOrWhiteSpace(SelectedCategory) ? product.Category : SelectedCategory.Trim(),
@@ -590,8 +647,10 @@ public sealed class EditProductViewModel : ObservableObject
                 minAlert,
                 IsActiveForSale,
                 TrackSerialNumber,
-                Notes.Trim()));
-            RequestCloseWithResult?.Invoke(true);
+                Notes.Trim())))
+                RequestCloseWithResult?.Invoke(true);
+            else
+                Error = persistenceError?.Invoke() is { Length: > 0 } error ? error : "تعذر تحديث الصنف.";
         });
 
         CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));
@@ -691,7 +750,8 @@ public sealed class MarkDamagedViewModel : ObservableObject
     public MarkDamagedViewModel(
         PosProductDesignItem product,
         IEnumerable<InventoryUnitRegistrationItem> productRegistrations,
-        Action<MarkDamagedSubmission> onConfirm)
+        Func<MarkDamagedSubmission, bool> onConfirm,
+        Func<string>? persistenceError = null)
     {
         Product = product;
         availableUnits = productRegistrations
@@ -740,8 +800,91 @@ public sealed class MarkDamagedViewModel : ObservableObject
                 return;
             }
 
-            onConfirm(new MarkDamagedSubmission(qty, SelectedSourceOption.SupplierFilter, SelectedSourceOption.SpecificUnitId, trimmedReason));
-            RequestCloseWithResult?.Invoke(true);
+            if (onConfirm(new MarkDamagedSubmission(qty, SelectedSourceOption.SupplierFilter, SelectedSourceOption.SpecificUnitId, trimmedReason)))
+                RequestCloseWithResult?.Invoke(true);
+            else
+                Error = persistenceError?.Invoke() is { Length: > 0 } error ? error : "تعذر تسجيل الهالك.";
+        });
+
+        CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));
+    }
+}
+
+/// <summary>Edits the settlement/reason of a damaged unit and persists them to dbo.InventoryUnits.</summary>
+public sealed class DamageEditViewModel : ObservableObject
+{
+    private string settlementText;
+    private string reasonText;
+    private string error = "";
+
+    public InventoryUnitRegistrationItem Unit { get; }
+    public IReadOnlyList<string> SettlementOptions { get; } = ["قيد المراجعة", "مرتجع للمورد", "تم تعويضها", "خسارة محملة على المخزن"];
+    public IReadOnlyList<string> QuickReasons => InventoryDesignSeedData.DamageReasons;
+
+    public string Title => $"تعديل بيانات هالك الوحدة {Unit.IdDisplay} — {Unit.ProductName}";
+
+    public string SettlementText
+    {
+        get => settlementText;
+        set { settlementText = value; Changed(); Error = ""; }
+    }
+
+    public string ReasonText
+    {
+        get => reasonText;
+        set { reasonText = value; Changed(); Error = ""; }
+    }
+
+    public string Error
+    {
+        get => error;
+        private set { error = value; Changed(); Changed(nameof(HasError)); }
+    }
+
+    public bool HasError => !string.IsNullOrWhiteSpace(Error);
+
+    public Action<bool>? RequestCloseWithResult { get; set; }
+    public RelayCommand<string> PickSettlementCommand { get; }
+    public RelayCommand<string> PickReasonCommand { get; }
+    public ActionCommand ConfirmCommand { get; }
+    public ActionCommand CancelCommand { get; }
+
+    public DamageEditViewModel(
+        InventoryUnitRegistrationItem unit,
+        Func<string, string, bool> onConfirm,
+        Func<string>? persistenceError = null)
+    {
+        Unit = unit;
+        settlementText = unit.DamageSettlementStatus;
+        reasonText = unit.DamageReason;
+
+        PickSettlementCommand = new RelayCommand<string>(value =>
+        {
+            if (!string.IsNullOrWhiteSpace(value)) SettlementText = value;
+        });
+        PickReasonCommand = new RelayCommand<string>(value =>
+        {
+            if (!string.IsNullOrWhiteSpace(value)) ReasonText = value;
+        });
+
+        ConfirmCommand = new ActionCommand(() =>
+        {
+            var settlement = SettlementText.Trim();
+            var reason = ReasonText.Trim();
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                Error = "يرجى إدخال سبب الإهلاك.";
+                return;
+            }
+
+            if (settlement.Length > 50)
+            {
+                Error = "حالة التسوية يجب ألا تتجاوز 50 حرفًا.";
+                return;
+            }
+
+            if (onConfirm(settlement, reason)) RequestCloseWithResult?.Invoke(true);
+            else Error = persistenceError?.Invoke() is { Length: > 0 } message ? message : "تعذر حفظ تعديل الهالك.";
         });
 
         CancelCommand = new ActionCommand(() => RequestCloseWithResult?.Invoke(false));

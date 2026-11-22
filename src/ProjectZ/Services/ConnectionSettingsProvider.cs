@@ -19,25 +19,9 @@ public sealed class ConnectionSettingsProvider
 
     public string GetConnectionString()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "connectionsettings.json");
-        if (!File.Exists(path))
-        {
-            throw new ConnectionConfigurationException(
-                "ملف الإعدادات connectionsettings.json غير موجود بجوار البرنامج. تأكد من وجوده في نفس مجلد التشغيل.");
-        }
+        var settings = LoadSettingsFile();
 
-        ConnectionSettings? settings;
-        try
-        {
-            settings = JsonSerializer.Deserialize<ConnectionSettings>(File.ReadAllText(path), JsonOptions);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            throw new ConnectionConfigurationException(
-                "تعذر قراءة ملف connectionsettings.json. تأكد من صحة صيغة JSON (واكتب الشرطة العكسية مزدوجة \\\\ عند وجود Instance).", ex);
-        }
-
-        if (settings is null || string.IsNullOrWhiteSpace(settings.Server)
+        if (string.IsNullOrWhiteSpace(settings.Server)
             || settings.Server.Contains("SERVER_NAME", StringComparison.OrdinalIgnoreCase))
         {
             throw new ConnectionConfigurationException(
@@ -89,5 +73,63 @@ public sealed class ConnectionSettingsProvider
             throw new ConnectionConfigurationException(
                 "توجد قيمة غير صالحة في إعدادات الاتصال داخل ملف connectionsettings.json.", ex);
         }
+    }
+
+    /// <summary>
+    /// Reads the AES key that protects device passcodes. The environment variable wins so a single
+    /// client machine can be pointed at a key without editing the published settings file.
+    /// Returns null when nothing valid is configured; callers must then treat protection as off.
+    /// </summary>
+    public byte[]? GetPasscodeKey()
+    {
+        string? raw = Environment.GetEnvironmentVariable("PROJECTZ_PASSCODE_KEY");
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            try
+            {
+                raw = LoadSettingsFile().PasscodeKey;
+            }
+            catch (ConnectionConfigurationException)
+            {
+                // A broken settings file is reported by the connection path; the key is optional.
+                return null;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        try
+        {
+            var bytes = Convert.FromBase64String(raw.Trim());
+            return bytes.Length == 32 ? bytes : null;
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    private static ConnectionSettings LoadSettingsFile()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "connectionsettings.json");
+        if (!File.Exists(path))
+        {
+            throw new ConnectionConfigurationException(
+                "ملف الإعدادات connectionsettings.json غير موجود بجوار البرنامج. تأكد من وجوده في نفس مجلد التشغيل.");
+        }
+
+        ConnectionSettings? settings;
+        try
+        {
+            settings = JsonSerializer.Deserialize<ConnectionSettings>(File.ReadAllText(path), JsonOptions);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            throw new ConnectionConfigurationException(
+                "تعذر قراءة ملف connectionsettings.json. تأكد من صحة صيغة JSON (واكتب الشرطة العكسية مزدوجة \\\\ عند وجود Instance).", ex);
+        }
+
+        return settings ?? throw new ConnectionConfigurationException(
+            "محتويات connectionsettings.json فارغة. حدد Server وDatabase ثم أعد تشغيل البرنامج.");
     }
 }

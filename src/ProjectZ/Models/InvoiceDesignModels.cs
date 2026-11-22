@@ -31,6 +31,9 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
 {
     private int returnedQuantity;
 
+    /// <summary>Primary key in dbo.SalesInvoiceLines; 0 for lines that only exist in design/sample data.</summary>
+    public int DatabaseLineId { get; init; }
+
     public int LineNumber { get; init; }
     public int ProductId { get; init; }
     public string Barcode { get; init; } = "";
@@ -100,8 +103,21 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
     }
 
     public decimal LineGrossTotal => UnitPrice * Quantity;
-    public decimal LineReturnedTotal => UnitPrice * ReturnedQuantity;
-    public decimal LineNetTotal => UnitPrice * RemainingQuantity;
+    // Loaded from vwSalesLineValuation. Sample invoices derive the same cumulative shares locally.
+    public decimal? SavedNetAmount { get; init; }
+    internal SalesInvoiceDesignItem? SampleInvoice { get; set; }
+    private decimal NetBasis => SavedNetAmount ?? SampleInvoice?.SampleLineBasis(this) ?? LineGrossTotal;
+    private decimal CumulativeReturn(int qty)
+    {
+        if (Quantity == 0) return 0m;
+        // Match dbo.SaleShare exactly even at a half-cent boundary.
+        var numerator = NetBasis * 100m * qty;
+        var remainder = numerator % Quantity;
+        return ((numerator - remainder) / Quantity + (2m * remainder >= Quantity ? 1m : 0m)) / 100m;
+    }
+    public decimal ReturnValue(int qty) => CumulativeReturn(ReturnedQuantity + Math.Clamp(qty, 0, RemainingQuantity)) - LineReturnedTotal;
+    public decimal LineReturnedTotal => CumulativeReturn(ReturnedQuantity);
+    public decimal LineNetTotal => NetBasis - LineReturnedTotal;
     public decimal LineCostTotal => UnitCost * RemainingQuantity;
     public decimal LineProfit => LineNetTotal - LineCostTotal;
 
@@ -112,14 +128,18 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
     public string LineProfitDisplay => PosFormatting.FormatCurrency(LineProfit);
 }
 
+public sealed record SalePayingAccount(int Id, string Name, decimal NetPaid);
+
 public sealed class SalesInvoiceDesignItem : ObservableObject
 {
+    private string customerName = "عميل نقدي (عام)";
+    private string customerPhone = "";
+    private string customerAddress = "";
+    private PriceTier defaultPriceTier = PriceTier.Retail;
     private SalesInvoiceStatus status = SalesInvoiceStatus.Completed;
     private decimal cashPaid;
     private decimal vodafoneCashPaid;
-    private string vodafoneCashReference = "";
     private decimal instaPayPaid;
-    private string instaPayReference = "";
     private decimal refundedAmount;
     private string notes = "";
     private bool isSelected;
@@ -130,15 +150,84 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     public DateTime IssuedAt { get; init; }
     public string CashierName { get; init; } = "";
     public int CustomerId { get; init; }
-    public string CustomerName { get; init; } = "عميل نقدي (عام)";
-    public string CustomerPhone { get; init; } = "";
-    public string CustomerAddress { get; init; } = "";
+
+    /// <summary>SQL Server ROWVERSION for invoices loaded from dbo.SalesInvoices; null for sample rows.</summary>
+    public byte[]? DatabaseRowVersion { get; set; }
+
+    public string CustomerName
+    {
+        get => customerName;
+        set
+        {
+            if (customerName == value) return;
+            customerName = value;
+            Changed();
+        }
+    }
+
+    public string CustomerPhone
+    {
+        get => customerPhone;
+        set
+        {
+            if (customerPhone == value) return;
+            customerPhone = value;
+            Changed();
+            Changed(nameof(CustomerPhoneDisplay));
+        }
+    }
+
+    public string CustomerAddress
+    {
+        get => customerAddress;
+        set
+        {
+            if (customerAddress == value) return;
+            customerAddress = value;
+            Changed();
+            Changed(nameof(CustomerAddressDisplay));
+        }
+    }
+
     public bool IsWalkInCustomer { get; init; } = true;
-    public PriceTier DefaultPriceTier { get; init; } = PriceTier.Retail;
+
+    public PriceTier DefaultPriceTier
+    {
+        get => defaultPriceTier;
+        set
+        {
+            if (defaultPriceTier == value) return;
+            defaultPriceTier = value;
+            Changed();
+            Changed(nameof(DefaultPriceTierTitle));
+        }
+    }
+
     public decimal DiscountAmount { get; init; }
 
     public ObservableCollection<SalesInvoiceLineDesignItem> Items { get; } = [];
     public ObservableCollection<SalesInvoiceActivityEntry> ActivityLog { get; } = [];
+
+    public SalesInvoiceDesignItem()
+    {
+        Items.CollectionChanged += (_, e) =>
+        {
+            if (e.NewItems is null) return;
+            foreach (SalesInvoiceLineDesignItem line in e.NewItems)
+                if (line.SavedNetAmount is null) line.SampleInvoice = this;
+        };
+    }
+
+    internal decimal SampleLineBasis(SalesInvoiceLineDesignItem line)
+    {
+        if (DiscountAmount == 0m || line.IsExchangeReplacement) return line.LineGrossTotal;
+        var originals = Items.Where(i => !i.IsExchangeReplacement);
+        var gross = originals.Sum(i => i.LineGrossTotal);
+        if (gross == 0m) return 0m;
+        var before = originals.Where(i => i.LineNumber < line.LineNumber).Sum(i => i.LineGrossTotal);
+        decimal Share(decimal amount) => Math.Round(Math.Min(DiscountAmount, gross) * amount / gross, 2, MidpointRounding.AwayFromZero);
+        return line.LineGrossTotal - (Share(before + line.LineGrossTotal) - Share(before));
+    }
 
     public SalesInvoiceStatus Status
     {
@@ -186,18 +275,6 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
         }
     }
 
-    public string VodafoneCashReference
-    {
-        get => vodafoneCashReference;
-        set
-        {
-            if (vodafoneCashReference == value) return;
-            vodafoneCashReference = value;
-            Changed();
-            Changed(nameof(HasVodafoneCash));
-        }
-    }
-
     public decimal InstaPayPaid
     {
         get => instaPayPaid;
@@ -207,18 +284,6 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
             instaPayPaid = Math.Max(0m, value);
             Changed();
             NotifyFinancialsChanged();
-        }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set
-        {
-            if (instaPayReference == value) return;
-            instaPayReference = value;
-            Changed();
-            Changed(nameof(HasInstaPay));
         }
     }
 
@@ -309,10 +374,30 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     }
 
     public decimal GrossPaid => CashPaid + VodafoneCashPaid + InstaPayPaid;
-    public decimal NetCollected => Math.Max(0m, GrossPaid - RefundedAmount);
+    public decimal NetCollected => GrossPaid - RefundedAmount;
     public decimal RemainingAmount => Status is SalesInvoiceStatus.Cancelled or SalesInvoiceStatus.FullyReturned
         ? 0m
         : Math.Max(0m, EffectiveNetSales - NetCollected);
+    // Read in the same order as PostSaleMoney. This is a till preview only; SQL recomputes every share.
+    internal List<SalePayingAccount> PayingAccounts { get; } = [];
+    public decimal EstimateRefund(decimal reduction) => Math.Max(0m, reduction - RemainingAmount);
+    public string DescribeReduction(decimal reduction)
+    {
+        var refund = EstimateRefund(reduction);
+        var summary = $"تخفيض الدين: {PosFormatting.FormatCurrency(reduction - refund)} · رد للعميل: {PosFormatting.FormatCurrency(refund)}";
+        if (refund == 0m || PayingAccounts.Count == 0) return summary;
+        var left = refund;
+        var parts = new List<string>();
+        foreach (var account in PayingAccounts)
+        {
+            if (account.NetPaid < 0m) return "مدفوعات الحسابات السابقة تحتاج إلى مطابقة مالية.";
+            var amount = Math.Min(left, account.NetPaid);
+            if (amount <= 0m) continue;
+            parts.Add($"{account.Name} (#{account.Id}): {PosFormatting.FormatCurrency(amount)}");
+            left -= amount;
+        }
+        return summary + " · " + string.Join("، ", parts);
+    }
     public decimal ChangeAmount => Status is SalesInvoiceStatus.Cancelled or SalesInvoiceStatus.FullyReturned
         ? 0m
         : Math.Max(0m, NetCollected - EffectiveNetSales);
@@ -323,8 +408,8 @@ public sealed class SalesInvoiceDesignItem : ObservableObject
     public bool HasRemaining => RemainingAmount > 0m;
     public bool HasChange => ChangeAmount > 0m;
     public bool HasCashPaid => CashPaid > 0m;
-    public bool HasVodafoneCash => VodafoneCashPaid > 0m || !string.IsNullOrWhiteSpace(VodafoneCashReference);
-    public bool HasInstaPay => InstaPayPaid > 0m || !string.IsNullOrWhiteSpace(InstaPayReference);
+    public bool HasVodafoneCash => VodafoneCashPaid > 0m;
+    public bool HasInstaPay => InstaPayPaid > 0m;
 
     public string SubtotalDisplay => PosFormatting.FormatCurrency(Subtotal);
     public string EffectiveDiscountDisplay => PosFormatting.FormatCurrency(EffectiveDiscount);
@@ -511,9 +596,7 @@ public static class InvoiceDesignSeedData
             DiscountAmount = 45m,
             CashPaid = 620m,
             VodafoneCashPaid = 700m,
-            VodafoneCashReference = "VF-884210",
             InstaPayPaid = 550m,
-            InstaPayReference = "IP-309412",
             Notes = "تسليم فوري بالمحل — العميل اختبر السماعة والشواحن."
         };
         inv6.Items.Add(new SalesInvoiceLineDesignItem
@@ -641,7 +724,6 @@ public static class InvoiceDesignSeedData
             Status = SalesInvoiceStatus.Completed,
             DiscountAmount = 100m,
             InstaPayPaid = 17400m,
-            InstaPayReference = "IP-220194",
             Notes = "هاتف سامسونج A55 بضمان محلي سنة — تم تفعيل الضمان بالسيريال."
         };
         inv4.Items.Add(new SalesInvoiceLineDesignItem
@@ -664,7 +746,7 @@ public static class InvoiceDesignSeedData
         {
             Timestamp = inv4.IssuedAt,
             ActionTitle = "إصدار فاتورة بيع هاتف",
-            Details = "سداد كامل عبر إنستاباي (#IP-220194) مع تسجيل سيريال IMEI.",
+            Details = "سداد كامل عبر إنستاباي مع تسجيل سيريال IMEI.",
             ActorName = inv4.CashierName,
             Amount = inv4.NetTotal
         });
@@ -689,7 +771,6 @@ public static class InvoiceDesignSeedData
             DiscountAmount = 50m,
             CashPaid = 1200m,
             VodafoneCashPaid = 1120m,
-            VodafoneCashReference = "VF-771203",
             Notes = "طلبية جملة أسبوعية لمحل النور."
         };
         inv3.Items.Add(new SalesInvoiceLineDesignItem
@@ -823,7 +904,6 @@ public static class InvoiceDesignSeedData
             Status = SalesInvoiceStatus.Cancelled,
             DiscountAmount = 0m,
             VodafoneCashPaid = 950m,
-            VodafoneCashReference = "VF-640119",
             RefundedAmount = 950m,
             Notes = "ألغى العميل الطلب قبل التسليم لعدم توفر اللون الأسود."
         };
@@ -844,7 +924,7 @@ public static class InvoiceDesignSeedData
         {
             Timestamp = inv1.IssuedAt,
             ActionTitle = "إصدار فاتورة بيع",
-            Details = "سداد مبدئي عبر فودافون كاش (#VF-640119).",
+            Details = "سداد مبدئي عبر فودافون كاش.",
             ActorName = inv1.CashierName,
             Amount = 950m
         });

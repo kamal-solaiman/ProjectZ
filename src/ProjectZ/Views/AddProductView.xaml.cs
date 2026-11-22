@@ -13,18 +13,33 @@ public partial class AddProductView : UserControl
         Loaded += (_, _) => FocusProductNameInput();
         IsVisibleChanged += (_, _) =>
         {
-            if (IsVisible)
-                FocusProductNameInput();
+            if (!IsVisible) return;
+
+            // The categories screen shares this list, so re-point the combo box at the current rows.
+            if (DataContext is AddProductViewModel viewModel)
+                viewModel.RefreshCategoriesFromSharedList();
+            FocusProductNameInput();
         };
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (e.OldValue is AddProductViewModel oldViewModel)
+        {
             oldViewModel.FocusProductNameRequested = null;
+            oldViewModel.OpenConfirmDialogRequested = null;
+        }
 
         if (e.NewValue is AddProductViewModel newViewModel)
+        {
             newViewModel.FocusProductNameRequested = FocusProductNameInput;
+            newViewModel.OpenConfirmDialogRequested = (confirm, onConfirmed) =>
+            {
+                var dialog = new ConfirmActionWindow(confirm);
+                if (Window.GetWindow(this) is { } owner) dialog.Owner = owner;
+                if (dialog.ShowDialog() == true) onConfirmed();
+            };
+        }
     }
 
     private void FocusProductNameInput()

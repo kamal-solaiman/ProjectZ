@@ -54,9 +54,22 @@ public sealed class LoginViewModel : ObservableObject
             {
                 Error = "تعذر فتح الاتصال. راجع ملف connectionsettings.json وعنوان الخادم وإعدادات الأمان.";
             }
-            catch (Exception)
+            catch (MainWindowInitializationException ex)
             {
-                Error = "حدث خطأ غير متوقع أثناء تسجيل الدخول. أعد المحاولة أو تواصل مع مسؤول النظام.";
+                StartupDiagnostics.Record(ex);
+                Error = $"تم التحقق من بيانات الدخول، لكن تعذر فتح النافذة الرئيسية ({ex.Stage}). تم حفظ تفاصيل الخطأ في سجل التشخيص.";
+#if DEBUG
+                var root = ex.InnerException?.GetBaseException() ?? ex;
+                Error += $" {root.GetType().Name}: {root.Message}";
+#endif
+            }
+            catch (Exception ex)
+            {
+                StartupDiagnostics.Record(ex);
+                Error = "حدث خطأ غير متوقع أثناء تسجيل الدخول. أعد المحاولة أو تواصل مع مسؤول النظام. تم حفظ تفاصيل الخطأ في سجل التشخيص.";
+#if DEBUG
+                Error += $" {ex.GetType().Name}: {ex.Message}";
+#endif
             }
             finally
             {

@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Globalization;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
+using ProjectZ.Data;
 
 namespace ProjectZ.ViewModels;
 
@@ -46,7 +47,7 @@ public sealed class ReturnExchangeInvoiceLineViewModel : ObservableObject
 
     public int TotalSelectedReturnQty => GoodReturnQty + DamagedReturnQty;
     public bool HasSelectedReturn => TotalSelectedReturnQty > 0;
-    public decimal LineReturnValue => TotalSelectedReturnQty * Line.UnitPrice;
+    public decimal LineReturnValue => Line.ReturnValue(TotalSelectedReturnQty);
     public string GoodReturnQtyDisplay => GoodReturnQty.ToString(CultureInfo.InvariantCulture);
     public string DamagedReturnQtyDisplay => DamagedReturnQty.ToString(CultureInfo.InvariantCulture);
     public string LineReturnValueDisplay => PosFormatting.FormatCurrency(LineReturnValue);
@@ -188,6 +189,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     private readonly Action? navigateToInvoices;
     private readonly Action? notifyInventoryChanged;
     private readonly Action? notifyInvoicesChanged;
+    private readonly SalesRepository? repository;
 
     private int nextOperationId = 2;
     private int nextRegistrationId = 4001;
@@ -206,18 +208,14 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     private string replacementSearchText = "";
     private PriceTier replacementDefaultTier = PriceTier.Retail;
 
-    private string refundMethod = "كاش (نقدي)";
-    private string refundReference = "";
     private string diffCashText = "";
     private string diffVodafoneText = "";
-    private string diffVodafoneReference = "";
     private string diffInstaPayText = "";
-    private string diffInstaPayReference = "";
 
     private string historySearchText = "";
     private string selectedHistoryTypeFilter = "الكل";
 
-    private string statusMessage = "مرحلة التصميم (بدون Backend): ابحث باسم العميل أو رقم الموبايل أو رقم الفاتورة أو بتاريخ اليوم لعرض الفاتورة كاملة وتنفيذ المرتجع أو الاستبدال.";
+    private string statusMessage = "ابحث باسم العميل أو رقم الموبايل أو رقم الفاتورة أو بتاريخ اليوم لعرض الفاتورة كاملة وتنفيذ المرتجع أو الاستبدال، ويُحفظ كل شيء في SQL Server.";
     private bool isErrorStatus;
 
     public ObservableCollection<SalesInvoiceDesignItem> FilteredInvoices { get; } = [];
@@ -228,7 +226,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
 
     public IReadOnlyList<string> DatePresets { get; } = ["الكل", "اليوم", "آخر 7 أيام", "هذا الشهر", "فترة مخصصة"];
     public IReadOnlyList<string> SuggestedReasons => ReturnExchangeDesignSeedData.OperationReasons;
-    public IReadOnlyList<string> RefundMethods { get; } = ["كاش (نقدي)", "فودافون كاش", "إنستاباي", "خصم من المتبقي الآجل"];
     public IReadOnlyList<string> HistoryTypeFilters { get; } = ["الكل", "مرتجع", "استبدال"];
     public IReadOnlyList<PriceTierOption> PriceTierOptions => PosFormatting.PriceTierOptions;
 
@@ -424,26 +421,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     public bool HasReplacementItems => ReplacementItems.Count > 0;
     public bool HasNoReplacementResults => FilteredReplacementCatalog.Count == 0;
 
-    public string RefundMethod
-    {
-        get => refundMethod;
-        set
-        {
-            if (refundMethod == value || value is null) return;
-            refundMethod = value;
-            Changed();
-            Changed(nameof(NeedsRefundReference));
-        }
-    }
-
-    public bool NeedsRefundReference => RefundMethod is "فودافون كاش" or "إنستاباي";
-
-    public string RefundReference
-    {
-        get => refundReference;
-        set { refundReference = value; Changed(); }
-    }
-
     public string DiffCashText
     {
         get => diffCashText;
@@ -456,22 +433,10 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         set { diffVodafoneText = value; Changed(); NotifyPaymentDiffInputs(); }
     }
 
-    public string DiffVodafoneReference
-    {
-        get => diffVodafoneReference;
-        set { diffVodafoneReference = value; Changed(); }
-    }
-
     public string DiffInstaPayText
     {
         get => diffInstaPayText;
         set { diffInstaPayText = value; Changed(); NotifyPaymentDiffInputs(); }
-    }
-
-    public string DiffInstaPayReference
-    {
-        get => diffInstaPayReference;
-        set { diffInstaPayReference = value; Changed(); }
     }
 
     // Settlement computations
@@ -485,11 +450,13 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     public decimal NetDifference => IsExchangeMode ? TotalReplacementValue - TotalReturnedValue : -TotalReturnedValue;
 
     public bool HasAnySelectedReturn => TotalReturnedUnitsSelected > 0;
-    public bool NeedsCustomerRefund => HasAnySelectedReturn && NetDifference < 0m;
+    public bool HasInvoiceReduction => HasAnySelectedReturn && NetDifference < 0m;
     public bool NeedsCustomerPayment => IsExchangeMode && TotalReplacementUnitsSelected > 0 && NetDifference > 0m;
     public bool IsEvenExchange => IsExchangeMode && HasAnySelectedReturn && TotalReplacementUnitsSelected > 0 && NetDifference == 0m;
 
     public decimal SettlementMagnitude => Math.Abs(NetDifference);
+    private decimal Reduction => Math.Max(0m, -NetDifference);
+    public string RefundPreview => SelectedInvoice?.DescribeReduction(Reduction) ?? "";
     public string TotalReturnedValueDisplay => PosFormatting.FormatCurrency(TotalReturnedValue);
     public string TotalReplacementValueDisplay => PosFormatting.FormatCurrency(TotalReplacementValue);
     public string SettlementMagnitudeDisplay => PosFormatting.FormatCurrency(SettlementMagnitude);
@@ -499,7 +466,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         get
         {
             if (NeedsCustomerPayment) return "فرق مستحق على العميل دفعه:";
-            if (NeedsCustomerRefund) return "مبلغ مستحق ردّه / خصمه للعميل:";
+            if (HasInvoiceReduction) return "صافي تخفيض قيمة الفاتورة:";
             return "الفرق المالي الصافي:";
         }
     }
@@ -538,16 +505,9 @@ public sealed class ReturnExchangeViewModel : ObservableObject
     }
 
     public bool HasNoHistoryRecords => FilteredOperations.Count == 0;
+
+    // The history tab label stays, because it is the tab title in the header (not a KPI card).
     public string HistoryTabLabel => $"سجل المرتجع والاستبدال ({sharedOperations.Count})";
-    public int TotalOperationsCount => sharedOperations.Count;
-    public string OperationsKpiSummary =>
-        $"مرتجع: {sharedOperations.Count(o => o.IsReturn)} · استبدال: {sharedOperations.Count(o => o.IsExchange)}";
-    public int TotalGoodReturnedKpi => sharedOperations.Sum(o => o.GoodReturnedUnitsCount);
-    public int TotalDamagedReturnedKpi => sharedOperations.Sum(o => o.DamagedReturnedUnitsCount);
-    public decimal TotalRefundedValueKpi => sharedOperations.Where(o => o.NetDifference < 0m).Sum(o => Math.Abs(o.NetDifference));
-    public decimal TotalExchangeUpgradesKpi => sharedOperations.Where(o => o.NetDifference > 0m).Sum(o => o.NetDifference);
-    public string TotalRefundedValueKpiDisplay => PosFormatting.FormatCurrency(TotalRefundedValueKpi);
-    public string TotalExchangeUpgradesKpiSubtext => $"فروق استبدال محصلة: {PosFormatting.FormatCurrency(TotalExchangeUpgradesKpi)}";
 
     public string StatusMessage
     {
@@ -572,6 +532,93 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             isErrorStatus = value;
             Changed();
         }
+    }
+
+    /// <summary>True when the screen reads and writes SQL Server (no design sample data).</summary>
+    public bool IsConnectedToDatabase => repository is not null;
+
+    public string DataSourceLabel => repository is null
+        ? "معاينة تصميم — بدون قاعدة بيانات"
+        : "متصل بقاعدة البيانات — SQL Server";
+
+    public string HistorySourceLabel => repository is null
+        ? "سجل تجريبي (بدون قاعدة بيانات)"
+        : "السجل مقروء من dbo.ReturnExchanges";
+
+    public ActionCommand RefreshFromDatabaseCommand { get; }
+
+    /// <summary>Reloads invoices (with returned quantities) and the saved operations from SQL Server.</summary>
+    public bool RefreshFromDatabase()
+    {
+        if (repository is null)
+        {
+            NotifyExternalDataChanged();
+            return false;
+        }
+
+        try
+        {
+            // Keep the operator on the same invoice: the reloaded rows are new instances.
+            var previousId = SelectedInvoice?.Id ?? 0;
+            var previousNumber = SelectedInvoice?.InvoiceNumber ?? "";
+
+            repository.LoadInvoicesInto(sharedInvoices);
+            LoadOperationsFromDatabase();
+            RefreshFilteredInvoices();
+            RefreshReplacementCatalog();
+            RefreshFilteredOperations();
+            NotifyOperationKpis();
+
+            var restored = sharedInvoices.FirstOrDefault(i => i.Id == previousId)
+                           ?? sharedInvoices.FirstOrDefault(i => i.InvoiceNumber == previousNumber);
+            if (restored is not null)
+            {
+                selectedInvoice = null;      // the previous instance no longer exists in the reloaded list
+                SelectedInvoice = restored;
+            }
+            SetStatus($"تم تحميل {sharedInvoices.Count} فاتورة و{sharedOperations.Count} عملية مرتجع/استبدال من قاعدة البيانات.", false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex is SalesDataException data ? data.Message : "تعذر تحميل بيانات المرتجع والاستبدال من قاعدة البيانات.", true);
+            return false;
+        }
+    }
+
+    private void LoadOperationsFromDatabase()
+    {
+        if (repository is null) return;
+
+        var records = repository.LoadReturnExchanges();
+        sharedOperations.Clear();
+        foreach (var record in records)
+        {
+            sharedOperations.Add(new ReturnExchangeOperationItem
+            {
+                Id = record.Id,
+                OperationNumber = record.OperationNumber,
+                OperationType = record.OperationType == 1 ? ReturnExchangeType.Exchange : ReturnExchangeType.Return,
+                CreatedAt = record.CreatedAt,
+                ActorName = record.ActorName,
+                InvoiceId = record.InvoiceId,
+                InvoiceNumber = record.InvoiceNumber,
+                CustomerName = record.CustomerName,
+                CustomerPhone = record.CustomerPhone,
+                Reason = record.Reason,
+                GoodReturnedUnitsCount = record.GoodUnits,
+                DamagedReturnedUnitsCount = record.DamagedUnits,
+                ReplacementUnitsCount = record.ReplacementUnits,
+                ReturnedValue = record.ReturnedValue,
+                ReplacementValue = record.ReplacementValue,
+                ReturnedItemsSummary = record.ReturnedItemsSummary,
+                ReplacementItemsSummary = record.ReplacementItemsSummary,
+                SettlementSummary = record.SettlementSummary
+            });
+        }
+
+        nextOperationId = sharedOperations.Count > 0 ? sharedOperations.Max(o => o.Id) + 1 : 1;
+        NotifyOperationKpis();
     }
 
     public ActionCommand SelectWorkspaceTabCommand { get; }
@@ -635,7 +682,8 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         string currentCashierName = "المشرف",
         Action? navigateToInvoices = null,
         Action? notifyInventoryChanged = null,
-        Action? notifyInvoicesChanged = null)
+        Action? notifyInvoicesChanged = null,
+        SalesRepository? repository = null)
     {
         this.sharedInvoices = sharedInvoices;
         this.sharedCatalog = sharedCatalog;
@@ -645,11 +693,13 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         this.navigateToInvoices = navigateToInvoices;
         this.notifyInventoryChanged = notifyInventoryChanged;
         this.notifyInvoicesChanged = notifyInvoicesChanged;
+        this.repository = repository;
 
         nextOperationId = sharedOperations.Count > 0 ? sharedOperations.Max(o => o.Id) + 1 : 1;
         nextRegistrationId = sharedRegistrations.Count > 0 ? sharedRegistrations.Max(r => r.Id) + 1 : 4001;
 
         SelectWorkspaceTabCommand = new ActionCommand(() => IsWorkspaceTabSelected = true);
+        RefreshFromDatabaseCommand = new ActionCommand(() => RefreshFromDatabase());
         SelectHistoryTabCommand = new ActionCommand(() => IsHistoryTabSelected = true);
         GoToInvoicesCommand = new ActionCommand(() => this.navigateToInvoices?.Invoke());
         ClearFiltersCommand = new ActionCommand(() =>
@@ -774,20 +824,14 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         InvoiceLines.Clear();
         ReplacementItems.Clear();
         OperationReason = "";
-        RefundReference = "";
         DiffCashText = "";
         DiffVodafoneText = "";
-        DiffVodafoneReference = "";
         DiffInstaPayText = "";
-        DiffInstaPayReference = "";
 
         if (SelectedInvoice is not null)
         {
             replacementDefaultTier = SelectedInvoice.DefaultPriceTier;
             Changed(nameof(ReplacementDefaultTier));
-            refundMethod = SelectedInvoice.HasRemaining ? "خصم من المتبقي الآجل" : "كاش (نقدي)";
-            Changed(nameof(RefundMethod));
-            Changed(nameof(NeedsRefundReference));
 
             foreach (var line in SelectedInvoice.Items.Where(i => i.RemainingQuantity > 0))
                 InvoiceLines.Add(new ReturnExchangeInvoiceLineViewModel(line, NotifySettlementChanged));
@@ -864,7 +908,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             return;
         }
 
-        foreach (var rep in ReplacementItems)
+        foreach (var rep in ReplacementItems.Where(_ => IsExchangeMode))
         {
             var totalRequestedForProduct = ReplacementItems
                 .Where(r => r.Product.Id == rep.Product.Id)
@@ -885,6 +929,12 @@ public sealed class ReturnExchangeViewModel : ObservableObject
 
         if (NeedsCustomerPayment)
         {
+            var amounts = new[] { DiffCashText, DiffVodafoneText, DiffInstaPayText };
+            if (amounts.All(string.IsNullOrWhiteSpace) || !amounts.All(PosFormatting.IsValidTender))
+            {
+                SetStatus("أدخل المبلغ المحصّل بدقّة القرش، أو صفرًا لترحيل فرق العميل المسجّل للآجل.", true);
+                return;
+            }
             if (TotalDiffPaid > SettlementMagnitude)
             {
                 SetStatus($"المبلغ المدفوع ({TotalDiffPaidDisplay}) أكبر من فرق الاستبدال المستحق ({SettlementMagnitudeDisplay}).", true);
@@ -899,6 +949,13 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         }
 
         var invoice = SelectedInvoice;
+
+        if (repository is not null)
+        {
+            ExecuteDatabaseOperation(invoice, selectedLines, trimmedReason);
+            return;
+        }
+
         var opId = nextOperationId++;
         var opNo = IsExchangeMode ? $"EXC-2026-{opId:0000}" : $"RET-2026-{opId:0000}";
         var now = DateTime.Now;
@@ -906,6 +963,14 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         var goodUnitsTotal = 0;
         var damagedUnitsTotal = 0;
         var returnedSummaryParts = new List<string>();
+
+        var returnedValue = TotalReturnedValue;
+        var replacementValue = TotalReplacementValue;
+        var previewRefund = invoice.EstimateRefund(Reduction);
+        var previewDescription = RefundPreview;
+        var hasReduction = HasInvoiceReduction;
+        var needsPayment = NeedsCustomerPayment;
+        var creditGap = DiffRemaining;
 
         // 1) Process returned lines (split per line: good -> Available stock, damaged -> Damaged stock)
         foreach (var lineVm in selectedLines)
@@ -1061,58 +1126,24 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         }
 
         // 3) Financial settlement & status update
-        var returnedValue = TotalReturnedValue;
-        var replacementValue = TotalReplacementValue;
         string settlementDesc;
-
-        if (NeedsCustomerRefund)
+        if (hasReduction)
         {
-            var refundAmount = SettlementMagnitude;
-            if (RefundMethod == "خصم من المتبقي الآجل" && invoice.HasRemaining)
-            {
-                var creditCovered = Math.Min(refundAmount, invoice.RemainingAmount);
-                var extraCash = Math.Max(0m, refundAmount - creditCovered);
-                if (extraCash > 0m)
-                    invoice.RefundedAmount += extraCash;
-                settlementDesc = extraCash > 0m
-                    ? $"خصم {PosFormatting.FormatCurrency(creditCovered)} من الآجل + رد {PosFormatting.FormatCurrency(extraCash)}"
-                    : $"خصم {PosFormatting.FormatCurrency(creditCovered)} من المتبقي الآجل";
-            }
-            else
-            {
-                invoice.RefundedAmount += refundAmount;
-                var refSuffix = NeedsRefundReference && !string.IsNullOrWhiteSpace(RefundReference)
-                    ? $" [مرجع: {RefundReference.Trim()}]"
-                    : "";
-                settlementDesc = $"رد للعميل: {PosFormatting.FormatCurrency(refundAmount)} ({RefundMethod}{refSuffix})";
-            }
+            invoice.RefundedAmount += previewRefund;
+            settlementDesc = previewDescription;
         }
-        else if (NeedsCustomerPayment)
+        else if (needsPayment)
         {
             invoice.CashPaid += ParsedDiffCash;
             invoice.VodafoneCashPaid += ParsedDiffVodafone;
-            if (!string.IsNullOrWhiteSpace(DiffVodafoneReference))
-            {
-                invoice.VodafoneCashReference = string.IsNullOrWhiteSpace(invoice.VodafoneCashReference)
-                    ? DiffVodafoneReference.Trim()
-                    : $"{invoice.VodafoneCashReference} / {DiffVodafoneReference.Trim()}";
-            }
-
             invoice.InstaPayPaid += ParsedDiffInstaPay;
-            if (!string.IsNullOrWhiteSpace(DiffInstaPayReference))
-            {
-                invoice.InstaPayReference = string.IsNullOrWhiteSpace(invoice.InstaPayReference)
-                    ? DiffInstaPayReference.Trim()
-                    : $"{invoice.InstaPayReference} / {DiffInstaPayReference.Trim()}";
-            }
-
             var payParts = new List<string>(3);
             if (ParsedDiffCash > 0m) payParts.Add($"كاش {PosFormatting.FormatCurrency(ParsedDiffCash)}");
             if (ParsedDiffVodafone > 0m) payParts.Add($"فودافون {PosFormatting.FormatCurrency(ParsedDiffVodafone)}");
             if (ParsedDiffInstaPay > 0m) payParts.Add($"إنستاباي {PosFormatting.FormatCurrency(ParsedDiffInstaPay)}");
 
-            settlementDesc = DiffRemaining > 0m
-                ? $"تحصيل فرق {TotalDiffPaidDisplay} ({string.Join(" + ", payParts)}) + ترحيل {DiffRemainingDisplay} آجل"
+            settlementDesc = creditGap > 0m
+                ? $"تحصيل فرق {TotalDiffPaidDisplay} ({string.Join(" + ", payParts)}) + ترحيل {PosFormatting.FormatCurrency(creditGap)} آجل"
                 : $"تحصيل فرق {TotalDiffPaidDisplay} ({string.Join(" + ", payParts)})";
         }
         else
@@ -1182,6 +1213,67 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             false);
     }
 
+    /// <summary>
+    /// Persists the return/exchange to SQL Server. The repository owns the transaction; on success the
+    /// invoices (with returned quantities) and the operation ledger are re-read so every screen matches.
+    /// </summary>
+    private void ExecuteDatabaseOperation(
+        SalesInvoiceDesignItem invoice,
+        List<ReturnExchangeInvoiceLineViewModel> selectedLines,
+        string reason)
+    {
+        var requests = new List<SalesRepository.ReturnLineRequest>();
+        foreach (var lineVm in selectedLines)
+        {
+            if (lineVm.Line.DatabaseLineId <= 0)
+            {
+                SetStatus("أحد بنود الفاتورة غير محفوظ في قاعدة البيانات. اضغط «تحديث من قاعدة البيانات» وأعد المحاولة.", true);
+                return;
+            }
+
+            requests.Add(new SalesRepository.ReturnLineRequest(
+                lineVm.Line.DatabaseLineId,
+                lineVm.GoodReturnQty, lineVm.DamagedReturnQty));
+        }
+
+        var replacements = ReplacementItems.Where(_ => IsExchangeMode).Select(r => new SaleItemRequest(r.Product.Id, r.Quantity, r.SelectedPriceTier, r.UnitPrice)).ToList();
+        var payment = NeedsCustomerPayment
+            ? new SalesRepository.ExchangePayment(ParsedDiffCash, ParsedDiffVodafone, ParsedDiffInstaPay)
+            : new SalesRepository.ExchangePayment(0m, 0m, 0m);
+        SalesRepository.AdjustmentReceipt receipt;
+        try
+        {
+            receipt = IsExchangeMode
+                ? repository!.CreateExchange(new SalesRepository.ExchangeRequest(invoice, reason, requests, replacements), payment)
+                : repository!.CreateReturn(new SalesRepository.ReturnRequest(invoice, reason, requests));
+        }
+        catch (SalesDataException data)
+        {
+            SetStatus(data.Message, true);
+            return;
+        }
+        catch (Exception)
+        {
+            SetStatus("تعذر حفظ العملية في قاعدة البيانات؛ لم تتغير الفاتورة ولا المخزون.", true);
+            return;
+        }
+
+        // Re-read everything the operation touched so the screen shows the committed numbers.
+        var reloaded = RefreshFromDatabase();
+
+        notifyInventoryChanged?.Invoke();
+        notifyInvoicesChanged?.Invoke();
+
+        var returnedUnits = requests.Sum(r => r.GoodQuantity + r.DamagedQuantity);
+        var note = reloaded
+            ? string.Empty
+            : " (تعذر إعادة تحميل الفواتير تلقائيًا؛ اضغط «تحديث من قاعدة البيانات».)";
+        SetStatus(
+            $"تم حفظ {(IsExchangeMode ? "الاستبدال" : "المرتجع")} {receipt.Number} للفاتورة {invoice.InvoiceNumber}: " +
+            $"{returnedUnits} وحدة راجعة، {replacements.Sum(r => r.Quantity)} وحدة بديلة. {receipt.Settlement}{note}",
+            false);
+    }
+
     private void NotifySettlementChanged()
     {
         Changed(nameof(TotalGoodUnitsSelected));
@@ -1192,7 +1284,8 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         Changed(nameof(TotalReplacementValue));
         Changed(nameof(NetDifference));
         Changed(nameof(HasAnySelectedReturn));
-        Changed(nameof(NeedsCustomerRefund));
+        Changed(nameof(HasInvoiceReduction));
+        Changed(nameof(RefundPreview));
         Changed(nameof(NeedsCustomerPayment));
         Changed(nameof(IsEvenExchange));
         Changed(nameof(SettlementMagnitude));
@@ -1240,8 +1333,6 @@ public sealed class ReturnExchangeViewModel : ObservableObject
                    || inv.CustomerName.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.CustomerPhone.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.CashierName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                   || inv.VodafoneCashReference.Contains(query, StringComparison.OrdinalIgnoreCase)
-                   || inv.InstaPayReference.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || inv.Items.Any(line =>
                        line.ProductName.Contains(query, StringComparison.OrdinalIgnoreCase)
                        || line.Barcode.Contains(query, StringComparison.OrdinalIgnoreCase)
@@ -1278,6 +1369,16 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         Changed(nameof(HasNoReplacementResults));
     }
 
+    public void OpenFromReport(int id)
+    {
+        IsHistoryTabSelected = true;
+        if (repository is not null && IsErrorStatus) { FilteredOperations.Clear(); Changed(nameof(HasNoHistoryRecords)); return; }
+        SelectedHistoryTypeFilter = HistoryTypeFilters[0];
+        HistorySearchText = $"#{id}";
+        RefreshFilteredOperations();
+        SetStatus(FilteredOperations.Count == 1 ? "تم فتح عملية المرتجع / الاستبدال المحددة." : "لم تعد عملية المرتجع / الاستبدال موجودة.", FilteredOperations.Count != 1);
+    }
+
     private void RefreshFilteredOperations()
     {
         var query = historySearchText.Trim();
@@ -1287,6 +1388,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
             if (SelectedHistoryTypeFilter == "استبدال" && !op.IsExchange) return false;
 
             if (string.IsNullOrEmpty(query)) return true;
+            if (query.StartsWith('#') && int.TryParse(query.AsSpan(1), out var id)) return op.Id == id;
 
             return op.OperationNumber.Contains(query, StringComparison.OrdinalIgnoreCase)
                    || op.InvoiceNumber.Contains(query, StringComparison.OrdinalIgnoreCase)
@@ -1305,16 +1407,7 @@ public sealed class ReturnExchangeViewModel : ObservableObject
         NotifyOperationKpis();
     }
 
-    private void NotifyOperationKpis()
-    {
-        Changed(nameof(HistoryTabLabel));
-        Changed(nameof(TotalOperationsCount));
-        Changed(nameof(OperationsKpiSummary));
-        Changed(nameof(TotalGoodReturnedKpi));
-        Changed(nameof(TotalDamagedReturnedKpi));
-        Changed(nameof(TotalRefundedValueKpiDisplay));
-        Changed(nameof(TotalExchangeUpgradesKpiSubtext));
-    }
+    private void NotifyOperationKpis() => Changed(nameof(HistoryTabLabel));
 
     public void NotifyExternalDataChanged()
     {

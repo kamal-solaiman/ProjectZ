@@ -30,10 +30,8 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
     private decimal cashAmount;
     private string vodafoneCashAmountText = "";
     private decimal vodafoneCashAmount;
-    private string vodafoneCashReference = "";
     private string instaPayAmountText = "";
     private decimal instaPayAmount;
-    private string instaPayReference = "";
 
     private bool isUpdatingPayments;
     private bool hasManualSinglePaymentEdit;
@@ -227,8 +225,7 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
             {
                 if (!value)
                 {
-                    SetVodafoneTextProgrammatic("");
-                    VodafoneCashReference = "";
+                    SetVodafoneTextProgrammatic("");;
                 }
                 UpdatePresetFromEnabledChannels();
                 NotifyPaymentSummaryChanged();
@@ -248,8 +245,7 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
             {
                 if (!value)
                 {
-                    SetInstaPayTextProgrammatic("");
-                    InstaPayReference = "";
+                    SetInstaPayTextProgrammatic("");;
                 }
                 UpdatePresetFromEnabledChannels();
                 NotifyPaymentSummaryChanged();
@@ -307,17 +303,6 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
 
     public decimal VodafoneCashAmount => vodafoneCashAmount;
 
-    public string VodafoneCashReference
-    {
-        get => vodafoneCashReference;
-        set
-        {
-            if (vodafoneCashReference == value) return;
-            vodafoneCashReference = value;
-            Changed();
-        }
-    }
-
     public string InstaPayAmountText
     {
         get => instaPayAmountText;
@@ -342,17 +327,6 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
     }
 
     public decimal InstaPayAmount => instaPayAmount;
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set
-        {
-            if (instaPayReference == value) return;
-            instaPayReference = value;
-            Changed();
-        }
-    }
 
     public decimal TotalPaid => CashAmount + VodafoneCashAmount + InstaPayAmount;
     public decimal RemainingPayable => Math.Max(0m, NetTotal - TotalPaid);
@@ -435,11 +409,7 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
             SupplierSearchText = "";
             IsSupplierPickerOpen = false;
         });
-        ClearSupplierSelectionCommand = new ActionCommand(() =>
-        {
-            SelectedSupplier = null;
-            IsSupplierPickerOpen = true;
-        });
+        ClearSupplierSelectionCommand = new ActionCommand(ClearSupplierSelection);
         SelectSupplierCommand = new RelayCommand<SupplierDesignItem>(supplier =>
         {
             if (supplier is not null)
@@ -481,6 +451,13 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
 
     internal void Detach()
         => allSuppliers.CollectionChanged -= OnSuppliersCollectionChanged;
+
+    /// <summary>Drops the chosen supplier, e.g. when a SQL reload removed it from the directory.</summary>
+    public void ClearSupplierSelection()
+    {
+        SelectedSupplier = null;
+        IsSupplierPickerOpen = true;
+    }
 
     public void AddProduct(PosProductDesignItem product, int quantity = 1)
     {
@@ -618,9 +595,7 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
         Notes = "";
         discountAmountText = "";
         discountAmount = 0m;
-        Changed(nameof(DiscountAmountText));
-        VodafoneCashReference = "";
-        InstaPayReference = "";
+        Changed(nameof(DiscountAmountText));;;
         hasManualSinglePaymentEdit = false;
 
         ApplyPaymentPreset(PurchasePaymentPresetMode.CashOnly);
@@ -653,9 +628,7 @@ public sealed class PurchaseDraftInvoiceViewModel : ObservableObject
             DiscountAmount = EffectiveDiscount,
             CashPaid = CashAmount,
             VodafoneCashPaid = VodafoneCashAmount,
-            VodafoneCashReference = VodafoneCashReference.Trim(),
             InstaPayPaid = InstaPayAmount,
-            InstaPayReference = InstaPayReference.Trim(),
             Notes = Notes.Trim()
         };
 

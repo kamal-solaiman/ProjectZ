@@ -80,8 +80,7 @@ public sealed record InvoiceReturnLineRequest(SalesInvoiceLineDesignItem Line, i
 public sealed record InvoiceReturnSubmission(
     IReadOnlyList<InvoiceReturnLineRequest> Lines,
     string Reason,
-    bool ReturnAsAvailableStock,
-    bool RefundCashToCustomer);
+    bool ReturnAsAvailableStock);
 
 public sealed class InvoiceReturnLineViewModel : ObservableObject
 {
@@ -109,7 +108,7 @@ public sealed class InvoiceReturnLineViewModel : ObservableObject
     }
 
     public string ReturnQuantityDisplay => ReturnQuantity.ToString(CultureInfo.InvariantCulture);
-    public decimal LineRefundAmount => ReturnQuantity * Line.UnitPrice;
+    public decimal LineRefundAmount => Line.ReturnValue(ReturnQuantity);
     public string LineRefundAmountDisplay => PosFormatting.FormatCurrency(LineRefundAmount);
 
     public ActionCommand IncrementCommand { get; }
@@ -130,7 +129,6 @@ public sealed class InvoiceReturnViewModel : ObservableObject
 {
     private string reason = "";
     private bool returnAsAvailableStock = true;
-    private bool refundCashToCustomer = true;
     private string error = "";
 
     public SalesInvoiceDesignItem Invoice { get; }
@@ -167,21 +165,11 @@ public sealed class InvoiceReturnViewModel : ObservableObject
         set => ReturnAsAvailableStock = !value;
     }
 
-    public bool RefundCashToCustomer
-    {
-        get => refundCashToCustomer;
-        set
-        {
-            if (refundCashToCustomer == value) return;
-            refundCashToCustomer = value;
-            Changed();
-        }
-    }
-
     public int TotalReturnUnits => ReturnLines.Sum(l => l.ReturnQuantity);
     public decimal EstimatedReturnTotal => ReturnLines.Sum(l => l.LineRefundAmount);
     public string EstimatedReturnTotalDisplay => PosFormatting.FormatCurrency(EstimatedReturnTotal);
-    public string SummaryDisplay => $"إجمالي القطع المرتجعة: {TotalReturnUnits} قطعة · القيمة: {EstimatedReturnTotalDisplay}";
+    public string SummaryDisplay => $"قيمة {TotalReturnUnits} قطعة بعد الخصم: {EstimatedReturnTotalDisplay} · " +
+        Invoice.DescribeReduction(EstimatedReturnTotal);
 
     public string Error
     {
@@ -195,10 +183,14 @@ public sealed class InvoiceReturnViewModel : ObservableObject
     public ActionCommand ConfirmCommand { get; }
     public ActionCommand CancelCommand { get; }
 
-    public InvoiceReturnViewModel(SalesInvoiceDesignItem invoice, Action<InvoiceReturnSubmission> onConfirm)
+    /// <param name="onConfirm">
+    /// Returns null on success, or a user-facing error that keeps the dialog open so the operator can fix it.
+    /// </param>
+    public InvoiceReturnViewModel(
+        SalesInvoiceDesignItem invoice,
+        Func<InvoiceReturnSubmission, string?> onConfirm)
     {
         Invoice = invoice;
-        refundCashToCustomer = !invoice.HasRemaining;
 
         foreach (var line in invoice.Items.Where(i => i.RemainingQuantity > 0))
             ReturnLines.Add(new InvoiceReturnLineViewModel(line, NotifyTotals));
@@ -235,7 +227,14 @@ public sealed class InvoiceReturnViewModel : ObservableObject
                 return;
             }
 
-            onConfirm(new InvoiceReturnSubmission(selected, trimmedReason, ReturnAsAvailableStock, RefundCashToCustomer));
+            var error = onConfirm(new InvoiceReturnSubmission(selected, trimmedReason, ReturnAsAvailableStock));
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                // The SQL write failed: keep the dialog and its numbers so nothing is lost.
+                Error = error;
+                return;
+            }
+
             RequestCloseWithResult?.Invoke(true);
         });
 
@@ -255,18 +254,14 @@ public sealed class InvoiceReturnViewModel : ObservableObject
 public sealed record CollectPaymentSubmission(
     decimal CashAmount,
     decimal VodafoneAmount,
-    string VodafoneReference,
     decimal InstaPayAmount,
-    string InstaPayReference,
     string Note);
 
 public sealed class CollectInvoicePaymentViewModel : ObservableObject
 {
     private string cashAmountText;
     private string vodafoneAmountText = "";
-    private string vodafoneReference = "";
     private string instaPayAmountText = "";
-    private string instaPayReference = "";
     private string note = "";
     private string error = "";
 
@@ -284,22 +279,10 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
         set { vodafoneAmountText = value; Changed(); NotifySummary(); }
     }
 
-    public string VodafoneReference
-    {
-        get => vodafoneReference;
-        set { vodafoneReference = value; Changed(); Error = ""; }
-    }
-
     public string InstaPayAmountText
     {
         get => instaPayAmountText;
         set { instaPayAmountText = value; Changed(); NotifySummary(); }
-    }
-
-    public string InstaPayReference
-    {
-        get => instaPayReference;
-        set { instaPayReference = value; Changed(); Error = ""; }
     }
 
     public string Note
@@ -330,7 +313,12 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
     public ActionCommand ConfirmCommand { get; }
     public ActionCommand CancelCommand { get; }
 
-    public CollectInvoicePaymentViewModel(SalesInvoiceDesignItem invoice, Action<CollectPaymentSubmission> onConfirm)
+    /// <param name="onConfirm">
+    /// Returns null on success, or a user-facing error that keeps the dialog open so the operator can fix it.
+    /// </param>
+    public CollectInvoicePaymentViewModel(
+        SalesInvoiceDesignItem invoice,
+        Func<CollectPaymentSubmission, string?> onConfirm)
     {
         Invoice = invoice;
         cashAmountText = PosFormatting.FormatPlainNumber(invoice.RemainingAmount);
@@ -358,6 +346,11 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
 
         ConfirmCommand = new ActionCommand(() =>
         {
+            if (!new[] { CashAmountText, VodafoneAmountText, InstaPayAmountText }.All(PosFormatting.IsValidTender))
+            {
+                Error = "تحقق من مبالغ التحصيل وأدخل كل مبلغ بدقّة القرش.";
+                return;
+            }
             if (PaymentTotal <= 0m)
             {
                 Error = "أدخل مبلغ تحصيل أكبر من صفر.";
@@ -370,13 +363,18 @@ public sealed class CollectInvoicePaymentViewModel : ObservableObject
                 return;
             }
 
-            onConfirm(new CollectPaymentSubmission(
+            var error = onConfirm(new CollectPaymentSubmission(
                 ParsedCash,
                 ParsedVodafone,
-                VodafoneReference.Trim(),
                 ParsedInstaPay,
-                InstaPayReference.Trim(),
                 Note.Trim()));
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                // The SQL write failed: keep the dialog open instead of implying the payment was saved.
+                Error = error;
+                return;
+            }
+
             RequestCloseWithResult?.Invoke(true);
         });
 

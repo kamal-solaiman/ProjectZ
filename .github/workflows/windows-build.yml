@@ -14,10 +14,36 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Static checks
+        run: python tools/static_checks.py
       - name: Security tests
         run: dotnet run --project tests/ProjectZ.Security.Tests -c Release
+      - name: Appearance tests
+        shell: pwsh
+        run: |
+          dotnet run --project tests/ProjectZ.Appearance.Tests -c Release 2>&1 |
+            Tee-Object -FilePath appearance-tests.log
+          if ($LASTEXITCODE -ne 0) {
+            $text = (Get-Content appearance-tests.log -Raw)
+            $escaped = $text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Appearance tests::$escaped"
+            exit $LASTEXITCODE
+          }
       - name: Build WPF
         run: dotnet build ProjectZ.sln -c Release
+      - name: WPF appearance smoke tests
+        shell: pwsh
+        run: |
+          dotnet run --project tests/ProjectZ.Appearance.Wpf.Tests -c Release 2>&1 |
+            Tee-Object -FilePath appearance-wpf-tests.log
+          if ($LASTEXITCODE -ne 0) {
+            $text = (Get-Content appearance-wpf-tests.log -Raw)
+            # Keep the failed assertion/stack rather than hundreds of preceding PASS lines.
+            $text = $text.Substring([Math]::Max(0, $text.Length - 3800))
+            $escaped = $text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=WPF appearance smoke tests::$escaped"
+            exit $LASTEXITCODE
+          }
       - name: Publish self-contained x64
         run: dotnet publish src/ProjectZ/ProjectZ.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o publish/win-x64
       - name: Verify external configuration
@@ -30,3 +56,32 @@ jobs:
           name: ProjectZ-win-x64
           path: publish/win-x64/
           if-no-files-found: error
+
+  purchase-sql:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: SQL repositories against disposable SQL Server LocalDB
+        shell: pwsh
+        run: |
+          ./tests/ProjectZ.Purchase.Sql.Tests/Run.ps1 2>&1 |
+            Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'purchase-sql.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Surface SQL failure details
+        if: failure()
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'purchase-sql.log'
+          if (Test-Path $path) {
+            $text = Get-Content $path -Raw
+            # GitHub truncates an ::error annotation at about 4 KB from its start, so emit the tail
+            # of the log: the failing check (the harness prints FAIL: <message>) lives there.
+            $text = $text.Substring([Math]::Max(0, $text.Length - 3800))
+            $escaped = $text.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=SQL integration tests::$escaped"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "``````text`n$text`n``````"
+          }

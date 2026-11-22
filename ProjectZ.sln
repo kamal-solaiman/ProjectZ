@@ -4,12 +4,18 @@ VisualStudioVersion = 18.4.11620.152 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectZ", "src\ProjectZ\ProjectZ.csproj", "{B07BD00C-B16F-4F52-961A-478D039D02E1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectZ.Appearance.Tests", "tests\ProjectZ.Appearance.Tests\ProjectZ.Appearance.Tests.csproj", "{B7E2A419-6F3D-4C8B-9A21-5D0E8F4C7A63}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B7E2A419-6F3D-4C8B-9A21-5D0E8F4C7A63}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7E2A419-6F3D-4C8B-9A21-5D0E8F4C7A63}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7E2A419-6F3D-4C8B-9A21-5D0E8F4C7A63}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7E2A419-6F3D-4C8B-9A21-5D0E8F4C7A63}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B07BD00C-B16F-4F52-961A-478D039D02E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B07BD00C-B16F-4F52-961A-478D039D02E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B07BD00C-B16F-4F52-961A-478D039D02E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
