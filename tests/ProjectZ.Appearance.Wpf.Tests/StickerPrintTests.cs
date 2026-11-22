@@ -42,7 +42,7 @@ internal static class StickerPrintTests
         var sticker = BarcodeStickerPrinting.ForProduct(product, "نيو فونز", out var error);
         check(error is null && sticker is not null, "A saved item with a barcode builds an inventory sticker");
         if (sticker is null) throw new Exception("FAIL: inventory sticker was not built");
-        check(sticker!.Kind == StickerKind.ProductBarcode && sticker.PrintedStoreName == "نيو فونز"
+        check(sticker.Kind == StickerKind.ProductBarcode && sticker.PrintedStoreName == "نيو فونز"
               && sticker.Title == "شاحن أيفون 20 وات" && sticker.Barcode == "6221039111128",
             "Inventory sticker carries the store name, product name and barcode");
 
