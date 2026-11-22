@@ -48,7 +48,6 @@ internal static class StickerPrintTests
 
         var label = BarcodeStickerPrinting.BuildSticker(sticker);
         label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        Console.WriteLine($"DEBUG label Width={label.Width:R} Height={label.Height:R} expected={BarcodeStickerPrinting.ToDips(50):R},{BarcodeStickerPrinting.ToDips(25):R}");
         check(Math.Abs(label.Width - BarcodeStickerPrinting.ToDips(50)) < 0.01
               && Math.Abs(label.Height - BarcodeStickerPrinting.ToDips(25)) < 0.01,
             "Inventory sticker is exactly 50 × 25 mm");

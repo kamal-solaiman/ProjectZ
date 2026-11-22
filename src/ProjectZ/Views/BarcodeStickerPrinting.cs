@@ -98,7 +98,7 @@ public static class BarcodeStickerPrinting
     /// </summary>
     public static FrameworkElement BuildSticker(BarcodeSticker sticker) => BuildStickerAt(sticker, 1);
 
-    /// <summary>The same label scaled for an on-screen preview; printing always uses the real size.</summary>
+    /// <summary>The same label scaled down for an on-screen preview; printing always uses the real size.</summary>
     public static FrameworkElement BuildPreview(BarcodeSticker sticker, double zoom = 0.8)
     {
         var host = new Viewbox
@@ -109,9 +109,10 @@ public static class BarcodeStickerPrinting
         return host;
     }
 
-    private static FrameworkElement BuildStickerAt(BarcodeSticker sticker, double millimetresPerUnit)
+    /// <summary>Builds the label at real size × <paramref name="scale"/>; the result is in DIPs.</summary>
+    private static FrameworkElement BuildStickerAt(BarcodeSticker sticker, double scale)
     {
-        var zoom = millimetresPerUnit * ToDips(1);
+        var zoom = scale * ToDips(1);
         var label = new Border
         {
             Width = ToDips(BarcodeSticker.LabelWidthMillimetres) * zoom,
