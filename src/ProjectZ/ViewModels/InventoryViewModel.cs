@@ -593,10 +593,10 @@ public sealed class InventoryViewModel : ObservableObject
             return;
         }
 
-        var sticker = BarcodeStickerPrinting.ForProduct(product, StoreIdentity.Current.Name, out var error);
+        BarcodeSticker? sticker = BarcodeStickerPrinting.ForProduct(product, StoreIdentity.Current.Name, out var error);
         if (sticker is null)
         {
-            SetStatus(error, true);
+            SetStatus(string.IsNullOrWhiteSpace(error) ? "تعذّر تجهيز ملصق الباركود لهذا الصنف." : error, true);
             return;
         }
 

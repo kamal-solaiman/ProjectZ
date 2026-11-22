@@ -28,8 +28,8 @@ internal static class StickerPrintTests
             "A maintenance order code round-trips through the B/C switch");
         check(Decode(Code128Encoder.Encode("AB1234CD")) == "AB1234CD",
             "A mixed value switches to C and back to B at the right symbol");
-        // Twelve digits = start, switch to C, six digit pairs, check and stop = 10 symbols × 6 elements.
-        check(Code128Encoder.Encode("123456789012").Count == 10 * 6,
+        // Twelve digits = start, switch to C, six pairs, check, stop → nine 6-element symbols + a 7-element stop.
+        check(Code128Encoder.Encode("123456789012").Count == 9 * 6 + 7,
             "Twelve digits encode as start, set C, six pairs, check and stop");
 
         check(Code128Encoder.Validate("  ") == Code128Encoder.EmptyMessage, "Blank barcode is refused with an Arabic message");
