@@ -28,8 +28,8 @@ internal static class StickerPrintTests
             "A maintenance order code round-trips through the B/C switch");
         check(Decode(Code128Encoder.Encode("AB1234CD")) == "AB1234CD",
             "A mixed value switches to C and back to B at the right symbol");
-        // Twelve digits = start, switch to C, six digit pairs, check and stop (7 symbols, 65 modules).
-        check(Code128Encoder.Encode("123456789012").Count == 7 * 6,
+        // Twelve digits = start, switch to C, six digit pairs, check and stop = 10 symbols × 6 elements.
+        check(Code128Encoder.Encode("123456789012").Count == 10 * 6,
             "Twelve digits encode as start, set C, six pairs, check and stop");
 
         check(Code128Encoder.Validate("  ") == Code128Encoder.EmptyMessage, "Blank barcode is refused with an Arabic message");
@@ -41,6 +41,7 @@ internal static class StickerPrintTests
         var product = new PosProductDesignItem { Name = "شاحن أيفون 20 وات", Barcode = "6221039111128" };
         var sticker = BarcodeStickerPrinting.ForProduct(product, "نيو فونز", out var error);
         check(error is null && sticker is not null, "A saved item with a barcode builds an inventory sticker");
+        if (sticker is null) throw new Exception("FAIL: inventory sticker was not built");
         check(sticker!.Kind == StickerKind.ProductBarcode && sticker.PrintedStoreName == "نيو فونز"
               && sticker.Title == "شاحن أيفون 20 وات" && sticker.Barcode == "6221039111128",
             "Inventory sticker carries the store name, product name and barcode");
@@ -84,7 +85,8 @@ internal static class StickerPrintTests
         var order = new MaintenanceOrderDesignItem { OrderNumber = "MNT-2026-0042" };
         order.CustomerName = "أحمد محمود";
         var maintenance = BarcodeStickerPrinting.ForMaintenanceOrder(order, "نيو فونز", out var maintenanceError);
-        check(maintenanceError is null && maintenance!.Kind == StickerKind.MaintenanceOrder
+        if (maintenance is null) throw new Exception("FAIL: maintenance sticker was not built");
+        check(maintenanceError is null && maintenance.Kind == StickerKind.MaintenanceOrder
               && maintenance.PrintedStoreName == "نيو فونز" && maintenance.Title == "أحمد محمود"
               && maintenance.Barcode == "MNT-2026-0042",
             "Maintenance sticker carries store, customer and order code");
