@@ -254,8 +254,10 @@ public static class BarcodeStickerPrinting
     /// <summary>How many labels fit a printable area, and therefore how many go on one sheet.</summary>
     public static (int Across, int Down, int PerPage) LabelGrid(Size printableDips)
     {
-        var across = Math.Clamp((int)(printableDips.Width / ToDips(BarcodeSticker.LabelWidthMillimetres + SafetyMargin)), 1, 20);
-        var down = Math.Clamp((int)(printableDips.Height / ToDips(BarcodeSticker.LabelHeightMillimetres + SafetyMargin)), 1, 40);
+        var labelWidth = ToDips(BarcodeSticker.LabelWidthMillimetres);
+        var labelHeight = ToDips(BarcodeSticker.LabelHeightMillimetres);
+        var across = Math.Clamp((int)((printableDips.Width + 0.001) / (labelWidth + ToDips(SafetyMargin))), 1, 20);
+        var down = Math.Clamp((int)((printableDips.Height + 0.001) / (labelHeight + ToDips(SafetyMargin))), 1, 40);
         return (across, down, across * down);
     }
 
@@ -263,6 +265,11 @@ public static class BarcodeStickerPrinting
     /// The document handed to the printer: labels flow left-to-right then down, and every copy is
     /// one label. A 50 × 25 mm label page therefore prints exactly one sticker per page, while an
     /// A4 sheet repeats them in a grid that can be cut.
+    /// <para>
+    /// A page that declares exactly the label size needs no safety margin — that is how label
+    /// printers report their media. The margin only protects multi-label pages from a driver that
+    /// shaves a fraction of a millimetre off the printable area.
+    /// </para>
     /// </summary>
     public static FixedDocument BuildDocument(BarcodeSticker sticker, int copies, Size pageDips, Rect printableDips)
     {
@@ -270,8 +277,9 @@ public static class BarcodeStickerPrinting
 
         var labelWidth = ToDips(BarcodeSticker.LabelWidthMillimetres);
         var labelHeight = ToDips(BarcodeSticker.LabelHeightMillimetres);
-        if (printableDips.Width < ToDips(BarcodeSticker.LabelWidthMillimetres + SafetyMargin)
-            || printableDips.Height < ToDips(BarcodeSticker.LabelHeightMillimetres + SafetyMargin))
+        var isLabelPage = pageDips.Width <= labelWidth + 1 && pageDips.Height <= labelHeight + 1;
+        var margin = isLabelPage ? 0 : ToDips(SafetyMargin);
+        if (printableDips.Width + 0.001 < labelWidth + margin || printableDips.Height + 0.001 < labelHeight + margin)
             throw new InvalidOperationException(
                 "المقاس المحدد في الطابعة أصغر من الملصق (50 × 25 مم). اختر طابعة ملصقات أو مقاس ورق أكبر.");
 
