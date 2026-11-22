@@ -240,6 +240,9 @@
                             <ColumnDefinition Width="145" />
                             <ColumnDefinition Width="8" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="52" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <Button Grid.Column="0"
@@ -316,6 +319,25 @@
                                        IsHitTestVisible="False"
                                        Visibility="{Binding SearchText, Converter={StaticResource StringEmptyToVis}}" />
                         </Grid>
+
+                        <!-- عدد ملصقات الباركود: يُستخدم عند الضغط على زر «باركود» في أي صنف -->
+                        <TextBox Grid.Column="10"
+                                 Style="{StaticResource PosCompactTextBoxStyle}"
+                                 MinHeight="34"
+                                 Padding="6,5"
+                                 ToolTip="عدد ملصقات الباركود المطبوعة لكل ضغطة على زر «باركود» (1 - 100)"
+                                 FlowDirection="LeftToRight"
+                                 TextAlignment="Center"
+                                 Text="{Binding BarcodeCopiesText, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Grid.Column="11"
+                                   Text="ملصق"
+                                   Style="{StaticResource PosRtlTextStyle}"
+                                   Margin="5,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Theme.Legacy.475569.Muted}" />
                     </Grid>
                 </Border>
 
@@ -546,9 +568,9 @@
                                                                 Background="{DynamicResource Theme.Legacy.F1F5F9.Surface}"
                                                                 Foreground="{DynamicResource Theme.Legacy.334155.Text}"
                                                                 BorderBrush="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}"
-                                                                ToolTip="معاينة وطباعة ملصق الباركود"
+                                                                ToolTip="طباعة ملصق باركود (50 × 25 مم): اسم المحل ثم اسم المنتج ثم الباركود"
                                                                 Command="{Binding DataContext.OpenBarcodePrintCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                CommandParameter="{Binding}" />
+                                                                CommandParameter="{Binding}"  security:PermissionVisibility.Code="PRODUCTS.BARCODE" />
 
                                                         <Button Content="هالك"
                                                                 Style="{StaticResource InvActionBtnBaseStyle}"

@@ -68,7 +68,7 @@
                     </Style>
                 </Button.Style>
             </Button>
-            <Button Content="ملصق تذكرة الجهاز للفني (Sticker)" Margin="8,0,0,0" Command="{Binding SelectDeviceStickerModeCommand}">
+            <Button Content="ملصق أمر الصيانة (50 × 25 مم)" Margin="8,0,0,0" Command="{Binding SelectDeviceStickerModeCommand}">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource PosSecondaryButtonStyle}">
                         <Setter Property="Padding" Value="14,7" />
@@ -210,95 +210,66 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Mode 2: Compact Barcode-Style Device Sticker (Logo, Customer, Code, Received Date only) -->
+                    <!-- Mode 2: 50 × 25 mm device sticker: store name (black band, white text),
+                         customer name, and the maintenance order code — the sticker BarcodeStickerPrinting prints. -->
                     <Border Padding="24,22"
                             CornerRadius="10"
                             Background="#CBD5E1"
                             BorderBrush="#94A3B8"
                             BorderThickness="1"
                             VerticalAlignment="Center"
+                            HorizontalAlignment="Center"
                             Visibility="{Binding IsDeviceStickerMode, Converter={StaticResource BoolToVis}}">
-                        <Border Width="180"
-                                Height="90"
-                                Padding="7,5"
+                        <Border Width="189"
+                                Height="95"
                                 Background="White"
-                                BorderBrush="#64748B"
+                                BorderBrush="#94A3B8"
                                 BorderThickness="1"
-                                CornerRadius="4">
-                            <Grid FlowDirection="LeftToRight">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
+                                SnapsToDevicePixels="True">
+                            <StackPanel FlowDirection="LeftToRight">
+                                <!-- Store name: black background, white text -->
+                                <Border Background="#000000" Padding="5,3">
+                                    <TextBlock Text="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay}"
+                                               Style="{StaticResource PosCenterTextStyle}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Foreground="White"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Border>
 
-                                <!-- Logo + Received Date -->
-                                <Grid Grid.Row="0" Margin="0,0,0,2">
+                                <!-- Customer name -->
+                                <TextBlock Text="{Binding Order.CustomerName}"
+                                           Style="{StaticResource PosCenterTextStyle}"
+                                           Margin="4,12,4,0"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           Foreground="Black"
+                                           TextTrimming="CharacterEllipsis" />
+
+                                <!-- Maintenance order code -->
+                                <Grid Margin="4,10,4,0" FlowDirection="LeftToRight">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-
                                     <TextBlock Grid.Column="0"
-                                               Text="{Binding Order.ReceivedDateDisplay}"
+                                               Text="{Binding Order.OrderNumber}"
                                                Style="{StaticResource PosLtrTextStyle}"
                                                VerticalAlignment="Center"
                                                FontFamily="Consolas, Segoe UI"
-                                               FontSize="8.5"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               Foreground="Black" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="كود الأمر:"
+                                               Style="{StaticResource PosRtlTextStyle}"
+                                               Margin="4,0"
+                                               VerticalAlignment="Center"
+                                               FontSize="10.5"
                                                FontWeight="SemiBold"
-                                               Foreground="#475569" />
-
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name, Source={StaticResource StoreIdentity}, Mode=OneWay}"
-                                                   Style="{StaticResource PosLtrTextStyle}"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="9.5"
-                                                   FontWeight="Bold"
-                                                   Foreground="#102E48"
-                                                   Margin="0,0,4,0" />
-                                        <Border Width="14" Height="14" CornerRadius="3" Background="#102E48">
-                                            <TextBlock Text="PZ"
-                                                       Style="{StaticResource PosCenterTextStyle}"
-                                                       VerticalAlignment="Center"
-                                                       FontSize="7"
-                                                       FontWeight="Bold"
-                                                       Foreground="#6EE7D8" />
-                                        </Border>
-                                    </StackPanel>
+                                               Foreground="Black" />
                                 </Grid>
-
-                                <!-- Customer Name -->
-                                <TextBlock Grid.Row="1"
-                                           Text="{Binding Order.CustomerName}"
-                                           Style="{StaticResource PosCenterTextStyle}"
-                                           FontSize="9.5"
-                                           FontWeight="Bold"
-                                           Foreground="#0F172A"
-                                           TextTrimming="CharacterEllipsis"
-                                           Margin="0,0,0,2" />
-
-                                <!-- Barcode Graphic -->
-                                <Path Grid.Row="2"
-                                      Data="M0,0 H3 V24 H0 Z M5,0 H6 V24 H5 Z M9,0 H13 V24 H9 Z M15,0 H17 V24 H15 Z M20,0 H21 V24 H20 Z M23,0 H27 V24 H23 Z M29,0 H30 V24 H29 Z M33,0 H35 V24 H33 Z M38,0 H42 V24 H38 Z M44,0 H45 V24 H44 Z M48,0 H50 V24 H48 Z M52,0 H55 V24 H52 Z M57,0 H59 V24 H57 Z M61,0 H64 V24 H61 Z M66,0 H68 V24 H66 Z M71,0 H74 V24 H71 Z M76,0 H78 V24 H76 Z M80,0 H83 V24 H80 Z M85,0 H86 V24 H85 Z M89,0 H92 V24 H89 Z"
-                                      Fill="#0F172A"
-                                      Stretch="Fill"
-                                      Width="148"
-                                      Height="24"
-                                      VerticalAlignment="Center"
-                                      HorizontalAlignment="Center" />
-
-                                <!-- Ticket Code -->
-                                <TextBlock Grid.Row="3"
-                                           Text="{Binding Order.OrderNumber}"
-                                           Style="{StaticResource PosLtrTextStyle}"
-                                           HorizontalAlignment="Center"
-                                           FontFamily="Consolas, Segoe UI"
-                                           FontSize="9.5"
-                                           FontWeight="Bold"
-                                           Foreground="#0F172A"
-                                           Margin="0,1,0,0" />
-                            </Grid>
+                            </StackPanel>
                         </Border>
                     </Border>
 
@@ -438,7 +409,7 @@
             </ScrollViewer>
         </Border>
 
-        <!-- Print Status -->
+        <!-- Print Status: green after a successful print, red when the printer or the data refused -->
         <Border Grid.Row="3"
                 Margin="0,10,0,0"
                 Padding="10,7"
@@ -447,11 +418,31 @@
                 BorderBrush="#A7F3D0"
                 BorderThickness="1"
                 Visibility="{Binding HasStatusMessage, Converter={StaticResource BoolToVis}}">
-            <TextBlock Text="{Binding StatusMessage}"
-                       Style="{StaticResource PosRtlTextStyle}"
-                       FontSize="12"
-                       FontWeight="SemiBold"
-                       Foreground="#065F46" />
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
+                            <Setter Property="Background" Value="#FEF2F2" />
+                            <Setter Property="BorderBrush" Value="#FECACA" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock Text="{Binding StatusMessage}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource PosRtlTextStyle}">
+                        <Setter Property="FontSize" Value="12" />
+                        <Setter Property="FontWeight" Value="SemiBold" />
+                        <Setter Property="TextWrapping" Value="Wrap" />
+                        <Setter Property="Foreground" Value="#065F46" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsErrorStatus}" Value="True">
+                                <Setter Property="Foreground" Value="#B42318" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
         </Border>
 
         <!-- Footer -->
@@ -471,11 +462,12 @@
                     Command="{Binding CloseCommand}" />
 
             <Button Grid.Column="2"
-                    Content="معاينة / طباعة الآن"
+                    Content="{Binding PrintButtonLabel}"
                     Style="{StaticResource PosPrimaryCompactButtonStyle}"
                     MinWidth="190"
                     Padding="18,9"
                     IsDefault="True"
+                    ToolTip="{Binding StickerHint}"
                     Command="{Binding PrintCommand}"  security:PermissionVisibility.Code="MAINTENANCE.PRINT" />
         </Grid>
     </Grid>

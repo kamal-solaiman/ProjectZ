@@ -124,52 +124,17 @@
                                     Background="{DynamicResource Theme.Legacy.E2E8F0.Input}"
                                     BorderBrush="{DynamicResource Theme.Legacy.CBD5E1.BorderStrong}"
                                     BorderThickness="1">
-                                <!-- Standard Thermal Barcode Label (50mm x 25mm at 96 DPI = 190 x 95 DIP) -->
+                                <!-- The 50 × 25 mm label exactly as the inventory prints it, drawn by the same renderer:
+                                     store name white on a black band, product name and a real Code128 symbol. -->
                                 <Border Width="190"
                                         Height="95"
-                                        Padding="8,5"
-                                        CornerRadius="4"
-                                        Background="{DynamicResource Theme.Legacy.FFFFFF.Surface}"
+                                        ClipToBounds="True"
                                         BorderBrush="{DynamicResource Theme.Legacy.94A3B8.BorderStrong}"
                                         BorderThickness="1"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center">
-                                    <Grid FlowDirection="LeftToRight">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-
-                                        <TextBlock Grid.Row="0"
-                                                   Text="{Binding PreviewName}"
-                                                   Style="{StaticResource PosCenterTextStyle}"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="10.5"
-                                                   FontWeight="Bold"
-                                                   Foreground="{DynamicResource Theme.Legacy.0F172A.Text}"
-                                                   TextWrapping="Wrap"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   MaxHeight="28" />
-
-                                        <Path Grid.Row="1"
-                                              Data="M0,0 H3 V34 H0 Z M5,0 H6 V34 H5 Z M9,0 H13 V34 H9 Z M15,0 H17 V34 H15 Z M20,0 H21 V34 H20 Z M23,0 H27 V34 H23 Z M29,0 H30 V34 H29 Z M33,0 H35 V34 H33 Z M38,0 H42 V34 H38 Z M44,0 H45 V34 H44 Z M48,0 H50 V34 H48 Z M52,0 H55 V34 H52 Z M57,0 H59 V34 H57 Z M61,0 H64 V34 H61 Z M66,0 H68 V34 H66 Z M71,0 H74 V34 H71 Z M76,0 H78 V34 H76 Z M80,0 H83 V34 H80 Z M85,0 H86 V34 H85 Z M89,0 H92 V34 H89 Z"
-                                              Fill="{DynamicResource Theme.Legacy.0F172A.Text}"
-                                              Stretch="Fill"
-                                              Width="156"
-                                              Height="34"
-                                              Margin="0,2,0,2"
-                                              HorizontalAlignment="Center" />
-
-                                        <TextBlock Grid.Row="2"
-                                                   Text="{Binding PreviewBarcode}"
-                                                   Style="{StaticResource PosLtrTextStyle}"
-                                                   HorizontalAlignment="Center"
-                                                   FontFamily="Consolas, Segoe UI"
-                                                   FontSize="10.5"
-                                                   FontWeight="Bold"
-                                                   Foreground="{DynamicResource Theme.Legacy.0F172A.Text}" />
-                                    </Grid>
+                                    <!-- Content is an object DP, so the live sticker visual binds safely. -->
+                                    <ContentControl x:Name="StickerPreviewHost" Content="{Binding StickerPreview}" />
                                 </Border>
                             </Border>
                         </StackPanel>

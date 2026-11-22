@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Globalization;
+using System.Windows;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Data;
 using ProjectZ.Services;
+using ProjectZ.Views;
 
 namespace ProjectZ.ViewModels;
 
@@ -57,6 +59,7 @@ public sealed class AddProductViewModel : ObservableObject
             productName = value;
             Changed();
             Changed(nameof(PreviewName));
+            Changed(nameof(StickerPreview));
         }
     }
 
@@ -69,6 +72,7 @@ public sealed class AddProductViewModel : ObservableObject
             barcode = value;
             Changed();
             Changed(nameof(PreviewBarcode));
+            Changed(nameof(StickerPreview));
         }
     }
 
@@ -287,6 +291,25 @@ public sealed class AddProductViewModel : ObservableObject
     // Standard barcode label preview (product name + barcode only)
     public string PreviewName => string.IsNullOrWhiteSpace(ProductName) ? "اسم المنتج" : ProductName.Trim();
     public string PreviewBarcode => string.IsNullOrWhiteSpace(Barcode) ? "62210010XX" : Barcode.Trim();
+
+    /// <summary>
+    /// The 50 × 25 mm label exactly as the inventory prints it: store name white on a black band,
+    /// the product name in black, then a real Code128 symbol for the typed barcode.
+    /// </summary>
+    public FrameworkElement StickerPreview => BarcodeStickerPrinting.BuildPreview(new BarcodeSticker(
+        StickerKind.ProductBarcode,
+        StoreIdentity.Current.Name,
+        PreviewName,
+        StickerBarcodeValue));
+
+    private string StickerBarcodeValue
+    {
+        get
+        {
+            var typed = (Barcode ?? string.Empty).Trim();
+            return Code128Encoder.Validate(typed) is null ? typed : "6221001000015";
+        }
+    }
 
     public string CatalogCountDisplay => $"{sharedCatalog.Count} صنف في الدليل";
     public bool HasNoCatalogResults => FilteredProducts.Count == 0;
