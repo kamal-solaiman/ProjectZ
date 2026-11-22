@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Windows;
+using System.Windows.Controls;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Services;
@@ -12,9 +15,15 @@ public enum MaintenanceReceiptPrintMode
     DeliveryAndWarrantyReceipt = 2
 }
 
+/// <summary>
+/// Print preview for the three maintenance documents. The intake receipt, the delivery/warranty
+/// invoice and the 50 × 25 mm sticker are all printed for real on black-and-white paper; nothing here
+/// writes to SQL by itself — the caller records the activity after a successful print.
+/// </summary>
 public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
 {
     private MaintenanceReceiptPrintMode mode;
+    private string copiesText = "1";
     private string statusMessage = "";
     private bool isErrorStatus;
 
@@ -26,15 +35,44 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
 
     public string CurrentModeLabel => mode switch
     {
-        MaintenanceReceiptPrintMode.DeviceSticker => "ملصق أمر الصيانة",
-        MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt => "إيصال التسليم والضمان للعميل (80 مم)",
-        _ => "إيصال استلام الصيانة للعميل (80 مم)"
+        MaintenanceReceiptPrintMode.DeviceSticker => "ملصق أمر الصيانة (50 × 25 مم)",
+        MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt => "فاتورة تسليم وضمان (80 مم)",
+        _ => "إيصال استلام (80 مم)"
     };
 
-    /// <summary>Button caption: the sticker is printed for real, the two receipts are still previews.</summary>
-    public string PrintButtonLabel => IsDeviceStickerMode ? "طباعة الملصق الآن" : "معاينة الطباعة";
+    /// <summary>Every mode now prints for real, so the button always says so.</summary>
+    public string PrintButtonLabel => "طباعة الآن";
 
-    public string StickerHint => $"يُطبع على ملصق 50 × 25 مم: اسم المحل، اسم العميل، كود الأمر {Order.OrderNumber}.";
+    /// <summary>What leaves the printer in the current mode, quoted under the button.</summary>
+    public string PrintHint => IsDeviceStickerMode
+        ? $"يُطبع على ملصق 50 × 25 مم: اسم المحل، اسم العميل، كود الأمر {Order.OrderNumber}."
+        : $"يُطبع على ورق حراري 80 مم بالأبيض والأسود: {CurrentModeLabel} — الأمر {Order.OrderNumber}.";
+
+    /// <summary>The classic paper for the selected mode; the sticker builds its own 50 × 25 mm label.</summary>
+    public FrameworkElement PaperPreview => mode switch
+    {
+        MaintenanceReceiptPrintMode.DeviceSticker => StickerPreview(),
+        MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt => MaintenanceReceiptPaper.BuildDelivery(Order),
+        _ => MaintenanceReceiptPaper.BuildIntake(Order)
+    };
+
+    public bool UsesThermalRoll => !IsDeviceStickerMode;
+
+    public string PaperCaption => IsDeviceStickerMode
+        ? "ملصق 50 × 25 مم · اسم المحل ثم اسم العميل ثم كود الأمر"
+        : "ورق حراري 80 مم · أبيض وأسود · يحتفظ ارتفاع الصفحة بآخر سطر ليقطعها الجهاز عنده";
+
+    public string CopiesText
+    {
+        get => copiesText;
+        set
+        {
+            if (copiesText == value) return;
+            copiesText = value;
+            Changed();
+            StatusMessage = "";
+        }
+    }
 
     public string StatusMessage
     {
@@ -75,7 +113,8 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
     {
         Order = order;
         mode = initialMode == MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt && !Order.IsDelivered
-            ? MaintenanceReceiptPrintMode.CustomerIntakeReceipt : initialMode;
+            ? MaintenanceReceiptPrintMode.CustomerIntakeReceipt
+            : initialMode;
 
         SelectCustomerReceiptModeCommand = new ActionCommand(() => SetMode(MaintenanceReceiptPrintMode.CustomerIntakeReceipt));
         SelectDeviceStickerModeCommand = new ActionCommand(() => SetMode(MaintenanceReceiptPrintMode.DeviceSticker));
@@ -86,41 +125,73 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
 
     private void Print(Action<MaintenanceReceiptPrintMode, string>? onPrintPreview)
     {
-        if (!IsDeviceStickerMode)
+        if (!int.TryParse(CopiesText.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var copies)
+            || copies is < 1 or > 20)
         {
-            // The 80 mm receipts keep the previous preview-only behaviour in this delivery.
-            try
+            SetStatus("أدخل عدد نسخ صحيحًا من 1 إلى 20.", true);
+            return;
+        }
+
+        // The sticker prints on its own 50 × 25 mm paper; both receipts share the 80 mm roll.
+        if (IsDeviceStickerMode)
+        {
+            var sticker = BarcodeStickerPrinting.ForMaintenanceOrder(Order, StoreIdentity.Current.Name, out var stickerError);
+            if (sticker is null)
             {
-                onPrintPreview?.Invoke(mode, CurrentModeLabel);
-                SetStatus($"تمت معاينة {CurrentModeLabel} للأمر {Order.OrderNumber} (طباعة الإيصالات لم تُفعّل بعد).", false);
+                SetStatus(stickerError, true);
+                return;
             }
-            catch (Exception ex) { SetStatus($"تعذّر تأكيد المعاينة: {ex.Message}", true); }
+
+            var stickerResult = BarcodeStickerPrinting.Print(sticker, copies);
+            if (stickerResult.WasCancelled)
+            {
+                SetStatus("أُلغيت الطباعة قبل اختيار الطابعة.", false);
+                return;
+            }
+
+            if (!stickerResult.Succeeded)
+            {
+                SetStatus(stickerResult.Message, true);
+                return;
+            }
+
+            SetStatus($"طُبع {copies} ملصق للأمر {Order.OrderNumber} على «{stickerResult.PrinterName}».", false);
+            RecordActivity(onPrintPreview, MaintenanceReceiptPrintMode.DeviceSticker);
             return;
         }
 
-        BarcodeSticker? sticker = BarcodeStickerPrinting.ForMaintenanceOrder(Order, StoreIdentity.Current.Name, out var error);
-        if (sticker is null)
-        {
-            SetStatus(string.IsNullOrWhiteSpace(error) ? "تعذّر تجهيز ملصق أمر الصيانة." : error, true);
-            return;
-        }
-
-        var result = BarcodeStickerPrinting.Print(sticker, 1);
-        if (result.WasCancelled)
+        var dialog = new PrintDialog();
+        if (dialog.ShowDialog() != true)
         {
             SetStatus("أُلغيت الطباعة قبل اختيار الطابعة.", false);
             return;
         }
 
+        var delivery = IsDeliveryReceiptMode;
+        var result = ClassicReceipt.Print(
+            () => delivery ? MaintenanceReceiptPaper.BuildDelivery(Order) : MaintenanceReceiptPaper.BuildIntake(Order),
+            dialog, $"{CurrentModeLabel} — {Order.OrderNumber}", copies);
         if (!result.Succeeded)
         {
             SetStatus(result.Message, true);
             return;
         }
 
-        SetStatus($"طُبع ملصق الأمر {Order.OrderNumber} للعميل «{Order.CustomerName}» على «{result.PrinterName}».", false);
-        try { onPrintPreview?.Invoke(MaintenanceReceiptPrintMode.DeviceSticker, CurrentModeLabel); }
+        SetStatus($"تم إرسال {CurrentModeLabel} للأمر {Order.OrderNumber} ({copies} نسخة) إلى «{result.PrinterName}».", false);
+        RecordActivity(onPrintPreview, mode);
+    }
+
+    private void RecordActivity(Action<MaintenanceReceiptPrintMode, string>? onPrintPreview, MaintenanceReceiptPrintMode printed)
+    {
+        try { onPrintPreview?.Invoke(printed, CurrentModeLabel); }
         catch (Exception ex) { SetStatus($"تمت الطباعة لكن تعذّر تسجيلها في سجل الأمر: {ex.Message}", true); }
+    }
+
+    private FrameworkElement StickerPreview()
+    {
+        var sticker = BarcodeStickerPrinting.ForMaintenanceOrder(Order, StoreIdentity.Current.Name, out _)
+            ?? new BarcodeSticker(StickerKind.MaintenanceOrder, StoreIdentity.Current.Name, Order.CustomerName, Order.OrderNumber);
+        return BarcodeStickerPrinting.BuildPreview(sticker);
     }
 
     private void SetStatus(string message, bool isError)
@@ -137,7 +208,11 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
         Changed(nameof(IsDeviceStickerMode));
         Changed(nameof(IsDeliveryReceiptMode));
         Changed(nameof(CurrentModeLabel));
+        Changed(nameof(PaperPreview));
+        Changed(nameof(UsesThermalRoll));
+        Changed(nameof(PaperCaption));
         Changed(nameof(PrintButtonLabel));
+        Changed(nameof(PrintHint));
         StatusMessage = "";
         IsErrorStatus = false;
     }

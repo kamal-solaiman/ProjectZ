@@ -118,17 +118,17 @@ internal static class StickerPrintTests
         inventory.OpenBarcodePrintCommand.Execute(product);
         check(inventory.IsErrorStatus, "A non-numeric copy count is refused in Arabic");
 
-        // The receipt preview keeps the 80 mm previews but prints the sticker straight away.
+        // Every document in the preview prints for real now, so the button always says «طباعة الآن».
         var preview = new MaintenanceReceiptPreviewViewModel(order);
-        check(preview.PrintButtonLabel == "معاينة الطباعة", "Receipt modes keep the preview action");
+        check(preview.PrintButtonLabel == "طباعة الآن", "Receipt modes offer a real print action");
         preview.SelectDeviceStickerModeCommand.Execute(null);
-        check(preview.IsDeviceStickerMode && preview.PrintButtonLabel == "طباعة الملصق الآن"
-              && preview.StickerHint.Contains("MNT-2026-0042", StringComparison.Ordinal),
-            "Sticker mode switches the button to a real print and names the order code");
+        check(preview.IsDeviceStickerMode && preview.PrintButtonLabel == "طباعة الآن"
+              && preview.PrintHint.Contains("MNT-2026-0042", StringComparison.Ordinal)
+              && preview.PrintHint.Contains("50 × 25", StringComparison.Ordinal),
+            "Sticker mode names the 50 × 25 mm label and the order code");
         preview.SelectCustomerReceiptModeCommand.Execute(null);
-        preview.PrintCommand.Execute(null);
-        check(!preview.IsErrorStatus && preview.StatusMessage.Contains("لم تُفعّل بعد", StringComparison.Ordinal),
-            "A receipt mode says plainly that receipt printing is not enabled yet");
+        check(preview.PrintHint.Contains("80 مم", StringComparison.Ordinal),
+            "Receipt modes name the 80 mm roll in their hint");
     }
 
 

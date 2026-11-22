@@ -602,11 +602,11 @@ public sealed class InvoicesViewModel : ObservableObject
             invoice.ActivityLog.Add(new SalesInvoiceActivityEntry
             {
                 Timestamp = DateTime.Now,
-                ActionTitle = "معاينة / طباعة الفاتورة",
-                Details = $"طباعة بصيغة {modeLabel}.",
+                ActionTitle = "طباعة الفاتورة",
+                Details = $"طباعة فعلية على ورق حراري 80 مم ({modeLabel}).",
                 ActorName = currentCashierName
             });
-            SetStatus($"تمت معاينة طباعة الفاتورة {invoice.InvoiceNumber} ({modeLabel}).", false);
+            SetStatus($"تمت طباعة الفاتورة {invoice.InvoiceNumber} على ورق حراري 80 مم.", false);
         });
 
         OpenPrintPreviewRequested?.Invoke(vm);
