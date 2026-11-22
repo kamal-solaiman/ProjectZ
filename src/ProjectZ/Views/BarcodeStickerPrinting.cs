@@ -96,27 +96,25 @@ public static class BarcodeStickerPrinting
     /// The label at real size. Inventory: black store band, product name, Code128 + digits.
     /// Maintenance: black store band, customer name, then «كود الأمر: MNT-…».
     /// </summary>
-    public static FrameworkElement BuildSticker(BarcodeSticker sticker) => BuildStickerAt(sticker, 1);
+    public static FrameworkElement BuildSticker(BarcodeSticker sticker) => BuildStickerAt(sticker);
 
-    /// <summary>The same label scaled down for an on-screen preview; printing always uses the real size.</summary>
-    public static FrameworkElement BuildPreview(BarcodeSticker sticker, double zoom = 0.8)
+    /// <summary>
+    /// The same label shrunk to whatever space the screen gives it. A Viewbox scales the finished
+    /// tree, so the label is always built once at its real size — printing never sees a zoom factor.
+    /// </summary>
+    public static FrameworkElement BuildPreview(BarcodeSticker sticker) => new Viewbox
     {
-        var host = new Viewbox
-        {
-            Stretch = Stretch.Uniform,
-            Child = BuildStickerAt(sticker, zoom)
-        };
-        return host;
-    }
+        Stretch = Stretch.Uniform,
+        Child = BuildSticker(sticker)
+    };
 
-    /// <summary>Builds the label at real size × <paramref name="scale"/>; the result is in DIPs.</summary>
-    private static FrameworkElement BuildStickerAt(BarcodeSticker sticker, double scale)
+    /// <summary>Builds the label at its real physical size in DIPs (50 mm × 25 mm).</summary>
+    private static FrameworkElement BuildStickerAt(BarcodeSticker sticker)
     {
-        var zoom = scale * ToDips(1);
         var label = new Border
         {
-            Width = ToDips(BarcodeSticker.LabelWidthMillimetres) * zoom,
-            Height = ToDips(BarcodeSticker.LabelHeightMillimetres) * zoom,
+            Width = ToDips(BarcodeSticker.LabelWidthMillimetres),
+            Height = ToDips(BarcodeSticker.LabelHeightMillimetres),
             Background = Brushes.White,
             SnapsToDevicePixels = true,
             // No layout rounding here: 25 mm is 94.5 DIP, and rounding it would print a label
@@ -132,14 +130,14 @@ public static class BarcodeStickerPrinting
         stack.Children.Add(new Border
         {
             Background = Brushes.Black,
-            Padding = new Thickness(ToDips(1.2) * zoom, ToDips(0.9) * zoom, ToDips(1.2) * zoom, ToDips(0.9) * zoom),
+            Padding = new Thickness(ToDips(1.2), ToDips(0.9), ToDips(1.2), ToDips(0.9)),
             Child = new TextBlock
             {
                 Text = sticker.PrintedStoreName,
                 Foreground = Brushes.White,
                 FontFamily = new FontFamily("Segoe UI"),
                 FontWeight = FontWeights.Bold,
-                FontSize = ToDips(2.9) * zoom,
+                FontSize = ToDips(2.9),
                 TextAlignment = TextAlignment.Center,
                 TextWrapping = TextWrapping.NoWrap,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -150,13 +148,13 @@ public static class BarcodeStickerPrinting
 
         if (sticker.Kind == StickerKind.ProductBarcode)
         {
-            stack.Children.Add(TextBlockFor(sticker.Title, ToDips(3.1) * zoom, FontWeights.Bold, ToDips(4.0) * zoom));
-            stack.Children.Add(BuildBarcode(sticker, zoom));
+            stack.Children.Add(TextBlockFor(sticker.Title, ToDips(3.1), FontWeights.Bold, ToDips(4.0)));
+            stack.Children.Add(BuildBarcode(sticker));
             return label;
         }
 
-        stack.Children.Add(TextBlockFor(sticker.Title, ToDips(3.6) * zoom, FontWeights.Bold, ToDips(4.8) * zoom));
-        stack.Children.Add(BuildOrderCodeLine(sticker.Barcode, zoom));
+        stack.Children.Add(TextBlockFor(sticker.Title, ToDips(3.6), FontWeights.Bold, ToDips(4.8)));
+        stack.Children.Add(BuildOrderCodeLine(sticker.Barcode));
         return label;
     }
 
@@ -177,26 +175,26 @@ public static class BarcodeStickerPrinting
     };
 
     /// <summary>«كود الأمر:» in Arabic followed by the Latin code, forced left-to-right so it never reorders.</summary>
-    private static FrameworkElement BuildOrderCodeLine(string code, double zoom)
+    private static FrameworkElement BuildOrderCodeLine(string code)
     {
         var panel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Center,
             FlowDirection = FlowDirection.LeftToRight,
-            Margin = new Thickness(0, ToDips(0.6) * zoom, 0, 0)
+            Margin = new Thickness(0, ToDips(0.6), 0, 0)
         };
-        panel.Children.Add(TextBlockFor(code, ToDips(3.6) * zoom, FontWeights.Bold, ToDips(4.6) * zoom));
+        panel.Children.Add(TextBlockFor(code, ToDips(3.6), FontWeights.Bold, ToDips(4.6)));
         panel.Children.Add(new TextBlock
         {
             Text = "كود الأمر:",
             FontFamily = new FontFamily("Segoe UI"),
-            FontSize = ToDips(2.6) * zoom,
+            FontSize = ToDips(2.6),
             FontWeight = FontWeights.SemiBold,
             Foreground = Brushes.Black,
             FlowDirection = FlowDirection.RightToLeft,
             Language = XmlLanguage.GetLanguage("ar-EG"),
-            Margin = new Thickness(0, 0, ToDips(1.2) * zoom, 0),
+            Margin = new Thickness(0, 0, ToDips(1.2), 0),
             VerticalAlignment = VerticalAlignment.Center
         });
 
@@ -206,11 +204,11 @@ public static class BarcodeStickerPrinting
     }
 
     /// <summary>Measured Code128 symbol and its digits, both black on white.</summary>
-    private static FrameworkElement BuildBarcode(BarcodeSticker sticker, double zoom)
+    private static FrameworkElement BuildBarcode(BarcodeSticker sticker)
     {
         var widths = Code128Encoder.Encode(sticker.Barcode);
-        var module = sticker.ModuleWidth(widths) * ToDips(1) * zoom;
-        var barHeight = ToDips(8.2) * zoom;
+        var module = sticker.ModuleWidth(widths) * ToDips(1);
+        var barHeight = ToDips(8.2);
 
         var cursor = 0.0;
         var visual = new DrawingVisual();
@@ -228,7 +226,7 @@ public static class BarcodeStickerPrinting
         var panel = new StackPanel
         {
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, ToDips(0.8) * zoom, 0, 0)
+            Margin = new Thickness(0, ToDips(0.8), 0, 0)
         };
         panel.Children.Add(new Image
         {
@@ -242,7 +240,7 @@ public static class BarcodeStickerPrinting
         {
             Text = sticker.Barcode,
             FontFamily = new FontFamily("Consolas, Segoe UI"),
-            FontSize = 9 * zoom,
+            FontSize = 9,
             Foreground = Brushes.Black,
             TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
