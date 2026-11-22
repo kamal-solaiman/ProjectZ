@@ -136,7 +136,7 @@ public sealed class PermissionsViewModel : ObservableObject
     {
         this.repository = repository;
         this.actor = actor;
-        RefreshCommand = new RelayCommand(Refresh);
+        RefreshCommand = new RelayCommand(() => Refresh());
         NewRoleCommand = new RelayCommand(BeginNewRole);
         SaveRoleCommand = new RelayCommand(SaveRole);
         DeleteRoleCommand = new RelayCommand(DeleteRole);
