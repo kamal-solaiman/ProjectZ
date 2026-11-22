@@ -118,7 +118,9 @@ public static class BarcodeStickerPrinting
             Height = ToDips(BarcodeSticker.LabelHeightMillimetres) * zoom,
             Background = Brushes.White,
             SnapsToDevicePixels = true,
-            UseLayoutRounding = true,
+            // No layout rounding here: 25 mm is 94.5 DIP, and rounding it would print a label
+            // that is not exactly 50 × 25 mm on a label printer.
+            UseLayoutRounding = false,
             Language = XmlLanguage.GetLanguage("ar-EG"),
             FlowDirection = FlowDirection.LeftToRight
         };
