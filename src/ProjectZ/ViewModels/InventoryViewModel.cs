@@ -596,7 +596,7 @@ public sealed class InventoryViewModel : ObservableObject
         var sticker = BarcodeStickerPrinting.ForProduct(product, StoreIdentity.Current.Name, out var error);
         if (sticker is null)
         {
-            SetStatus(error!, true);
+            SetStatus(error, true);
             return;
         }
 

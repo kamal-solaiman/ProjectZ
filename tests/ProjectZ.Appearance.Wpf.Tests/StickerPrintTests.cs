@@ -28,7 +28,8 @@ internal static class StickerPrintTests
             "A maintenance order code round-trips through the B/C switch");
         check(Decode(Code128Encoder.Encode("AB1234CD")) == "AB1234CD",
             "A mixed value switches to C and back to B at the right symbol");
-        check(Code128Encoder.Encode("123456789012").Count == 10 * 6,
+        // Twelve digits = start, switch to C, six digit pairs, check and stop (7 symbols, 65 modules).
+        check(Code128Encoder.Encode("123456789012").Count == 7 * 6,
             "Twelve digits encode as start, set C, six pairs, check and stop");
 
         check(Code128Encoder.Validate("  ") == Code128Encoder.EmptyMessage, "Blank barcode is refused with an Arabic message");
@@ -103,7 +104,7 @@ internal static class StickerPrintTests
             "Printing is refused until the store name is saved in settings");
         var blank = new PosProductDesignItem { Name = "بلا باركود" };
         check(BarcodeStickerPrinting.ForProduct(blank, "نيو فونز", out var blankError) is null
-              && blankError!.Contains("بلا باركود", StringComparison.Ordinal),
+              && blankError.Contains("بلا باركود", StringComparison.Ordinal),
             "An item without a barcode explains how to add one");
 
         var inventory = new InventoryViewModel();

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Printing;
 using System.Windows;
 using System.Windows.Controls;
@@ -29,7 +30,7 @@ public static class BarcodeStickerPrinting
     // ------------------------------------------------------------------ sticker sources
 
     /// <summary>Inventory sticker for one catalog item, or null with an Arabic message when it cannot print.</summary>
-    public static BarcodeSticker? ForProduct(PosProductDesignItem? product, string? storeName, out string? error)
+    public static BarcodeSticker? ForProduct(PosProductDesignItem? product, string? storeName, [NotNullWhen(false)] out string? error)
     {
         error = null;
         if (product is null)
@@ -59,7 +60,7 @@ public static class BarcodeStickerPrinting
     }
 
     /// <summary>Maintenance sticker for one order: store name, customer name and the order code.</summary>
-    public static BarcodeSticker? ForMaintenanceOrder(MaintenanceOrderDesignItem? order, string? storeName, out string? error)
+    public static BarcodeSticker? ForMaintenanceOrder(MaintenanceOrderDesignItem? order, string? storeName, [NotNullWhen(false)] out string? error)
     {
         error = null;
         if (order is null)

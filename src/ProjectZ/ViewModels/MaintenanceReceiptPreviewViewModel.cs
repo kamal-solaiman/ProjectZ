@@ -101,7 +101,7 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
         var sticker = BarcodeStickerPrinting.ForMaintenanceOrder(Order, StoreIdentity.Current.Name, out var error);
         if (sticker is null)
         {
-            SetStatus(error!, true);
+            SetStatus(error, true);
             return;
         }
 
