@@ -208,16 +208,16 @@ public static class BarcodeStickerPrinting
         var module = sticker.ModuleWidth(widths) * ToDips(1) * zoom;
         var barHeight = ToDips(8.2) * zoom;
 
+        var cursor = 0.0;
         var visual = new DrawingVisual();
         using (var context = visual.RenderOpen())
         {
-            var x = 0.0;
             for (var index = 0; index < widths.Count; index++)
             {
                 var width = widths[index] * module;
                 if (index % 2 == 0 && width > 0)
-                    context.DrawRectangle(Brushes.Black, null, new Rect(x, 0, width, barHeight));
-                x += width;
+                    context.DrawRectangle(Brushes.Black, null, new Rect(cursor, 0, width, barHeight));
+                cursor += width;
             }
         }
 
@@ -229,7 +229,7 @@ public static class BarcodeStickerPrinting
         panel.Children.Add(new Image
         {
             Source = new DrawingImage(visual.Drawing),
-            Width = x,
+            Width = cursor,
             Height = barHeight,
             Stretch = Stretch.Fill,
             SnapsToDevicePixels = true
@@ -273,7 +273,7 @@ public static class BarcodeStickerPrinting
             throw new InvalidOperationException(
                 "المقاس المحدد في الطابعة أصغر من الملصق (50 × 25 مم). اختر طابعة ملصقات أو مقاس ورق أكبر.");
 
-        var (across, _, perPage) = LabelGrid(printableDips);
+        var (across, _, perPage) = LabelGrid(printableDips.Size);
         var document = new FixedDocument();
         document.DocumentPaginator.PageSize = pageDips;
 
