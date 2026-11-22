@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows;
-using System.Windows.Controls;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Views;
@@ -80,14 +79,14 @@ public sealed class InvoicePrintPreviewViewModel : ObservableObject
             return;
         }
 
-        var dialog = new PrintDialog();
-        if (dialog.ShowDialog() != true)
+        var result = ClassicReceipt.PrintInteractive(
+            () => SalesInvoicePaper.Build(Invoice), $"فاتورة مبيعات {Invoice.InvoiceNumber}", copies);
+        if (result.WasCancelled)
         {
             SetStatus("أُلغيت الطباعة قبل اختيار الطابعة.", false);
             return;
         }
 
-        var result = ClassicReceipt.Print(() => SalesInvoicePaper.Build(Invoice), dialog, $"فاتورة مبيعات {Invoice.InvoiceNumber}", copies);
         if (!result.Succeeded)
         {
             SetStatus(result.Message, true);

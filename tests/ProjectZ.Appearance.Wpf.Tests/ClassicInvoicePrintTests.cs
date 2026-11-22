@@ -122,7 +122,8 @@ internal static class ClassicInvoicePrintTests
         }
 
         // --- View models: copies are validated in Arabic before any dialog ------------------
-        var salesVm = new InvoicePrintPreviewViewModel(invoice, _ => { });
+        var printedLabels = new List<string>();
+        var salesVm = new InvoicePrintPreviewViewModel(invoice, printedLabels.Add);
         salesVm.CopiesText = "0";
         salesVm.PrintCommand.Execute(null);
         check(salesVm.IsErrorStatus && salesVm.StatusMessage.Contains("1 إلى 20", StringComparison.Ordinal),
@@ -131,10 +132,51 @@ internal static class ClassicInvoicePrintTests
         salesVm.PrintCommand.Execute(null);
         check(salesVm.IsErrorStatus, "A non-numeric copy count is refused in Arabic");
 
+        // A successful send is what records the activity — never the mere opening of a preview.
+        var copiesSeen = 0;
+        ClassicReceipt.InteractivePrinter = (_, job, count) =>
+        {
+            copiesSeen = count;
+            return ReceiptPrintResult.Printed("طابعة الاختبار", count);
+        };
+        try
+        {
+            salesVm.CopiesText = "2";
+            salesVm.PrintCommand.Execute(null);
+        }
+        finally
+        {
+            ClassicReceipt.InteractivePrinter = null;
+        }
+
+        check(!salesVm.IsErrorStatus && copiesSeen == 2 && printedLabels.Count == 1
+              && salesVm.StatusMessage.Contains(invoice.InvoiceNumber, StringComparison.Ordinal),
+            "Printing sends the requested two copies and records one print activity");
+
+        var refused = new InvoicePrintPreviewViewModel(invoice, printedLabels.Add);
+        ClassicReceipt.InteractivePrinter = (_, _, _) => ReceiptPrintResult.Failed("تعذّرت الطباعة: الطابعة غير متصلة");
+        try
+        {
+            refused.PrintCommand.Execute(null);
+        }
+        finally
+        {
+            ClassicReceipt.InteractivePrinter = null;
+        }
+
+        check(refused.IsErrorStatus && refused.StatusMessage.Contains("الطابعة غير متصلة", StringComparison.Ordinal)
+              && printedLabels.Count == 1,
+            "A printer failure is shown in Arabic and records no print activity");
+
+        // Copy counts are validated before the system dialog opens, so the test never blocks on a printer.
         var receiptVm = new MaintenanceReceiptPreviewViewModel(active);
+        receiptVm.CopiesText = "21";
         receiptVm.PrintCommand.Execute(null);
-        check(!receiptVm.IsErrorStatus || !receiptVm.StatusMessage.Contains("لم تُفعّل", StringComparison.Ordinal),
-            "No receipt mode is a placeholder any more");
+        check(receiptVm.IsErrorStatus && receiptVm.StatusMessage.Contains("1 إلى 20", StringComparison.Ordinal),
+            "The maintenance receipt refuses a copy count above 20 before any printer dialog");
+        receiptVm.CopiesText = "";
+        receiptVm.PrintCommand.Execute(null);
+        check(receiptVm.IsErrorStatus, "An empty copy count is refused in Arabic too");
 
         // The delivery document cannot be selected for an order that is not delivered.
         var guard = new MaintenanceReceiptPreviewViewModel(active);

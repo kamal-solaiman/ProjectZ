@@ -437,6 +437,22 @@ public static class ClassicReceipt
     }
 
     /// <summary>
+    /// Test seam: the smoke tests run headless, so they substitute a fake printer here instead of
+    /// opening the system print dialog. Production code always leaves it null.
+    /// </summary>
+    public static Func<Func<FrameworkElement>, string, int, ReceiptPrintResult>? InteractivePrinter { get; set; }
+
+    /// <summary>Asks the user for a printer, then prints; or uses the test seam when one is set.</summary>
+    public static ReceiptPrintResult PrintInteractive(Func<FrameworkElement> paper, string jobName, int copies)
+    {
+        if (InteractivePrinter is { } printer) return printer(paper, jobName, copies);
+
+        var dialog = new PrintDialog();
+        if (dialog.ShowDialog() != true) return ReceiptPrintResult.Cancelled();
+        return Print(paper, dialog, jobName, copies);
+    }
+
+    /// <summary>
     /// Measures the selected printer, builds the pages and sends them. Returns Arabic result text
     /// instead of throwing so the preview window can show it in its status line.
     /// </summary>
@@ -474,6 +490,7 @@ public static class ClassicReceipt
 /// <summary>Outcome of a receipt print request.</summary>
 public sealed record ReceiptPrintResult(bool Succeeded, bool WasCancelled, string PrinterName, int Copies, string Message)
 {
+    public static ReceiptPrintResult Cancelled() => new(false, true, string.Empty, 0, string.Empty);
     public static ReceiptPrintResult Printed(string printer, int copies) => new(true, false, printer, copies, string.Empty);
     public static ReceiptPrintResult Failed(string message) => new(false, false, string.Empty, 0, message);
 }

@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Windows;
-using System.Windows.Controls;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Services;
@@ -160,17 +159,16 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
             return;
         }
 
-        var dialog = new PrintDialog();
-        if (dialog.ShowDialog() != true)
+        var delivery = IsDeliveryReceiptMode;
+        var result = ClassicReceipt.PrintInteractive(
+            () => delivery ? MaintenanceReceiptPaper.BuildDelivery(Order) : MaintenanceReceiptPaper.BuildIntake(Order),
+            $"{CurrentModeLabel} — {Order.OrderNumber}", copies);
+        if (result.WasCancelled)
         {
             SetStatus("أُلغيت الطباعة قبل اختيار الطابعة.", false);
             return;
         }
 
-        var delivery = IsDeliveryReceiptMode;
-        var result = ClassicReceipt.Print(
-            () => delivery ? MaintenanceReceiptPaper.BuildDelivery(Order) : MaintenanceReceiptPaper.BuildIntake(Order),
-            dialog, $"{CurrentModeLabel} — {Order.OrderNumber}", copies);
         if (!result.Succeeded)
         {
             SetStatus(result.Message, true);
