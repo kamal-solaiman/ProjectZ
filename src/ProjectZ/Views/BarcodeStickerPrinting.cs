@@ -22,7 +22,7 @@ public static class BarcodeStickerPrinting
 
     public const string NoStoreNameMessage = "اسم المحل غير مسجل. اضبطه من شاشة الإعدادات العامة أولًا ليُطبع على الملصق.";
 
-    /// <summary>Allowance so a non-borderless driver margin never clips a bar.</summary>
+    /// <summary>Allowance on multi-label sheets so a driver margin never clips the last row.</summary>
     private const double SafetyMargin = 0.5;
 
     public static double ToDips(double millimetres) => millimetres * DipsPerMillimetre;

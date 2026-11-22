@@ -50,7 +50,7 @@ internal static class StickerPrintTests
         label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         check(Math.Abs(label.Width - BarcodeStickerPrinting.ToDips(50)) < 0.01
               && Math.Abs(label.Height - BarcodeStickerPrinting.ToDips(25)) < 0.01,
-            $"Inventory sticker is exactly 50 × 25 mm (got {label.Width:F3} × {label.Height:F3}, wanted {BarcodeStickerPrinting.ToDips(50):F3} × {BarcodeStickerPrinting.ToDips(25):F3})");
+            "Inventory sticker is exactly 50 × 25 mm");
 
         var stack = (StackPanel)((Border)label).Child;
         var band = (Border)stack.Children[0];
