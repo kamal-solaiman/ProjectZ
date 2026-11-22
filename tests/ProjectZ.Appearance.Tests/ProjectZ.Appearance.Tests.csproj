@@ -12,5 +12,8 @@
     <Compile Include="../../src/ProjectZ/Helpers/ObservableObject.cs" Link="ObservableObject.cs" />
     <Compile Include="../../src/ProjectZ/Helpers/RelayCommand.cs" Link="RelayCommand.cs" />
     <Compile Include="../../src/ProjectZ/ViewModels/AppearanceViewModel.cs" Link="AppearanceViewModel.cs" />
+    <Compile Include="../../src/ProjectZ/Services/PermissionContext.cs" Link="PermissionContext.cs" />
+    <Compile Include="../../src/ProjectZ/Models/UserSession.cs" Link="UserSession.cs" />
+    <Compile Include="../../src/ProjectZ/Models/ConnectionSettings.cs" Link="ConnectionSettings.cs" />
   </ItemGroup>
 </Project>
