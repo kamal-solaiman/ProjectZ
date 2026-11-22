@@ -36,6 +36,8 @@
     <Compile Include="../../src/ProjectZ/Data/FinancialRepository.cs" Link="Data/FinancialRepository.cs" />
     <Compile Include="../../src/ProjectZ/Services/ConnectionSettingsProvider.cs" Link="Services/ConnectionSettingsProvider.cs" />
     <Compile Include="../../src/ProjectZ/Services/StoreIdentity.cs" Link="Services/StoreIdentity.cs" />
+    <Compile Include="../../src/ProjectZ/Services/PermissionContext.cs" Link="Services/PermissionContext.cs" />
+    <Compile Include="../../src/ProjectZ/Models/UserSession.cs" Link="Models/UserSession.cs" />
     <Compile Include="../../src/ProjectZ/Models/ConnectionSettings.cs" Link="Models/ConnectionSettings.cs" />
     <Compile Include="../../src/ProjectZ/Models/StoreProfile.cs" Link="Models/StoreProfile.cs" />
     <Compile Include="../../src/ProjectZ/Models/PosDesignModels.cs" Link="Models/PosDesignModels.cs" />

@@ -891,54 +891,6 @@ public sealed class DamageEditViewModel : ObservableObject
     }
 }
 
-public sealed class BarcodePrintPreviewViewModel : ObservableObject
-{
-    private string copiesText = "1";
-    private string statusMessage = "";
-
-    public string PreviewName { get; }
-    public string PreviewBarcode { get; }
-
-    public string CopiesText
-    {
-        get => copiesText;
-        set { copiesText = value; Changed(); StatusMessage = ""; }
-    }
-
-    public string StatusMessage
-    {
-        get => statusMessage;
-        private set { statusMessage = value; Changed(); Changed(nameof(HasStatusMessage)); }
-    }
-
-    public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
-
-    public Action? RequestClose { get; set; }
-    public ActionCommand PrintPreviewCommand { get; }
-    public ActionCommand CloseCommand { get; }
-
-    public BarcodePrintPreviewViewModel(PosProductDesignItem product, Action<string> onPrintPreview)
-    {
-        PreviewName = product.Name;
-        PreviewBarcode = product.Barcode;
-
-        PrintPreviewCommand = new ActionCommand(() =>
-        {
-            if (!int.TryParse(CopiesText.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var copies) || copies <= 0)
-            {
-                StatusMessage = "أدخل عدد ملصقات صحيح أكبر من صفر.";
-                return;
-            }
-
-            var msg = $"وضع التصميم (بدون طابعة Backend): تمت معاينة طباعة {copies} ملصق باركود (50 × 25 مم) للصنف «{PreviewName}» ({PreviewBarcode}).";
-            StatusMessage = msg;
-            onPrintPreview(msg);
-        });
-
-        CloseCommand = new ActionCommand(() => RequestClose?.Invoke());
-    }
-}
-
 public sealed class ConfirmActionViewModel
 {
     public string Title { get; }

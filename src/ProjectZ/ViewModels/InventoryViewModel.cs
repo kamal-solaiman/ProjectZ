@@ -4,6 +4,8 @@ using System.Globalization;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Data;
+using ProjectZ.Services;
+using ProjectZ.Views;
 
 namespace ProjectZ.ViewModels;
 
@@ -32,6 +34,7 @@ public sealed class InventoryViewModel : ObservableObject
     private string selectedSettlementFilter = "الكل";
 
     private string movementScopeLabel = "سجل حركات المخزون";
+    private string barcodeCopiesText = "1";
     private string statusMessage = "اضغط على أي صنف أو زر «التسجيلات» لعرض الوحدات والموردين، وتحكّم بالتوريد والتعديل والسيريال والباركود والهالك والحذف.";
     private bool isErrorStatus;
 
@@ -64,7 +67,6 @@ public sealed class InventoryViewModel : ObservableObject
     public Action<ProductRegistrationsViewModel>? OpenRegistrationsDialogRequested { get; set; }
     public Action<SupplyStockViewModel>? OpenSupplyDialogRequested { get; set; }
     public Action<EditProductViewModel>? OpenEditDialogRequested { get; set; }
-    public Action<BarcodePrintPreviewViewModel>? OpenBarcodePreviewRequested { get; set; }
     public Action<MarkDamagedViewModel>? OpenMarkDamagedDialogRequested { get; set; }
     public Action<DamageEditViewModel>? OpenDamageEditDialogRequested { get; set; }
     public Action<ConfirmActionViewModel, Action>? OpenConfirmDialogRequested { get; set; }
@@ -190,6 +192,18 @@ public sealed class InventoryViewModel : ObservableObject
 
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
+    /// <summary>عدد ملصقات الباركود المطبوعة من زر «باركود» (1..100).</summary>
+    public string BarcodeCopiesText
+    {
+        get => barcodeCopiesText;
+        set
+        {
+            if (barcodeCopiesText == value) return;
+            barcodeCopiesText = value;
+            Changed();
+        }
+    }
+
     // Tab labels only; the summary KPI cards were removed from the screen on request.
     public int TotalProductsCount => sharedCatalog.Count;
     public int TotalDamagedCount => sharedCatalog.Sum(p => p.DamagedCount);
@@ -289,7 +303,7 @@ public sealed class InventoryViewModel : ObservableObject
         OpenRegistrationsCommand = new RelayCommand<PosProductDesignItem>(OpenRegistrationsDialog);
         OpenSupplyCommand = new RelayCommand<PosProductDesignItem>(OpenSupplyDialog);
         OpenEditCommand = new RelayCommand<PosProductDesignItem>(OpenEditDialog);
-        OpenBarcodePrintCommand = new RelayCommand<PosProductDesignItem>(OpenBarcodeDialog);
+        OpenBarcodePrintCommand = new RelayCommand<PosProductDesignItem>(PrintBarcodeSticker);
         OpenMarkDamagedCommand = new RelayCommand<PosProductDesignItem>(OpenMarkDamagedDialog);
         DeleteProductCommand = new RelayCommand<PosProductDesignItem>(RequestDeleteProduct);
 
@@ -564,15 +578,40 @@ public sealed class InventoryViewModel : ObservableObject
         OpenEditDialogRequested?.Invoke(vm);
     }
 
-    private void OpenBarcodeDialog(PosProductDesignItem? product)
+    /// <summary>
+    /// Prints the item's sticker straight to the printer chosen in the Windows dialog:
+    /// store name white on a black band, product name and a real Code128 barcode in black.
+    /// </summary>
+    private void PrintBarcodeSticker(PosProductDesignItem? product)
     {
         if (product is null) return;
 
-        var vm = new BarcodePrintPreviewViewModel(
-            product,
-            msg => SetStatus(msg, false));
+        if (!int.TryParse(BarcodeCopiesText.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var copies)
+            || copies is < 1 or > 100)
+        {
+            SetStatus("أدخل عدد ملصقات صحيحًا من 1 إلى 100 في خانة «عدد الملصقات».", true);
+            return;
+        }
 
-        OpenBarcodePreviewRequested?.Invoke(vm);
+        BarcodeSticker? sticker = BarcodeStickerPrinting.ForProduct(product, StoreIdentity.Current.Name, out var error);
+        if (sticker is null)
+        {
+            SetStatus(string.IsNullOrWhiteSpace(error) ? "تعذّر تجهيز ملصق الباركود لهذا الصنف." : error, true);
+            return;
+        }
+
+        var result = BarcodeStickerPrinting.Print(sticker, copies);
+        if (result.WasCancelled)
+        {
+            SetStatus("أُلغيت الطباعة قبل اختيار الطابعة.", false);
+            return;
+        }
+
+        SetStatus(
+            result.Succeeded
+                ? $"تم إرسال {copies.ToString(CultureInfo.InvariantCulture)} ملصق باركود للصنف «{sticker.Title}» ({sticker.Barcode}) إلى «{result.PrinterName}»."
+                : result.Message,
+            !result.Succeeded);
     }
 
     private void OpenMarkDamagedDialog(PosProductDesignItem? product)

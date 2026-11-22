@@ -363,14 +363,24 @@ for token in (
     'سعر مميز',
     'سعر جملة',
     'SaveProductCommand',
-    'PreviewName',
-    'PreviewBarcode',
+    'StickerPreview',
     'Width="190"',
     'Height="95"',
 ):
     assert token in add_product_xaml, f'AddProduct UI missing expected token: {token}'
 
 add_product_vm_text = (root / 'src/ProjectZ/ViewModels/AddProductViewModel.cs').read_text(encoding='utf-8')
+assert 'BarcodeStickerPrinting.BuildPreview' in add_product_vm_text, \
+    'AddProduct preview must draw the same sticker the inventory prints'
+sticker_renderer = (root / 'src/ProjectZ/Views/BarcodeStickerPrinting.cs').read_text(encoding='utf-8')
+sticker_model = (root / 'src/ProjectZ/Models/BarcodeSticker.cs').read_text(encoding='utf-8')
+for token in ('LabelWidthMillimetres = 50', 'LabelHeightMillimetres = 25', 'QuietZoneMillimetres = 3'):
+    assert token in sticker_model, f'Sticker size missing expected token: {token}'
+for token in ('Code128Encoder.Encode', 'Brushes.Black', 'Brushes.White'):
+    assert token in sticker_renderer, f'Sticker renderer missing expected token: {token}'
+code128 = (root / 'src/ProjectZ/Services/Code128Encoder.cs').read_text(encoding='utf-8')
+assert len(__import__('re').findall(r'"\d{6,7}"', code128)) == 107, 'Code128 needs the 107 ISO 15417 symbols'
+print('PASS: barcode sticker is 50 × 25 mm with a real Code128 symbol and a black store band')
 pos_models_text = (root / 'src/ProjectZ/Models/PosDesignModels.cs').read_text(encoding='utf-8')
 for removed_token in (
     'Brand',
@@ -868,8 +878,8 @@ for token in (
     'IsDeviceStickerMode',
     'IsDeliveryReceiptMode',
     'OrderNumber',
-    'ReceivedDateDisplay',
     'CustomerName',
+    'PrintButtonLabel',
 ):
     assert token in maintenance_receipt_xaml, f'MaintenanceReceiptPreviewWindow missing expected token: {token}'
 
@@ -1427,7 +1437,6 @@ pos_code_paths = [
     root / 'src/ProjectZ/Views/SupplyStockWindow.xaml.cs',
     root / 'src/ProjectZ/Views/EditProductWindow.xaml.cs',
     root / 'src/ProjectZ/Views/MarkDamagedWindow.xaml.cs',
-    root / 'src/ProjectZ/Views/BarcodePrintPreviewWindow.xaml.cs',
     root / 'src/ProjectZ/Views/ConfirmActionWindow.xaml.cs',
     root / 'src/ProjectZ/ViewModels/VodafoneTransferViewModel.cs',
     root / 'src/ProjectZ/ViewModels/InstapayTransferViewModel.cs',
@@ -2313,7 +2322,7 @@ assert 'effective Foreground' in (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Te
     'WPF regression must assert effective text colors, not only resource values'
 print_isolation = (root / 'src/ProjectZ/Resources/PrintIsolation.xaml').read_text(encoding='utf-8')
 assert 'DynamicResource Theme.' not in print_isolation, 'print isolation must not follow the live theme'
-for print_name in ('InvoicePrintPreviewWindow.xaml', 'PurchaseInvoicePrintPreviewWindow.xaml', 'MaintenanceReceiptPreviewWindow.xaml', 'BarcodePrintPreviewWindow.xaml'):
+for print_name in ('InvoicePrintPreviewWindow.xaml', 'PurchaseInvoicePrintPreviewWindow.xaml', 'MaintenanceReceiptPreviewWindow.xaml'):
     print_text = (root / 'src/ProjectZ/Views' / print_name).read_text(encoding='utf-8')
     assert '/Resources/PrintIsolation.xaml' in print_text, f'{print_name} must isolate print colors'
     assert 'ThemeBackdropStyle' not in print_text and 'DynamicResource Theme.' not in print_text, f'{print_name} must not be themed'
