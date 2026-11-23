@@ -75,9 +75,8 @@ internal static class MaintenancePosting
         var key = MaintenanceTicketKey.Open(order);
         preview?.Invoke(new MaintenanceReceiptPreviewViewModel(order, (printMode, label) =>
         {
-            // Record the print before the paper leaves the printer: an activity that only lands after
-            // printing would be lost if the app closed between the two, and the order would look
-            // unprinted even though the customer holds a receipt.
+            // Called only after the receipt actually reached the printer, so the log never claims a
+            // print that the user cancelled or that the printer refused.
             try
             {
                 var at = repository?.AppendMaintenanceActivity(key, (byte)printMode) ?? DateTime.Now;
