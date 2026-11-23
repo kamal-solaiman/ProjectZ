@@ -1029,12 +1029,12 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Primary Checkout Preview Button -->
-                    <Button Content="معاينة إتمام الفاتورة"
+                    <!-- Save the sale; the receipt window opens only after SQL confirms it -->
+                    <Button Content="حفظ الفاتورة"
                             Style="{StaticResource PosPrimaryCompactButtonStyle}"
                             Padding="16,12"
                             FontSize="15"
-                            Command="{Binding CompleteInvoicePreviewCommand}"  security:PermissionVisibility.Code="POS.COMPLETE" />
+                            Command="{Binding SaveInvoiceCommand}"  security:PermissionVisibility.Code="POS.COMPLETE" />
                 </StackPanel>
             </ScrollViewer>
 

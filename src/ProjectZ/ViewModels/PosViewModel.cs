@@ -12,6 +12,7 @@ public sealed class PosViewModel : ObservableObject
     private readonly SalesRepository? repository;
     private readonly Func<bool>? reloadCatalog;
     private readonly Func<PosCustomerDesignItem, PosCustomerDesignItem>? createCustomer;
+    private readonly Func<string, SalesInvoiceDesignItem?>? savedSales;
     private int nextInvoiceNumber = 1;
     private PosInvoiceViewModel activeInvoice = null!;
     private string productSearchText = "";
@@ -109,9 +110,11 @@ public sealed class PosViewModel : ObservableObject
     public RelayCommand<PosCategoryFilterViewModel> SelectCategoryFilterCommand { get; }
     public RelayCommand<PosProductDesignItem> AddProductCommand { get; }
 
+    public Action<SalesInvoiceDesignItem>? OpenPrintWindowRequested { get; set; }
+
     public ActionCommand OpenAddCustomerWindowCommand { get; }
     public ActionCommand RefreshCatalogCommand { get; }
-    public ActionCommand CompleteInvoicePreviewCommand { get; }
+    public ActionCommand SaveInvoiceCommand { get; }
     public ActionCommand FocusBarcodeCommand { get; }
 
     public PosViewModel() : this("المشرف", null, null, null)
@@ -126,9 +129,11 @@ public sealed class PosViewModel : ObservableObject
         bool useDesignSamples = true,
         SalesRepository? repository = null,
         Func<bool>? reloadCatalog = null,
-        Func<PosCustomerDesignItem, PosCustomerDesignItem>? createCustomer = null)
+        Func<PosCustomerDesignItem, PosCustomerDesignItem>? createCustomer = null,
+        Func<string, SalesInvoiceDesignItem?>? savedSales = null)
     {
         this.onInvoiceCompleted = onInvoiceCompleted;
+        this.savedSales = savedSales;
         this.repository = repository;
         this.reloadCatalog = reloadCatalog;
         this.createCustomer = createCustomer;
@@ -167,7 +172,7 @@ public sealed class PosViewModel : ObservableObject
 
         OpenAddCustomerWindowCommand = new ActionCommand(RequestOpenAddCustomerWindow);
         RefreshCatalogCommand = new ActionCommand(() => RefreshFromDatabase());
-        CompleteInvoicePreviewCommand = new ActionCommand(CompleteInvoicePreview);
+        SaveInvoiceCommand = new ActionCommand(SaveInvoice);
         FocusBarcodeCommand = new ActionCommand(() => FocusBarcodeInputRequested?.Invoke());
 
         if (useDesignSamples)
@@ -360,7 +365,7 @@ public sealed class PosViewModel : ObservableObject
             });
     }
 
-    private void CompleteInvoicePreview()
+    private void SaveInvoice()
     {
         var invoice = ActiveInvoice;
         if (invoice.IsEmpty)
@@ -414,6 +419,12 @@ public sealed class PosViewModel : ObservableObject
             SetStatus(
                 $"تم حفظ الفاتورة {savedNo} للعميل «{customerName}» ({paymentMix} | الإجمالي: {netTotal}{changeNote}) في قاعدة البيانات.",
                 false);
+
+            // A saved sale is the only thing that opens the print window; a refused save never does.
+            var savedInvoice = savedSales?.Invoke(savedNo);
+            if (savedInvoice is not null)
+                OpenPrintWindowRequested?.Invoke(savedInvoice);
+
             FocusBarcodeInputRequested?.Invoke();
             return;
         }

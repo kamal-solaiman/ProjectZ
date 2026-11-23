@@ -383,15 +383,24 @@ public sealed class MainViewModel : ObservableObject
             },
             maintenanceRepository,
             ReloadMaintenanceData);
+        SalesInvoiceDesignItem? lastCompletedPosSale = null;
         Pos = new PosViewModel(
             user.DisplayName,
             sharedCatalog,
-            posInvoice => Invoices.RecordCompletedPosSale(posInvoice).InvoiceNumber,
+            posInvoice =>
+            {
+                lastCompletedPosSale = Invoices.RecordCompletedPosSale(posInvoice);
+                return lastCompletedPosSale.InvoiceNumber;
+            },
             sharedCustomers,
             useDesignSamples: inventoryRepository is null,
             salesRepository,
             ReloadPosData,
-            CreateCustomerFromPos);
+            CreateCustomerFromPos,
+            savedInvoiceNumber => lastCompletedPosSale is not null
+                && string.Equals(lastCompletedPosSale.InvoiceNumber, savedInvoiceNumber, StringComparison.Ordinal)
+                    ? lastCompletedPosSale
+                    : null);
         // Created first: the add-product dialog saves new categories through this screen's repository.
         ProductCategories = new CategoriesViewModel(
             sharedCategories,

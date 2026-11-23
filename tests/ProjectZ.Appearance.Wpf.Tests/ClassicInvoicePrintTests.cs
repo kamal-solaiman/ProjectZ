@@ -45,13 +45,35 @@ internal static class ClassicInvoicePrintTests
         var text = TextOf(paper);
         foreach (var expected in new[]
                  {
-                     invoice.InvoiceNumber, invoice.CustomerName, invoice.CashierName,
+                     invoice.InvoiceNumber, invoice.IssuedFullDisplay,
                      invoice.SubtotalDisplay, invoice.NetTotalDisplay, invoice.GrossPaidDisplay,
-                     invoice.PaymentMethodSummary, "الإجمالي الفرعي", "الصافي المطلوب", "السداد",
-                     "توقيع الكاشير", "توقيع العميل", "فاتورة مبيعات"
+                     invoice.PaymentMethodSummary, "الإجمالي الفرعي", "الصافي المطلوب", "تفاصيل السداد",
+                     "الأصناف", "فاتورة مبيعات"
                  })
         {
             check(text.Contains(expected, StringComparison.Ordinal), $"The invoice prints «{expected}»");
+        }
+
+        // The owner removed these blocks from the sales receipt on purpose.
+        foreach (var removed in new[]
+                 {
+                     "الكاشير", "بيانات العميل", "فئة السعر", "حالة الفاتورة",
+                     "توقيع الكاشير", "توقيع العميل", "لا يُعتمد إلا بختم المحل", "ضريبية مبسطة"
+                 })
+        {
+            check(!text.Contains(removed, StringComparison.Ordinal),
+                $"The sales receipt no longer prints «{removed}»");
+        }
+
+        // Centred, not left-aligned: every meta and money line sits in the middle of the paper.
+        var centredLines = Descendants(paper).OfType<TextBlock>()
+            .Where(t => t.TextAlignment == TextAlignment.Center)
+            .Select(t => t.Text)
+            .ToList();
+        foreach (var centred in new[] { "رقم الفاتورة", "التاريخ", "الأصناف", "عدد الأصناف", "الإجمالي الفرعي" })
+        {
+            check(centredLines.Any(line => line.Contains(centred, StringComparison.Ordinal)),
+                $"«{centred}» is centred on the paper");
         }
 
         check(text.Contains(invoice.Items[0].ProductName, StringComparison.Ordinal),
@@ -74,6 +96,58 @@ internal static class ClassicInvoicePrintTests
             "No rounded card or pill remains anywhere on the paper");
         check(!Descendants(paper).OfType<FrameworkElement>().Any(e => e is Control and not TextBox && e.Opacity < 1),
             "No faded grey text: every line is solid black");
+
+        // --- POS: the button saves, and only a committed sale opens the receipt --------------
+        check(typeof(PosViewModel).GetProperty("SaveInvoiceCommand") is not null
+              && typeof(PosViewModel).GetProperty("CompleteInvoicePreviewCommand") is null,
+            "The checkout button is «حفظ الفاتورة», not a preview command");
+
+        var posCustomers = new System.Collections.ObjectModel.ObservableCollection<PosCustomerDesignItem>(
+            PosDesignSeedData.CreateSampleCustomers());
+
+        // A refused save (nothing in the cart) must never open a receipt window.
+        var posRefused = new PosViewModel("اختبار", catalog, _ => "INV-2026-9001", posCustomers, useDesignSamples: false);
+        var posRefusedWindows = 0;
+        posRefused.OpenPrintWindowRequested = _ => posRefusedWindows++;
+        posRefused.SaveInvoiceCommand.Execute(null);
+        check(posRefused.IsErrorStatus && posRefusedWindows == 0,
+            "An empty cart is refused and no receipt window opens");
+
+        // The saved snapshot the register hands back after COMMIT.
+        var savedSnapshot = new SalesInvoiceDesignItem
+        {
+            InvoiceNumber = "INV-2026-9001",
+            IssuedAt = DateTime.Today.AddHours(12),
+            CashierName = "اختبار",
+            Status = SalesInvoiceStatus.Completed,
+            CashPaid = 1465m
+        };
+
+        // The design samples start on fully-settled invoices, exactly like a real fast checkout.
+        var pos = new PosViewModel("اختبار", catalog, _ => savedSnapshot.InvoiceNumber, posCustomers,
+            useDesignSamples: true,
+            savedSales: number => savedSnapshot.InvoiceNumber == number ? savedSnapshot : null);
+        check(!pos.ActiveInvoice.IsEmpty && !pos.ActiveInvoice.HasRemaining,
+            "The demo checkout carries a settled cart, so the save reaches the commit callback");
+        var openedFor = new List<SalesInvoiceDesignItem>();
+        pos.OpenPrintWindowRequested = invoice => openedFor.Add(invoice);
+        pos.SaveInvoiceCommand.Execute(null);
+        check(openedFor.Count == 1 && openedFor[0].InvoiceNumber == savedSnapshot.InvoiceNumber
+              && openedFor[0].Status == SalesInvoiceStatus.Completed,
+            "A committed sale opens the receipt window once with the saved invoice");
+
+        // A refused or failed save keeps the cart and leaves the window closed.
+        var failing = new PosViewModel("اختبار", catalog, _ => throw new InvalidOperationException("رفض الخادم"),
+            posCustomers, useDesignSamples: true, savedSales: _ => savedSnapshot);
+        var failingWindows = 0;
+        failing.OpenPrintWindowRequested = _ => failingWindows++;
+        var failingInvoice = failing.ActiveInvoice;
+        var openBeforeSave = failing.Invoices.Count;
+        failingInvoice.SetSplitAmounts(cash: failingInvoice.NetTotal, vodafoneCash: 0m, instaPay: 0m);
+        failing.SaveInvoiceCommand.Execute(null);
+        check(failing.IsErrorStatus && failingWindows == 0 && failing.Invoices.Count == openBeforeSave
+              && ReferenceEquals(failing.ActiveInvoice, failingInvoice),
+            "A failed save never opens the receipt window and keeps the invoice open for a retry");
 
         // --- The two maintenance documents -------------------------------------------------
         var orders = MaintenanceDesignSeedData.CreateSharedSampleOrders(PosDesignSeedData.CreateSampleCustomers());
@@ -200,7 +274,7 @@ internal static class ClassicInvoicePrintTests
         check(salesContent is not null
               && LogicalDescendants(salesContent).OfType<TextBlock>()
                   .Any(t => t.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path.Path
-                      == "Invoice.InvoiceNumber"),
+                      == nameof(InvoicePrintPreviewViewModel.InvoiceNumberDisplay)),
             "The sales window header names the invoice being printed");
 
         var maintenanceVm = new MaintenanceReceiptPreviewViewModel(active);

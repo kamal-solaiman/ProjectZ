@@ -14,7 +14,10 @@ public sealed class InvoicePrintPreviewViewModel : ObservableObject
     private string statusMessage = "";
     private bool isErrorStatus;
 
-    public SalesInvoiceDesignItem Invoice { get; }
+    public SalesInvoiceDesignItem? Invoice => invoice;
+    private readonly SalesInvoiceDesignItem? invoice;
+
+    public string InvoiceNumberDisplay => invoice?.InvoiceNumber ?? "—";
 
     /// <summary>The classic 80 mm paper exactly as it will be printed (black on white).</summary>
     public FrameworkElement PaperPreview { get; }
@@ -60,11 +63,17 @@ public sealed class InvoicePrintPreviewViewModel : ObservableObject
     public ActionCommand PrintCommand { get; }
     public ActionCommand CloseCommand { get; }
 
-    public InvoicePrintPreviewViewModel(SalesInvoiceDesignItem invoice, Action<string> onPrinted)
+    /// <summary>
+    /// Takes a nullable invoice so the POS can pass the snapshot it kept after COMMIT; a null means the
+    /// window shows a plain notice instead of printing an unsaved sale.
+    /// </summary>
+    public InvoicePrintPreviewViewModel(SalesInvoiceDesignItem? invoice, Action<string> onPrinted)
     {
-        Invoice = invoice;
+        this.invoice = invoice;
         this.onPrinted = onPrinted;
-        PaperPreview = SalesInvoicePaper.Build(invoice);
+        PaperPreview = invoice is null
+            ? ClassicReceipt.Paper([ClassicReceipt.CenteredLine("لا توجد فاتورة محفوظة لعرضها.", bold: true)])
+            : SalesInvoicePaper.Build(invoice);
 
         PrintCommand = new ActionCommand(() => Print());
         CloseCommand = new ActionCommand(() => RequestClose?.Invoke());
@@ -79,8 +88,14 @@ public sealed class InvoicePrintPreviewViewModel : ObservableObject
             return;
         }
 
+        if (invoice is null)
+        {
+            SetStatus("لا توجد فاتورة محفوظة لطباعتها.", true);
+            return;
+        }
+
         var result = ClassicReceipt.PrintInteractive(
-            () => SalesInvoicePaper.Build(Invoice), $"فاتورة مبيعات {Invoice.InvoiceNumber}", copies);
+            () => SalesInvoicePaper.Build(invoice), $"فاتورة مبيعات {invoice.InvoiceNumber}", copies);
         if (result.WasCancelled)
         {
             SetStatus("أُلغيت الطباعة قبل اختيار الطابعة.", false);
@@ -93,7 +108,7 @@ public sealed class InvoicePrintPreviewViewModel : ObservableObject
             return;
         }
 
-        SetStatus($"تم إرسال فاتورة {Invoice.InvoiceNumber} ({copies} نسخة) إلى «{result.PrinterName}».", false);
+        SetStatus($"تم إرسال فاتورة {invoice.InvoiceNumber} ({copies} نسخة) إلى «{result.PrinterName}».", false);
         onPrinted("فاتورة 80 مم");
     }
 
