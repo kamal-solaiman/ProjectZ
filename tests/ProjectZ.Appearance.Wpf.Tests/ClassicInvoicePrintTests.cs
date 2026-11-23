@@ -142,9 +142,11 @@ internal static class ClassicInvoicePrintTests
         var failingWindows = 0;
         failing.OpenPrintWindowRequested = _ => failingWindows++;
         var failingInvoice = failing.ActiveInvoice;
+        var openBeforeSave = failing.Invoices.Count;
         failingInvoice.SetSplitAmounts(cash: failingInvoice.NetTotal, vodafoneCash: 0m, instaPay: 0m);
         failing.SaveInvoiceCommand.Execute(null);
-        check(failing.IsErrorStatus && failingWindows == 0 && failing.Invoices.Count == 1,
+        check(failing.IsErrorStatus && failingWindows == 0 && failing.Invoices.Count == openBeforeSave
+              && ReferenceEquals(failing.ActiveInvoice, failingInvoice),
             "A failed save never opens the receipt window and keeps the invoice open for a retry");
 
         // --- The two maintenance documents -------------------------------------------------
