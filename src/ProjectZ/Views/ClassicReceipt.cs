@@ -298,6 +298,24 @@ public static class ClassicReceipt
         };
     }
 
+    /// <summary>Centred multi-line paragraph — the terms block on the intake receipt.</summary>
+    public static FrameworkElement CenteredParagraph(string? text, double size = 8.2)
+    {
+        return new TextBlock
+        {
+            Text = text ?? "",
+            FontFamily = new FontFamily(ArabicFont),
+            FontSize = size,
+            Foreground = Brushes.Black,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            FlowDirection = FlowDirection.RightToLeft,
+            LineHeight = Mm(4.2),
+            LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
+            Margin = new Thickness(0, Mm(0.8), 0, 0)
+        };
+    }
+
     /// <summary>A centred section caption with a rule above and below, e.g. «الأصناف».</summary>
     public static FrameworkElement CenteredSectionTitle(string text)
     {
