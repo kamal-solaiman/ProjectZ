@@ -2363,6 +2363,16 @@ assert 'SaveInvoiceCommand' in pos_xaml and 'معاينة إتمام الفات�
     'the point-of-sale button caption must read «حفظ الفاتورة»'
 for token in ('شروط الاستلام', 'الضمان', 'قطع الغيار المستبدلة', 'إجمالي المسدد'):
     assert token in maintenance_paper, f'the maintenance document lost a classic detail: {token}'
+# The intake receipt keeps only customer, device, fault, deposit and terms — all centred.
+intake_paper = maintenance_paper[maintenance_paper.index('BuildIntake('):maintenance_paper.index('BuildDelivery(')]
+for removed in ('"المستلم"', '"الفني المسؤول"', '"الأولوية"', '"النوع"', '"السيريال / IMEI"',
+                '"كود الجهاز"', '"الحالة الظاهرية"', '"الملحقات"', '"التسليم المتوقع"',
+                'ClassicReceipt.Signatures', 'includePrintedDisclaimer: true'):
+    assert removed not in intake_paper, f'the intake receipt must not print {removed}'
+for token in ('CenteredLine(', 'CenteredSectionTitle(', 'CenteredParagraph('):
+    assert token in intake_paper, f'the intake receipt must centre its content ({token})'
+assert 'ClassicReceipt.Field(' not in intake_paper, 'the intake receipt must not use the left-aligned field rows'
+assert 'ClassicReceipt.TotalRow(' not in intake_paper, 'the intake receipt must not use the side-aligned total rows'
 
 print_isolation = (root / 'src/ProjectZ/Resources/PrintIsolation.xaml').read_text(encoding='utf-8')
 assert 'DynamicResource Theme.' not in print_isolation, 'print isolation must not follow the live theme'

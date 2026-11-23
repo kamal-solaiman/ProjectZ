@@ -191,9 +191,9 @@ internal static class ClassicInvoicePrintTests
         var intakeText = TextOf(intake);
         foreach (var expected in new[]
                  {
-                     "إيصال استلام جهاز", active.OrderNumber, active.CustomerName, active.DeviceFullTitle,
-                     active.ReportedFault, active.PhysicalConditionDisplay, active.AccessoriesDisplay,
-                     active.EstimatedCostDisplay, "شروط الاستلام", "توقيع العميل"
+                     "إيصال استلام جهاز", active.OrderNumber, active.ReceivedFullDisplay, active.CustomerName,
+                     active.CustomerPhoneDisplay, active.DeviceFullTitle, active.ReportedFault,
+                     active.EstimatedCostDisplay, "شروط الاستلام"
                  })
         {
             check(intakeText.Contains(expected, StringComparison.Ordinal), $"The intake receipt prints «{expected}»");
@@ -201,6 +201,25 @@ internal static class ClassicInvoicePrintTests
 
         check(intakeText.Contains(active.TotalDepositPaidDisplay, StringComparison.Ordinal),
             "The intake receipt prints what the customer actually paid as a deposit");
+
+        // The owner trimmed the intake receipt down to what he needs at the counter.
+        foreach (var removed in new[]
+                 {
+                     "المستلم", "الفني المسؤول", "الأولوية", "النوع", "السيريال / IMEI", "كود الجهاز",
+                     "الحالة الظاهرية", "الملحقات", "التسليم المتوقع", "توقيع العميل", "ختم المحل",
+                     "لا يُعتمد إلا بختم المحل"
+                 })
+        {
+            check(!intakeText.Contains(removed, StringComparison.Ordinal),
+                $"The intake receipt no longer prints «{removed}»");
+        }
+
+        // Everything on the intake receipt is centred, exactly like the sales receipt.
+        var intakeBlocks = Descendants(intake).OfType<TextBlock>()
+            .Where(t => !string.IsNullOrWhiteSpace(t.Text))
+            .ToList();
+        check(intakeBlocks.Count > 0 && intakeBlocks.All(t => t.TextAlignment == TextAlignment.Center),
+            "Every line of the intake receipt is centred");
 
         var delivery = MaintenanceReceiptPaper.BuildDelivery(delivered);
         var deliveryText = TextOf(delivery);
