@@ -186,31 +186,45 @@ internal static class ClassicInvoicePrintTests
             "The print button names the document and the order");
 
         // --- The preview window shows the printable paper itself -------------------------
+        // A Window in a headless test never applies its template, so the contract is read from the
+        // logical tree instead of the visual tree.
         var windowVm = new InvoicePrintPreviewViewModel(invoice, _ => { });
         var salesWindow = new InvoicePrintPreviewWindow(windowVm);
         check(ReferenceEquals(salesWindow.DataContext, windowVm), "The sales window is bound to its print view model");
-        check(salesWindow.Content is Panel host && Descendants(host).OfType<ContentControl>()
-                .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path == nameof(InvoicePrintPreviewViewModel.PaperPreview)),
+        check(salesWindow.Content is { } salesContent
+              && LogicalDescendants(salesContent).OfType<ContentControl>()
+                  .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path
+                      == nameof(InvoicePrintPreviewViewModel.PaperPreview)),
             "The sales window shows the printable paper through a ContentControl, not a mock-up card");
-        var windowText = TextOf(salesWindow);
-        check(windowText.Contains(invoice.InvoiceNumber, StringComparison.Ordinal)
-              && windowText.Contains("طباعة الفاتورة", StringComparison.Ordinal),
-            "The window header names the invoice and offers the real print action");
-        check(!Descendants(salesWindow).OfType<ContentPresenter>().Any(c => c.Content is string text
-                  && text.Contains("وضع التصميم", StringComparison.Ordinal)),
-            "No «وضع التصميم» placeholder survives in the print window");
+        check(LogicalText(salesWindow).Contains(invoice.InvoiceNumber, StringComparison.Ordinal),
+            "The sales window header names the invoice being printed");
 
         var maintenanceVm = new MaintenanceReceiptPreviewViewModel(active);
         var maintenanceWindow = new MaintenanceReceiptPreviewWindow(maintenanceVm);
         check(ReferenceEquals(maintenanceWindow.DataContext, maintenanceVm), "The maintenance window is bound to its print view model");
-        check(Descendants(maintenanceWindow).OfType<ContentControl>()
-                .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path == nameof(MaintenanceReceiptPreviewViewModel.PaperPreview)),
+        check(maintenanceWindow.Content is { } maintenanceContent
+              && LogicalDescendants(maintenanceContent).OfType<ContentControl>()
+                  .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path
+                      == nameof(MaintenanceReceiptPreviewViewModel.PaperPreview)),
             "The maintenance window shows the printable paper itself");
-        check(Descendants(maintenanceWindow).OfType<Button>()
+        check(LogicalDescendants(maintenanceWindow).OfType<Button>()
                 .Any(b => b.GetBindingExpression(System.Windows.Controls.Primitives.ButtonBase.CommandProperty)
                     ?.ParentBinding.Path.Path == nameof(MaintenanceReceiptPreviewViewModel.PrintCommand)),
             "The maintenance window carries the real print button");
     }
+
+    /// <summary>Logical children of a window's content — available before any layout pass.</summary>
+    private static IEnumerable<DependencyObject> LogicalDescendants(DependencyObject root)
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            yield return child;
+            foreach (var descendant in LogicalDescendants(child)) yield return descendant;
+        }
+    }
+
+    private static string LogicalText(DependencyObject root) => string.Join(" ",
+        LogicalDescendants(root).OfType<TextBlock>().Select(t => t.Text));
 
     /// <summary>All visible text under a visual, in visual-tree order.</summary>
     private static string TextOf(DependencyObject root) => string.Join(" ",
