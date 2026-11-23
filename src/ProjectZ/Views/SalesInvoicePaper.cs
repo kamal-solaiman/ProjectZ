@@ -77,7 +77,7 @@ public static class SalesInvoicePaper
         if (invoice.HasNotes)
             blocks.Add(ClassicReceipt.CenteredLine($"ملاحظات: {invoice.Notes}"));
 
-        blocks.Add(ClassicReceipt.Footer(StoreIdentity.Current.FooterNote));
+        blocks.Add(ClassicReceipt.Footer(StoreIdentity.Current.FooterNote, includePrintedDisclaimer: false));
         return ClassicReceipt.Paper(blocks);
     }
 }

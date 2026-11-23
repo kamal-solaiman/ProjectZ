@@ -2338,8 +2338,10 @@ for token in ('الإجمالي الفرعي', 'الصافي المطلوب', '�
     assert token in sales_paper, f'the sales invoice lost a classic detail: {token}'
 # The owner removed these from the sales receipt: no cashier, no customer block, no signatures, no legal footer.
 for removed in ('الكاشير', 'بيانات العميل', 'فئة السعر', 'حالة الفاتورة', 'توقيع الكاشير', 'توقيع العميل',
-                'لا يُعتمد إلا بختم المحل', 'ضريبية مبسطة', 'ClassicReceipt.Signatures', 'ClassicReceipt.Field'):
+                'ضريبية مبسطة', 'ClassicReceipt.Signatures', 'ClassicReceipt.Field'):
     assert removed not in sales_paper, f'the sales receipt must not print «{removed}»'
+assert 'includePrintedDisclaimer: false' in sales_paper, \
+    'the sales receipt must not print the «مستند مطبوع من نظام إدارة المحل» line'
 # Meta and totals are centred on the sales receipt, not pushed to one side.
 assert 'CenteredLine(' in sales_paper and 'CenteredSectionTitle("الأصناف")' in sales_paper, \
     'the sales receipt must centre the invoice number, date, items title and totals'

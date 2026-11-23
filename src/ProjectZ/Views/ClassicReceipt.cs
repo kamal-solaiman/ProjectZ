@@ -391,7 +391,7 @@ public static class ClassicReceipt
     }
 
     /// <summary>Closing line: the store note, then the computer-printed disclaimer.</summary>
-    public static FrameworkElement Footer(string note)
+    public static FrameworkElement Footer(string note, bool includePrintedDisclaimer = true)
     {
         var panel = new StackPanel { FlowDirection = FlowDirection.RightToLeft, Margin = new Thickness(0, Mm(3), 0, 0) };
         panel.Children.Add(ThinRule(0, 1.5));
@@ -407,6 +407,8 @@ public static class ClassicReceipt
                 FlowDirection = FlowDirection.RightToLeft,
                 Margin = new Thickness(0, Mm(1.5), 0, 0)
             });
+        if (!includePrintedDisclaimer) return panel;
+
         panel.Children.Add(new TextBlock
         {
             Text = "مستند مطبوع من نظام إدارة المحل · لا يُعتمد إلا بختم المحل",
