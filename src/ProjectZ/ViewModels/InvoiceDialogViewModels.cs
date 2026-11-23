@@ -63,13 +63,9 @@ public sealed class InvoicePrintPreviewViewModel : ObservableObject
     public ActionCommand PrintCommand { get; }
     public ActionCommand CloseCommand { get; }
 
-    public InvoicePrintPreviewViewModel(SalesInvoiceDesignItem invoice, Action<string> onPrinted) : this((SalesInvoiceDesignItem?)invoice, onPrinted)
-    {
-    }
-
     /// <summary>
-    /// A nullable overload for the POS: the saved invoice arrives after the sale is committed and the
-    /// window simply does not open when the number does not match the kept snapshot.
+    /// Takes a nullable invoice so the POS can pass the snapshot it kept after COMMIT; a null means the
+    /// window shows a plain notice instead of printing an unsaved sale.
     /// </summary>
     public InvoicePrintPreviewViewModel(SalesInvoiceDesignItem? invoice, Action<string> onPrinted)
     {
