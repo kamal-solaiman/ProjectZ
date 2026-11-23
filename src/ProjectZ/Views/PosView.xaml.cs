@@ -25,13 +25,26 @@ public partial class PosView : UserControl
         {
             oldViewModel.OpenAddCustomerRequested = null;
             oldViewModel.FocusBarcodeInputRequested = null;
+            oldViewModel.OpenPrintWindowRequested = null;
         }
 
         if (e.NewValue is PosViewModel newViewModel)
         {
             newViewModel.OpenAddCustomerRequested = OpenAddCustomerDialog;
             newViewModel.FocusBarcodeInputRequested = FocusBarcodeInput;
+            newViewModel.OpenPrintWindowRequested = OpenInvoicePrintWindow;
         }
+    }
+
+    /// <summary>Shows the receipt of a sale that SQL already committed, so it can be printed or closed.</summary>
+    private void OpenInvoicePrintWindow(SalesInvoiceDesignItem invoice)
+    {
+        var viewModel = new InvoicePrintPreviewViewModel(invoice, _ => { });
+        var dialog = new InvoicePrintPreviewWindow(viewModel);
+        if (Window.GetWindow(this) is { } owner)
+            dialog.Owner = owner;
+
+        dialog.ShowDialog();
     }
 
     private void OpenAddCustomerDialog(string? initialQuery, Action<PosCustomerDesignItem> onCreated)

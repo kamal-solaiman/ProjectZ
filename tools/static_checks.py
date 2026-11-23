@@ -2334,8 +2334,22 @@ assert 'PaperWidthMillimetres = 80' in classic_receipt and 'DipsPerMillimetre = 
     'the receipt page must be 80 mm wide, measured in millimetres'
 assert 'PrintDialog' in classic_receipt and 'PrintDocument(' in classic_receipt, \
     'receipts must really print through the system print dialog'
-for token in ('الإجمالي الفرعي', 'الصافي المطلوب', 'طريقة السداد', 'توقيع العميل'):
+for token in ('الإجمالي الفرعي', 'الصافي المطلوب', 'طريقة السداد', 'الأصناف', 'تفاصيل السداد'):
     assert token in sales_paper, f'the sales invoice lost a classic detail: {token}'
+# The owner removed these from the sales receipt: no cashier, no customer block, no signatures, no legal footer.
+for removed in ('الكاشير', 'بيانات العميل', 'فئة السعر', 'حالة الفاتورة', 'توقيع الكاشير', 'توقيع العميل',
+                'لا يُعتمد إلا بختم المحل', 'ضريبية مبسطة', 'ClassicReceipt.Signatures', 'ClassicReceipt.Field'):
+    assert removed not in sales_paper, f'the sales receipt must not print «{removed}»'
+# Meta and totals are centred on the sales receipt, not pushed to one side.
+assert 'CenteredLine(' in sales_paper and 'CenteredSectionTitle("الأصناف")' in sales_paper, \
+    'the sales receipt must centre the invoice number, date, items title and totals'
+# The point of sale saves first and only a committed sale opens the receipt window.
+assert 'SaveInvoiceCommand' in pos_vm and 'CompleteInvoicePreviewCommand' not in pos_vm, \
+    'the point-of-sale button must be «حفظ الفاتورة», not a preview command'
+assert 'OpenPrintWindowRequested' in pos_vm and 'savedSales' in pos_vm, \
+    'the point of sale must open the receipt only for the invoice SQL saved'
+assert 'SaveInvoiceCommand' in pos_xaml and 'معاينة إتمام الفاتورة' not in pos_xaml, \
+    'the point-of-sale button caption must read «حفظ الفاتورة»'
 for token in ('شروط الاستلام', 'الضمان', 'قطع الغيار المستبدلة', 'إجمالي المسدد'):
     assert token in maintenance_paper, f'the maintenance document lost a classic detail: {token}'
 

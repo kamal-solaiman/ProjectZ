@@ -79,11 +79,12 @@ public static class ClassicReceipt
     };
 
     /// <summary>The document title, centred above its subtitle like an invoice heading.</summary>
-    public static FrameworkElement Title(string text, string subtitle)
+    public static FrameworkElement Title(string text, string? subtitle = null)
     {
         var panel = new StackPanel { FlowDirection = FlowDirection.RightToLeft, Margin = new Thickness(0, Mm(1), 0, Mm(1)) };
         panel.Children.Add(Centered(text, 12, FontWeights.Bold, 17));
-        panel.Children.Add(Centered(subtitle, 8.5, FontWeights.Normal, 11));
+        if (!string.IsNullOrWhiteSpace(subtitle))
+            panel.Children.Add(Centered(subtitle, 8.5, FontWeights.Normal, 11));
         return panel;
     }
 
@@ -273,6 +274,60 @@ public static class ClassicReceipt
         Grid.SetColumn(amount, 1);
         grid.Children.Add(amount);
         return grid;
+    }
+
+    /// <summary>
+    /// A single centred line of text — the shape the owner asked for on the sales receipt, where the
+    /// invoice number, the date and every total share the middle of the paper.
+    /// </summary>
+    public static FrameworkElement CenteredLine(string? text, bool bold = false, double size = 9)
+    {
+        return new TextBlock
+        {
+            Text = text ?? "",
+            FontFamily = new FontFamily(ArabicFont),
+            FontSize = size,
+            FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
+            Foreground = Brushes.Black,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            FlowDirection = FlowDirection.RightToLeft,
+            LineHeight = Mm(4.2),
+            LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
+            Margin = new Thickness(0, Mm(0.3), 0, 0)
+        };
+    }
+
+    /// <summary>A centred section caption with a rule above and below, e.g. «الأصناف».</summary>
+    public static FrameworkElement CenteredSectionTitle(string text)
+    {
+        var panel = new StackPanel { FlowDirection = FlowDirection.RightToLeft, Margin = new Thickness(0, Mm(2), 0, Mm(0.5)) };
+        panel.Children.Add(ThinRule(0, 1));
+        panel.Children.Add(new TextBlock
+        {
+            Text = text,
+            FontFamily = new FontFamily(ArabicFont),
+            FontSize = 9.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.Black,
+            TextAlignment = TextAlignment.Center,
+            FlowDirection = FlowDirection.RightToLeft,
+            Margin = new Thickness(0, Mm(0.7), 0, Mm(0.7))
+        });
+        panel.Children.Add(ThinRule(0.4, 0));
+        return panel;
+    }
+
+    /// <summary>The grand total on its own centred line, framed top and bottom.</summary>
+    public static FrameworkElement CenteredGrandTotal(string label, string value)
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, Mm(1.2), 0, Mm(0.4)) };
+        panel.Children.Add(new Border { Height = 1.1, Background = Brushes.Black });
+        var line = CenteredLine($"{label}: {value}", bold: true, size: 11);
+        line.Margin = new Thickness(0, Mm(1.2), 0, Mm(1.2));
+        panel.Children.Add(line);
+        panel.Children.Add(new Border { Height = 1.1, Background = Brushes.Black });
+        return panel;
     }
 
     /// <summary>The grand-total row, framed top and bottom so the eye lands on it.</summary>

@@ -1,14 +1,14 @@
 using System.Windows;
-using System.Windows.Controls;
 using ProjectZ.Models;
 using ProjectZ.Services;
 
 namespace ProjectZ.Views;
 
 /// <summary>
-/// The classic 80 mm sales invoice: letterhead, invoice meta, customer block, item table with
-/// serials, totals box, payment breakdown and signature. Every figure is the invoice's own
-/// (subtotal, discount, net, collected, refunded, remaining) — no estimates are added.
+/// The classic 80 mm sales receipt as the shop prints it: store letterhead, centred invoice number and
+/// date, the item table with serials, centred totals and settlement lines, then the store's thank-you
+/// note. There is no cashier line, no customer block, no signature row and no legal footer — the paper
+/// carries only what the owner asked for.
 /// </summary>
 public static class SalesInvoicePaper
 {
@@ -18,27 +18,18 @@ public static class SalesInvoicePaper
         {
             ClassicReceipt.Header(),
             ClassicReceipt.DoubleRule(),
-            ClassicReceipt.Title("فاتورة مبيعات", "إيصال مبيعات ضريبية مبسطة"),
-            ClassicReceipt.DottedRule()
+            ClassicReceipt.Title("فاتورة مبيعات")
         };
 
-        // Invoice identity block, printed in a fixed order so it never re-orders in Arabic.
-        blocks.Add(ClassicReceipt.Field("رقم الفاتورة", invoice.InvoiceNumber, bold: true));
-        blocks.Add(ClassicReceipt.Field("التاريخ", invoice.IssuedFullDisplay));
-        blocks.Add(ClassicReceipt.Field("الكاشير", invoice.CashierName));
+        // Invoice identity — centred, never pushed to one side.
+        blocks.Add(ClassicReceipt.CenteredLine($"رقم الفاتورة: {invoice.InvoiceNumber}", bold: true));
+        blocks.Add(ClassicReceipt.CenteredLine($"التاريخ: {invoice.IssuedFullDisplay}"));
+        blocks.Add(ClassicReceipt.ThinRule(1.5, 1));
 
-        blocks.Add(ClassicReceipt.SectionTitle("بيانات العميل"));
-        blocks.Add(ClassicReceipt.Field("العميل", invoice.CustomerName, bold: true));
-        blocks.Add(ClassicReceipt.Field("الهاتف", invoice.CustomerPhoneDisplay));
-        if (!invoice.IsWalkInCustomer)
-            blocks.Add(ClassicReceipt.Field("العنوان", invoice.CustomerAddressDisplay));
-        blocks.Add(ClassicReceipt.Field("فئة السعر", invoice.DefaultPriceTierTitle));
-        blocks.Add(ClassicReceipt.Field("حالة الفاتورة", invoice.StatusTitle));
-
-        blocks.Add(ClassicReceipt.SectionTitle("الأصناف"));
+        // Items
+        blocks.Add(ClassicReceipt.CenteredSectionTitle("الأصناف"));
         blocks.Add(ClassicReceipt.ItemTableHeader("الصنف", "الكمية", "السعر", "الإجمالي"));
-        var lines = invoice.Items.OrderBy(line => line.LineNumber).ToList();
-        foreach (var line in lines)
+        foreach (var line in invoice.Items.OrderBy(line => line.LineNumber))
         {
             var detail = string.IsNullOrWhiteSpace(line.SerialSummary) ? null : line.SerialSummary;
             if (line.ReturnedQuantity > 0)
@@ -54,47 +45,39 @@ public static class SalesInvoicePaper
         }
 
         blocks.Add(ClassicReceipt.ThinRule(1.5, 0.5));
-        blocks.Add(ClassicReceipt.TotalRow("عدد الأصناف / القطع", $"{invoice.TotalLineCount} / {invoice.TotalUnitsCount}"));
 
-        // Totals box: subtotal, discount, returns, then the grand total.
-        var totals = new StackPanel();
-        totals.Children.Add(ClassicReceipt.TotalRow("الإجمالي الفرعي", invoice.SubtotalDisplay));
+        // Counts, totals and settlement — every line centred.
+        blocks.Add(ClassicReceipt.CenteredLine($"عدد الأصناف: {invoice.TotalLineCount}   ·   عدد القطع: {invoice.TotalUnitsCount}"));
+        blocks.Add(ClassicReceipt.CenteredLine($"الإجمالي الفرعي: {invoice.SubtotalDisplay}"));
         if (invoice.HasDiscount)
-            totals.Children.Add(ClassicReceipt.TotalRow("الخصم", "- " + invoice.EffectiveDiscountDisplay));
-        totals.Children.Add(ClassicReceipt.GrandTotal("الصافي المطلوب", invoice.NetTotalDisplay));
+            blocks.Add(ClassicReceipt.CenteredLine($"الخصم: - {invoice.EffectiveDiscountDisplay}"));
+        blocks.Add(ClassicReceipt.CenteredGrandTotal("الصافي المطلوب", invoice.NetTotalDisplay));
         if (invoice.HasReturnedAmount)
-            totals.Children.Add(ClassicReceipt.TotalRow("قيمة المرتجع", "- " + invoice.ReturnedTotalDisplay));
+            blocks.Add(ClassicReceipt.CenteredLine($"قيمة المرتجع: - {invoice.ReturnedTotalDisplay}"));
         if (invoice.HasReturnedAmount)
-            totals.Children.Add(ClassicReceipt.TotalRow("صافي البيع بعد المرتجع", invoice.EffectiveNetSalesDisplay, bold: true));
-        blocks.Add(ClassicReceipt.Box("", totals));
+            blocks.Add(ClassicReceipt.CenteredLine($"صافي البيع بعد المرتجع: {invoice.EffectiveNetSalesDisplay}", bold: true));
 
-        // Payment breakdown — only the channels that actually carry money.
-        var payment = new StackPanel();
+        blocks.Add(ClassicReceipt.CenteredSectionTitle("تفاصيل السداد"));
         if (invoice.HasCashPaid)
-            payment.Children.Add(ClassicReceipt.TotalRow("المدفوع كاش", invoice.CashPaidDisplay));
+            blocks.Add(ClassicReceipt.CenteredLine($"المدفوع كاش: {invoice.CashPaidDisplay}"));
         if (invoice.HasVodafoneCash)
-            payment.Children.Add(ClassicReceipt.TotalRow("المدفوع فودافون كاش", invoice.VodafoneCashPaidDisplay));
+            blocks.Add(ClassicReceipt.CenteredLine($"المدفوع فودافون كاش: {invoice.VodafoneCashPaidDisplay}"));
         if (invoice.HasInstaPay)
-            payment.Children.Add(ClassicReceipt.TotalRow("المدفوع إنستاباي", invoice.InstaPayPaidDisplay));
-        payment.Children.Add(ClassicReceipt.TotalRow("إجمالي المسدد", invoice.GrossPaidDisplay, bold: true));
+            blocks.Add(ClassicReceipt.CenteredLine($"المدفوع إنستاباي: {invoice.InstaPayPaidDisplay}"));
+        blocks.Add(ClassicReceipt.CenteredLine($"إجمالي المسدد: {invoice.GrossPaidDisplay}", bold: true));
         if (invoice.HasRefundedAmount)
-            payment.Children.Add(ClassicReceipt.TotalRow("المردود للعميل", "- " + invoice.RefundedAmountDisplay));
-        payment.Children.Add(ClassicReceipt.TotalRow("صافي المحصل", invoice.NetCollectedDisplay, bold: true));
+            blocks.Add(ClassicReceipt.CenteredLine($"المردود للعميل: - {invoice.RefundedAmountDisplay}"));
+        blocks.Add(ClassicReceipt.CenteredLine($"صافي المحصل: {invoice.NetCollectedDisplay}", bold: true));
         if (invoice.HasChange)
-            payment.Children.Add(ClassicReceipt.TotalRow("الباقي المرتجع", invoice.ChangeAmountDisplay));
+            blocks.Add(ClassicReceipt.CenteredLine($"الباقي المرتجع: {invoice.ChangeAmountDisplay}"));
         if (invoice.HasRemaining)
-            payment.Children.Add(ClassicReceipt.TotalRow("المتبقي الآجل", invoice.RemainingAmountDisplay, bold: true));
-        payment.Children.Add(ClassicReceipt.TotalRow("طريقة السداد", invoice.PaymentMethodSummary));
-        blocks.Add(ClassicReceipt.Box("السداد", payment));
+            blocks.Add(ClassicReceipt.CenteredLine($"المتبقي الآجل: {invoice.RemainingAmountDisplay}", bold: true));
+        blocks.Add(ClassicReceipt.CenteredLine($"طريقة السداد: {invoice.PaymentMethodSummary}"));
 
         if (invoice.HasNotes)
-            blocks.Add(ClassicReceipt.Box("ملاحظات", ClassicReceipt.Paragraph(invoice.Notes)));
+            blocks.Add(ClassicReceipt.CenteredLine($"ملاحظات: {invoice.Notes}"));
 
-        blocks.Add(ClassicReceipt.Signatures("توقيع الكاشير", "توقيع العميل"));
-        blocks.Add(ClassicReceipt.Footer(StoreIdentityNote()));
+        blocks.Add(ClassicReceipt.Footer(StoreIdentity.Current.FooterNote));
         return ClassicReceipt.Paper(blocks);
     }
-
-
-    private static string StoreIdentityNote() => StoreIdentity.Current.FooterNote;
 }

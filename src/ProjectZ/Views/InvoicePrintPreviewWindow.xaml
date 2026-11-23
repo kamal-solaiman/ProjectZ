@@ -44,7 +44,7 @@
                     <TextBlock Text="طباعة فاتورة المبيعات"
                                Style="{StaticResource PosRtlTextStyle}"
                                FontSize="16.5" FontWeight="Bold" Foreground="White" />
-                    <TextBlock Text="{Binding Invoice.InvoiceNumber}"
+                    <TextBlock Text="{Binding InvoiceNumberDisplay}"
                                Style="{StaticResource PosLtrTextStyle}"
                                HorizontalAlignment="Right"
                                Margin="0,3,0,0"
