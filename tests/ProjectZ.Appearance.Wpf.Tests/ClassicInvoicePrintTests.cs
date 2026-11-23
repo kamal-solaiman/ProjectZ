@@ -106,11 +106,11 @@ internal static class ClassicInvoicePrintTests
             PosDesignSeedData.CreateSampleCustomers());
 
         // A refused save (nothing in the cart) must never open a receipt window.
-        var refused = new PosViewModel("اختبار", catalog, _ => "INV-2026-9001", posCustomers, useDesignSamples: false);
-        var refusedWindows = 0;
-        refused.OpenPrintWindowRequested = _ => refusedWindows++;
-        refused.SaveInvoiceCommand.Execute(null);
-        check(refused.IsErrorStatus && refusedWindows == 0,
+        var posRefused = new PosViewModel("اختبار", catalog, _ => "INV-2026-9001", posCustomers, useDesignSamples: false);
+        var posRefusedWindows = 0;
+        posRefused.OpenPrintWindowRequested = _ => posRefusedWindows++;
+        posRefused.SaveInvoiceCommand.Execute(null);
+        check(posRefused.IsErrorStatus && posRefusedWindows == 0,
             "An empty cart is refused and no receipt window opens");
 
         // The saved snapshot the register hands back after COMMIT.
