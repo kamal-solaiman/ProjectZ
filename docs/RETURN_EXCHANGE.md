@@ -55,7 +55,7 @@
 
 - `RefreshFromDatabaseCommand` (زر «تحديث من قاعدة البيانات»)، والشارة تعرض `DataSourceLabel`: «متصل بقاعدة البيانات — SQL Server».
 - `ConfirmOperationCommand` → `ExecuteDatabaseOperation` (يحفظ ثم يعيد القراءة).
-- `OpenOperationInvoiceCommand` لفتح فاتورة العملية، `PrintSelectedInvoiceCommand` للمعاينة والطباعة.
+- `OpenOperationInvoiceCommand` لفتح فاتورة العملية، `PrintSelectedInvoiceCommand` لطباعة الفاتورة فعليًا على ورق حراري 80 مم (انظر [طباعة فاتورة البيع](POS_SALES.md#طباعة-فاتورة-البيع-ورق-حراري-80-مم)).
 - كل أزرار الكميات (`AllGoodCommand`, `AllDamagedCommand`, `Increment*`, `Decrement*`)، فئات الأسعار، وتعبئة الفرق (`FillDiffCashCommand`, `FillDiffVodafoneCommand`, `FillDiffInstaPayCommand`).
 - تبويب السجل يعرض `HistorySourceLabel`: «السجل مقروء من dbo.ReturnExchanges».
 

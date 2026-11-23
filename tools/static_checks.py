@@ -2320,6 +2320,25 @@ assert 'Theme.Brush.NavigationInk' in main_xaml_text and 'Theme.Brush.Navigation
     'sidebar menu text must use the independent sidebar text roles'
 assert 'effective Foreground' in (root / 'tests/ProjectZ.Appearance.Wpf.Tests/TextColorTests.cs').read_text(encoding='utf-8'), \
     'WPF regression must assert effective text colors, not only resource values'
+# The receipts are classic: black ink on white 80 mm paper, never the coloured preview cards.
+classic_receipt = (root / 'src/ProjectZ/Views/ClassicReceipt.cs').read_text(encoding='utf-8')
+sales_paper = (root / 'src/ProjectZ/Views/SalesInvoicePaper.cs').read_text(encoding='utf-8')
+maintenance_paper = (root / 'src/ProjectZ/Views/MaintenanceReceiptPaper.cs').read_text(encoding='utf-8')
+for paper_name, paper_text in (('ClassicReceipt.cs', classic_receipt), ('SalesInvoicePaper.cs', sales_paper),
+                               ('MaintenanceReceiptPaper.cs', maintenance_paper)):
+    for token in ('Brushes.Black', 'Brushes.White'):
+        assert token in paper_text or token in classic_receipt, f'{paper_name}: receipts must print black on white'
+    for banned in ('CornerRadius = new CornerRadius(', '#102E48', '#0F766E', '#147D92'):
+        assert banned not in paper_text, f'{paper_name}: classic paper must not use the coloured UI look ({banned})'
+assert 'PaperWidthMillimetres = 80' in classic_receipt and 'DipsPerMillimetre = 96 / 25.4' in classic_receipt, \
+    'the receipt page must be 80 mm wide, measured in millimetres'
+assert 'PrintDialog' in classic_receipt and 'PrintDocument(' in classic_receipt, \
+    'receipts must really print through the system print dialog'
+for token in ('الإجمالي الفرعي', 'الصافي المطلوب', 'طريقة السداد', 'توقيع العميل'):
+    assert token in sales_paper, f'the sales invoice lost a classic detail: {token}'
+for token in ('شروط الاستلام', 'الضمان', 'قطع الغيار المستبدلة', 'إجمالي المسدد'):
+    assert token in maintenance_paper, f'the maintenance document lost a classic detail: {token}'
+
 print_isolation = (root / 'src/ProjectZ/Resources/PrintIsolation.xaml').read_text(encoding='utf-8')
 assert 'DynamicResource Theme.' not in print_isolation, 'print isolation must not follow the live theme'
 for print_name in ('InvoicePrintPreviewWindow.xaml', 'PurchaseInvoicePrintPreviewWindow.xaml', 'MaintenanceReceiptPreviewWindow.xaml'):
