@@ -1,44 +1,35 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Windows;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
+using ProjectZ.Views;
 
 namespace ProjectZ.ViewModels;
 
 public sealed class InvoicePrintPreviewViewModel : ObservableObject
 {
-    private bool isA4Mode;
+    private readonly Action<string> onPrinted;
+    private string copiesText = "1";
     private string statusMessage = "";
+    private bool isErrorStatus;
 
     public SalesInvoiceDesignItem Invoice { get; }
 
-    public bool IsThermalMode
+    /// <summary>The classic 80 mm paper exactly as it will be printed (black on white).</summary>
+    public FrameworkElement PaperPreview { get; }
+
+    public string CopiesText
     {
-        get => !isA4Mode;
+        get => copiesText;
         set
         {
-            if (isA4Mode == !value) return;
-            isA4Mode = !value;
+            if (copiesText == value) return;
+            copiesText = value;
             Changed();
-            Changed(nameof(IsA4Mode));
-            Changed(nameof(CurrentModeLabel));
+            StatusMessage = "";
         }
     }
-
-    public bool IsA4Mode
-    {
-        get => isA4Mode;
-        set
-        {
-            if (isA4Mode == value) return;
-            isA4Mode = value;
-            Changed();
-            Changed(nameof(IsThermalMode));
-            Changed(nameof(CurrentModeLabel));
-        }
-    }
-
-    public string CurrentModeLabel => IsA4Mode ? "فاتورة A4 رسمية" : "إيصال حراري 80 مم";
 
     public string StatusMessage
     {
@@ -52,26 +43,64 @@ public sealed class InvoicePrintPreviewViewModel : ObservableObject
         }
     }
 
+    public bool IsErrorStatus
+    {
+        get => isErrorStatus;
+        private set
+        {
+            if (isErrorStatus == value) return;
+            isErrorStatus = value;
+            Changed();
+        }
+    }
+
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
 
     public Action? RequestClose { get; set; }
-    public ActionCommand SelectThermalModeCommand { get; }
-    public ActionCommand SelectA4ModeCommand { get; }
     public ActionCommand PrintCommand { get; }
     public ActionCommand CloseCommand { get; }
 
-    public InvoicePrintPreviewViewModel(SalesInvoiceDesignItem invoice, Action<string> onPrintPreview)
+    public InvoicePrintPreviewViewModel(SalesInvoiceDesignItem invoice, Action<string> onPrinted)
     {
         Invoice = invoice;
-        SelectThermalModeCommand = new ActionCommand(() => IsThermalMode = true);
-        SelectA4ModeCommand = new ActionCommand(() => IsA4Mode = true);
-        PrintCommand = new ActionCommand(() =>
-        {
-            var msg = $"وضع التصميم (بدون طابعة Backend): تمت معاينة طباعة الفاتورة {Invoice.InvoiceNumber} بصيغة «{CurrentModeLabel}».";
-            StatusMessage = msg;
-            onPrintPreview(CurrentModeLabel);
-        });
+        this.onPrinted = onPrinted;
+        PaperPreview = SalesInvoicePaper.Build(invoice);
+
+        PrintCommand = new ActionCommand(() => Print());
         CloseCommand = new ActionCommand(() => RequestClose?.Invoke());
+    }
+
+    private void Print()
+    {
+        if (!int.TryParse(CopiesText.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var copies)
+            || copies is < 1 or > 20)
+        {
+            SetStatus("أدخل عدد نسخ صحيحًا من 1 إلى 20.", true);
+            return;
+        }
+
+        var result = ClassicReceipt.PrintInteractive(
+            () => SalesInvoicePaper.Build(Invoice), $"فاتورة مبيعات {Invoice.InvoiceNumber}", copies);
+        if (result.WasCancelled)
+        {
+            SetStatus("أُلغيت الطباعة قبل اختيار الطابعة.", false);
+            return;
+        }
+
+        if (!result.Succeeded)
+        {
+            SetStatus(result.Message, true);
+            return;
+        }
+
+        SetStatus($"تم إرسال فاتورة {Invoice.InvoiceNumber} ({copies} نسخة) إلى «{result.PrinterName}».", false);
+        onPrinted("فاتورة 80 مم");
+    }
+
+    private void SetStatus(string message, bool isError)
+    {
+        IsErrorStatus = isError;
+        StatusMessage = message;
     }
 }
 

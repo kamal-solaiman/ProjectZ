@@ -875,11 +875,11 @@ public sealed class CustomersViewModel : ObservableObject
             invoice.ActivityLog.Add(new SalesInvoiceActivityEntry
             {
                 Timestamp = DateTime.Now,
-                ActionTitle = "معاينة / طباعة الفاتورة",
-                Details = $"طباعة ({modeLabel}) من ملف العميل.",
+                ActionTitle = "طباعة الفاتورة",
+                Details = $"طباعة فعلية ({modeLabel}) من ملف العميل.",
                 ActorName = currentUserName
             });
-            SetStatus($"تمت معاينة طباعة الفاتورة {invoice.InvoiceNumber} ({modeLabel}).", false);
+            SetStatus($"تمت طباعة الفاتورة {invoice.InvoiceNumber} ({modeLabel}).", false);
         });
 
         OpenSalesPrintPreviewRequested?.Invoke(vm);

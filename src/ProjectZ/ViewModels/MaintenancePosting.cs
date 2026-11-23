@@ -69,19 +69,31 @@ internal static class MaintenancePosting
                     throw new MaintenanceDataException("تغيّر الأمر. افتحه مجددًا من السجل.");
                 order = latest;
             }
-            catch (Exception ex) { status($"تعذّر فتح إيصال مطابق: {ex.Message}", true); return; }
+            catch (Exception ex) { status($"تعذّر فتح مستند مطابق: {ex.Message}", true); return; }
         }
+
         var key = MaintenanceTicketKey.Open(order);
         preview?.Invoke(new MaintenanceReceiptPreviewViewModel(order, (printMode, label) =>
         {
+            // Called only after the receipt actually reached the printer, so the log never claims a
+            // print that the user cancelled or that the printer refused.
             try
             {
                 var at = repository?.AppendMaintenanceActivity(key, (byte)printMode) ?? DateTime.Now;
-                order.ActivityLog.Add(new MaintenanceActivityEntry { Timestamp = at, ActorName = actor,
-                    ActionTitle = "معاينة / طباعة مستند صيانة", Details = $"{label} · {order.OrderNumber}" });
-                status($"تمت معاينة {label} للأمر {order.OrderNumber}.", false);
+                order.ActivityLog.Add(new MaintenanceActivityEntry
+                {
+                    Timestamp = at,
+                    ActorName = actor,
+                    ActionTitle = "طباعة مستند صيانة",
+                    Details = $"طُبع {label} للأمر {order.OrderNumber}."
+                });
+                status($"تمت طباعة {label} للأمر {order.OrderNumber}.", false);
             }
-            catch (Exception ex) { status($"تعذّر تسجيل معاينة الطباعة: {ex.Message}", true); throw; }
+            catch (Exception ex)
+            {
+                status($"تعذّر تسجيل طباعة {label}: {ex.Message}", true);
+                throw;
+            }
         }, mode ?? (order.IsDelivered ? MaintenanceReceiptPrintMode.DeliveryAndWarrantyReceipt : MaintenanceReceiptPrintMode.CustomerIntakeReceipt)));
     }
 }

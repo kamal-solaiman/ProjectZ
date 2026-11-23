@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using ProjectZ.Data;
 using ProjectZ.Models;
 using ProjectZ.ViewModels;
+using ProjectZ.Views;
 
 internal static class MaintenancePostingTests
 {
@@ -94,7 +95,21 @@ internal static class MaintenancePostingTests
             "Selection/reload cannot retarget a confirmed request or substitute a newer version");
         check(notices==1 && receipt?.Order==store.Saved && receipt.IsDeliveryReceiptMode && receipt.Order.TotalCollectedAll==100 && !shown.IsDelivered,
             "Only the reread committed snapshot, not the selected row or edited draft, supplies the warranty receipt");
-        receipt!.PrintCommand.Execute(null);
+        var printed=0;
+        ClassicReceipt.InteractivePrinter=(_, job, _) =>
+        {
+            printed++;
+            return ReceiptPrintResult.Printed("طابعة الاختبار", 1);
+        };
+        try
+        {
+            receipt!.PrintCommand.Execute(null);
+        }
+        finally
+        {
+            ClassicReceipt.InteractivePrinter=null;
+        }
+        check(printed==1, "The delivery invoice goes to the printer once");
         check(store.Prints==1 && store.Collections==1 && store.Requests.Count==4, "Printing appends an activity; it cannot retry a rejected payment");
         var otherDetail = new MaintenanceInvoiceDetailsViewModel(Shown(8),"اختبار",store) { CollectPaymentAmountText="10" };
         otherDetail.CollectCashCommand.Execute(null);

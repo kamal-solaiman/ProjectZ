@@ -728,10 +728,10 @@ public sealed class ReturnExchangeViewModel : ObservableObject
                 {
                     Timestamp = DateTime.Now,
                     ActionTitle = "طباعة الفاتورة من المرتجع والاستبدال",
-                    Details = $"معاينة/طباعة بصيغة {modeLabel}.",
+                    Details = $"طباعة فعلية بصيغة {modeLabel}.",
                     ActorName = currentCashierName
                 });
-                SetStatus($"تمت معاينة طباعة الفاتورة {SelectedInvoice.InvoiceNumber} ({modeLabel}).", false);
+                SetStatus($"تمت طباعة الفاتورة {SelectedInvoice.InvoiceNumber} ({modeLabel}).", false);
             });
             OpenPrintPreviewRequested?.Invoke(vm);
         });
