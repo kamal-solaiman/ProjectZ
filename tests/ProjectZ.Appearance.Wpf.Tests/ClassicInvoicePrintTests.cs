@@ -191,20 +191,23 @@ internal static class ClassicInvoicePrintTests
         var windowVm = new InvoicePrintPreviewViewModel(invoice, _ => { });
         var salesWindow = new InvoicePrintPreviewWindow(windowVm);
         check(ReferenceEquals(salesWindow.DataContext, windowVm), "The sales window is bound to its print view model");
-        check(salesWindow.Content is DependencyObject salesContent
+        var salesContent = salesWindow.Content as DependencyObject;
+        check(salesContent is not null
               && LogicalDescendants(salesContent).OfType<ContentControl>()
                   .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path
                       == nameof(InvoicePrintPreviewViewModel.PaperPreview)),
             "The sales window shows the printable paper through a ContentControl, not a mock-up card");
-        check(LogicalDescendants(salesContent).OfType<TextBlock>()
-                .Any(t => t.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path.Path
-                    == "Invoice.InvoiceNumber"),
+        check(salesContent is not null
+              && LogicalDescendants(salesContent).OfType<TextBlock>()
+                  .Any(t => t.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path.Path
+                      == "Invoice.InvoiceNumber"),
             "The sales window header names the invoice being printed");
 
         var maintenanceVm = new MaintenanceReceiptPreviewViewModel(active);
         var maintenanceWindow = new MaintenanceReceiptPreviewWindow(maintenanceVm);
         check(ReferenceEquals(maintenanceWindow.DataContext, maintenanceVm), "The maintenance window is bound to its print view model");
-        check(maintenanceWindow.Content is DependencyObject maintenanceContent
+        var maintenanceContent = maintenanceWindow.Content as DependencyObject;
+        check(maintenanceContent is not null
               && LogicalDescendants(maintenanceContent).OfType<ContentControl>()
                   .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path
                       == nameof(MaintenanceReceiptPreviewViewModel.PaperPreview)),
