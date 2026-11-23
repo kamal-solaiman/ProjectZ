@@ -137,7 +137,7 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
             var sticker = BarcodeStickerPrinting.ForMaintenanceOrder(Order, StoreIdentity.Current.Name, out var stickerError);
             if (sticker is null)
             {
-                SetStatus(stickerError, true);
+                SetStatus(stickerError ?? "تعذّر تجهيز ملصق أمر الصيانة.", true);
                 return;
             }
 
@@ -192,10 +192,10 @@ public sealed class MaintenanceReceiptPreviewViewModel : ObservableObject
         return BarcodeStickerPrinting.BuildPreview(sticker);
     }
 
-    private void SetStatus(string message, bool isError)
+    private void SetStatus(string? message, bool isError)
     {
         IsErrorStatus = isError;
-        StatusMessage = message;
+        StatusMessage = message ?? "";
     }
 
     private void SetMode(MaintenanceReceiptPrintMode nextMode)

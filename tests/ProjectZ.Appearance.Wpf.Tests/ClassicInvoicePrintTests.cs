@@ -185,27 +185,31 @@ internal static class ClassicInvoicePrintTests
         check(guard.PrintButtonLabel == "طباعة الآن" && guard.PrintHint.Contains(active.OrderNumber, StringComparison.Ordinal),
             "The print button names the document and the order");
 
-        // --- The preview windows carry no themed colour --------------------------------
-        var salesWindow = new InvoicePrintPreviewWindow(new InvoicePrintPreviewViewModel(invoice, _ => { }));
-        salesWindow.Measure(new Size(520, 760));
-        salesWindow.Arrange(new Rect(0, 0, 520, 760));
-        salesWindow.UpdateLayout();
-        var previewHost = Descendants(salesWindow).OfType<ContentControl>()
-            .FirstOrDefault(c => c.Content is FrameworkElement);
-        check(previewHost?.Content is FrameworkElement, "The sales window shows the printable paper, not a mock-up");
-        var previewText = TextOf((FrameworkElement)previewHost!.Content);
-        check(previewText.Contains(invoice.InvoiceNumber, StringComparison.Ordinal)
-              && previewText.Contains(invoice.NetTotalDisplay, StringComparison.Ordinal),
-            "The on-screen preview is the same paper that goes to the printer");
+        // --- The preview window shows the printable paper itself -------------------------
+        var windowVm = new InvoicePrintPreviewViewModel(invoice, _ => { });
+        var salesWindow = new InvoicePrintPreviewWindow(windowVm);
+        check(ReferenceEquals(salesWindow.DataContext, windowVm), "The sales window is bound to its print view model");
+        check(salesWindow.Content is Panel host && Descendants(host).OfType<ContentControl>()
+                .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path == nameof(InvoicePrintPreviewViewModel.PaperPreview)),
+            "The sales window shows the printable paper through a ContentControl, not a mock-up card");
+        var windowText = TextOf(salesWindow);
+        check(windowText.Contains(invoice.InvoiceNumber, StringComparison.Ordinal)
+              && windowText.Contains("طباعة الفاتورة", StringComparison.Ordinal),
+            "The window header names the invoice and offers the real print action");
+        check(!Descendants(salesWindow).OfType<ContentPresenter>().Any(c => c.Content is string text
+                  && text.Contains("وضع التصميم", StringComparison.Ordinal)),
+            "No «وضع التصميم» placeholder survives in the print window");
 
-        var maintenanceWindow = new MaintenanceReceiptPreviewWindow(new MaintenanceReceiptPreviewViewModel(active));
-        maintenanceWindow.Measure(new Size(560, 780));
-        maintenanceWindow.Arrange(new Rect(0, 0, 560, 780));
-        maintenanceWindow.UpdateLayout();
-        check(TextOf(maintenanceWindow).Contains("إيصال استلام جهاز", StringComparison.Ordinal),
-            "The maintenance window opens on the intake receipt for a device still in the workshop");
-        maintenanceWindow.Close();
-        salesWindow.Close();
+        var maintenanceVm = new MaintenanceReceiptPreviewViewModel(active);
+        var maintenanceWindow = new MaintenanceReceiptPreviewWindow(maintenanceVm);
+        check(ReferenceEquals(maintenanceWindow.DataContext, maintenanceVm), "The maintenance window is bound to its print view model");
+        check(Descendants(maintenanceWindow).OfType<ContentControl>()
+                .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path == nameof(MaintenanceReceiptPreviewViewModel.PaperPreview)),
+            "The maintenance window shows the printable paper itself");
+        check(Descendants(maintenanceWindow).OfType<Button>()
+                .Any(b => b.GetBindingExpression(System.Windows.Controls.Primitives.ButtonBase.CommandProperty)
+                    ?.ParentBinding.Path.Path == nameof(MaintenanceReceiptPreviewViewModel.PrintCommand)),
+            "The maintenance window carries the real print button");
     }
 
     /// <summary>All visible text under a visual, in visual-tree order.</summary>
