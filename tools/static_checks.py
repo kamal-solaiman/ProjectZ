@@ -2340,6 +2340,15 @@ for token in ('الإجمالي الفرعي', 'الصافي المطلوب', '�
 for removed in ('الكاشير', 'بيانات العميل', 'فئة السعر', 'حالة الفاتورة', 'توقيع الكاشير', 'توقيع العميل',
                 'ضريبية مبسطة', 'ClassicReceipt.Signatures', 'ClassicReceipt.Field'):
     assert removed not in sales_paper, f'the sales receipt must not print «{removed}»'
+# Internal inventory ids are bookkeeping, never printed on the customer receipt.
+assert 'PrintedSerialSummary' in sales_paper, \
+    'the sales receipt must print IMEI/SN only, not the inventory unit ids'
+assert 'line.SerialSummary' not in sales_paper, \
+    'the sales receipt must not fall back to the id-carrying SerialSummary'
+sales_models = (root / 'src/ProjectZ/Models/InvoiceDesignModels.cs').read_text(encoding='utf-8')
+assert 'public string PrintedSerialSummary' in sales_models, \
+    'the sales line must keep a printed serial summary that carries no ids'
+
 assert 'includePrintedDisclaimer: false' in sales_paper, \
     'the sales receipt must not print the «مستند مطبوع من نظام إدارة المحل» line'
 # Meta and totals are centred on the sales receipt, not pushed to one side.

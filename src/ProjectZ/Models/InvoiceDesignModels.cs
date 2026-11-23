@@ -102,6 +102,14 @@ public sealed class SalesInvoiceLineDesignItem : ObservableObject
         }
     }
 
+    /// <summary>
+    /// The serial numbers printed on the customer receipt: the IMEI/SN values only. The shop's internal
+    /// inventory unit ids («IDs: #12, #13») are bookkeeping, and the owner asked for them off the paper.
+    /// </summary>
+    public string PrintedSerialSummary => SerialNumbers.Count > 0
+        ? $"IMEI/SN: {string.Join("، ", SerialNumbers)}"
+        : "";
+
     public decimal LineGrossTotal => UnitPrice * Quantity;
     // Loaded from vwSalesLineValuation. Sample invoices derive the same cumulative shares locally.
     public decimal? SavedNetAmount { get; init; }

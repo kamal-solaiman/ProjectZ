@@ -83,6 +83,38 @@ internal static class ClassicInvoicePrintTests
         check(invoice.HasRemaining == text.Contains("المتبقي الآجل", StringComparison.Ordinal),
             "The credit row appears exactly when money is still owed");
 
+        // --- No internal ids on the paper ---------------------------------------------------
+        var lineWithIds = InvoiceDesignSeedData.CreateSharedSampleInvoices(
+                PosDesignSeedData.CreateSharedSampleCatalog(),
+                InventoryDesignSeedData.CreateSharedSampleRegistrations(PosDesignSeedData.CreateSharedSampleCatalog()))
+            .SelectMany(row => row.Items)
+            .FirstOrDefault(row => row.UnitRegistrationIds.Count > 0);
+        if (lineWithIds is null)
+        {
+            check(false, "The sample data still carries inventory unit ids for the no-ids probe");
+        }
+        else
+        {
+            check(lineWithIds.SerialSummary.Contains("ID", StringComparison.Ordinal)
+                  || lineWithIds.SerialSummary.Contains("IDs", StringComparison.Ordinal),
+                "The internal summary still has ids (that is why the receipt needs its own line)");
+            check(!lineWithIds.PrintedSerialSummary.Contains("ID", StringComparison.Ordinal)
+                  && !lineWithIds.PrintedSerialSummary.Contains("#", StringComparison.Ordinal),
+                "The printed serial line drops every inventory id, keeping only IMEI/SN");
+
+            var idFreePaper = TextOf(SalesInvoicePaper.Build(invoice));
+            foreach (var internalId in lineWithIds.UnitRegistrationIds)
+            {
+                check(!idFreePaper.Contains($"#{internalId}", StringComparison.Ordinal)
+                      && !idFreePaper.Contains($"ID: #{internalId}", StringComparison.Ordinal),
+                    $"The printed invoice never shows the internal id #{internalId}");
+            }
+
+            check(!idFreePaper.Contains("IDs:", StringComparison.Ordinal)
+                  && !idFreePaper.Contains("ID:", StringComparison.Ordinal),
+                "No «IDs:» label survives anywhere on the sales receipt");
+        }
+
         // --- Colour: nothing but black ink on white paper ----------------------------------
         var brushes = Descendants(paper).OfType<Control>().Select(c => c.Foreground).ToList();
         brushes.AddRange(Descendants(paper).OfType<TextBlock>().Select(t => t.Foreground));

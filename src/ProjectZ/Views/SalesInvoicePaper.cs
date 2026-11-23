@@ -31,7 +31,8 @@ public static class SalesInvoicePaper
         blocks.Add(ClassicReceipt.ItemTableHeader("الصنف", "الكمية", "السعر", "الإجمالي"));
         foreach (var line in invoice.Items.OrderBy(line => line.LineNumber))
         {
-            var detail = string.IsNullOrWhiteSpace(line.SerialSummary) ? null : line.SerialSummary;
+            // Serials stay on the receipt; the internal inventory ids never print.
+            var detail = string.IsNullOrWhiteSpace(line.PrintedSerialSummary) ? null : line.PrintedSerialSummary;
             if (line.ReturnedQuantity > 0)
                 detail = (detail is null ? "" : detail + " · ") + $"مرتجع {line.ReturnedQuantity} من {line.Quantity}";
             if (line.IsExchangeReplacement)
