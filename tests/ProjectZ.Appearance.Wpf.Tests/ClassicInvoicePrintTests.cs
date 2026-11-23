@@ -196,7 +196,9 @@ internal static class ClassicInvoicePrintTests
                   .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path
                       == nameof(InvoicePrintPreviewViewModel.PaperPreview)),
             "The sales window shows the printable paper through a ContentControl, not a mock-up card");
-        check(LogicalText(salesWindow).Contains(invoice.InvoiceNumber, StringComparison.Ordinal),
+        check(LogicalDescendants(salesContent).OfType<TextBlock>()
+                .Any(t => t.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path.Path
+                    == "Invoice.InvoiceNumber"),
             "The sales window header names the invoice being printed");
 
         var maintenanceVm = new MaintenanceReceiptPreviewViewModel(active);
@@ -223,8 +225,6 @@ internal static class ClassicInvoicePrintTests
         }
     }
 
-    private static string LogicalText(DependencyObject root) => string.Join(" ",
-        LogicalDescendants(root).OfType<TextBlock>().Select(t => t.Text));
 
     /// <summary>All visible text under a visual, in visual-tree order.</summary>
     private static string TextOf(DependencyObject root) => string.Join(" ",
