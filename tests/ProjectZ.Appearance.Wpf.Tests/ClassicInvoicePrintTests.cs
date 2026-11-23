@@ -191,7 +191,7 @@ internal static class ClassicInvoicePrintTests
         var windowVm = new InvoicePrintPreviewViewModel(invoice, _ => { });
         var salesWindow = new InvoicePrintPreviewWindow(windowVm);
         check(ReferenceEquals(salesWindow.DataContext, windowVm), "The sales window is bound to its print view model");
-        check(salesWindow.Content is { } salesContent
+        check(salesWindow.Content is DependencyObject salesContent
               && LogicalDescendants(salesContent).OfType<ContentControl>()
                   .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path
                       == nameof(InvoicePrintPreviewViewModel.PaperPreview)),
@@ -202,7 +202,7 @@ internal static class ClassicInvoicePrintTests
         var maintenanceVm = new MaintenanceReceiptPreviewViewModel(active);
         var maintenanceWindow = new MaintenanceReceiptPreviewWindow(maintenanceVm);
         check(ReferenceEquals(maintenanceWindow.DataContext, maintenanceVm), "The maintenance window is bound to its print view model");
-        check(maintenanceWindow.Content is { } maintenanceContent
+        check(maintenanceWindow.Content is DependencyObject maintenanceContent
               && LogicalDescendants(maintenanceContent).OfType<ContentControl>()
                   .Any(c => c.GetBindingExpression(ContentControl.ContentProperty)?.ParentBinding.Path.Path
                       == nameof(MaintenanceReceiptPreviewViewModel.PaperPreview)),

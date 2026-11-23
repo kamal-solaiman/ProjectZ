@@ -106,7 +106,7 @@ internal static class StickerPrintTests
             "Printing is refused until the store name is saved in settings");
         var blank = new PosProductDesignItem { Name = "بلا باركود" };
         check(BarcodeStickerPrinting.ForProduct(blank, "نيو فونز", out var blankError) is null
-              && blankError.Contains("بلا باركود", StringComparison.Ordinal),
+              && blankError!.Contains("بلا باركود", StringComparison.Ordinal),
             "An item without a barcode explains how to add one");
 
         var inventory = new InventoryViewModel();
