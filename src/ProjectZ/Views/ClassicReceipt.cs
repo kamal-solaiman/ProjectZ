@@ -27,6 +27,9 @@ public static class ClassicReceipt
     private const string ArabicFont = "Segoe UI, Tahoma, Arial";
     private const string CodeFont = "Consolas, Courier New, Arial";
 
+    /// <summary>Marks the cells of the ruled item table, which are columns rather than centred lines.</summary>
+    public const string ItemTableCellTag = "receipt-item-cell";
+
     public static double Mm(double millimetres) => millimetres * DipsPerMillimetre;
 
     // ------------------------------------------------------------------ building blocks
@@ -177,7 +180,8 @@ public static class ClassicReceipt
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.Black,
                 TextAlignment = TextAlignment.Center,
-                FlowDirection = FlowDirection.RightToLeft
+                FlowDirection = FlowDirection.RightToLeft,
+                Tag = ItemTableCellTag
             };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Grid.SetColumn(cell, index);
@@ -209,6 +213,7 @@ public static class ClassicReceipt
                 TextWrapping = isName ? TextWrapping.Wrap : TextWrapping.NoWrap,
                 TextAlignment = isName ? TextAlignment.Right : TextAlignment.Center,
                 FlowDirection = isName ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
+                Tag = ItemTableCellTag,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(Mm(0.6), 0, Mm(0.6), 0)
             };
