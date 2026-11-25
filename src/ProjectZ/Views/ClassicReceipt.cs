@@ -234,7 +234,7 @@ public static class ClassicReceipt
                 Foreground = Brushes.Black,
                 FlowDirection = FlowDirection.RightToLeft,
                 TextWrapping = TextWrapping.Wrap,
-                TextAlignment = TextAlignment.Right,
+                TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, Mm(0.3), 0, 0)
             });
         }
