@@ -360,10 +360,15 @@ internal static class ClassicInvoicePrintTests
             "The purchase invoice is black and white only");
         check(!Descendants(purchasePaper).OfType<Border>().Any(b => b.CornerRadius.TopLeft > 0),
             "The purchase invoice has square corners");
+        // The two table headers/rows are columns by nature; everything outside the table is centred.
         var purchaseLines = Descendants(purchasePaper).OfType<TextBlock>()
-            .Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToList();
-        check(purchaseLines.Count > 0 && purchaseLines.All(t => t.TextAlignment == TextAlignment.Center),
-            "Every line of the purchase invoice is centred");
+            .Where(t => !string.IsNullOrWhiteSpace(t.Text) && !IsInsideTable(t)).ToList();
+        check(purchaseLines.Count > 0
+              && purchaseLines.All(t => t.TextAlignment == TextAlignment.Center),
+            "Every non-table line of the purchase invoice is centred");
+        check(Descendants(purchasePaper).OfType<TextBlock>()
+                .Any(t => t.Text == purchase.Items[0].QuantityDisplay && !IsInsideTable(t) == false),
+            "The item table still prints its quantity column");
 
         // The thermal page is exactly 80 mm wide.
         var purchaseDocument = ClassicReceipt.BuildDocument(
@@ -464,6 +469,20 @@ internal static class ClassicInvoicePrintTests
         }
     }
 
+
+    /// <summary>True when the text block is a cell of the ruled item table (header or row).</summary>
+    private static bool IsInsideTable(FrameworkElement text)
+    {
+        var parent = VisualTreeHelper.GetParent(text);
+        while (parent is not null)
+        {
+            if (parent is StackPanel panel && panel.Children.OfType<FrameworkElement>()
+                    .Any(child => child is Border { Height: 0.7, Background: not null }))
+                return true;
+            parent = VisualTreeHelper.GetParent(parent);
+        }
+        return false;
+    }
 
     /// <summary>All visible text under a visual, in visual-tree order.</summary>
     private static string TextOf(DependencyObject root) => string.Join(" ",
