@@ -333,11 +333,19 @@ internal static class ClassicInvoicePrintTests
             check(purchaseText.Contains(expected, StringComparison.Ordinal), $"The purchase invoice prints «{expected}»");
         }
 
-        // The owner chose: supplier name and phone only, no company/address, and no signatures or footer.
+        // The owner chose: supplier name and phone only — the company and address fields stay off the paper.
+        if (!string.IsNullOrWhiteSpace(purchase.SupplierCompany))
+            check(!purchaseText.Contains(purchase.SupplierCompany, StringComparison.Ordinal),
+                "The purchase invoice hides the supplier company field");
+        if (!string.IsNullOrWhiteSpace(purchase.SupplierAddress))
+            check(!purchaseText.Contains(purchase.SupplierAddress, StringComparison.Ordinal),
+                "The purchase invoice hides the supplier address field");
+        if (!string.IsNullOrWhiteSpace(purchase.SupplierInvoiceNumber))
+            check(purchaseText.Contains(purchase.SupplierInvoiceNumber, StringComparison.Ordinal),
+                "The purchase invoice keeps the supplier's own invoice number");
         foreach (var removed in new[]
                  {
-                     "شركة", "العنوان", "توقيع", "ختم", "لا يُعتمد إلا بختم المحل", "مستند مطبوع من نظام إدارة المحل",
-                     "ID مخزون"
+                     "توقيع", "ختم", "لا يُعتمد إلا بختم المحل", "مستند مطبوع من نظام إدارة المحل", "ID مخزون"
                  })
         {
             check(!purchaseText.Contains(removed, StringComparison.Ordinal),
