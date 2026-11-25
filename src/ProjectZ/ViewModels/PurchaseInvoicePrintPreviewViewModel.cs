@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Printing;
 using System.Windows;
+using System.Windows.Controls;
 using ProjectZ.Helpers;
 using ProjectZ.Models;
 using ProjectZ.Views;
@@ -42,7 +43,11 @@ public sealed class PurchaseInvoicePrintPreviewViewModel : ObservableObject
         }
     }
 
-    public bool IsA4Mode => !isThermalMode;
+    public bool IsA4Mode
+    {
+        get => !isThermalMode;
+        set => IsThermalMode = !value;
+    }
 
     public string CurrentModeLabel => IsThermalMode ? "إيصال شراء 80 مم" : "فاتورة شراء A4";
 
@@ -165,7 +170,7 @@ public sealed class PurchaseInvoicePrintPreviewViewModel : ObservableObject
     /// <summary>The on-screen A4 preview is the same document, shown page by page.</summary>
     private FrameworkElement A4Preview()
     {
-        var host = new System.Windows.Controls.ContentControl
+        var host = new ContentControl
         {
             Content = new DocumentViewer
             {

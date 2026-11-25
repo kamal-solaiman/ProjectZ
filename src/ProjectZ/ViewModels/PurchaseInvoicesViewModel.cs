@@ -9,6 +9,7 @@ namespace ProjectZ.ViewModels;
 
 public sealed class PurchaseInvoicesViewModel : ObservableObject
 {
+    private readonly string currentUserName;
     private readonly ObservableCollection<PurchaseInvoiceDesignItem> sharedPurchaseInvoices;
     private readonly ObservableCollection<SupplierDesignItem> sharedSuppliers;
     private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
@@ -245,6 +246,7 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         Action? notifyPurchaseEntryChanged = null,
         PurchaseRepository? repository = null)
     {
+        this.currentUserName = currentUserName;
         this.sharedCatalog = sharedCatalog ?? PosDesignSeedData.CreateSharedSampleCatalog();
         this.sharedRegistrations = sharedRegistrations ?? InventoryDesignSeedData.CreateSharedSampleRegistrations(this.sharedCatalog);
         this.sharedSuppliers = sharedSuppliers ?? PurchaseDesignSeedData.CreateSharedSampleSuppliers();
