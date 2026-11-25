@@ -310,6 +310,109 @@ internal static class ClassicInvoicePrintTests
         check(guard.PrintButtonLabel == "طباعة الآن" && guard.PrintHint.Contains(active.OrderNumber, StringComparison.Ordinal),
             "The print button names the document and the order");
 
+        // --- Purchase invoice: the same classic paper ------------------------------------
+        var purchaseInvoices = PurchaseDesignSeedData.CreateSharedSamplePurchaseInvoices(
+            catalog,
+            InventoryDesignSeedData.CreateSharedSampleRegistrations(catalog),
+            PurchaseDesignSeedData.CreateSharedSampleSuppliers());
+        check(purchaseInvoices.Count > 0, "The sample register supplies a purchase invoice to print");
+        var purchase = purchaseInvoices[0];
+
+        var purchasePaper = PurchaseInvoicePaper.BuildThermal(purchase);
+        purchasePaper.Measure(new Size(ClassicReceipt.Mm(80), double.PositiveInfinity));
+        var purchaseText = TextOf(purchasePaper);
+        foreach (var expected in new[]
+                 {
+                     "فاتورة شراء", purchase.InvoiceNumber, purchase.IssuedFullDisplay,
+                     purchase.SupplierInvoiceNumberDisplay, purchase.SupplierName, purchase.SupplierPhoneDisplay,
+                     purchase.Items[0].ProductName, purchase.SubtotalDisplay, purchase.NetTotalDisplay,
+                     purchase.TotalPaidDisplay, purchase.PaymentMethodSummary, purchase.StatusTitle,
+                     "الأصناف", "تفاصيل السداد", "المورد"
+                 })
+        {
+            check(purchaseText.Contains(expected, StringComparison.Ordinal), $"The purchase invoice prints «{expected}»");
+        }
+
+        // The owner chose: supplier name and phone only, no company/address, and no signatures or footer.
+        foreach (var removed in new[]
+                 {
+                     "شركة", "العنوان", "توقيع", "ختم", "لا يُعتمد إلا بختم المحل", "مستند مطبوع من نظام إدارة المحل",
+                     "ID مخزون"
+                 })
+        {
+            check(!purchaseText.Contains(removed, StringComparison.Ordinal),
+                $"The purchase invoice no longer prints «{removed}»");
+        }
+
+        // Pure black on white, square corners, everything centred.
+        var purchaseInk = Descendants(purchasePaper).OfType<TextBlock>().Select(t => t.Foreground)
+            .Concat(Descendants(purchasePaper).OfType<Border>().Select(b => b.Background).OfType<Brush>())
+            .Concat(Descendants(purchasePaper).OfType<Border>().Select(b => b.BorderBrush).OfType<Brush>());
+        check(purchaseInk.All(b => Equals(b, Brushes.Black) || Equals(b, Brushes.White)),
+            "The purchase invoice is black and white only");
+        check(!Descendants(purchasePaper).OfType<Border>().Any(b => b.CornerRadius.TopLeft > 0),
+            "The purchase invoice has square corners");
+        var purchaseLines = Descendants(purchasePaper).OfType<TextBlock>()
+            .Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToList();
+        check(purchaseLines.Count > 0 && purchaseLines.All(t => t.TextAlignment == TextAlignment.Center),
+            "Every line of the purchase invoice is centred");
+
+        // The thermal page is exactly 80 mm wide.
+        var purchaseDocument = ClassicReceipt.BuildDocument(
+            () => PurchaseInvoicePaper.BuildThermal(purchase), ClassicReceipt.Mm(72), copies: 2);
+        check(purchaseDocument.Pages.Count == 2
+              && purchaseDocument.Pages[0].Child is FixedPage page80
+              && Math.Abs(page80.Width - ClassicReceipt.Mm(80)) < 0.001,
+            "The purchase receipt prints two independent 80 mm pages");
+
+        // The A4 mode exists and carries the same numbers on A4 paper.
+        var a4Document = PurchaseInvoicePaper.BuildA4Document(purchase, ClassicReceipt.Mm(190), ClassicReceipt.Mm(277), copies: 1);
+        check(a4Document.Pages.Count == 1 && a4Document.Pages[0].Child is FixedPage a4Page
+              && Math.Abs(a4Page.Width - ClassicReceipt.Mm(190)) < 0.001,
+            "The A4 purchase invoice fills the printer's printable area");
+
+        var purchaseVm = new PurchaseInvoicePrintPreviewViewModel(purchase, _ => { });
+        check(purchaseVm.IsThermalMode && purchaseVm.CurrentModeLabel.Contains("80", StringComparison.Ordinal),
+            "The purchase window opens on the 80 mm receipt");
+        purchaseVm.SelectA4ModeCommand.Execute(null);
+        check(purchaseVm.IsA4Mode && purchaseVm.CurrentModeLabel.Contains("A4", StringComparison.Ordinal)
+              && purchaseVm.PaperPreview is not null,
+            "Switching to A4 swaps the preview to the A4 document");
+        purchaseVm.SelectThermalModeCommand.Execute(null);
+        purchaseVm.CopiesText = "0";
+        purchaseVm.PrintCommand.Execute(null);
+        check(purchaseVm.IsErrorStatus && purchaseVm.StatusMessage.Contains("1 إلى 20", StringComparison.Ordinal),
+            "A zero copy count is refused before any printer dialog");
+
+        var purchasePrinted = new List<string>();
+        var purchasePrintVm = new PurchaseInvoicePrintPreviewViewModel(purchase, purchasePrinted.Add);
+        ClassicReceipt.InteractivePrinter = (_, _, count) => ReceiptPrintResult.Printed("طابعة الاختبار", count);
+        try
+        {
+            purchasePrintVm.CopiesText = "2";
+            purchasePrintVm.PrintCommand.Execute(null);
+        }
+        finally
+        {
+            ClassicReceipt.InteractivePrinter = null;
+        }
+        check(!purchasePrintVm.IsErrorStatus && purchasePrinted.Count == 1
+              && purchasePrintVm.StatusMessage.Contains(purchase.InvoiceNumber, StringComparison.Ordinal),
+            "A successful purchase print is reported once, and only then is it recorded");
+
+        var purchaseRefused = new PurchaseInvoicePrintPreviewViewModel(purchase, purchasePrinted.Add);
+        ClassicReceipt.InteractivePrinter = (_, _, _) => ReceiptPrintResult.Failed("تعذّرت الطباعة: الطابعة غير متصلة");
+        try
+        {
+            purchaseRefused.PrintCommand.Execute(null);
+        }
+        finally
+        {
+            ClassicReceipt.InteractivePrinter = null;
+        }
+        check(purchaseRefused.IsErrorStatus && purchasePrinted.Count == 1,
+            "A failed purchase print shows the printer error and records nothing");
+
         // --- The preview window shows the printable paper itself -------------------------
         // A Window in a headless test never applies its template, so the contract is read from the
         // logical tree instead of the visual tree.

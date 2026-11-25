@@ -430,7 +430,16 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
         var vm = new PurchaseInvoicePrintPreviewViewModel(invoice, modeLabel =>
         {
-            SetStatus($"تمت معاينة طباعة فاتورة المشتريات {invoice.InvoiceNumber} ({modeLabel}).", false);
+            // Reached only after the paper actually reached the printer.
+            invoice.ActivityLog.Add(new PurchaseInvoiceActivityEntry
+            {
+                Timestamp = DateTime.Now,
+                ActionTitle = "طباعة فاتورة الشراء",
+                Details = $"طباعة فعلية بصيغة {modeLabel}.",
+                ActorName = currentUserName,
+                Amount = invoice.NetTotal
+            });
+            SetStatus($"تمت طباعة فاتورة المشتريات {invoice.InvoiceNumber} ({modeLabel}).", false);
         });
 
         OpenPrintPreviewRequested?.Invoke(vm);
