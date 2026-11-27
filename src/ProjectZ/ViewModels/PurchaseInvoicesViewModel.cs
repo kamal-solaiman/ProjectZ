@@ -9,6 +9,7 @@ namespace ProjectZ.ViewModels;
 
 public sealed class PurchaseInvoicesViewModel : ObservableObject
 {
+    private readonly string currentUserName;
     private readonly ObservableCollection<PurchaseInvoiceDesignItem> sharedPurchaseInvoices;
     private readonly ObservableCollection<SupplierDesignItem> sharedSuppliers;
     private readonly ObservableCollection<PosProductDesignItem> sharedCatalog;
@@ -245,6 +246,7 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
         Action? notifyPurchaseEntryChanged = null,
         PurchaseRepository? repository = null)
     {
+        this.currentUserName = currentUserName;
         this.sharedCatalog = sharedCatalog ?? PosDesignSeedData.CreateSharedSampleCatalog();
         this.sharedRegistrations = sharedRegistrations ?? InventoryDesignSeedData.CreateSharedSampleRegistrations(this.sharedCatalog);
         this.sharedSuppliers = sharedSuppliers ?? PurchaseDesignSeedData.CreateSharedSampleSuppliers();
@@ -430,7 +432,16 @@ public sealed class PurchaseInvoicesViewModel : ObservableObject
 
         var vm = new PurchaseInvoicePrintPreviewViewModel(invoice, modeLabel =>
         {
-            SetStatus($"تمت معاينة طباعة فاتورة المشتريات {invoice.InvoiceNumber} ({modeLabel}).", false);
+            // Reached only after the paper actually reached the printer.
+            invoice.ActivityLog.Add(new PurchaseInvoiceActivityEntry
+            {
+                Timestamp = DateTime.Now,
+                ActionTitle = "طباعة فاتورة الشراء",
+                Details = $"طباعة فعلية بصيغة {modeLabel}.",
+                ActorName = currentUserName,
+                Amount = invoice.NetTotal
+            });
+            SetStatus($"تمت طباعة فاتورة المشتريات {invoice.InvoiceNumber} ({modeLabel}).", false);
         });
 
         OpenPrintPreviewRequested?.Invoke(vm);

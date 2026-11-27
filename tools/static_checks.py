@@ -2322,6 +2322,27 @@ assert 'effective Foreground' in (root / 'tests/ProjectZ.Appearance.Wpf.Tests/Te
     'WPF regression must assert effective text colors, not only resource values'
 # The receipts are classic: black ink on white 80 mm paper, never the coloured preview cards.
 classic_receipt = (root / 'src/ProjectZ/Views/ClassicReceipt.cs').read_text(encoding='utf-8')
+purchase_paper = (root / 'src/ProjectZ/Views/PurchaseInvoicePaper.cs').read_text(encoding='utf-8')
+purchase_print_vm = (root / 'src/ProjectZ/ViewModels/PurchaseInvoicePrintPreviewViewModel.cs').read_text(encoding='utf-8')
+assert 'BuildThermal' in purchase_paper and 'BuildA4Document' in purchase_paper, \
+    'the purchase invoice must print on both the 80 mm roll and A4'
+assert 'PaperWidthMillimetres = 80' in classic_receipt
+for token in ('CenteredLine(', 'CenteredSectionTitle(', 'CenteredGrandTotal('):
+    assert token in purchase_paper, f'the purchase invoice must centre its content ({token})'
+for removed in ('SupplierCompanyDisplay', 'SupplierAddressDisplay', 'ClassicReceipt.Signatures',
+                'includePrintedDisclaimer: true', 'ID مخزون'):
+    assert removed not in purchase_paper, f'the purchase invoice must not print {removed}'
+assert 'includePrintedDisclaimer: false' in purchase_paper
+assert 'PrintDialog' in purchase_print_vm and 'PrintDocument(' in purchase_print_vm, \
+    'the purchase invoice must really print, not only preview'
+assert 'مرحلة التصميم' not in purchase_print_vm, 'the purchase print placeholder must be gone'
+assert 'PaperPreview' in purchase_print_vm and 'IsA4Mode' in purchase_print_vm, \
+    'the purchase window must preview the real paper in both modes'
+purchase_invoices_vm = (root / 'src/ProjectZ/ViewModels/PurchaseInvoicesViewModel.cs').read_text(encoding='utf-8')
+assert 'طباعة فاتورة الشراء' in purchase_invoices_vm and 'PurchaseInvoiceActivityEntry' in purchase_invoices_vm, \
+    'a successful purchase print must be recorded in the invoice activity log'
+assert 'تمت معاينة طباعة فاتورة المشتريات' not in purchase_invoices_vm, \
+    'a print must no longer be described as a mere preview'
 sales_paper = (root / 'src/ProjectZ/Views/SalesInvoicePaper.cs').read_text(encoding='utf-8')
 maintenance_paper = (root / 'src/ProjectZ/Views/MaintenanceReceiptPaper.cs').read_text(encoding='utf-8')
 for paper_name, paper_text in (('ClassicReceipt.cs', classic_receipt), ('SalesInvoicePaper.cs', sales_paper),
